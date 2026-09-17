@@ -84,7 +84,7 @@ export function estimateActionDuration(action) {
  * 计算单个 Row 组内部的一维串行时间线（每个 row 为一组，语音全程，板书和动作二者时间绝对互斥）
  * 动作时间定量 1-2s，看作口播句中的标点停顿
  */
-export function computeRowGroupTimeline(row, options = {}) {
+export function computeRowGroupTimeline(row, _options = {}) {
   const speech = normalizeSpeech(row.speech)
   const speechCharacters = countCharacters(speech)
   const punctuationPauseMs = countPunctuationPause(speech)

@@ -474,7 +474,7 @@ async function placeOnCanvas({ fromUpload = false } = {}) {
   } catch (error) {
     recognizeStatus.value = 'error'
     layoutStatus.value = 'idle'
-    message.error(error?.message || '识别/落位未完成')
+    message.error(error?.message || '识别/落���未完成')
   }
 }
 
@@ -796,9 +796,9 @@ function pct(style) {
 
               <div class="param-field param-field-wide">
                 <div class="field-label">题目文本</div>
-                <a-textarea
-                  v-model:value="problemText"
-                  :rows="4"
+                <textarea
+                  v-model="problemText"
+                  rows="4"
                   :disabled="step1Confirmed"
                   placeholder="支持文本输入；也可上传图片识别后落到这里"
                   @input="onTextInput"
@@ -1190,7 +1190,7 @@ function pct(style) {
           />
         </a-form-item>
         <a-form-item label="模型名称">
-          <a-input v-model:value="checkAgentApiConfig.model" placeholder="输入模型名称" />
+          <a-input v-model:value="checkAgentApiConfig.model" placeholder="输入模型名��" />
         </a-form-item>
         <a-form-item label="API Key">
           <a-input-password
