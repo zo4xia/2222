@@ -1,0 +1,42 @@
+# 构建产物与依赖（build 阶段全新生成）
+node_modules
+dist
+
+# 本地运行时数据（不进镜像；部署时由卷持久化，首次启动各 handler 自动建目录）
+public/audio-cache
+public/deliverable
+public/handoff
+public/pic
+public/board-result
+
+# VCS / IDE / Agent 工作区
+.git
+.chat
+.codebuddy
+.codegraph
+.vscode
+
+# 日志与临时
+*.log
+dev-smoke.log
+
+# 非部署相关文档与样张（不影响构建/运行）
+lite-player.html
+设计灵感卡片-row-player.html
+handwrite-compare (3).html
+AUDIT_压实版_2026-09-17.md
+FULL_STACK_AUDIT_2026-09-17.md
+diagnostic_report.md
+calibrated_prd.md
+decoupling_strategy.md
+dataflow_diagram.md
+module_dependency_graph.md
+project_initial_state.md
+resource_list.md
+risk_matrix.md
+DELIVERY_PACKAGE.md
+ENGINEERING_LOG.md
+PROJECT_STATE.md
+DECISIONS.md
+项目实时架构模块图.md
+api_spec.yaml

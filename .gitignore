@@ -1,0 +1,22 @@
+# 依赖与构建产物
+node_modules/
+dist/
+
+# 运行时数据（部署后由服务器重建；本地教学手稿不入库）
+public/audio-cache/
+public/board-result/
+public/handoff/
+public/pic/
+public/deliverable/*
+!public/deliverable/deliverable.schema.json
+!public/deliverable/DELIVERABLE_API_SPEC.md
+
+# 日志
+*.log
+dev-smoke.log
+
+# 工作区
+.chat/
+.codebuddy/
+.codegraph/
+.vscode/

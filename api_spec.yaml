@@ -1,0 +1,104 @@
+openapi: 3.0.3
+info:
+  title: 小学数学智能引导微课生成工作台 API 规范
+  version: 2.0.0
+  description: 统一规范 Agent A/B/Check/TTS/Deliverable 数据交互管线，严格遵循 { ok, data, code, error } 交互封套
+paths:
+  /api/recognition:
+    post:
+      summary: Agent A 题目识别与知识点 Top-K 检索
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                problemText: { type: string }
+                imageBase64: { type: string }
+                endpoint: { type: string }
+                apiKey: { type: string }
+                model: { type: string }
+      responses:
+        "200":
+          description: 识别成功并回填知识点
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  result: { type: object }
+                  cached: { type: boolean }
+
+  /api/agent-b-v2/generate:
+    post:
+      summary: Agent B 生成五字段教学剧本执行表
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                handoff: { type: object }
+                systemPrompt: { type: string }
+                skillId: { type: string }
+      responses:
+        "200":
+          description: 生成五字段执行表格 (stage, duration, speech, board, actionSpec)
+
+  /api/check-agent/check:
+    post:
+      summary: Check Agent 独立第二双眼睛质检与 ASR 润色
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                currentRows: { type: array }
+                handoff: { type: object }
+      responses:
+        "200":
+          description: 返回润色后的 rows 与详细 changes 对比报告
+
+  /api/deliverable:
+    post:
+      summary: 打包持久化独立微课离线播放器
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                deliverable: { type: object }
+      responses:
+        "200":
+          description: 生成持久化单文件 HTML 并返回播放 URL
+
+  /api/tts/synthesize:
+    post:
+      summary: Fish Audio TTS 口播配音合成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text: { type: string }
+                referenceId: { type: string }
+                model: { type: string }
+      responses:
+        "200":
+          description: 返回合成音频 Base64 或 URL
+
+  /api/cleanup:
+    post:
+      summary: 磁盘垃圾文件受控安全清理
+      responses:
+        "200":
+          description: 返回已清理文件数与释放磁盘字节数
