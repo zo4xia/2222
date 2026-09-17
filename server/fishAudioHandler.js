@@ -104,7 +104,8 @@ export async function synthesizeSpeech({
   }
 
   ensureAudioCacheDir()
-  const cleanText = text.trim()
+  // 契约（2026-09-17）：speech 内 **加粗** 是板书触发锚点，TTS 只读纯文字，统一在合成入口剔除
+  const cleanText = text.trim().replace(/\*\*([^*\n]+?)\*\*/g, '$1')
   const hash = getAudioHash(cleanText, referenceId, model)
   const filename = `${hash}.mp3`
   const filePath = resolve(AUDIO_CACHE_DIR, filename)

@@ -10,7 +10,7 @@ import { fileURLToPath } from 'url'
 import { isOptions, readJsonBody, sendJson } from './http.js'
 import { renderDeliverableHtml, normalizeDeliverableAssetPaths } from './renderDeliverableHtml.js'
 import { computeRowGroupTimeline } from '../src/agent-b-v2/timing.js'
-import { parseBoardField } from '../src/lib/speechMarkdown.js'
+import { normalizeBoardsField } from '../src/agent-b-v2/contract.js'
 // 车同轨、书同文：对外 JSON 统一带规格批注（画布 / 比例 / 字号 / 四区区间 / 越界与手稿风格）
 import { buildCanvasSpecAnnotation } from '../src/utils/superFilter.js'
 
@@ -158,23 +158,17 @@ export function writeDeliverableFile(data) {
   const htmlFilePath = fullPath(htmlFilename)
 
   // 为每个 row 注入严格的单手互斥时序计划与定量 1-2 秒标点停顿动作计划。
-  // 板书区域由 Agent A 提供；Agent B 只交付自然段内容和触发方式，不生成坐标或固定行距。
+  // 契约定案（2026-09-17）：row 五字段 { stage, mp3, speech, boards:[{startDelay,content}], actionSpec }；
+  // boards 数组唯一契约，旧 board 单对象兼容归一；triggerKeyword 已废弃，导出时剥离。
   const normalizedRows = Array.isArray(data.rows)
     ? data.rows.map((row) => {
         const computed = computeRowGroupTimeline(row)
-        const sourceBoard = row.board && typeof row.board === 'object' ? row.board : {}
-        const triggerKeyword = typeof sourceBoard.triggerKeyword === 'string'
-          ? sourceBoard.triggerKeyword.trim()
-          : ''
-        // 车同轨·书同文：板书统一过超级过滤器，单个 row 组内一行一个、写完一个再写一个（lines 数组）
-        const parsedBoard = parseBoardField(row.board)
-        const board = {
-          content: parsedBoard.content,
-          lines: parsedBoard.lines || [],
-          ...(triggerKeyword
-            ? { triggerKeyword }
-            : { startDelay: Number.isFinite(Number(sourceBoard.startDelay)) ? Math.max(0, Number(sourceBoard.startDelay)) : 0 }),
-        }
+        const boards = normalizeBoardsField(row.boards, row.board).map((board) => ({
+          startDelay: typeof board.startDelay === 'number' && Number.isFinite(board.startDelay)
+            ? Math.max(0, board.startDelay)
+            : 0,
+          content: board.content || '',
+        }))
         const measuredAudioDurationMs = Number(row.audioDurationMs)
         const hasMeasuredAudio = Number.isFinite(measuredAudioDurationMs) && measuredAudioDurationMs > 0
         // 契约诚实（决策 #019）：行内已存旧排程时，只要拿到真实音频时长就必须重算。
@@ -189,7 +183,8 @@ export function writeDeliverableFile(data) {
           : (row.exclusiveExecutionPlan || computed.exclusiveExecutionPlan)
         return {
           ...row,
-          board,
+          boards,
+          mp3: typeof row.mp3 === 'string' && row.mp3 ? row.mp3 : (row.audioUrl || ''),
           // audioDurationMs 是真实音频时长；duration 仅保留为旧播放器兼容的秒单位字段
           duration: hasMeasuredAudio
             ? Math.round((measuredAudioDurationMs / 1000) * 10) / 10
@@ -202,7 +197,7 @@ export function writeDeliverableFile(data) {
           totalDurationMs: row.totalDurationMs || rowTotalDurationMs,
           exclusiveExecutionPlan,
           plan: row.plan || exclusiveExecutionPlan,
-          timingPolicy: 'speech-full-board-action-mutually-exclusive',
+          timingPolicy: 'boards-all-written-then-actions-serial',
         }
       })
     : []
@@ -211,7 +206,7 @@ export function writeDeliverableFile(data) {
     $schema: '/deliverable/deliverable.schema.json',
     apiSpecVersion: '2.0.0',
     apiDocUrl: '/deliverable/DELIVERABLE_API_SPEC.md',
-    specificationSummary: '每个 row 为一组原子单元；语音全程；板书与动作二者绝对互斥（一维时间线上播放的东西绝对没有交集，动作可插在板书前后的时间缝隙里）；动作时长定量 1~2 秒作为标点停顿。供下游课件制作与画布 Agent 直接消费。',
+    specificationSummary: '每个 row 为一组原子单元（五字段：stage/mp3/speech/boards/actionSpec）；语音全程；speech 内 **加粗** 按序映射 boards[i] 触发落笔；单手串行：本 row 所有 boards 写完才按 order 执行 actionSpec；动作时长定量 1~2 秒作为标点停顿。供下游课件制作与画布 Agent 直接消费。',
     // 对外规格批注：画布尺寸 / 比例 / 题目字号 / 板书字号 / 本题 stage 四区坐标落座区间 / 越界与手稿风格
     specAnnotation: buildCanvasSpecAnnotation({
       zoneAnchors: data.boardPlan || data.zoneAnchors || null,
