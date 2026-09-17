@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>设计灵感卡片 · 仿人板书讲学播放器 row-player（六个视觉方向 · 单文件 HTML）</title>
+<!--
+  ============================================================
+  > 更新时间：2026-09-17 01:40 GMT+8
+  > 更新人：小阿星 ✦ · 像素君（UI Designer）
+  > 来源：基于 G:\vedio\remix-remix-copy-of--googel (1)\row-player.html 实际产品语境定制
+  > 本项目定位：项目根目录 / 设计灵感卡片-row-player.html（设计选型参考，双击离线可开）
+  > 版本：v1.0（2026-09-17 首次产出，六方向 + 定位图 + 可试玩微缩样机）
+  ============================================================
+-->
+<style>
+/* 板书手写体：与 row-player.html 同一真相源 —— CDN 507「平方乔木体」（脱环境，不引用本地 ttf；CDN 不可用时回退系统楷体） */
+
+
+:root{
+  --page:#f4f2ec;
+  --card:#ffffff;
+  --ink:#1c1917;
+  --sub:#6b6560;
+  --line:#e4e0d6;
+  --serif:"Songti SC","Noto Serif SC","SimSun",serif;
+  --sans:"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  --mono:"SF Mono","JetBrains Mono",Consolas,"Courier New",monospace;
+  --hand:'平方乔木体','平方韶华体','平方上上谦体','平方三生体','PingFangSaTuoTi','LikeJianJianTi','PingFangHand',"KaiTi","STKaiti",serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);line-height:1.7;
+     -webkit-font-smoothing:antialiased}
+.wrap{max-width:1060px;margin:0 auto;padding:48px 20px 80px}
+
+/* ---------- 页头 ---------- */
+.masthead{border-bottom:3px solid var(--ink);padding-bottom:28px;margin-bottom:14px}
+.masthead .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--sub);margin-bottom:14px}
+.masthead h1{font-family:var(--serif);font-size:clamp(30px,5vw,46px);font-weight:700;line-height:1.25;margin:0 0 10px;letter-spacing:.01em}
+.masthead .lede{font-size:15px;color:#44403c;max-width:640px;margin:0}
+.metastrip{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 0;padding:0;list-style:none}
+.metastrip li{font-family:var(--mono);font-size:11.5px;color:var(--sub);border:1px solid var(--line);
+              background:#fffdf8;border-radius:999px;padding:3px 12px}
+
+/* ---------- 留痕块 ---------- */
+.provenance{margin:22px 0 46px;border:1px dashed #c9c2b2;background:#fbfaf5;border-radius:8px;
+            padding:14px 18px;font-size:12.5px;color:#57534e;line-height:1.9}
+.provenance b{color:var(--ink)}
+.provenance .sig{font-family:var(--serif)}
+
+/* ---------- 产品语境 ---------- */
+.context{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:26px 28px;margin-bottom:52px;
+         box-shadow:0 1px 3px rgba(28,25,23,.05)}
+.context h2{font-family:var(--serif);font-size:20px;margin:0 0 4px}
+.context .cap{font-size:12px;color:var(--sub);margin:0 0 16px;font-family:var(--mono);letter-spacing:.08em}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px 22px;margin:0;padding:0;list-style:none}
+.facts li{font-size:13px;color:#44403c;padding-left:16px;position:relative;line-height:1.65}
+.facts li::before{content:"";position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:2px;background:#b45309}
+.facts b{color:var(--ink)}
+.principle{margin-top:18px;border-left:3px solid #b45309;background:#fdf8ef;padding:10px 14px;font-size:13px;color:#78350f;border-radius:0 6px 6px 0}
+
+/* ---------- 方向卡 ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:44px;
+      box-shadow:0 1px 4px rgba(28,25,23,.06);opacity:0;transform:translateY(24px);
+      transition:opacity .6s ease,transform .6s ease}
+.card.in{opacity:1;transform:none}
+.card-head{display:flex;align-items:flex-start;gap:18px;padding:26px 30px 0;border-top:5px solid var(--accent,#111)}
+.card-num{font-family:var(--mono);font-size:40px;font-weight:700;line-height:1;color:var(--accent,#111);opacity:.9}
+.card-title h2{font-family:var(--serif);font-size:26px;margin:0;line-height:1.3}
+.card-title .en{font-family:var(--mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--sub);margin-top:3px}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-left:auto;padding-top:6px}
+.chips span{font-size:12px;color:var(--accent,#111);border:1px solid currentColor;border-radius:999px;padding:2px 11px;opacity:.85}
+.concept{margin:16px 30px 22px;padding:16px 22px;background:#faf8f3;border-radius:8px;
+         font-family:var(--serif);font-size:16px;line-height:1.9;color:#3f3a34}
+.concept::before{content:"「";color:var(--accent,#111)}
+.concept::after{content:"」";color:var(--accent,#111)}
+
+.blocks{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+@media(max-width:760px){.blocks{grid-template-columns:1fr}}
+.block{background:var(--card);padding:22px 30px}
+.block h3{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--sub);
+          margin:0 0 14px;font-weight:600}
+.block h3 em{font-style:normal;font-family:var(--sans);letter-spacing:.05em;color:var(--ink);font-size:12.5px;margin-left:8px}
+
+/* 配色板 */
+.swatches{display:flex;flex-direction:column;gap:8px}
+.sw{display:flex;align-items:center;gap:12px;cursor:pointer;border-radius:6px;padding:3px 4px;margin:-3px -4px;
+    transition:background .15s}
+.sw:hover{background:#f5f2ea}
+.sw i{width:34px;height:34px;border-radius:6px;border:1px solid rgba(0,0,0,.14);flex:none}
+.sw .nm{font-size:13px;font-weight:600;line-height:1.3}
+.sw .use{font-size:11.5px;color:var(--sub);line-height:1.3}
+.sw .hex{font-family:var(--mono);font-size:11.5px;color:var(--sub);margin-left:auto;flex:none}
+
+/* 字体 */
+.type-demo .display{font-size:22px;line-height:1.4;margin-bottom:2px}
+.type-demo .dlab{font-size:11.5px;color:var(--sub);margin-bottom:12px}
+.type-demo .dlab b{color:var(--ink)}
+.type-demo .body{font-size:13.5px;line-height:1.75;color:#44403c;border-top:1px dashed var(--line);padding-top:10px}
+.scale{margin-top:12px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.scale b{font-family:var(--mono);font-size:13px;color:var(--accent,#111)}
+.scale span{font-family:var(--mono);font-size:11px;color:var(--sub)}
+
+/* 形态 */
+.form-rows{display:flex;flex-direction:column;gap:0}
+.form-rows .fr{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.form-rows .fr:last-child{border-bottom:none}
+.form-rows .k{color:var(--sub);font-size:12px}
+.form-rows .v{font-weight:600;font-family:var(--mono);font-size:12.5px}
+
+/* 适用 */
+.fit p{font-size:13.5px;margin:0 0 10px;color:#44403c}
+.fit p b{color:var(--ink)}
+.fit .advice{font-size:12.5px;color:#57534e;background:#faf8f3;border-radius:6px;padding:10px 12px;line-height:1.7}
+.fit .advice b{color:var(--accent,#111)}
+
+/* ---------- 微缩样机 ---------- */
+.spec-zone{padding:26px 30px 30px;background:#f7f5ef}
+.spec-cap{font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:var(--sub);margin-bottom:14px;text-transform:uppercase}
+.spec{max-width:620px;margin:0 auto;padding:14px;position:relative}
+.spec-board{position:relative;padding:18px 20px 16px;min-height:170px}
+.spec-board .problem{font-size:12.5px;line-height:1.65;margin:6px 0 14px;max-width:88%}
+.spec-board .handline{font-family:var(--hand);font-size:24px;line-height:1.7;margin:6px 0 0;position:relative;display:inline-block}
+.tw::after{content:"▌";font-family:var(--sans);font-size:.7em;animation:blink .8s step-end infinite;opacity:.7}
+.tw.done::after{content:""}
+@keyframes blink{50%{opacity:0}}
+.tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 10px;border-radius:5px;margin-bottom:2px}
+/* 打字机样机的 svg 圈字动画（原有，勿删） */
+.anno{position:absolute;left:-10px;top:-4px;width:calc(100% + 20px);height:calc(100% + 8px);overflow:visible;pointer-events:none}
+.anno ellipse{fill:none;stroke:var(--anno,#dc2626);stroke-width:2.4;stroke-linecap:round;
+              stroke-dasharray:420;stroke-dashoffset:420;transform:rotate(-2deg);transform-origin:center}
+.anno.on ellipse{animation:draw .7s ease forwards}
+.anno ellipse.e2{stroke-width:1.6;opacity:.65;transform:rotate(1.5deg)}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+/* rough-notation 仿手绘：circle「9」/ underline「20.4 厘米」（对应真实 actionSpec order 1、2） */
+.rough-c,.rough-u{position:relative;display:inline-block}
+.rough-c::after,.rough-u::after{content:"";position:absolute;pointer-events:none;border:2.2px solid var(--anno,#dc2626);
+  opacity:0;transform:scale(.86) rotate(-2deg)}
+.rough-c::after{inset:-3px -7px;border-radius:52% 46% 55% 47%/47% 54% 45% 53%}
+.rough-u::after{inset:auto -3px -5px -3px;height:0;border:none;border-bottom:2.4px solid var(--anno,#dc2626);border-radius:40% 60% 55% 45%/100%}
+.rough-c.on::after{animation:roughPop .45s cubic-bezier(.34,1.56,.64,1) forwards}
+.rough-u.on::after{animation:roughPop .4s ease .18s forwards}
+@keyframes roughPop{from{opacity:0;transform:scale(.86) rotate(-2deg)}to{opacity:1;transform:scale(1) rotate(-1.2deg)}}
+
+/* ---------- 样机双联：试玩打字机 + 教学白板 ---------- */
+.spec-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:22px;align-items:start}
+@media(max-width:900px){.spec-pair{grid-template-columns:1fr}}
+.spec-col{min-width:0}
+.board-slot{max-width:660px;margin:0 auto}
+.board{padding:10px}
+.board-face{position:relative;aspect-ratio:1726/980;width:100%;--bw:560px}
+.region{position:absolute;overflow:hidden}
+.r-question{left:6%;top:13.2%;width:44%;height:22%}
+.r-analysis{left:6%;top:41%;width:44%;height:48%}
+.r-solution{left:54%;top:14%;width:40%;height:44%}
+.r-summary{left:54%;top:69.5%;width:40%;height:22%}
+.bq{margin:0;font-size:calc(var(--bw)*.0215);line-height:1.65}
+.bh{margin:0;font-family:var(--hand);white-space:pre-wrap;word-break:break-word}
+.bh .ln{display:block}
+.stagetag{display:inline-block;font-size:calc(var(--bw)*.0175);font-weight:600;padding:1px 8px;border-radius:5px;
+  margin-bottom:calc(var(--bw)*.008);transform-origin:left bottom}
+.stagetag.pop{animation:tagPop .18s cubic-bezier(.34,1.56,.64,1)}
+@keyframes tagPop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.board .spec-sub,.board .spec-bar{margin-left:2px;margin-right:2px}
+.segticks{position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:none}
+.segticks i{position:absolute;top:0;bottom:0;width:1px;background:currentColor;opacity:.28}
+.seek{position:relative;cursor:pointer}
+.speed-note{font-family:var(--mono);font-size:10.5px;opacity:.6;margin-top:6px;text-align:right}
+.spec-sub{font-size:13px;line-height:1.6;padding:9px 13px;margin-top:12px}
+.spec-bar{display:flex;align-items:center;gap:10px;margin-top:10px}
+.spec-bar .play{flex:none;width:38px;height:30px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.spec-bar .play:focus-visible{outline:2px solid var(--accent,#2563eb);outline-offset:2px}
+.seek{flex:1;height:6px;border-radius:99px;background:rgba(120,113,108,.25);overflow:hidden;position:relative}
+.seek i{display:block;height:100%;width:0;border-radius:99px;background:var(--accent,#2563eb);transition:width .12s linear}
+.spec-time{font-family:var(--mono);font-size:11.5px;font-variant-numeric:tabular-nums;flex:none;opacity:.75}
+
+/* ===== 01 极简纸白 ===== */
+.d1{--accent:#2563eb}
+.d1 .spec{background:#fbfaf6;border:1px solid #e2e8f0;border-radius:10px;color:#1e293b;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.d1 .spec-board{background:#fff;border:1px solid #eef2f7;border-radius:8px}
+.d1 .tag{background:#eff6ff;color:#2563eb;border:1px solid #dbeafe}
+.d1 .tag.t2{background:#fef2f2;color:#dc2626;border-color:#fee2e2}
+.d1 .spec-sub{background:#fff;border:1px solid #e2e8f0;border-radius:8px;color:#475569}
+.d1 .play{background:#2563eb;color:#fff;border:none;border-radius:8px}
+.d1 .play:hover{background:#1d4ed8}
+
+/* ===== 02 编辑排版 ===== */
+.d2{--accent:#a63d2f}
+.d2 .spec{background:#f7f3eb;border:2px solid #14120e;border-radius:0;color:#14120e;font-family:var(--serif)}
+.d2 .spec-board{background:#fffdf7;border-top:1px solid #14120e;border-bottom:1px solid #14120e;padding:20px 22px}
+.d2 .tag{background:#14120e;color:#f7f3eb;border-radius:0;font-family:var(--sans);letter-spacing:.2em;font-size:10px}
+.d2 .tag.t2{background:#a63d2f}
+.d2 .problem{font-family:var(--serif)}
+.d2 .spec-sub{background:transparent;border:none;border-top:1px dashed #b8a98c;border-radius:0;color:#5c5344;padding:10px 2px;font-size:12.5px}
+.d2 .play{background:#a63d2f;color:#f7f3eb;border:1.5px solid #14120e;border-radius:0;font-family:var(--serif)}
+.d2 .seek{background:#e5dcc9;border-radius:0;height:4px}
+.d2 .seek i{background:#a63d2f;border-radius:0}
+
+/* ===== 03 暗色专注 ===== */
+.d3{--accent:#3fb950}
+.d3 .spec{background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3}
+.d3 .spec-board{background:#fbfaf6;border-radius:4px;color:#1e293b}
+.d3 .tag{background:#161b22;color:#3fb950;border:1px solid #30363d;font-family:var(--mono);font-size:10px;letter-spacing:.1em}
+.d3 .tag.t2{color:#f85149}
+.d3 .spec-sub{background:#161b22;border:1px solid #30363d;border-radius:6px;color:#9da7b3;font-family:var(--mono);font-size:12px}
+.d3 .play{background:#238636;color:#fff;border:1px solid #2ea043;border-radius:6px}
+.d3 .play:hover{background:#2ea043}
+.d3 .seek{background:#30363d}
+.d3 .seek i{background:#3fb950}
+/* ===== 教学白板 · 各方向皮肤 ===== */
+.board{border-radius:10px}
+.board-face{background:#fbfaf6}
+.d1 .board{background:#fbfaf6;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,.06);color:#1e293b}
+.d1 .stagetag{background:#eff6ff;color:#2563eb;border:1px solid #dbeafe}
+.d1 .stagetag.a{background:#fef2f2;color:#dc2626;border-color:#fee2e2}
+.d1 .spec-sub{background:#fff;border:1px solid #e2e8f0;border-radius:8px;color:#475569}
+.d2 .board{background:#fffdf7;border:2px solid #14120e;border-radius:0;color:#14120e;font-family:var(--serif)}
+.d2 .stagetag{background:#14120e;color:#f7f3eb;border-radius:0;letter-spacing:.15em}
+.d2 .stagetag.a{background:#a63d2f}
+.d2 .spec-sub{background:transparent;border:none;border-top:1px dashed #b8a98c;border-radius:0;color:#5c5344}
+.d3 .board{background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3}
+.d3 .board-face{background:#fbfaf6;color:#1e293b;border-radius:4px}
+.d3 .stagetag{background:#161b22;color:#3fb950;border:1px solid #30363d;font-family:var(--mono);letter-spacing:.08em}
+.d3 .stagetag.a{color:#f85149}
+.d3 .spec-sub{background:#161b22;border:1px solid #30363d;border-radius:6px;color:#9da7b3;font-family:var(--mono)}
+.d3 .spec-time{color:#7d8590}
+.d4 .board{background:#fbf3e4;border-radius:22px;color:#4a3628;box-shadow:0 10px 26px rgba(74,54,40,.14)}
+.d4 .board-face{background:#fffaf0;border:2px dashed #e9d9bf;border-radius:16px;--anno:#c96f4a}
+.d4 .stagetag{background:#c96f4a;color:#fff8ee;border-radius:999px;transform:rotate(-2deg)}
+.d4 .stagetag.a{background:#7a8b5c;transform:rotate(1.5deg)}
+.d4 .spec-sub{background:#f3e7cf;border:none;border-radius:14px;color:#6b5442}
+.d4 .spec-time{color:#6b5442}
+.d5 .board{background:#fff9e6;border:3px solid #111;border-radius:4px;color:#111;box-shadow:7px 7px 0 #111}
+.d5 .board-face{background:#fff;border:2px solid #111;border-radius:2px;--anno:#e03131}
+.d5 .stagetag{background:#ffd43b;color:#111;border:2px solid #111;border-radius:3px;font-weight:800;box-shadow:2px 2px 0 #111;transform:rotate(-1.5deg)}
+.d5 .stagetag.a{background:#f783ac}
+.d5 .bq{font-weight:600}
+.d5 .spec-sub{background:#fff;border:2px solid #111;border-radius:3px;color:#111;font-weight:600}
+.d5 .spec-time{font-weight:700}
+.d6 .board{background:rgba(255,255,255,.28);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.65);border-radius:20px;color:#1e1b4b;box-shadow:0 12px 32px rgba(30,27,75,.16)}
+.d6 .board-face{background:rgba(255,255,255,.62);border:1px solid rgba(255,255,255,.8);border-radius:16px;--anno:#b91c1c}
+.d6 .stagetag{background:rgba(109,40,217,.14);color:#5b21b6;border:1px solid rgba(109,40,217,.3);border-radius:999px}
+.d6 .stagetag.a{background:rgba(220,38,38,.1);color:#b91c1c;border-color:rgba(220,38,38,.25)}
+.d6 .spec-sub{background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.75);border-radius:12px;color:#312e81}
+.d6 .spec-time{color:#3730a3}
+/* 倍速切换 */
+.speeds{display:flex;gap:4px;flex:none}
+.speeds button{font-family:var(--mono);font-size:10.5px;padding:2px 7px;border-radius:5px;cursor:pointer;
+  border:1px solid currentColor;background:transparent;color:inherit;opacity:.45;line-height:1.6}
+.speeds button.on{opacity:1;font-weight:700}
+.speeds button:focus-visible{outline:2px solid currentColor;outline-offset:1px}
+
+/* ===== 04 温暖有机 ===== */
+.d4{--accent:#c96f4a}
+.d4 .spec{background:#fbf3e4;border-radius:22px;color:#4a3628;box-shadow:0 10px 26px rgba(74,54,40,.14)}
+.d4 .spec-board{background:#fffaf0;border-radius:18px;border:2px dashed #e9d9bf}
+.d4 .tag{background:#c96f4a;color:#fff8ee;border-radius:999px;transform:rotate(-2deg);font-size:11.5px;padding:3px 13px}
+.d4 .tag.t2{background:#7a8b5c;transform:rotate(1.5deg)}
+.d4 .spec-sub{background:#f3e7cf;border:none;border-radius:14px;color:#6b5442}
+.d4 .play{background:#c96f4a;color:#fff8ee;border:none;border-radius:999px;width:42px;height:34px}
+.d4 .play:hover{background:#b65f3c}
+.d4 .seek{background:#e9d9bf;height:8px}
+.d4 .seek i{background:#7a8b5c}
+
+/* ===== 05 新粗野主义 ===== */
+.d5{--accent:#7048e8}
+.d5 .spec{background:#fff9e6;border:3px solid #111;border-radius:4px;color:#111;box-shadow:7px 7px 0 #111}
+.d5 .spec-board{background:#fff;border:2px solid #111;border-radius:2px}
+.d5 .tag{background:#ffd43b;color:#111;border:2px solid #111;border-radius:3px;font-weight:800;
+         box-shadow:2px 2px 0 #111;transform:rotate(-1.5deg);font-size:11px}
+.d5 .tag.t2{background:#f783ac}
+.d5 .handline{font-weight:700}
+.d5 .spec-sub{background:#fff;border:2px solid #111;border-radius:3px;color:#111;font-weight:600;font-size:12.5px}
+.d5 .play{background:#7048e8;color:#fff;border:2.5px solid #111;border-radius:3px;box-shadow:3px 3px 0 #111;font-weight:800}
+.d5 .play:active{box-shadow:1px 1px 0 #111;transform:translate(2px,2px)}
+.d5 .seek{background:#fff;border:2px solid #111;border-radius:0;height:10px}
+.d5 .seek i{background:#ffd43b;border-radius:0}
+
+/* ===== 06 玻璃拟态 ===== */
+.d6{--accent:#6d28d9}
+.d6 .spec-zone{background:linear-gradient(135deg,#c7d2fe 0%,#e0e7ff 55%,#ddd6fe 100%)}
+.d6 .spec{background:rgba(255,255,255,.28);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+          border:1px solid rgba(255,255,255,.65);border-radius:20px;color:#1e1b4b;box-shadow:0 12px 32px rgba(30,27,75,.16)}
+.d6 .spec-board{background:rgba(255,255,255,.62);border:1px solid rgba(255,255,255,.8);border-radius:16px;
+                backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.d6 .tag{background:rgba(109,40,217,.14);color:#5b21b6;border:1px solid rgba(109,40,217,.3);border-radius:999px;font-size:10.5px}
+.d6 .tag.t2{background:rgba(220,38,38,.1);color:#b91c1c;border-color:rgba(220,38,38,.25)}
+.d6 .spec-sub{background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.75);border-radius:12px;color:#312e81}
+.d6 .play{background:rgba(109,40,217,.85);color:#fff;border:1px solid rgba(255,255,255,.5);border-radius:12px;
+          backdrop-filter:blur(6px)}
+.d6 .play:hover{background:rgba(109,40,217,1)}
+.d6 .seek{background:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.6)}
+.d6 .seek i{background:#6d28d9}
+.d6 .spec-time{color:#3730a3}
+
+/* ---------- 定位图 ---------- */
+.map-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:30px;margin-bottom:44px;
+          box-shadow:0 1px 4px rgba(28,25,23,.06)}
+.map-card h2{font-family:var(--serif);font-size:24px;margin:0 0 2px}
+.map-card .cap{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--sub);text-transform:uppercase;margin:0 0 20px}
+.map-svg{width:100%;height:auto;display:block}
+.guide{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:24px}
+@media(max-width:760px){.guide{grid-template-columns:1fr}}
+.guide .g{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:#faf8f3;font-size:13px;color:#44403c;line-height:1.7}
+.guide .g b{display:block;color:var(--ink);font-size:13.5px;margin-bottom:3px}
+.guide .g .pick{font-family:var(--mono);font-size:12px;color:#b45309;font-weight:700}
+.combo{margin-top:20px;border-left:3px solid #1e3a8a;background:#f5f7fd;padding:12px 16px;font-size:13px;color:#334155;border-radius:0 8px 8px 0;line-height:1.8}
+.combo b{color:#1e3a8a}
+
+/* ---------- 页脚 / 更新记录 ---------- */
+.footer{border-top:3px solid var(--ink);padding-top:22px;margin-top:10px}
+.footer h3{font-family:var(--serif);font-size:17px;margin:0 0 10px}
+.footer table{width:100%;border-collapse:collapse;font-size:12.5px}
+.footer th,.footer td{border:1px solid var(--line);padding:7px 10px;text-align:left;color:#44403c}
+.footer th{background:#faf8f3;font-weight:600;color:var(--ink)}
+.footer .sigline{margin-top:16px;font-size:12px;color:var(--sub);font-family:var(--mono)}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:34px;transform:translate(-50%,20px);background:#1c1917;color:#fafaf9;
+       font-size:13px;padding:9px 18px;border-radius:999px;opacity:0;pointer-events:none;transition:.25s;z-index:99;
+       font-family:var(--mono)}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+</style>
+<link rel="stylesheet" href="https://fontsapi.zeoseven.com/507/main/result.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ================= 页头 ================= -->
+  <header class="masthead">
+    <div class="kicker">Design Inspiration Cards · 06 Directions · Offline Single File</div>
+    <h1>设计灵感卡片<br>仿人板书讲学播放器 <span style="font-family:var(--mono);font-size:.55em;letter-spacing:.05em">row-player.html</span></h1>
+    <p class="lede">六个差异明显的视觉方向，每个方向一张完整灵感卡：设计理念 · 配色板（色值+用途）· 字体搭配与字号比例 · 形态参数 · 情绪关键词 · 适用场景，外加一个<b>可试玩的微缩样机</b>——点 ▶ 看该风格下的板书打字机效果。</p>
+    <ul class="metastrip">
+      <li>画布 1726×980</li><li>四段 stage：题目/分析/解答/总结</li><li>手写体 38px · 印刷题目 30px</li><li>板书速度 2–3 字/秒 · 超出音频窗口自适应加速 · 软边遮罩揭示</li><li>零依赖 · 双击离线可开</li>
+    </ul>
+  </header>
+
+  <div class="provenance">
+    <b>更新时间</b>：2026-09-17 01:40 GMT+8 ｜ <b>更新人</b>：<span class="sig">小阿星 ✦ · 像素君（UI Designer，代表夏夏）</span><br>
+    <b>来源</b>：读取 <code>row-player.html</code>（v2026-09-16，104KB）真实规格定制，非通用模板 ｜ <b>本项目定位</b>：<code>设计灵感卡片-row-player.html</code>（项目根目录）<br>
+    <b>版本</b>：v1.0（首次产出） ｜ 手写体走 CDN 字体「平方乔木体」<code>https://fontsapi.zeoseven.com/507/main/result.css</code>（与产品同一真相源，加载失败回退系统楷体）
+  </div>
+
+  <!-- ================= 产品语境 ================= -->
+  <section class="context">
+    <h2>产品语境速写</h2>
+    <p class="cap">GROUNDING · 设计前先把产品读懂</p>
+    <ul class="facts">
+      <li><b>它是什么</b>：单文件「口播 + 手写板书 + 动作」同步播放器，吃 deliverable JSON，连续毫秒时间轴，render(t) 纯函数可 seek</li>
+      <li><b>板面</b>：纸白 #fbfaf6，浅蓝贴纸边框底图，板书安全区 left 1.8% / top 3.37%</li>
+      <li><b>板书</b>：平方乔木手写体 38px，分析红 / 解答·总结黑，行高 1.55–1.85 随机，1 秒 2–3 字带 ±10% 抖动</li>
+      <li><b>题目</b>：30px 印刷体黑色，考卷式，一打开就写好</li>
+      <li><b>stage 贴纸</b>：题目/分析/解答/总结 4 枚标签，180ms「啪」地弹出，贴在首行板书上方</li>
+      <li><b>壳层控件</b>：▶ 播放 / ● 录制 / ✍ 批注 + seek 滑杆 + 时间码 + 字幕条 + 时间轴画布 + 配置折叠面板</li>
+      <li><b>动作</b>：rough-notation 圈字 / 划线，锚定已写出文字（exactText）</li>
+      <li><b>用户</b>：K12 学生与家长（观看）、教研与内容生产者（配置/录制）、甲方演示场景</li>
+    </ul>
+    <div class="principle"><b>共同铁律：</b>六个方向只换「壳层」（页面底色、控制条、字幕、面板、标签），<b>板面纸白 + 手写体板书是内容真相源，一律不动</b>——风格再张扬，也不能让学生看错一个字。</div>
+  </section>
+
+  <!-- ================= 01 极简纸白 ================= -->
+  <section class="card d1">
+    <div class="card-head">
+      <div class="card-num">01</div>
+      <div class="card-title"><h2>极简纸白</h2><div class="en">Quiet Minimal</div></div>
+      <div class="chips"><span>安静</span><span>克制</span><span>纸感</span><span>呼吸感</span></div>
+    </div>
+    <blockquote class="concept">界面退后，板书向前。播放器壳层只做一张「纸」，控件默认半隐，全部注意力留给笔尖——这是对现状（#f4f1ea + 纸白板面）成本最低、气质最顺的升级路径。</blockquote>
+    <div class="blocks">
+      <div class="block">
+        <h3>Palette <em>配色板 · 点击色块复制色值</em></h3>
+        <div class="swatches">
+          <div class="sw" data-hex="#FBFAF6"><i style="background:#FBFAF6"></i><div><div class="nm">纸白</div><div class="use">板面 / 页面底</div></div><div class="hex">#FBFAF6</div></div>
+          <div class="sw" data-hex="#1E293B"><i style="background:#1E293B"></i><div><div class="nm">暖墨</div><div class="use">正文 / 板书墨色</div></div><div class="hex">#1E293B</div></div>
+          <div class="sw" data-hex="#2563EB"><i style="background:#2563EB"></i><div><div class="nm">靛蓝</div><div class="use">主操作（播放/已播进度）</div></div><div class="hex">#2563EB</div></div>
+          <div class="sw" data-hex="#EFF6FF"><i style="background:#EFF6FF"></i><div><div class="nm">淡靛</div><div class="use">标签浅底 / hover</div></div><div class="hex">#EFF6FF</div></div>
+          <div class="sw" data-hex="#E2E8F0"><i style="background:#E2E8F0"></i><div><div class="nm">雾线</div><div class="use">分隔线 / 描边</div></div><div class="hex">#E2E8F0</div></div>
+          <div class="sw" data-hex="#DC2626"><i style="background:#DC2626"></i><div><div class="nm">批注红</div><div class="use">仅圈字划线 / 分析色</div></div><div class="hex">#DC2626</div></div>
+        </div>
+      </div>
+      <div class="block">
+        <h3>Typography <em>字体搭配</em></h3>
+        <div class="type-demo">
+          <div class="display" style="font-weight:300">平行四边形的面积</div>
+          <div class="dlab"><b>展示 · 细字重</b>　苹方/思源黑体 Light 300，靠字号而非字重建立层级</div>
+          <div class="body">正文用 Regular 400，行高 1.7；时间码与配置面板数字统一 <span style="font-family:var(--mono)">tabular-nums</span> 等宽对齐，seek 时不抖动。板书保留平方乔木手写体。</div>
+          <div class="scale"><b>字阶模数 1.25</b><span>28 / 22 / 18 / 14 / 12 px</span></div>
+        </div>
+      </div>
+      <div class="block">
+        <h3>Form <em>形态参数</em></h3>
+        <div class="form-rows">
+          <div class="fr"><span class="k">圆角</span><span class="v">8px（沿用现状 .stage）</span></div>
+          <div class="fr"><span class="k">描边</span><span class="v">1px 发丝线 #E2E8F0</span></div>
+          <div class="fr"><span class="k">阴影</span><span class="v">≈无 · 0 1px 3px 6%</span></div>
+          <div class="fr"><span class="k">留白率</span><span class="v">≈50%</span></div>
+        </div>
+      </div>
+      <div class="block fit">
+        <h3>Fit <em>适用场景</em></h3>
+        <p><b>录课导出、教师日常备课、长时间观看。</b>当「不打扰板书」本身就是产品价值时，这个方向几乎不会错，也是与现有代码差异最小的基线。</p>
+        <div class="advice"><b>落地建议</b>　控件默认 60% 透明度，hover / 播放中才完全浮现；只保留 ▶ 与进度条常驻，录制/批注/配置收进一个「⋯」组；红色只允许出现在批注动作里。</div>
+      </div>
+    </div>
+    <div class="spec-zone">
+      <div class="spec-cap">Specimen 01 · 左：打字机微缩样机 ｜ 右：教学白板（真实 rows 驱动 · 点 ▶ 播放 / 拖动进度条 seek / 切倍速）</div>
+      <div class="spec-pair">
+        <div class="spec-col">
+          <div class="spec">
+            <div class="spec-board">
+              <span class="tag">题目</span>
+              <p class="problem">一个平行四边形花坛，底 6 cm，高 4 cm，它的面积是多少？</p>
+              <span class="tag t2">解答</span>
+              <p class="handline" style="color:#1e293b"><span class="tw" data-text="S = a × h = 6 × 4 = 24（cm²）"></span>
+                <svg class="anno" viewBox="0 0 300 60" preserveAspectRatio="none"><ellipse cx="150" cy="30" rx="140" ry="24"/><ellipse class="e2" cx="150" cy="30" rx="132" ry="20"/></svg>
+              </p>
+            </div>
+            <div class="spec-sub">底乘高，就是它的面积。</div>
+            <div class="spec-bar">
+              <button class="play" aria-label="播放">▶</button>
+              <div class="seek"><i></i></div>
+              <span class="spec-time">0.0 / 48.0 s</span>
+            </div>
+          </div>
+        </div>
+        <div class="spec-col">
+          <div class="board-slot" data-board>
+            <div class="board"><div class="board-face"></div></div>
+            <div class="spec-sub" data-sub></div>
+            <div class="spec-bar">
+              <button class="play" aria-label="播放板书">▶</button>
+              <div class="seek"><i></i></div>
+              <span class="spec-time">0.0 / 69.9 s</span>
+              <span class="speeds"><button data-sp="1" class="on">1×</button><button data-sp="2">2×</button><button data-sp="4">4×</button></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 02 编辑排版 ================= -->
+  <section class="card d2">
+    <div class="card-head">
+      <div class="card-num">02</div>
+      <div class="card-title"><h2>编辑排版 · 讲义风</h2><div class="en">Editorial Handout</div></div>
+      <div class="chips"><span>文人气</span><span>庄重</span><span>栏目化</span><span>可印刷</span></div>
+    </div>
+    <blockquote class="concept">把每节课当作一页讲义来排。衬线大标题、细规则线、期号与注脚——板书是正文，stage 贴纸是栏目头，字幕是页边注。和「考卷式题目一打开就写好」的既有气质天然同源。</blockquote>
+    <div class="blocks">
+      <div class="block">
+        <h3>Palette <em>配色板 · 点击色块复制色值</em></h3>
+        <div class="swatches">
+          <div class="sw" data-hex="#F7F3EB"><i style="background:#F7F3EB"></i><div><div class="nm">米白</div><div class="use">页面底</div></div><div class="hex">#F7F3EB</div></div>
+          <div class="sw" data-hex="#14120E"><i style="background:#14120E"></i><div><div class="nm">墨黑</div><div class="use">标题 / 规则线</div></div><div class="hex">#14120E</div></div>
+          <div class="sw" data-hex="#A63D2F"><i style="background:#A63D2F"></i><div><div class="nm">朱红</div><div class="use">stage 标签 / 强调 / 印章</div></div><div class="hex">#A63D2F</div></div>
+          <div class="sw" data-hex="#B8A98C"><i style="background:#B8A98C"></i><div><div class="nm">卡其</div><div class="use">次级线 / 注脚</div></div><div class="hex">#B8A98C</div></div>
+          <div class="sw" data-hex="#E5DCC9"><i style="background:#E5DCC9"></i><div><div class="nm">浅褐</div><div class="use">面板底纹</div></div><div class="hex">#E5DCC9</div></div>
+          <div class="sw" data-hex="#FFFDF7"><i style="background:#FFFDF7"></i><div><div class="nm">宣纸白</div><div class="use">板面（微暖于纯白）</div></div><div class="hex">#FFFDF7</div></div>
+        </div>
+      </div>
+      <div class="block">
+        <h3>Typography <em>字体搭配</em></h3>
+        <div class="type-demo">
+          <div class="display" style="font-family:var(--serif);font-weight:700">第 14 讲 · 平行四边形</div>
+          <div class="dlab"><b>展示 · 宋体粗体</b>　Songti SC / Noto Serif SC / SimSun，标题带报刊字距</div>
+          <div class="body" style="font-family:var(--serif)">正文宋体常规，配合栏间线与首字下沉形成阅读节奏；期号、时间码用等宽大写（<span style="font-family:var(--mono)">VOL.14 · 12.4S</span>）做「印刷痕迹」。</div>
+          <div class="scale"><b>字阶模数 1.333</b><span>36 / 27 / 21 / 16 / 12 px · 传统印刷比例</span></div>
+        </div>
+      </div>
+      <div class="block">
+        <h3>Form <em>形态参数</em></h3>
+        <div class="form-rows">
+          <div class="fr"><span class="k">圆角</span><span class="v">0（全直角）</span></div>
+          <div class="fr"><span class="k">描边</span><span class="v">1–2.5px 规则线</span></div>
+          <div class="fr"><span class="k">阴影</span><span class="v">无 · 靠线分层</span></div>
+          <div class="fr"><span class="k">留白率</span><span class="v">≈40%</span></div>
+        </div>
+      </div>
+      <div class="block fit">
+        <h3>Fit <em>适用场景</em></h3>
+        <p><b>教研沉淀、可打印讲义、家长端阅读。</b>当一节课的记录本身值得被「出版」，就用这个方向；导出 PDF / 截图存档天然成立。</p>
+        <div class="advice"><b>落地建议</b>　把 projectCode 做成「期号」放在页眉；进度条换成细规则线 + stage 刻度（题目｜分析｜解答｜总结四格）；朱红只给 stage 标签与圈字批注，其余保持墨黑。</div>
+      </div>
+    </div>
+    <div class="spec-zone">
+      <div class="spec-cap">Specimen 02 · 左：打字机微缩样机 ｜ 右：教学白板（真实 rows 驱动 · 点 ▶ 播放 / 拖动进度条 seek / 切倍速）</div>
+      <div class="spec-pair">
+        <div class="spec-col">
+          <div class="spec">
+            <div class="spec-board">
+              <span class="tag">题 目</span>
+              <p class="problem">一个平行四边形花坛，底 6 cm，高 4 cm，它的面积是多少？</p>
+              <span class="tag t2">解 答</span>
+              <p class="handline" style="color:#14120e"><span class="tw" data-text="S = a × h = 6 × 4 = 24（cm²）"></span>
+                <svg class="anno" style="--anno:#a63d2f" viewBox="0 0 300 60" preserveAspectRatio="none"><ellipse cx="150" cy="30" rx="140" ry="24"/><ellipse class="e2" cx="150" cy="30" rx="132" ry="20"/></svg>
+              </p>
+            </div>
+            <div class="spec-sub">注 · 底乘高，就是它的面积。</div>
+            <div class="spec-bar">
+              <button class="play" aria-label="播放">▶</button>
+              <div class="seek"><i></i></div>
+              <span class="spec-time">VOL.14 · 0.0 / 48.0 S</span>
+            </div>
+          </div>
+        </div>
+        <div class="spec-col">
+          <div class="board-slot" data-board>
+            <div class="board"><div class="board-face"></div></div>
+            <div class="spec-sub" data-sub></div>
+            <div class="spec-bar">
+              <button class="play" aria-label="播放板书">▶</button>
+              <div class="seek"><i></i></div>
+              <span class="spec-time">0.0 / 69.9 s</span>
+              <span class="speeds"><button data-sp="1" class="on">1×</button><button data-sp="2">2×</button><button data-sp="4">4×</button></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 03 暗色专注 ================= -->
+  <section class="card d3">
+    <div class="card-head">
+      <div class="card-num">03</div>
+      <div class="card-title"><h2>暗色专注 · 夜自习</h2><div class="en">Dark Focus</div></div>
+      <div class="chips"><span>极客感</span><span>夜行者</span><span>高对比</span><span>数据资产</span></div>
+    </div>
+    <blockquote class="concept">灯一关，黑板自己发光。深色壳层包围纸白板面，板面成为整个界面唯一的光源——录屏导出时观众视线零逃逸，夜自习时屏幕不再刺眼。</blockquote>
+    <div class="blocks">
+      <div class="block">
+        <h3>Palette <em>配色板 · 点击色块复制色值</em></h3>
+        <div class="swatches">
+          <div class="sw" data-hex="#0D1117"><i style="background:#0D1117"></i><div><div class="nm">玄青</div><div class="use">页面底（壳层）</div></div><div class="hex">#0D1117</div></div>
+          <div class="sw" data-hex="#FBFAF6"><i style="background:#FBFAF6"></i><div><div class="nm">板面暖白</div><div class="use">板面不动 · 唯一光源</div></div><div class="hex">#FBFAF6</div></div>
+          <div class="sw" data-hex="#E6EDF3"><i style="background:#E6EDF3"></i><div><div class="nm">雾白</div><div class="use">壳层文字</div></div><div class="hex">#E6EDF3</div></div>
+          <div class="sw" data-hex="#3FB950"><i style="background:#3FB950"></i><div><div class="nm">荧光绿</div><div class="use">已播进度 / 播放键</div></div><div class="hex">#3FB950</div></div>
+          <div class="sw" data-hex="#161B22"><i style="background:#161B22"></i><div><div class="nm">石墨</div><div class="use">面板 / 字幕条</div></div><div class="hex">#161B22</div></div>
+          <div class="sw" data-hex="#30363D"><i style="background:#30363D"></i><div><div class="nm">铁灰</div><div class="use">描边 / 未播轨道</div></div><div class="hex">#30363D</div></div>
+        </div>
+      </div>
+      <div class="block">
+        <h3>Typography <em>字体搭配</em></h3>
+        <div class="type-demo">
+          <div class="display" style="font-family:var(--mono);font-size:20px;color:#3fb950">12.4 / 48.0 s</div>
+          <div class="dlab"><b>数据 · 等宽字体</b>　SF Mono / JetBrains Mono / Consolas，时间码对齐营造终端感</div>
+          <div class="body" style="color:#9da7b3">壳层标题用 SemiBold 600 黑体短句；字幕条也走等宽，像播放器日志。板面内文字不受影响（黑底白字之外自成一界）。</div>
+          <div class="scale"><b>字阶模数 1.2</b><span>24 / 20 / 16 / 13 / 11 px · 紧凑高密度</span></div>
+        </div>
+      </div>
+      <div class="block">
+        <h3>Form <em>形态参数</em></h3>
+        <div class="form-rows">
+          <div class="fr"><span class="k">圆角</span><span class="v">6px</span></div>
+          <div class="fr"><span class="k">描边</span><span class="v">1px #30363D</span></div>
+          <div class="fr"><span class="k">阴影</span><span class="v">无 · 靠明度分层</span></div>
+          <div class="fr"><span class="k">留白率</span><span class="v">≈30%（信息密度优先）</span></div>
+        </div>
+      </div>
+      <div class="block fit">
+        <h3>Fit <em>适用场景</em></h3>
+        <p><b>夜间自习、屏幕录制导出、开发者调试预览。</b>暗色包围让板面对比度拉满，录出来的视频自带「聚焦」效果；时间轴画布在暗底上也更像专业剪辑器。</p>
+        <div class="advice"><b>落地建议</b>　板面 #fbfaf6 与板书颜色一个字都不改，只黑化壳层；批注红在暗底提到 #F85149 一档保证可见；壳层次级文字对比度 ≥ 4.5:1（#9DA7B3 on #0D1117 ≈ 7:1，达标）。</div>
+      </div>
+    </div>
+    <div class="spec-zone" style="background:#010409">
+      <div class="spec-cap" style="color:#7d8590">Specimen 03 · 左：打字机微缩样机 ｜ 右：教学白板（真实 rows 驱动 · 点 ▶ 播放 / 拖动进度条 seek / 切倍速）</div>
+      <div class="spec-pair">
+        <div class="spec-col">
+          <div class="spec">
+            <div class="spec-board">
+              <span class="tag">题目</span>
+              <p class="problem" style="color:#1e293b">一个平行四边形花坛，底 6 cm，高 4 cm，它的面积是多少？</p>
+              <span class="tag t2">解答</span>
+              <p class="handline" style="color:#1e293b"><span class="tw" data-text="S = a × h = 6 × 4 = 24（cm²）"></span>
+                <svg class="anno" style="--anno:#f85149" viewBox="0 0 300 60" preserveAspectRatio="none"><ellipse cx="150" cy="30" rx="140" ry="24"/><ellipse class="e2" cx="150" cy="30" rx="132" ry="20"/></svg>
+              </p>
+            </div>
+            <div class="spec-sub">&gt; 底乘高，就是它的面积。</div>
+            <div class="spec-bar">
+              <button class="play" aria-label="播放">▶</button>
+              <div class="seek"><i></i></div>
+              <span class="spec-time">0.0 / 48.0 s</span>
+            </div>
+          </div>
+        </div>
+        <div class="spec-col">
+          <div class="board-slot" data-board>
+            <div class="board"><div class="board-face"></div></div>
+            <div class="spec-sub" data-sub></div>
+            <div class="spec-bar">
+              <button class="play" aria-label="播放板书">▶</button>
+              <div class="seek"><i></i></div>
+              <span class="spec-time">0.0 / 69.9 s</span>
+              <span class="speeds"><button data-sp="1" class="on">1×</button><button data-sp="2">2×</button><button data-sp="4">4×</button></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 04 温暖有机 ================= -->
+  <section class="card d4">
+    <div class="card-head">
+      <div class="card-num">04</div>
+      <div class="card-title"><h2>温暖有机 · 手作课堂</h2><div class="en">Warm Organic</div></div>
+      <div class="chips"><span>治愈</span><span>陪伴感</span><span>手作</span><span>松弛</span></div>
+    </div>
+    <blockquote class="concept">面向孩子的课堂应该像手作绘本。奶油底、圆贴纸、软阴影——现有底图的「浅蓝贴纸边框」本来就是贴纸语言，这个方向把它放大成完整世界观：数学也可以很温柔。</blockquote>
+    <div class="blocks">
+      <div class="block">
+        <h3>Palette <em>配色板 · 点击色块复制色值</em></h3>
+        <div class="swatches">
+          <div class="sw" data-hex="#FBF3E4"><i style="background:#FBF3E4"></i><div><div class="nm">奶油</div><div class="use">页面底</div></div><div class="hex">#FBF3E4</div></div>
+          <div class="sw" data-hex="#4A3628"><i style="background:#4A3628"></i><div><div class="nm">可可</div><div class="use">壳层文字</div></div><div class="hex">#4A3628</div></div>
+          <div class="sw" data-hex="#C96F4A"><i style="background:#C96F4A"></i><div><div class="nm">陶土</div><div class="use">主操作 / 题目标签</div></div><div class="hex">#C96F4A</div></div>
+          <div class="sw" data-hex="#7A8B5C"><i style="background:#7A8B5C"></i><div><div class="nm">抹茶</div><div class="use">完成态 / 已播进度</div></div><div class="hex">#7A8B5C</div></div>
+          <div class="sw" data-hex="#E9D9BF"><i style="background:#E9D9BF"></i><div><div class="nm">砂岩</div><div class="use">面板底 / 虚线框</div></div><div class="hex">#E9D9BF</div></div>
+          <div class="sw" data-hex="#A8C6E8"><i style="background:#A8C6E8"></i><div><div class="nm">贴纸蓝</div><div class="use">呼应现有底图边框</div></div><div class="hex">#A8C6E8</div></div>
+        </div>
+      </div>
+      <div class="block">
+        <h3>Typography <em>字体搭配</em></h3>
+        <div class="type-demo">
+          <div class="display" style="font-family:'Yuanti SC','幼圆','PingFang SC',sans-serif;font-weight:600">今天我们学平行四边形</div>
+          <div class="dlab"><b>展示 · 圆体</b>　Yuanti SC / 幼圆，笔画圆钝无攻击性</div>
+          <div class="body">正文常规黑体即可，暖底上保持 13–15px 与 1.7 行高；板书继续用平方乔木手写体——手写 + 圆体是「手作感」的双引擎，别再引入第三种性格。</div>
+          <div class="scale"><b>字阶模数 1.25</b><span>32 / 25 / 20 / 16 / 13 px · 宽松</span></div>
+        </div>
+      </div>
+      <div class="block">
+        <h3>Form <em>形态参数</em></h3>
+        <div class="form-rows">
+          <div class="fr"><span class="k">圆角</span><span class="v">20px（贴纸感）</span></div>
+          <div class="fr"><span class="k">描边</span><span class="v">无实线 · 2px 虚线点缀</span></div>
+          <div class="fr"><span class="k">阴影</span><span class="v">柔和弥散 0 10px 26px 14%</span></div>
+          <div class="fr"><span class="k">留白率</span><span class="v">≈45%</span></div>
+        </div>
+      </div>
+      <div class="block fit">
+        <h3>Fit <em>适用场景</em></h3>
+        <p><b>K12 低龄段（本例正是小学「平行四边形面积」）、家长陪伴观看、贴纸奖励体系。</b>学习很难，界面至少可以温柔。</p>
+        <div class="advice"><b>落地建议</b>　stage 贴纸标签放大圆角 + 微旋转（-2°~2°），保留 180ms「啪」弹出的手感；rough 圈字天然契合蜡笔质感；答对瞬间给贴纸徽章，错误提示用「再想想」而不是红色警告。</div>
+      </div>
+    </div>
+    <div class="spec-zone" style="background:#f3ead6">
+      <div class="spec-cap">Specimen 04 · 左：打字机微缩样机 ｜ 右：教学白板（真实 rows 驱动 · 点 ▶ 播放 / 拖动进度条 seek / 切倍速）</div>
+      <div class="spec-pair">
+        <div class="spec-col">
+          <div class="spec">
+            <div class="spec-board">
+              <span class="tag">题目</span>
+              <p class="problem">一个平行四边形花坛，底 6 cm，高 4 cm，它的面积是多少呀？</p>
+              <span class="tag t2">解答</span>
+              <p class="handline" style="color:#4a3628"><span class="tw" data-text="S = a × h = 6 × 4 = 24（cm²）"></span>
+                <svg class="anno" style="--anno:#c96f4a" viewBox="0 0 300 60" preserveAspectRatio="none"><ellipse cx="150" cy="30" rx="140" ry="24"/><ellipse class="e2" cx="150" cy="30" rx="132" ry="20"/></svg>
+              </p>
+            </div>
+            <div class="spec-sub">底乘高，就是它的面积啦～</div>
+            <div class="spec-bar">
+              <button class="play" aria-label="播放">▶</button>
+              <div class="seek"><i></i></div>
+              <span class="spec-time">0.0 / 48.0 s</span>
+            </div>
+          </div>
+        </div>
+        <div class="spec-col">
+          <div class="board-slot" data-board>
+            <div class="board"><div class="board-face"></div></div>
+            <div class="spec-sub" data-sub></div>
+            <div class="spec-bar">
+              <button class="play" aria-label="播放板书">▶</button>
+              <div class="seek"><i></i></div>
+              <span class="spec-time">0.0 / 69.9 s</span>
+              <span class="speeds"><button data-sp="1" class="on">1×</button><button data-sp="2">2×</button><button data-sp="4">4×</button></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 05 新粗野主义 ================= -->
+  <section class="card d5">
+    <div class="card-head">
+      <div class="card-num">05</div>
+      <div class="card-title"><h2>新粗野主义 · 粉笔宣言</h2><div class="en">Neo-Brutalism</div></div>
+      <div class="chips"><span>大胆</span><span>年轻</span><span>街头感</span><span>高能量</span></div>
+    </div>
+    <blockquote class="concept">用最粗的边框、最亮的色块喊出重点——板书的关键步骤，值得被「圈出来」三次。答案揭晓的那一帧，本身就是一张能被转发的海报。</blockquote>
+    <div class="blocks">
+      <div class="block">
+        <h3>Palette <em>配色板 · 点击色块复制色值</em></h3>
+        <div class="swatches">
+          <div class="sw" data-hex="#FFF9E6"><i style="background:#FFF9E6"></i><div><div class="nm">纸黄</div><div class="use">页面底</div></div><div class="hex">#FFF9E6</div></div>
+          <div class="sw" data-hex="#111111"><i style="background:#111111"></i><div><div class="nm">墨黑</div><div class="use">3px 边框 / 文字 / 硬阴影</div></div><div class="hex">#111111</div></div>
+          <div class="sw" data-hex="#FFD43B"><i style="background:#FFD43B"></i><div><div class="nm">亮黄</div><div class="use">题目标签 / 已播进度</div></div><div class="hex">#FFD43B</div></div>
+          <div class="sw" data-hex="#7048E8"><i style="background:#7048E8"></i><div><div class="nm">电紫</div><div class="use">主操作（播放键）</div></div><div class="hex">#7048E8</div></div>
+          <div class="sw" data-hex="#F783AC"><i style="background:#F783AC"></i><div><div class="nm">桃粉</div><div class="use">解答标签 / 庆祝帧</div></div><div class="hex">#F783AC</div></div>
+          <div class="sw" data-hex="#FFFFFF"><i style="background:#FFFFFF"></i><div><div class="nm">板面白</div><div class="use">板面保持纸白不动</div></div><div class="hex">#FBFAF6</div></div>
+        </div>
+      </div>
+      <div class="block">
+        <h3>Typography <em>字体搭配</em></h3>
+        <div class="type-demo">
+          <div class="display" style="font-weight:900;letter-spacing:-.01em;line-height:1.15">面积 = 底 × 高！</div>
+          <div class="dlab"><b>展示 · 超粗黑体</b>　思源黑体 Heavy / Black 900，字号给到极限，行距收紧到 1.15</div>
+          <div class="body"><span style="font-family:var(--mono);font-size:11.5px;letter-spacing:.2em;text-transform:uppercase">STAGE · SOLUTION · 12.4S</span><br>标签一律等宽 + 全大写 + 0.2em 字距，做出贴标感；中文正文保持常规字重，让粗只属于标题。</div>
+          <div class="scale"><b>字阶模数 1.333</b><span>40 / 30 / 22 / 16 / 12 px · 激进</span></div>
+        </div>
+      </div>
+      <div class="block">
+        <h3>Form <em>形态参数</em></h3>
+        <div class="form-rows">
+          <div class="fr"><span class="k">圆角</span><span class="v">0–4px</span></div>
+          <div class="fr"><span class="k">描边</span><span class="v">3px 实线 #111</span></div>
+          <div class="fr"><span class="k">阴影</span><span class="v">硬阴影 6px 6px 0 #111</span></div>
+          <div class="fr"><span class="k">留白率</span><span class="v">≈25%（能量优先）</span></div>
+        </div>
+      </div>
+      <div class="block fit">
+        <h3>Fit <em>适用场景</em></h3>
+        <p><b>短视频切片分享、学生社群传播、答案揭晓的庆祝帧。</b>录课视频截一帧发出去，粗边框 + 硬阴影天然吸睛，自带传播力。</p>
+        <div class="advice"><b>落地建议</b>　张扬只作用于壳层与庆祝瞬间，板面永远纸白；「S=24」写出的一刻整屏撞色 + 硬阴影弹出（200ms 内完成，不拖节奏）；按钮 :active 时阴影收缩 2px，做出「按实体」手感。</div>
+      </div>
+    </div>
+    <div class="spec-zone" style="background:#fdeeb2">
+      <div class="spec-cap">Specimen 05 · 左：打字机微缩样机 ｜ 右：教学白板（真实 rows 驱动 · 点 ▶ 播放 / 拖动进度条 seek / 切倍速）</div>
+      <div class="spec-pair">
+        <div class="spec-col">
+          <div class="spec">
+            <div class="spec-board">
+              <span class="tag">题目</span>
+              <p class="problem" style="font-weight:600">一个平行四边形花坛，底 6 cm，高 4 cm，它的面积是多少？</p>
+              <span class="tag t2">解答</span>
+              <p class="handline" style="color:#111"><span class="tw" data-text="S = a × h = 6 × 4 = 24（cm²）"></span>
+                <svg class="anno" style="--anno:#e03131" viewBox="0 0 300 60" preserveAspectRatio="none"><ellipse cx="150" cy="30" rx="140" ry="24"/><ellipse class="e2" cx="150" cy="30" rx="132" ry="20"/></svg>
+              </p>
+            </div>
+            <div class="spec-sub">底乘高！就是它的面积！</div>
+            <div class="spec-bar">
+              <button class="play" aria-label="播放">▶</button>
+              <div class="seek"><i></i></div>
+              <span class="spec-time" style="font-weight:700">0.0 / 48.0 S</span>
+            </div>
+          </div>
+        </div>
+        <div class="spec-col">
+          <div class="board-slot" data-board>
+            <div class="board"><div class="board-face"></div></div>
+            <div class="spec-sub" data-sub></div>
+            <div class="spec-bar">
+              <button class="play" aria-label="播放板书">▶</button>
+              <div class="seek"><i></i></div>
+              <span class="spec-time">0.0 / 69.9 s</span>
+              <span class="speeds"><button data-sp="1" class="on">1×</button><button data-sp="2">2×</button><button data-sp="4">4×</button></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 06 玻璃拟态 ================= -->
+  <section class="card d6">
+    <div class="card-head">
+      <div class="card-num">06</div>
+      <div class="card-title"><h2>玻璃拟态 · 悬浮黑板</h2><div class="en">Glassmorphism</div></div>
+      <div class="chips"><span>轻盈</span><span>通透</span><span>光感</span><span>演示感</span></div>
+    </div>
+    <blockquote class="concept">控件悬浮为磨砂玻璃，板书从底下透出来。层次靠「透」而不是靠「线」——大屏演示与汇报场景里，这套光感语言最能撑起「产品发布」的气场。</blockquote>
+    <div class="blocks">
+      <div class="block">
+        <h3>Palette <em>配色板 · 点击色块复制色值</em></h3>
+        <div class="swatches">
+          <div class="sw" data-hex="#A5B4FC"><i style="background:linear-gradient(135deg,#A5B4FC,#E0E7FF)"></i><div><div class="nm">晨雾渐变</div><div class="use">页面底 #A5B4FC → #E0E7FF</div></div><div class="hex">#A5B4FC→</div></div>
+          <div class="sw" data-hex="#1E1B4B"><i style="background:#1E1B4B"></i><div><div class="nm">墨蓝</div><div class="use">壳层文字（保对比度）</div></div><div class="hex">#1E1B4B</div></div>
+          <div class="sw" data-hex="#6D28D9"><i style="background:#6D28D9"></i><div><div class="nm">深紫</div><div class="use">主操作 / 已播进度</div></div><div class="hex">#6D28D9</div></div>
+          <div class="sw" data-hex="rgba(255,255,255,.55)"><i style="background:rgba(255,255,255,.75);backdrop-filter:blur(4px)"></i><div><div class="nm">白玻璃</div><div class="use">面板 55% 白 + blur 14px</div></div><div class="hex">55% #FFF</div></div>
+          <div class="sw" data-hex="rgba(255,255,255,.7)"><i style="background:linear-gradient(135deg,rgba(255,255,255,.95),rgba(255,255,255,.5))"></i><div><div class="nm">亮玻璃边</div><div class="use">1px 半透白描边</div></div><div class="hex">70% #FFF</div></div>
+          <div class="sw" data-hex="#B91C1C"><i style="background:#B91C1C"></i><div><div class="nm">批注红</div><div class="use">圈字划线（玻璃上仍清晰）</div></div><div class="hex">#B91C1C</div></div>
+        </div>
+      </div>
+      <div class="block">
+        <h3>Typography <em>字体搭配</em></h3>
+        <div class="type-demo">
+          <div class="display" style="font-weight:300;letter-spacing:.1em;color:#1e1b4b">平行四边形的面积</div>
+          <div class="dlab"><b>展示 · 细字重宽字距</b>　Light 300 + 0.1em 字距，靠通透背景衬托</div>
+          <div class="body" style="color:#312e81">正文 Regular 400，永远落在墨蓝 #1E1B4B 层级上保证磨砂底可读；时间码等宽。板书手写体在白色玻璃板上保持原样。</div>
+          <div class="scale"><b>字阶模数 1.25</b><span>30 / 24 / 19 / 15 / 12 px</span></div>
+        </div>
+      </div>
+      <div class="block">
+        <h3>Form <em>形态参数</em></h3>
+        <div class="form-rows">
+          <div class="fr"><span class="k">圆角</span><span class="v">16–24px</span></div>
+          <div class="fr"><span class="k">描边</span><span class="v">1px 半透白 70%</span></div>
+          <div class="fr"><span class="k">模糊</span><span class="v">blur(14px) · 上限 20px</span></div>
+          <div class="fr"><span class="k">留白率</span><span class="v">≈35%</span></div>
+        </div>
+      </div>
+      <div class="block fit">
+        <h3>Fit <em>适用场景</em></h3>
+        <p><b>大屏演示、甲方汇报、发布会式讲学展示。</b>渐变底可随课程主题切换（数学蓝 / 语文暖 / 理综绿），界面即氛围。</p>
+        <div class="advice"><b>落地建议</b>　玻璃层次控制在两层以内（控制条 + 字幕条），模糊半径 ≤ 20px；录屏导出时注意 backdrop-filter 的 GPU 开销，低配机自动降级为 90% 不透明；文字对比度提前测算，不达标就加深墨蓝。</div>
+      </div>
+    </div>
+    <div class="spec-zone">
+      <div class="spec-cap" style="color:#4c46a6">Specimen 06 · 左：打字机微缩样机 ｜ 右：教学白板（真实 rows 驱动 · 点 ▶ 播放 / 拖动进度条 seek / 切倍速）</div>
+      <div class="spec-pair">
+        <div class="spec-col">
+          <div class="spec">
+            <div class="spec-board">
+              <span class="tag">题目</span>
+              <p class="problem">一个平行四边形花坛，底 6 cm，高 4 cm，它的面积是多少？</p>
+              <span class="tag t2">解答</span>
+              <p class="handline" style="color:#1e1b4b"><span class="tw" data-text="S = a × h = 6 × 4 = 24（cm²）"></span>
+                <svg class="anno" style="--anno:#b91c1c" viewBox="0 0 300 60" preserveAspectRatio="none"><ellipse cx="150" cy="30" rx="140" ry="24"/><ellipse class="e2" cx="150" cy="30" rx="132" ry="20"/></svg>
+              </p>
+            </div>
+            <div class="spec-sub">底乘高，就是它的面积。</div>
+            <div class="spec-bar">
+              <button class="play" aria-label="播放">▶</button>
+              <div class="seek"><i></i></div>
+              <span class="spec-time">0.0 / 48.0 s</span>
+            </div>
+          </div>
+        </div>
+        <div class="spec-col">
+          <div class="board-slot" data-board>
+            <div class="board"><div class="board-face"></div></div>
+            <div class="spec-sub" data-sub></div>
+            <div class="spec-bar">
+              <button class="play" aria-label="播放板书">▶</button>
+              <div class="seek"><i></i></div>
+              <span class="spec-time">0.0 / 69.9 s</span>
+              <span class="speeds"><button data-sp="1" class="on">1×</button><button data-sp="2">2×</button><button data-sp="4">4×</button></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 07 定位图 ================= -->
+  <section class="map-card">
+    <h2>07 · 气质速览定位图</h2>
+    <p class="cap">Positioning Map · 冷静—温暖 × 克制—张扬 · 选型辅助</p>
+    <svg class="map-svg" viewBox="0 0 680 420" role="img" aria-label="六方向气质定位图">
+      <!-- 象限底 -->
+      <rect x="70" y="30" width="265" height="170" fill="#fdf6ec" opacity=".6"/>
+      <rect x="335" y="30" width="275" height="170" fill="#fdeef0" opacity=".6"/>
+      <rect x="70" y="200" width="265" height="170" fill="#eef3fb" opacity=".7"/>
+      <rect x="335" y="200" width="275" height="170" fill="#f0f7f0" opacity=".6"/>
+      <!-- 轴 -->
+      <line x1="70" y1="200" x2="610" y2="200" stroke="#a8a29e" stroke-width="1.5"/>
+      <line x1="335" y1="30" x2="335" y2="370" stroke="#a8a29e" stroke-width="1.5"/>
+      <text x="620" y="205" font-size="12" fill="#57534e" font-family="PingFang SC,Microsoft YaHei,sans-serif">张扬 →</text>
+      <text x="24" y="205" font-size="12" fill="#57534e" font-family="PingFang SC,Microsoft YaHei,sans-serif">← 克制</text>
+      <text x="342" y="26" font-size="12" fill="#57534e" font-family="PingFang SC,Microsoft YaHei,sans-serif">↑ 温暖</text>
+      <text x="342" y="388" font-size="12" fill="#57534e" font-family="PingFang SC,Microsoft YaHei,sans-serif">↓ 冷静</text>
+      <!-- 象限注释 -->
+      <text x="84" y="52" font-size="11" fill="#b08968" font-family="PingFang SC,Microsoft YaHei,sans-serif">温暖 × 克制 · 陪伴感</text>
+      <text x="470" y="52" font-size="11" fill="#c2557a" font-family="PingFang SC,Microsoft YaHei,sans-serif">温暖 × 张扬 · 传播力</text>
+      <text x="84" y="360" font-size="11" fill="#5b7db1" font-family="PingFang SC,Microsoft YaHei,sans-serif">冷静 × 克制 · 工具感</text>
+      <text x="470" y="360" font-size="11" fill="#5f8a5f" font-family="PingFang SC,Microsoft YaHei,sans-serif">冷静 × 张扬 · 展示感</text>
+      <!-- 点 -->
+      <g font-family="SF Mono,Consolas,monospace">
+        <circle cx="140" cy="290" r="17" fill="#2563eb"/><text x="140" y="295" font-size="13" fill="#fff" text-anchor="middle" font-weight="700">01</text>
+        <text x="165" y="295" font-size="12.5" fill="#1c1917" font-family="PingFang SC,Microsoft YaHei,sans-serif">极简纸白</text>
+        <circle cx="255" cy="240" r="17" fill="#a63d2f"/><text x="255" y="245" font-size="13" fill="#fff" text-anchor="middle" font-weight="700">02</text>
+        <text x="280" y="245" font-size="12.5" fill="#1c1917" font-family="PingFang SC,Microsoft YaHei,sans-serif">编辑排版</text>
+        <circle cx="112" cy="335" r="17" fill="#24292f" stroke="#3fb950" stroke-width="2"/><text x="112" y="340" font-size="13" fill="#3fb950" text-anchor="middle" font-weight="700">03</text>
+        <text x="137" y="340" font-size="12.5" fill="#1c1917" font-family="PingFang SC,Microsoft YaHei,sans-serif">暗色专注</text>
+        <circle cx="240" cy="105" r="17" fill="#c96f4a"/><text x="240" y="110" font-size="13" fill="#fff" text-anchor="middle" font-weight="700">04</text>
+        <text x="265" y="110" font-size="12.5" fill="#1c1917" font-family="PingFang SC,Microsoft YaHei,sans-serif">温暖有机</text>
+        <circle cx="540" cy="115" r="17" fill="#ffd43b" stroke="#111" stroke-width="2.5"/><text x="540" y="120" font-size="13" fill="#111" text-anchor="middle" font-weight="800">05</text>
+        <text x="437" y="120" font-size="12.5" fill="#1c1917" font-family="PingFang SC,Microsoft YaHei,sans-serif" text-anchor="end">新粗野主义</text>
+        <circle cx="480" cy="285" r="17" fill="#6d28d9"/><text x="480" y="290" font-size="13" fill="#fff" text-anchor="middle" font-weight="700">06</text>
+        <text x="505" y="290" font-size="12.5" fill="#1c1917" font-family="PingFang SC,Microsoft YaHei,sans-serif">玻璃拟态</text>
+      </g>
+    </svg>
+    <div class="guide">
+      <div class="g"><b>学生长时间观看 / 录课导出是主线</b>选 <span class="pick">01 极简纸白</span>或 <span class="pick">03 暗色专注</span>——低干扰、高对比，板面永远是唯一主角；03 录出的视频自带聚光效果。</div>
+      <div class="g"><b>课程要沉淀成可打印、可存档的讲义</b>选 <span class="pick">02 编辑排版</span>——期号、栏线、注脚齐全，截图和 PDF 导出天然成立，与「考卷式题目」气质同源。</div>
+      <div class="g"><b>受众是小学生 / 家长陪伴场景</b>选 <span class="pick">04 温暖有机</span>——现有贴纸边框语言的放大版，改造阻力最小；贴纸徽章 + 温柔文案降低学习焦虑。</div>
+      <div class="g"><b>要传播、要演示、要气场</b>短视频切片选 <span class="pick">05 新粗野主义</span>（答案揭晓帧即海报）；大屏汇报选 <span class="pick">06 玻璃拟态</span>（发布会展台感）。</div>
+    </div>
+    <div class="combo"><b>推荐组合拳</b>　以 <b>01 极简纸白</b>为默认基线（与现状代码差异最小，一天内可落地）→ 叠加 <b>03 暗色专注</b>作为 <code>prefers-color-scheme: dark</code> 自动主题（只换壳层变量）→ K12 课程包启用 <b>04 温暖有机</b>皮肤 → 导出分享封面时套用 <b>05</b> 的粗边框语言。四者共用同一套板面真相源，CSS 变量切换即可，不碰渲染逻辑。</div>
+  </section>
+
+  <!-- ================= 页脚 ================= -->
+  <footer class="footer">
+    <h3>更新记录</h3>
+    <table>
+      <tr><th>时间</th><th>版本</th><th>更新人</th><th>变更</th></tr>
+      <tr><td>2026-09-17 01:40 GMT+8</td><td>v1.0</td><td>小阿星 ✦ · 像素君（UI Designer）</td><td>首次产出：基于 row-player.html 真实规格定制六个视觉方向 + 定位图 + 可试玩微缩样机；确立「壳层可换、板面真相源不动」铁律</td></tr>
+    </table>
+    <div class="sigline">SOURCE: row-player.html (v2026-09-16) · FONT: CDN 507「平方乔木体」（脱环境，不再引用本地 pingfang-qiaomu.ttf） · POSITION: 项目根目录/设计灵感卡片-row-player.html</div>
+  </footer>
+</div>
+
+<div id="toast" role="status"></div>
+
+<script>
+"use strict";
+/* ---------- toast ---------- */
+const toastEl=document.getElementById('toast');let toastT=null;
+function toast(msg){toastEl.textContent=msg;toastEl.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>toastEl.classList.remove('on'),1400)}
+
+/* ---------- 点击色块复制色值（file:// 下降级用 execCommand） ---------- */
+document.querySelectorAll('.sw').forEach(sw=>{
+  sw.addEventListener('click',()=>{
+    const hex=sw.dataset.hex;
+    const done=()=>toast('已复制 '+hex);
+    if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(hex).then(done).catch(()=>fallbackCopy(hex,done))}
+    else fallbackCopy(hex,done);
+  });
+});
+function fallbackCopy(text,cb){
+  const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0';
+  document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');cb()}catch(e){toast('复制失败：'+text)}
+  document.body.removeChild(ta);
+}
+
+/* ---------- 微缩样机：打字机 + 进度 + 圈字 ---------- */
+document.querySelectorAll('.spec').forEach(spec=>{
+  const btn=spec.querySelector('.play');
+  const tw=spec.querySelector('.tw');
+  const seekI=spec.querySelector('.seek i');
+  const timeEl=spec.querySelector('.spec-time');
+  const anno=spec.querySelector('.anno');
+  const full=tw.dataset.text;
+  const origTime=timeEl.textContent;
+  let timer=null;
+  const reset=()=>{
+    tw.textContent='';tw.classList.remove('done');
+    seekI.style.width='0%';
+    timeEl.textContent=origTime;
+    anno&&anno.classList.remove('on');
+  };
+  btn.addEventListener('click',()=>{
+    if(timer){clearInterval(timer);timer=null;btn.textContent='▶';reset();return}
+    reset();
+    btn.textContent='❚❚';
+    const total=full.length,dur=4200;
+    let i=0;
+    timer=setInterval(()=>{
+      i++;
+      tw.textContent=full.slice(0,i);
+      const p=i/total;
+      seekI.style.width=(p*100).toFixed(1)+'%';
+      const t=(p*48).toFixed(1);
+      timeEl.textContent=timeEl.textContent.replace(/[\d.]+(?=\s*\/)/,t);
+      if(i>=total){
+        clearInterval(timer);timer=null;btn.textContent='▶';tw.classList.add('done');
+        anno&&anno.classList.add('on');
+      }
+    },dur/total);
+  });
+});
+
+/* ---------- 教学白板：真实 rows 驱动（数据拆自 row-player.html DATA） ---------- */
+const BOARD_ROWS=[
+ {stage:'题目',dur:17.8,delay:0,text:'',
+  speech:'同学们好，今天我们一起来看这道平行四边形面积的经典应用题。已知底是 9 厘米，高是 20.4 厘米。',
+  acts:['rough-c','rough-u']},
+ {stage:'分析',dur:14.6,delay:1.8,cls:'a',
+  text:'1. 分析分割特征\n沿高 DE 分割成 三角形ADE 和 梯形DEBC',
+  speech:'首先，我们观察图形，平行四边形沿高分割后，会形成一个直角三角形和一个梯形。'},
+ {stage:'解答',dur:19.3,delay:1.5,
+  text:'方法一：面积公式\nS = 底 x 高\n  = 9 x 20.4\n  = 183.6 (cm²)\n平方：9² = 81\n分数：3/4 x 20.4 = 15.3',
+  speech:'接下来我们列式计算。平行四边形面积公式是底乘以高，也就是 9 乘以 20.4，算得面积为 183.6 平方厘米。'},
+ {stage:'总结',dur:18.2,delay:1.2,
+  text:'竖式验算：\n      20.4\n   ________\n9 )183.6\n答：183.6 平方厘米',
+  speech:'最后我们作答，这道题的答案是 183.6 平方厘米。遇到组合图形，通过割补或直接应用公式都能清晰求解！'}
+];
+const TOTAL=BOARD_ROWS.reduce((s,r)=>s+r.dur,0);          /* 69.9s · 真实时长真值 */
+const REGION={'题目':'r-question','分析':'r-analysis','解答':'r-solution','总结':'r-summary'};
+
+document.querySelectorAll('[data-board]').forEach(board=>{
+  const face=board.querySelector('.board-face');
+  const sub=board.querySelector('[data-sub]');
+  const btn=board.querySelector('.play');
+  const fill=board.querySelector('.seek i');
+  const seekBar=board.querySelector('.seek');
+  const tEl=board.querySelector('.spec-time');
+  let raf=null,t0=0,offset=0,rate=1,running=false;
+
+  /* 建区：题目印刷体常驻（考卷式），三段手写体待写 */
+  BOARD_ROWS.forEach(r=>{
+    const d=document.createElement('div');
+    d.className='region '+REGION[r.stage];d.dataset.region=r.stage;
+    const tag=document.createElement('span');
+    tag.className='stagetag'+(r.cls?' '+r.cls:'');tag.textContent=r.stage;
+    d.appendChild(tag);
+    if(r.stage==='题目'){
+      const p=document.createElement('p');p.className='bq';
+      p.innerHTML='已知平行四边形 ABCD 的底边长为 <b class="rough-c">9</b> 厘米，高为 <b class="rough-u">20.4 厘米</b>，沿高分割后分别构成三角形与梯形，求该平行四边形的完整面积。';
+      d.appendChild(p);
+    }else{
+      const p=document.createElement('p');p.className='bh';
+      r.text.split('\n').forEach(()=>{const s=document.createElement('span');s.className='ln';p.appendChild(s)});
+      d.appendChild(p);
+    }
+    face.appendChild(d);
+  });
+
+  const lines=(st)=>{const el=face.querySelector('[data-region="'+st+'"] .bh');return el?[...el.children]:[]};
+  const tagOf=(st)=>face.querySelector('[data-region="'+st+'"] .stagetag');
+
+  function paint(t){                                     /* render(t) 纯函数：幂等、可 seek */
+    let acc=0,cur=null,local=0;
+    for(const r of BOARD_ROWS){
+      if(t<acc+r.dur){cur=r;local=t-acc;break}
+      acc+=r.dur;
+    }
+    if(!cur){cur=BOARD_ROWS[BOARD_ROWS.length-1];local=cur.dur;}
+    BOARD_ROWS.forEach((r,i)=>{
+      const el=t-acc0(i);                                /* 该段自身经过时间：负=未始，>dur=已毕 */
+      const tag=tagOf(r.stage);
+      if(tag) tag.style.opacity=(r.stage==='题目'||el>=r.delay)?'1':'0';
+      if(r.stage==='题目'){
+        face.querySelectorAll('.rough-c,.rough-u').forEach((n2,k)=>
+          n2.classList.toggle('on',el>=3+k*2.2));        /* order1 circle / order2 underline */
+        return;
+      }
+      const ls=lines(r.stage);if(!ls.length)return;
+      const span=r.dur-r.delay;
+      const wt=Math.max(0,Math.min(span,el-r.delay));    /* 每段用自己的 el，段间不串味 */
+      const n=r.text.replace(/\n/g,'').length;
+      const shown=Math.max(0,Math.min(n,n*(span?wt/span:0)));   /* 连续进度，不再取整字 */
+      let k=0;
+      r.text.split('\n').forEach((line,li)=>{
+        /* 用户拍板 2026-09-17：全量文字常驻 + 软边遮罩按进度揭示（打字机硬切不够柔和） */
+        const p=Math.max(0,Math.min(1,line.length?(shown-k)/line.length:1));
+        const s=ls[li];
+        const ruleT=line.replace(/\\s/g,'');
+        const isRule=ruleT.length>=2&&/^[_\\u2014\\-\\u2013\\u2015~\\uFF5E\\u2550\\u2501=]+$/.test(ruleT);
+        if(isRule){
+          // 竖式/长除横线：与 row-player 对齐——不渲染下划线字符，画一条干净横线（DOM 版 rough 横线）
+          s.textContent='';
+          s.style.display='inline-block';
+          s.style.width=(ruleT.length*0.56)+'em';
+          s.style.borderBottom='2.5px solid currentColor';
+          s.style.height='1em';
+        } else {
+          s.style.display='';s.style.width='';s.style.borderBottom='';s.style.height='';
+          s.textContent=line;
+        }
+        const m='linear-gradient(to right,#000 calc('+(p*100).toFixed(2)+'% - 8px),transparent calc('+(p*100).toFixed(2)+'% + 8px))';
+        s.style.webkitMaskImage=m;s.style.maskImage=m;
+        k+=line.length;
+      });
+    });
+    if(sub) sub.textContent=(done0(t)?BOARD_ROWS[3].speech:cur.speech);
+    if(fill) fill.style.width=(t/TOTAL*100).toFixed(2)+'%';
+    if(tEl) tEl.textContent=t.toFixed(1)+' / '+TOTAL.toFixed(1)+' s';
+  }
+  const acc0=(i)=>BOARD_ROWS.slice(0,i).reduce((s,r)=>s+r.dur,0);
+  const done0=(t)=>t>=TOTAL-0.05;
+
+  function tick(now){
+    const t=Math.min(TOTAL,offset+(now-t0)/1000*rate);
+    paint(t);
+    if(t>=TOTAL){stop();return}
+    raf=requestAnimationFrame(tick);
+  }
+  function stop(){running=false;cancelAnimationFrame(raf);btn.textContent='▶'}
+  function play(){
+    if(running){stop();return}
+    const cur=(parseFloat(tEl.textContent)||0);
+    offset=cur>=TOTAL-0.05?0:cur;
+    running=true;btn.textContent='❚❚';t0=performance.now();raf=requestAnimationFrame(tick);
+  }
+  function reset(){stop();offset=0;paint(0)}
+
+  btn.addEventListener('click',play);
+  board.querySelectorAll('.speeds button').forEach(b=>b.addEventListener('click',()=>{
+    board.querySelectorAll('.speeds button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');rate=parseFloat(b.dataset.sp);
+    if(running){t0=performance.now();offset=parseFloat(tEl.textContent)||0}
+  }));
+  seekBar.addEventListener('click',e=>{                  /* 可 seek：点轨道跳转，验证幂等 */
+    const r=seekBar.getBoundingClientRect();
+    const t=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width))*TOTAL;
+    offset=t;t0=performance.now();paint(t);
+  });
+  reset();
+});
+
+/* ---------- 滚动进场 ---------- */
+if('IntersectionObserver' in window){
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.08});
+  document.querySelectorAll('.card').forEach(c=>io.observe(c));
+}else{document.querySelectorAll('.card').forEach(c=>c.classList.add('in'))}
+</script>
+</body>
+</html>
