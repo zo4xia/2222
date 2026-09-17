@@ -1,0 +1,1079 @@
+=== 1. 切到 feature 分支 ===
+Switched to branch 'feature/depth-scan-handoff-2026-09-17'
+Your branch is up to date with 'origin/feature/depth-scan-handoff-2026-09-17'.
+
+=== 2. 把 feature 分支 fast-forward 到 main 的最新 commit ===
+Updating c9b304f..dd69793
+Fast-forward
+ .env                                               |   1 -
+ .gitignore                                         |  34 ++++++++++++++++++++-
+ ...233\256\347\233\256\345\275\225\346\240\221.md" |   0
+ ...265\201\346\230\240\345\260\204\345\233\276.md" |   0
+ ...203\275\350\257\204\344\274\260\350\241\250.md" |   0
+ ...261\202\346\240\241\345\207\206\350\241\250.md" |   0
+ ...210\206\347\272\247\346\270\205\345\215\225.md" |   0
+ ...200\246\350\276\271\347\225\214\345\233\276.md" |   0
+ ...276\271\347\225\214\345\233\272\345\214\226.md" |   0
+ ...225\260\346\215\256\351\200\232\351\223\276.md" |   0
+ ...2\250UI\344\270\216\344\274\230\345\214\226.md" |   0
+ ...247\204\350\214\203\346\211\213\345\206\214.md" |   0
+ ...223\215\344\275\234\346\211\213\345\206\214.md" |   0
+ ...275\223\346\243\200\346\212\245\345\221\212.md" |   0
+ ...256\241\346\237\245\346\212\245\345\221\212.md" |   0
+ extracted/.codebuddy/agents/board-lecture-aide.md  |   0
+ extracted/.codebuddy/memory/2026-09-14.md          |   0
+ extracted/.codebuddy/memory/2026-09-15.md          |   0
+ extracted/.codebuddy/memory/CONTEXT-DIGEST.md      |   0
+ extracted/.codebuddy/memory/MEMORY.md              |   0
+ extracted/.codegraph/.gitignore                    |   0
+ extracted/.env.example                             |   0
+ extracted/.gitignore                               |   0
+ extracted/.vscode/settings.json                    |   0
+ extracted/.workbuddy/memory/2026-09-14.md          |   0
+ extracted/.workbuddy/memory/2026-09-15.md          |   0
+ extracted/AGENTS.local.md                          |   0
+ extracted/AGENTS.md                                |   0
+ extracted/ARCHITECTURE.md                          |   0
+ extracted/CONTINUITY.md                            |   0
+ extracted/DECISIONS.md                             |   0
+ extracted/ENGINEERING_LOG.md                       |   0
+ extracted/KNOWN_ISSUES.md                          |   0
+ extracted/PROJECT_STATE.md                         |   0
+ extracted/PROJECT_TREE.md                          |   0
+ extracted/README.md                                |   0
+ extracted/RTK.md                                   |   0
+ extracted/TOOLKIT.md                               |   0
+ extracted/agent-b-v2.html                          |   0
+ extracted/api/agent-b-v2/generate.js               |   0
+ extracted/api/check-agent/apply.js                 |   0
+ extracted/api/check-agent/check.js                 |   0
+ extracted/api/check-agent/revert.js                |   0
+ extracted/api/cleanup.js                           |   0
+ extracted/api/recognition/problem.js               |   0
+ extracted/board-preview.html                       |   0
+ ...267\257\350\257\212\346\226\255\345\215\225.md" |   0
+ extracted/doc/DELIVERABLE_API_SPEC.md              |   0
+ ...205\250\345\261\200\345\233\276\350\260\261.md" |   0
+ extracted/doc/agent-b-control-responsibility.md    |   0
+ extracted/doc/anchor-marking-map.md                |   0
+ extracted/doc/board_initial_state.md               |   0
+ extracted/doc/board_resource_list.md               |   0
+ extracted/doc/board_risk_matrix.md                 |   0
+ extracted/doc/knowledge-a-source.json              |   0
+ extracted/doc/knowledge-a.compact.json             |   0
+ extracted/doc/knowledge-list.md                    |   0
+ extracted/doc/knowledge_points.json                |   0
+ extracted/doc/minimal-runtime-loop.md              |   0
+ extracted/doc/self-check.md                        |   0
+ extracted/doc/speech-board-guide.md                |   0
+ ...235\277\344\271\246\345\277\205\347\234\213.md" |   0
+ ...01\224\347\237\245\350\257\206\350\241\250.csv" |   0
+ ...273\272\350\256\256\346\217\220\347\244\272.md" |   0
+ ...210\227\350\241\250\345\244\247\345\205\250.md" |   0
+ ...07\252\346\243\200-\345\277\205\350\257\273.md" |   0
+ .../doc/\350\264\243\344\273\273\350\241\250.md"   |   0
+ ...205\234\345\272\225\350\257\235\346\234\257.md" |   0
+ extracted/eslint.config.js                         |   0
+ ...5\211\346\204\237\344\274\230\347\247\200.html" |   0
+ extracted/index.html                               |   0
+ ...1\246\346\262\241\344\272\206\343\200\202.html" |   0
+ extracted/metadata.json                            |   0
+ extracted/package.json                             |   0
+ extracted/public/README.md                         |   0
+ extracted/public/analysis.png                      | Bin
+ .../02218078bea620cd4927c32b8f0aa40e.mp3           | Bin
+ .../5a597c712c57d805f299159f8f83872e.mp3           | Bin
+ .../8a4d7948c8e2be06640e29214afd954d.mp3           | Bin
+ .../8f6f88d176cdfab2dd101c86b8ccb8f9.mp3           | Bin
+ .../d37b588a95fb596de465fb0106c0eb68.mp3           | Bin
+ .../d64788af12eda7baccc2a2b02a7070f8.mp3           | Bin
+ .../e9f832de8ed3440a84366194f369abc2.mp3           | Bin
+ .../audio/audio-20260915-095231-817-step1.mp3      | Bin
+ .../audio/audio-20260915-095233-751-step2.mp3      | Bin
+ .../audio/audio-20260915-095234-992-step3.mp3      | Bin
+ .../audio/audio-20260915-095236-664-step4.mp3      | Bin
+ .../board-result-20260914-215611-056.json          |   0
+ .../board-result-20260915-094859-410.json          |   0
+ .../board-result-20260915-094859-410.original.json |   0
+ extracted/public/board-result/current.json         |   0
+ extracted/public/canvas.png                        | Bin
+ .../public/deliverable/DELIVERABLE_API_SPEC.md     |   0
+ extracted/public/deliverable/current.html          |   0
+ extracted/public/deliverable/current.json          |   0
+ .../deliverable-deliverable-1789337449932.html     |   0
+ .../deliverable-deliverable-1789337449932.json     |   0
+ .../public/deliverable/deliverable.schema.json     |   0
+ extracted/public/favicon.svg                       |   0
+ extracted/public/fish-tts-proxy.py                 |   0
+ extracted/public/fonts/SKILL.md                    |   0
+ extracted/public/fonts/pingfang-qiaomu.ttf         | Bin
+ extracted/public/handoff/current.json              |   0
+ .../handoff/handoff-20260821-224506-749.json       |   0
+ .../handoff/handoff-20260915-094138-664.json       |   0
+ .../handoff-20260915-094138-664.original.json      |   0
+ .../handoff/handoff-20260915-094754-995.json       |   0
+ .../handoff-20260915-094754-995.original.json      |   0
+ extracted/public/icons.svg                         |   0
+ extracted/public/katex/README.md                   |   0
+ extracted/public/katex/contrib/auto-render.js      |   0
+ extracted/public/katex/contrib/auto-render.min.js  |   0
+ extracted/public/katex/contrib/auto-render.mjs     |   0
+ extracted/public/katex/contrib/copy-tex.js         |   0
+ extracted/public/katex/contrib/copy-tex.min.js     |   0
+ extracted/public/katex/contrib/copy-tex.mjs        |   0
+ .../public/katex/contrib/mathtex-script-type.js    |   0
+ .../katex/contrib/mathtex-script-type.min.js       |   0
+ .../public/katex/contrib/mathtex-script-type.mjs   |   0
+ extracted/public/katex/contrib/mhchem.js           |   0
+ extracted/public/katex/contrib/mhchem.min.js       |   0
+ extracted/public/katex/contrib/mhchem.mjs          |   0
+ .../public/katex/contrib/render-a11y-string.js     |   0
+ .../public/katex/contrib/render-a11y-string.min.js |   0
+ .../public/katex/contrib/render-a11y-string.mjs    |   0
+ extracted/public/katex/fonts/KaTeX_AMS-Regular.ttf | Bin
+ .../public/katex/fonts/KaTeX_AMS-Regular.woff      | Bin
+ .../public/katex/fonts/KaTeX_AMS-Regular.woff2     | Bin
+ .../public/katex/fonts/KaTeX_Caligraphic-Bold.ttf  | Bin
+ .../public/katex/fonts/KaTeX_Caligraphic-Bold.woff | Bin
+ .../katex/fonts/KaTeX_Caligraphic-Bold.woff2       | Bin
+ .../katex/fonts/KaTeX_Caligraphic-Regular.ttf      | Bin
+ .../katex/fonts/KaTeX_Caligraphic-Regular.woff     | Bin
+ .../katex/fonts/KaTeX_Caligraphic-Regular.woff2    | Bin
+ .../public/katex/fonts/KaTeX_Fraktur-Bold.ttf      | Bin
+ .../public/katex/fonts/KaTeX_Fraktur-Bold.woff     | Bin
+ .../public/katex/fonts/KaTeX_Fraktur-Bold.woff2    | Bin
+ .../public/katex/fonts/KaTeX_Fraktur-Regular.ttf   | Bin
+ .../public/katex/fonts/KaTeX_Fraktur-Regular.woff  | Bin
+ .../public/katex/fonts/KaTeX_Fraktur-Regular.woff2 | Bin
+ extracted/public/katex/fonts/KaTeX_Main-Bold.ttf   | Bin
+ extracted/public/katex/fonts/KaTeX_Main-Bold.woff  | Bin
+ extracted/public/katex/fonts/KaTeX_Main-Bold.woff2 | Bin
+ .../public/katex/fonts/KaTeX_Main-BoldItalic.ttf   | Bin
+ .../public/katex/fonts/KaTeX_Main-BoldItalic.woff  | Bin
+ .../public/katex/fonts/KaTeX_Main-BoldItalic.woff2 | Bin
+ extracted/public/katex/fonts/KaTeX_Main-Italic.ttf | Bin
+ .../public/katex/fonts/KaTeX_Main-Italic.woff      | Bin
+ .../public/katex/fonts/KaTeX_Main-Italic.woff2     | Bin
+ .../public/katex/fonts/KaTeX_Main-Regular.ttf      | Bin
+ .../public/katex/fonts/KaTeX_Main-Regular.woff     | Bin
+ .../public/katex/fonts/KaTeX_Main-Regular.woff2    | Bin
+ .../public/katex/fonts/KaTeX_Math-BoldItalic.ttf   | Bin
+ .../public/katex/fonts/KaTeX_Math-BoldItalic.woff  | Bin
+ .../public/katex/fonts/KaTeX_Math-BoldItalic.woff2 | Bin
+ extracted/public/katex/fonts/KaTeX_Math-Italic.ttf | Bin
+ .../public/katex/fonts/KaTeX_Math-Italic.woff      | Bin
+ .../public/katex/fonts/KaTeX_Math-Italic.woff2     | Bin
+ .../public/katex/fonts/KaTeX_SansSerif-Bold.ttf    | Bin
+ .../public/katex/fonts/KaTeX_SansSerif-Bold.woff   | Bin
+ .../public/katex/fonts/KaTeX_SansSerif-Bold.woff2  | Bin
+ .../public/katex/fonts/KaTeX_SansSerif-Italic.ttf  | Bin
+ .../public/katex/fonts/KaTeX_SansSerif-Italic.woff | Bin
+ .../katex/fonts/KaTeX_SansSerif-Italic.woff2       | Bin
+ .../public/katex/fonts/KaTeX_SansSerif-Regular.ttf | Bin
+ .../katex/fonts/KaTeX_SansSerif-Regular.woff       | Bin
+ .../katex/fonts/KaTeX_SansSerif-Regular.woff2      | Bin
+ .../public/katex/fonts/KaTeX_Script-Regular.ttf    | Bin
+ .../public/katex/fonts/KaTeX_Script-Regular.woff   | Bin
+ .../public/katex/fonts/KaTeX_Script-Regular.woff2  | Bin
+ .../public/katex/fonts/KaTeX_Size1-Regular.ttf     | Bin
+ .../public/katex/fonts/KaTeX_Size1-Regular.woff    | Bin
+ .../public/katex/fonts/KaTeX_Size1-Regular.woff2   | Bin
+ .../public/katex/fonts/KaTeX_Size2-Regular.ttf     | Bin
+ .../public/katex/fonts/KaTeX_Size2-Regular.woff    | Bin
+ .../public/katex/fonts/KaTeX_Size2-Regular.woff2   | Bin
+ .../public/katex/fonts/KaTeX_Size3-Regular.ttf     | Bin
+ .../public/katex/fonts/KaTeX_Size3-Regular.woff    | Bin
+ .../public/katex/fonts/KaTeX_Size3-Regular.woff2   | Bin
+ .../public/katex/fonts/KaTeX_Size4-Regular.ttf     | Bin
+ .../public/katex/fonts/KaTeX_Size4-Regular.woff    | Bin
+ .../public/katex/fonts/KaTeX_Size4-Regular.woff2   | Bin
+ .../katex/fonts/KaTeX_Typewriter-Regular.ttf       | Bin
+ .../katex/fonts/KaTeX_Typewriter-Regular.woff      | Bin
+ .../katex/fonts/KaTeX_Typewriter-Regular.woff2     | Bin
+ extracted/public/katex/katex-swap.css              |   0
+ extracted/public/katex/katex-swap.min.css          |   0
+ extracted/public/katex/katex.css                   |   0
+ extracted/public/katex/katex.js                    |   0
+ extracted/public/katex/katex.min.css               |   0
+ extracted/public/katex/katex.min.js                |   0
+ extracted/public/katex/katex.mjs                   |   0
+ .../public/pic/audio-20260915-095231-817-step1.mp3 | Bin
+ .../public/pic/audio-20260915-095233-751-step2.mp3 | Bin
+ .../public/pic/audio-20260915-095234-992-step3.mp3 | Bin
+ .../public/pic/audio-20260915-095236-664-step4.mp3 | Bin
+ extracted/public/pic/shot-20260914-171159-861.jpg  | Bin
+ extracted/public/pic/shot-20260914-202931-507.jpg  | Bin
+ extracted/public/pic/shot-20260915-094136-930.jpg  | Bin
+ extracted/public/pic/shot-20260915-094751-363.jpg  | Bin
+ extracted/public/question.png                      | Bin
+ extracted/public/rough.js                          |   0
+ extracted/public/snapdom.js                        |   0
+ extracted/public/solution.png                      | Bin
+ extracted/public/summary.png                       | Bin
+ extracted/public/topic.png                         | Bin
+ extracted/reasonix.toml                            |   0
+ extracted/server/agentAKnowledge.js                |   0
+ extracted/server/agentAKnowledgeSelfCheck.js       |   0
+ extracted/server/agentBV2Handler.js                |   0
+ extracted/server/boardResultStore.js               |   0
+ extracted/server/checkAgentHandler.js              |   0
+ extracted/server/cleanupHandler.js                 |   0
+ extracted/server/deliverableStoreHandler.js        |   0
+ extracted/server/docReferences.js                  |   0
+ extracted/server/fishAudioHandler.js               |   0
+ extracted/server/handoffStoreHandler.js            |   0
+ extracted/server/http.js                           |   0
+ extracted/server/knowledgeRefineHandler.js         |   0
+ extracted/server/productionServer.js               |   0
+ extracted/server/proxySelfCheck.js                 |   0
+ extracted/server/recognitionHandler.js             |   0
+ extracted/server/recognitionPrompt.js              |   0
+ extracted/server/renderDeliverableHtml.js          |   0
+ extracted/server/screenshotStoreHandler.js         |   0
+ extracted/src/App.vue                              |   0
+ extracted/src/agent-b-v2/AgentBDirect.vue          |   0
+ extracted/src/agent-b-v2/DirectFlow.vue            |   0
+ extracted/src/agent-b-v2/contract.js               |   0
+ extracted/src/agent-b-v2/knowledgeRefinePrompt.js  |   0
+ extracted/src/agent-b-v2/main.js                   |   0
+ extracted/src/agent-b-v2/prompt.js                 |   0
+ extracted/src/agent-b-v2/service.js                |   0
+ extracted/src/agent-b-v2/timing.js                 |   0
+ extracted/src/assets/vue.svg                       |   0
+ extracted/src/board-preview/BoardPreviewApp.vue    |   0
+ extracted/src/board-preview/liveBoardPreview.js    |   0
+ extracted/src/board-preview/main.js                |   0
+ extracted/src/board-tools/boardToolCatalog.js      |   0
+ extracted/src/board-tools/boardToolTiming.js       |   0
+ extracted/src/board-tools/boardTypography.css      |   0
+ extracted/src/board-tools/drawIntentTool.js        |   0
+ extracted/src/board-tools/handActionScheduler.js   |   0
+ extracted/src/board-tools/roughDrawingTool.js      |   0
+ extracted/src/board-tools/roughNotationTool.js     |   0
+ extracted/src/board-tools/textTargetRegistry.js    |   0
+ extracted/src/check-agent/asrPolish.js             |   0
+ extracted/src/check-agent/contract.js              |   0
+ extracted/src/check-agent/prompt.js                |   0
+ extracted/src/check-agent/service.js               |   0
+ extracted/src/components/BoardContentLayer.vue     |   0
+ extracted/src/components/GlobalPulseLoading.vue    |   0
+ extracted/src/components/ProcessLoadingModal.vue   |   0
+ extracted/src/components/QhPageHeader.vue          |   0
+ extracted/src/components/RealBoardPreview.vue      |   0
+ extracted/src/components/Step1Entry.vue            |   0
+ extracted/src/components/VisualTimeline.vue        |   0
+ extracted/src/index.css                            |   0
+ extracted/src/lib/agentBApiConfig.js               |   0
+ extracted/src/lib/checkAgentApiConfig.js           |   0
+ extracted/src/lib/dualStore.js                     |   0
+ extracted/src/lib/mathAsrConverter.js              |   0
+ extracted/src/lib/registerAntd.js                  |   0
+ extracted/src/lib/simpleIndexedDb.js               |   0
+ extracted/src/lib/speechMarkdown.js                |   0
+ extracted/src/lib/userApiConfig.js                 |   0
+ extracted/src/main.js                              |   0
+ extracted/src/services/agentAKnowledge.js          |   0
+ extracted/src/services/globalLoading.js            |   0
+ extracted/src/services/recognitionClient.js        |   0
+ extracted/src/services/stepHandoff.js              |   0
+ extracted/src/style.css                            |   0
+ extracted/src/utils/boardLayout.js                 |   0
+ extracted/src/utils/canvasCoords.js                |   0
+ extracted/src/utils/cdnLoader.js                   |   0
+ extracted/src/utils/mathText.js                    |   0
+ extracted/truth/00-TRUTH-BASE.md                   |   0
+ ...216\237\350\257\235\346\261\207\346\200\273.md" |   0
+ .../truth/_extracted/scripts/auto-checkpoint.ps1   |   0
+ .../_extracted/scripts/auto-continuity-chain.ps1   |   0
+ .../scripts/check-a-track-production-contract.mjs  |   0
+ .../_extracted/scripts/check-abc-architecture.mjs  |   0
+ .../scripts/check-app-settings-fields.mjs          |   0
+ .../_extracted/scripts/check-board-boundaries.mjs  |   0
+ .../_extracted/scripts/check-board-clips-merge.mjs |   0
+ .../_extracted/scripts/check-board-event-clips.mjs |   0
+ .../_extracted/scripts/check-board-events.mjs      |   0
+ .../scripts/check-board-handwriting-support.mjs    |   0
+ .../scripts/check-cosyvoice-gateway-contract.mjs   |   0
+ .../_extracted/scripts/check-dependencies.mjs      |   0
+ .../check-drawboard-component-boundaries.mjs       |   0
+ .../truth/_extracted/scripts/check-performance.mjs |   0
+ .../truth/_extracted/scripts/check-portable.mjs    |   0
+ .../scripts/check-protocol-kit-boundaries.mjs      |   0
+ .../scripts/check-script-agent-rows-contract.mjs   |   0
+ .../_extracted/scripts/check-script-splitter.mjs   |   0
+ .../_extracted/scripts/check-security-secrets.mjs  |   0
+ .../scripts/check-timeline-window-contract.mjs     |   0
+ .../_extracted/scripts/check-tts-batch-jobs.mjs    |   0
+ .../_extracted/scripts/cosyvoice-contract.mjs      |   0
+ .../truth/_extracted/scripts/cosyvoice-gateway.mjs |   0
+ .../_extracted/scripts/debug-browser-monitor.mjs   |   0
+ .../_extracted/scripts/debug-browser-project.ps1   |   0
+ .../scripts/debug-read-browser-project.mjs         |   0
+ extracted/truth/_extracted/scripts/doctor.mjs      |   0
+ .../scripts/feishu-board-script-import.mjs         |   0
+ .../scripts/generate-project-health-report.mjs     |   0
+ .../scripts/install-auto-checkpoint-task.ps1       |   0
+ .../_extracted/scripts/live-fill-and-generate.mjs  |   0
+ .../_extracted/scripts/live-fill-problem-cdp.mjs   |   0
+ .../scripts/live-step1-agent-generate.mjs          |   0
+ .../truth/_extracted/scripts/load-local-env.mjs    |   0
+ .../scripts/script-agent-rows-contract.mjs         |   0
+ .../smoke-abc-playback-mixed-arithmetic.mjs        |   0
+ .../scripts/smoke-asset-panel-collapse.mjs         |   0
+ .../scripts/smoke-b-timeline-drag-lane.mjs         |   0
+ .../scripts/smoke-board-end-pin-visible.mjs        |   0
+ .../_extracted/scripts/smoke-c-drag-offset.mjs     |   0
+ .../scripts/smoke-cosyvoice-sentence.mjs           |   0
+ .../scripts/smoke-default-save-directory.mjs       |   0
+ .../scripts/smoke-golden-finger-minimal.mjs        |   0
+ .../scripts/smoke-local-task-archive-import.mjs    |   0
+ .../scripts/smoke-pending-new-problem.mjs          |   0
+ .../scripts/smoke-pending-project-promotion.mjs    |   0
+ .../scripts/smoke-playback-live-playhead-store.mjs |   0
+ .../scripts/smoke-playback-seek-while-playing.mjs  |   0
+ .../scripts/smoke-playback-smoothness.mjs          |   0
+ .../scripts/smoke-portable-playwright-math.mjs     |   0
+ .../scripts/smoke-recording-focus-mode.mjs         |   0
+ .../_extracted/scripts/smoke-ui-workbench.mjs      |   0
+ .../scripts/smoke-user-click-generate-repro.mjs    |   0
+ .../scripts/smoke-user-full-math-journey.mjs       |   0
+ .../scripts/uninstall-auto-checkpoint-task.ps1     |   0
+ .../verify-agent-draft-persists-after-reopen.mjs   |   0
+ .../scripts/write-continuity-summary.ps1           |   0
+ .../truth/_extracted/scripts/zeabur-server.mjs     |   0
+ .../truth/_extracted/scripts/zeabur-start.mjs      |   0
+ extracted/truth/_extracted/src/App.tsx             |   0
+ .../_extracted/src/agent/scriptBoardAgentPrompt.ts |   0
+ .../_extracted/src/components/AgentReviewCard.tsx  |   0
+ .../src/components/AppSettingsDrawer.tsx           |   0
+ .../truth/_extracted/src/components/AssetList.tsx  |   0
+ .../truth/_extracted/src/components/AssetPanel.tsx |   0
+ .../src/components/AssetWorkflowTabs.tsx           |   0
+ .../src/components/AutoHandwritingLayer.tsx        |   0
+ .../src/components/BoardClipInspector.tsx          |   0
+ .../BoardControlResponsibilitiesPanel.tsx          |   0
+ .../components/BoardHandwritingStickerContent.tsx  |   0
+ .../src/components/BoardMathStickerContent.tsx     |   0
+ .../_extracted/src/components/BoardPreviewCard.tsx |   0
+ .../src/components/BoardStageToolOverlay.tsx       |   0
+ .../_extracted/src/components/BoardTextSticker.tsx |   0
+ .../src/components/BoardTypographyFields.tsx       |   0
+ .../_extracted/src/components/COMPONENT_TAGS.md    |   0
+ .../_extracted/src/components/CStickerFrame.tsx    |   0
+ .../_extracted/src/components/CanvasInspector.tsx  |   0
+ .../src/components/CanvasRecordingSurface.tsx      |   0
+ .../src/components/CurrentProblemPreview.tsx       |   0
+ .../CurrentProjectBoardFontInspector.tsx           |   0
+ .../_extracted/src/components/DrawboardStage.tsx   |   0
+ .../_extracted/src/components/FloatingToolDock.tsx |   0
+ .../_extracted/src/components/FormulaText.tsx      |   0
+ .../src/components/GoldenFingerCanvasLayer.tsx     |   0
+ .../_extracted/src/components/InspectorPanel.tsx   |   0
+ .../src/components/LegacyStagePreview.tsx          |   0
+ .../truth/_extracted/src/components/MathText.tsx   |   0
+ .../src/components/ProblemImportCard.tsx           |   0
+ .../_extracted/src/components/ProblemOcrCard.tsx   |   0
+ .../src/components/ProblemUploadPreview.tsx        |   0
+ .../_extracted/src/components/ProblemWorkspace.tsx |   0
+ .../src/components/ProjectArchiveActions.tsx       |   0
+ .../src/components/ScriptAgentWorkspace.tsx        |   0
+ .../src/components/ScriptBoardSummaryStep.tsx      |   0
+ .../_extracted/src/components/StagePreview.tsx     |   0
+ .../src/components/StagePreviewToolbar.tsx         |   0
+ .../src/components/StageRecorderControl.tsx        |   0
+ .../_extracted/src/components/TeachingTimeline.tsx |   0
+ .../src/components/TimelineClipBlock.tsx           |   0
+ .../_extracted/src/components/TimelineTrackRow.tsx |   0
+ .../src/components/TldrawStagePreview.tsx          |   0
+ .../src/components/VoiceBatchStatusPanel.tsx       |   0
+ .../truth/_extracted/src/components/VoiceTrack.tsx |   0
+ .../_extracted/src/components/VoiceWorkspace.tsx   |   0
+ .../_extracted/src/components/assetPanelMeta.ts    |   0
+ .../BoardClipInspectorSections.tsx                 |   0
+ .../boardClipInspectorContract.ts                  |   0
+ .../src/components/drawboardStageTypes.ts          |   0
+ extracted/truth/_extracted/src/config/assetTabs.ts |   0
+ .../truth/_extracted/src/config/defaultConfig.ts   |   0
+ .../truth/_extracted/src/domain/globalRules.ts     |   0
+ .../truth/_extracted/src/domain/teachingProject.ts |   0
+ extracted/truth/_extracted/src/main.tsx            |   0
+ extracted/truth/_extracted/src/modules/README.md   |   0
+ .../src/modules/aTrackProduction/index.ts          |   0
+ .../modules/aTrackProduction/scriptRowsOutput.ts   |   0
+ .../_extracted/src/modules/abcChain/abcChainKey.ts |   0
+ .../_extracted/src/modules/asset-factory/README.md |   0
+ .../_extracted/src/modules/asset-factory/index.ts  |   0
+ .../_extracted/src/modules/asset-factory/types.ts  |   0
+ .../audioPlayback/activeVoiceAudioElement.ts       |   0
+ .../modules/audioPlayback/useVoiceTrackAudio.ts    |   0
+ .../src/modules/audioPlayback/voiceAudioSeek.ts    |   0
+ .../modules/audioPlayback/voicePlaybackStart.ts    |   0
+ .../boardControlResponsibilities.ts                |   0
+ .../src/modules/boardFont/boardFontConfig.ts       |   0
+ .../modules/boardOrdering/boardClipLayerOrder.ts   |   0
+ .../_extracted/src/modules/boardOrdering/index.ts  |   0
+ .../src/modules/boardReveal/boardRevealConfig.ts   |   0
+ .../modules/boardReveal/getBoardRevealProgress.ts  |   0
+ .../_extracted/src/modules/boardReveal/index.ts    |   0
+ .../boardReveal/normalizeBoardRevealWindow.ts      |   0
+ .../_extracted/src/modules/boardSticker/README.md  |   0
+ .../modules/boardSticker/boardStickerGeometry.ts   |   0
+ .../boardSticker/boardStickerPluginContract.ts     |   0
+ .../modules/boardSticker/boardTextDisplayRoute.ts  |   0
+ .../_extracted/src/modules/boardSticker/index.ts   |   0
+ .../src/modules/boardSticker/mathBoardText.ts      |   0
+ .../boardSticker/renderBoardMathStickerImage.ts    |   0
+ .../boardSticker/renderBoardTextStickerImage.ts    |   0
+ .../boardSticker/useBoardStickerDragController.ts  |   0
+ .../src/modules/boardTiming/boardDisplayTiming.ts  |   0
+ .../_extracted/src/modules/boardTiming/index.ts    |   0
+ .../cAssetPrewarm/createCAssetPrewarmQueue.ts      |   0
+ .../_extracted/src/modules/cAssetPrewarm/index.ts  |   0
+ .../canvasStage/drawCoursewareStageFrame.ts        |   0
+ .../src/modules/export-factory/README.md           |   0
+ .../_extracted/src/modules/export-factory/index.ts |   0
+ .../_extracted/src/modules/export-factory/types.ts |   0
+ .../_extracted/src/modules/feishuImport/README.md  |   0
+ .../_extracted/src/modules/feishuImport/index.ts   |   0
+ .../src/modules/inspector-factory/README.md        |   0
+ .../src/modules/inspector-factory/index.ts         |   0
+ .../src/modules/inspector-factory/types.ts         |   0
+ .../src/modules/konvaStage/KonvaStagePreview.tsx   |   0
+ .../src/modules/konvaStage/abcToKonvaNodes.ts      |   0
+ .../modules/localTaskArchive/localTaskArchive.ts   |   0
+ .../src/modules/localTaskArchive/localTaskDb.ts    |   0
+ .../src/modules/math-symbol-factory/README.md      |   0
+ .../src/modules/math-symbol-factory/index.ts       |   0
+ .../src/modules/math-symbol-factory/types.ts       |   0
+ .../src/modules/scriptAgentDraft/README.md         |   0
+ .../src/modules/scriptAgentDraft/index.ts          |   0
+ .../scriptAgentDraft/normalizeScriptAgentDraft.ts  |   0
+ .../scriptAgentDraft/scriptAgentDraftState.ts      |   0
+ .../src/modules/scriptAgentTable/README.md         |   0
+ .../scriptAgentTable/ScriptAgentTableEditor.tsx    |   0
+ .../compileScriptAgentTableDraft.ts                |   0
+ .../src/modules/scriptAgentTable/index.ts          |   0
+ .../normalizeScriptAgentTableDraft.ts              |   0
+ .../src/modules/scriptAgentTable/types.ts          |   0
+ .../src/modules/scriptSegments/README.md           |   0
+ .../scriptSegments/ScriptSegmentPreview.tsx        |   0
+ .../scriptSegments/ScriptSegmentWorkbench.tsx      |   0
+ .../modules/scriptSegments/createScriptSegments.ts |   0
+ .../_extracted/src/modules/scriptSegments/index.ts |   0
+ .../scriptSegments/scriptSegmentBoardMarkers.ts    |   0
+ .../scriptSegments/scriptSegmentDisplayLabels.ts   |   0
+ .../_extracted/src/modules/scriptSegments/types.ts |   0
+ .../_extracted/src/modules/speechText/README.md    |   0
+ .../src/modules/speechText/aliyunMathSpeechText.ts |   0
+ .../_extracted/src/modules/speechText/index.ts     |   0
+ .../_extracted/src/modules/stage-factory/README.md |   0
+ .../_extracted/src/modules/stage-factory/index.ts  |   0
+ .../_extracted/src/modules/stage-factory/types.ts  |   0
+ .../src/modules/stageRecorder/useCanvasRecorder.ts |   0
+ .../src/modules/timeline-factory/README.md         |   0
+ .../applyBoardEventsToTeachingTimeline.ts          |   0
+ .../createBoardEventsFromTtsUnits.ts               |   0
+ .../modules/timeline-factory/createTtsBatchJobs.ts |   0
+ .../src/modules/timeline-factory/index.ts          |   0
+ .../mapBoardEventsToTimelineClips.ts               |   0
+ .../mergeBoardClipsIntoTimelineClips.ts            |   0
+ .../timeline-factory/orderTtsSentenceResults.ts    |   0
+ .../splitScriptIntoTtsSentenceUnits.ts             |   0
+ .../src/modules/timeline-factory/types.ts          |   0
+ .../src/modules/timeline/timelineWindow.ts         |   0
+ .../src/modules/tldrawStage/abcToTldrawShapes.ts   |   0
+ .../src/modules/ttsPreprocessor/index.ts           |   0
+ .../ttsPreprocessor/ttsFormatFilterLayer.ts        |   0
+ .../_extracted/src/protocols/exportPackage.ts      |   0
+ extracted/truth/_extracted/src/protocols/index.ts  |   0
+ .../_extracted/src/protocols/materialInput.ts      |   0
+ .../_extracted/src/protocols/performancePlan.ts    |   0
+ .../truth/_extracted/src/protocols/scriptRow.ts    |   0
+ .../truth/_extracted/src/protocols/stageConfig.ts  |   0
+ .../truth/_extracted/src/protocols/voiceTiming.ts  |   0
+ .../services/boardLayoutPreviewGatewayClient.ts    |   0
+ .../src/services/cosyvoiceGatewayClient.ts         |   0
+ .../src/services/recognitionGatewayClient.ts       |   0
+ .../src/services/scriptAgentGatewayClient.ts       |   0
+ .../src/standalone/CStickerStandalonePage.tsx      |   0
+ .../src/standalone/DrawboardCoreStandalonePage.tsx |   0
+ .../standalone/DrawboardHybridPrototypePage.tsx    |   0
+ .../_extracted/src/standalone/TldrawProofPage.tsx  |   0
+ .../_extracted/src/store/useTeachingEditorStore.ts |   0
+ extracted/truth/_extracted/src/styles.css          |   0
+ .../src/ui/ChenYuluoyan-Thin-Monospaced.ttf        | Bin
+ extracted/truth/_extracted/src/ui/colorSystem.ts   |   0
+ extracted/truth/_extracted/src/ui/cut.png          | Bin
+ extracted/truth/_extracted/src/ui/pen.png          | Bin
+ extracted/truth/_extracted/src/ui/theme.ts         |   0
+ ...26\271\344\271\224\346\234\250\344\275\223.ttf" | Bin
+ extracted/truth/_extracted/src/vite-env.d.ts       |   0
+ .../_extracted/src/workflow/assetWorkflowFlow.tsx  |   0
+ .../src/workflow/createAssetWorkflowSteps.tsx      |   0
+ .../_extracted/src/workflow/workflowStepSdk.ts     |   0
+ .../video-dev-modules/boardRevealConfig.ts         |   0
+ .../video-dev-modules/boardStickerGeometry.ts      |   0
+ .../video-dev-modules/getBoardRevealProgress.ts    |   0
+ .../_reference/video-dev-modules/mathBoardText.ts  |   0
+ .../normalizeBoardRevealWindow.ts                  |   0
+ .../renderBoardTextStickerImage.ts                 |   0
+ .../_reference/video-dev-modules/scriptRow.ts      |   0
+ .../video-dev-modules/useVoiceTrackAudio.ts        |   0
+ .../_reference/video-dev-modules/voiceTiming.ts    |   0
+ extracted/truth/src.zip                            | Bin
+ extracted/truth/territory-A-agent-b.md             |   0
+ extracted/truth/territory-B-contract.md            |   0
+ extracted/truth/territory-C-actions-and-anchors.md |   0
+ extracted/truth/territory-C-tools.md               |   0
+ extracted/truth/territory-E-render.md              |   0
+ extracted/vercel.json                              |   0
+ extracted/vite.config.js                           |   0
+ ...4\345\233\233\350\276\271\345\275\242DEMO.html" |   0
+ ...236\204\346\250\241\345\235\227\345\233\276.md" |   0
+ upload/remix-remix-remix-copy-of--googel--1-.zip   | Bin 29770503 -> 0 bytes
+ worklog.md                                         |   0
+ 527 files changed, 33 insertions(+), 2 deletions(-)
+ delete mode 100644 .env
+ mode change 100644 => 100755 .gitignore
+ mode change 100644 => 100755 "download/01-\346\267\261\345\272\246\346\211\253\346\217\217/01_\351\241\271\347\233\256\347\233\256\345\275\225\346\240\221.md"
+ mode change 100644 => 100755 "download/01-\346\267\261\345\272\246\346\211\253\346\217\217/02_\344\270\232\345\212\241\351\200\273\350\276\221\346\265\201\346\230\240\345\260\204\345\233\276.md"
+ mode change 100644 => 100755 "download/01-\346\267\261\345\272\246\346\211\253\346\217\217/03_\346\200\247\350\203\275\350\257\204\344\274\260\350\241\250.md"
+ mode change 100644 => 100755 "download/01-\346\267\261\345\272\246\346\211\253\346\217\217/04_\351\234\200\346\261\202\346\240\241\345\207\206\350\241\250.md"
+ mode change 100644 => 100755 "download/02-\351\201\227\347\225\231\346\262\273\347\220\206/05_\351\201\227\347\225\231\351\227\256\351\242\230\345\210\206\347\272\247\346\270\205\345\215\225.md"
+ mode change 100644 => 100755 "download/02-\351\201\227\347\225\231\346\262\273\347\220\206/06_\346\262\273\347\220\206\350\256\260\345\275\225\344\270\216\350\247\243\350\200\246\350\276\271\347\225\214\345\233\276.md"
+ mode change 100644 => 100755 "download/03-\351\252\250\346\236\266\346\226\275\345\267\245/07_\350\247\206\350\247\211\351\252\250\346\236\266\344\270\216\350\276\271\347\225\214\345\233\272\345\214\226.md"
+ mode change 100644 => 100755 "download/04-API\351\200\232\351\223\276/08_API\346\200\273\351\227\270\344\270\216\346\225\260\346\215\256\351\200\232\351\223\276.md"
+ mode change 100644 => 100755 "download/05-UI\344\274\230\345\214\226/09_\346\225\260\346\215\256\351\251\261\345\212\250UI\344\270\216\344\274\230\345\214\226.md"
+ mode change 100644 => 100755 "download/06-\346\224\266\345\260\276\351\252\214\346\224\266/10_\351\241\271\347\233\256\345\274\200\345\217\221\350\247\204\350\214\203\346\211\213\345\206\214.md"
+ mode change 100644 => 100755 "download/06-\346\224\266\345\260\276\351\252\214\346\224\266/11_\346\223\215\344\275\234\346\211\213\345\206\214.md"
+ mode change 100644 => 100755 "download/06-\346\224\266\345\260\276\351\252\214\346\224\266/12_\346\200\273\344\275\223\344\275\223\346\243\200\346\212\245\345\221\212.md"
+ mode change 100644 => 100755 "download/07-\345\257\271\351\275\220\345\256\241\346\237\245/13_prompt.js\345\257\271\351\275\220\345\256\241\346\237\245\346\212\245\345\221\212.md"
+ mode change 100644 => 100755 extracted/.codebuddy/agents/board-lecture-aide.md
+ mode change 100644 => 100755 extracted/.codebuddy/memory/2026-09-14.md
+ mode change 100644 => 100755 extracted/.codebuddy/memory/2026-09-15.md
+ mode change 100644 => 100755 extracted/.codebuddy/memory/CONTEXT-DIGEST.md
+ mode change 100644 => 100755 extracted/.codebuddy/memory/MEMORY.md
+ mode change 100644 => 100755 extracted/.codegraph/.gitignore
+ mode change 100644 => 100755 extracted/.env.example
+ mode change 100644 => 100755 extracted/.gitignore
+ mode change 100644 => 100755 extracted/.vscode/settings.json
+ mode change 100644 => 100755 extracted/.workbuddy/memory/2026-09-14.md
+ mode change 100644 => 100755 extracted/.workbuddy/memory/2026-09-15.md
+ mode change 100644 => 100755 extracted/AGENTS.local.md
+ mode change 100644 => 100755 extracted/AGENTS.md
+ mode change 100644 => 100755 extracted/ARCHITECTURE.md
+ mode change 100644 => 100755 extracted/CONTINUITY.md
+ mode change 100644 => 100755 extracted/DECISIONS.md
+ mode change 100644 => 100755 extracted/ENGINEERING_LOG.md
+ mode change 100644 => 100755 extracted/KNOWN_ISSUES.md
+ mode change 100644 => 100755 extracted/PROJECT_STATE.md
+ mode change 100644 => 100755 extracted/PROJECT_TREE.md
+ mode change 100644 => 100755 extracted/README.md
+ mode change 100644 => 100755 extracted/RTK.md
+ mode change 100644 => 100755 extracted/TOOLKIT.md
+ mode change 100644 => 100755 extracted/agent-b-v2.html
+ mode change 100644 => 100755 extracted/api/agent-b-v2/generate.js
+ mode change 100644 => 100755 extracted/api/check-agent/apply.js
+ mode change 100644 => 100755 extracted/api/check-agent/check.js
+ mode change 100644 => 100755 extracted/api/check-agent/revert.js
+ mode change 100644 => 100755 extracted/api/cleanup.js
+ mode change 100644 => 100755 extracted/api/recognition/problem.js
+ mode change 100644 => 100755 extracted/board-preview.html
+ mode change 100644 => 100755 "extracted/doc/2026-08-16-A-B-Check\351\223\276\350\267\257\350\257\212\346\226\255\345\215\225.md"
+ mode change 100644 => 100755 extracted/doc/DELIVERABLE_API_SPEC.md
+ mode change 100644 => 100755 "extracted/doc/XRAY-\345\205\250\345\261\200\345\233\276\350\260\261.md"
+ mode change 100644 => 100755 extracted/doc/agent-b-control-responsibility.md
+ mode change 100644 => 100755 extracted/doc/anchor-marking-map.md
+ mode change 100644 => 100755 extracted/doc/board_initial_state.md
+ mode change 100644 => 100755 extracted/doc/board_resource_list.md
+ mode change 100644 => 100755 extracted/doc/board_risk_matrix.md
+ mode change 100644 => 100755 extracted/doc/knowledge-a-source.json
+ mode change 100644 => 100755 extracted/doc/knowledge-a.compact.json
+ mode change 100644 => 100755 extracted/doc/knowledge-list.md
+ mode change 100644 => 100755 extracted/doc/knowledge_points.json
+ mode change 100644 => 100755 extracted/doc/minimal-runtime-loop.md
+ mode change 100644 => 100755 extracted/doc/self-check.md
+ mode change 100644 => 100755 extracted/doc/speech-board-guide.md
+ mode change 100644 => 100755 "extracted/doc/\345\217\243\346\222\255+\346\235\277\344\271\246\345\277\205\347\234\213.md"
+ mode change 100644 => 100755 "extracted/doc/\345\260\217\345\255\246\346\225\260\345\255\246\350\256\262\350\247\243\350\247\206\351\242\221\347\224\237\346\210\220\345\267\245\344\275\234\345\217\260_6\343\200\201\345\205\263\350\201\224\347\237\245\350\257\206\350\241\250.csv"
+ mode change 100644 => 100755 "extracted/doc/\345\273\272\350\256\256\346\217\220\347\244\272.md"
+ mode change 100644 => 100755 "extracted/doc/\347\237\245\350\257\206\347\202\271\345\210\227\350\241\250\345\244\247\345\205\250.md"
+ mode change 100644 => 100755 "extracted/doc/\350\207\252\346\243\200-\345\277\205\350\257\273.md"
+ mode change 100644 => 100755 "extracted/doc/\350\264\243\344\273\273\350\241\250.md"
+ mode change 100644 => 100755 "extracted/doc/\350\265\267\345\247\213\350\257\255-\350\277\207\346\270\241-\346\200\273\347\273\223-\345\205\234\345\272\225\350\257\235\346\234\257.md"
+ mode change 100644 => 100755 extracted/eslint.config.js
+ mode change 100644 => 100755 "extracted/handwrite-compare\346\275\246\350\215\211\346\204\237\344\274\230\347\247\200.html"
+ mode change 100644 => 100755 extracted/index.html
+ mode change 100644 => 100755 "extracted/lecture-\345\212\250\344\275\234\344\270\215\350\241\214\357\274\214\347\224\273\345\270\203\345\260\272\345\257\270\346\255\252\357\274\214\345\206\231\345\256\214\346\235\277\344\271\246\346\262\241\344\272\206\343\200\202.html"
+ mode change 100644 => 100755 extracted/metadata.json
+ mode change 100644 => 100755 extracted/package.json
+ mode change 100644 => 100755 extracted/public/README.md
+ mode change 100644 => 100755 extracted/public/analysis.png
+ mode change 100644 => 100755 extracted/public/audio-cache/02218078bea620cd4927c32b8f0aa40e.mp3
+ mode change 100644 => 100755 extracted/public/audio-cache/5a597c712c57d805f299159f8f83872e.mp3
+ mode change 100644 => 100755 extracted/public/audio-cache/8a4d7948c8e2be06640e29214afd954d.mp3
+ mode change 100644 => 100755 extracted/public/audio-cache/8f6f88d176cdfab2dd101c86b8ccb8f9.mp3
+ mode change 100644 => 100755 extracted/public/audio-cache/d37b588a95fb596de465fb0106c0eb68.mp3
+ mode change 100644 => 100755 extracted/public/audio-cache/d64788af12eda7baccc2a2b02a7070f8.mp3
+ mode change 100644 => 100755 extracted/public/audio-cache/e9f832de8ed3440a84366194f369abc2.mp3
+ mode change 100644 => 100755 extracted/public/audio/audio-20260915-095231-817-step1.mp3
+ mode change 100644 => 100755 extracted/public/audio/audio-20260915-095233-751-step2.mp3
+ mode change 100644 => 100755 extracted/public/audio/audio-20260915-095234-992-step3.mp3
+ mode change 100644 => 100755 extracted/public/audio/audio-20260915-095236-664-step4.mp3
+ mode change 100644 => 100755 extracted/public/board-result/board-result-20260914-215611-056.json
+ mode change 100644 => 100755 extracted/public/board-result/board-result-20260915-094859-410.json
+ mode change 100644 => 100755 extracted/public/board-result/board-result-20260915-094859-410.original.json
+ mode change 100644 => 100755 extracted/public/board-result/current.json
+ mode change 100644 => 100755 extracted/public/canvas.png
+ mode change 100644 => 100755 extracted/public/deliverable/DELIVERABLE_API_SPEC.md
+ mode change 100644 => 100755 extracted/public/deliverable/current.html
+ mode change 100644 => 100755 extracted/public/deliverable/current.json
+ mode change 100644 => 100755 extracted/public/deliverable/deliverable-deliverable-1789337449932.html
+ mode change 100644 => 100755 extracted/public/deliverable/deliverable-deliverable-1789337449932.json
+ mode change 100644 => 100755 extracted/public/deliverable/deliverable.schema.json
+ mode change 100644 => 100755 extracted/public/favicon.svg
+ mode change 100644 => 100755 extracted/public/fish-tts-proxy.py
+ mode change 100644 => 100755 extracted/public/fonts/SKILL.md
+ mode change 100644 => 100755 extracted/public/fonts/pingfang-qiaomu.ttf
+ mode change 100644 => 100755 extracted/public/handoff/current.json
+ mode change 100644 => 100755 extracted/public/handoff/handoff-20260821-224506-749.json
+ mode change 100644 => 100755 extracted/public/handoff/handoff-20260915-094138-664.json
+ mode change 100644 => 100755 extracted/public/handoff/handoff-20260915-094138-664.original.json
+ mode change 100644 => 100755 extracted/public/handoff/handoff-20260915-094754-995.json
+ mode change 100644 => 100755 extracted/public/handoff/handoff-20260915-094754-995.original.json
+ mode change 100644 => 100755 extracted/public/icons.svg
+ mode change 100644 => 100755 extracted/public/katex/README.md
+ mode change 100644 => 100755 extracted/public/katex/contrib/auto-render.js
+ mode change 100644 => 100755 extracted/public/katex/contrib/auto-render.min.js
+ mode change 100644 => 100755 extracted/public/katex/contrib/auto-render.mjs
+ mode change 100644 => 100755 extracted/public/katex/contrib/copy-tex.js
+ mode change 100644 => 100755 extracted/public/katex/contrib/copy-tex.min.js
+ mode change 100644 => 100755 extracted/public/katex/contrib/copy-tex.mjs
+ mode change 100644 => 100755 extracted/public/katex/contrib/mathtex-script-type.js
+ mode change 100644 => 100755 extracted/public/katex/contrib/mathtex-script-type.min.js
+ mode change 100644 => 100755 extracted/public/katex/contrib/mathtex-script-type.mjs
+ mode change 100644 => 100755 extracted/public/katex/contrib/mhchem.js
+ mode change 100644 => 100755 extracted/public/katex/contrib/mhchem.min.js
+ mode change 100644 => 100755 extracted/public/katex/contrib/mhchem.mjs
+ mode change 100644 => 100755 extracted/public/katex/contrib/render-a11y-string.js
+ mode change 100644 => 100755 extracted/public/katex/contrib/render-a11y-string.min.js
+ mode change 100644 => 100755 extracted/public/katex/contrib/render-a11y-string.mjs
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_AMS-Regular.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_AMS-Regular.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_AMS-Regular.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Caligraphic-Bold.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Caligraphic-Bold.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Caligraphic-Bold.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Caligraphic-Regular.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Caligraphic-Regular.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Caligraphic-Regular.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Fraktur-Bold.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Fraktur-Bold.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Fraktur-Bold.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Fraktur-Regular.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Fraktur-Regular.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Fraktur-Regular.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Main-Bold.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Main-Bold.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Main-Bold.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Main-BoldItalic.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Main-BoldItalic.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Main-BoldItalic.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Main-Italic.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Main-Italic.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Main-Italic.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Main-Regular.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Main-Regular.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Main-Regular.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Math-BoldItalic.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Math-BoldItalic.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Math-BoldItalic.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Math-Italic.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Math-Italic.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Math-Italic.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_SansSerif-Bold.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_SansSerif-Bold.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_SansSerif-Bold.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_SansSerif-Italic.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_SansSerif-Italic.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_SansSerif-Italic.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_SansSerif-Regular.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_SansSerif-Regular.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_SansSerif-Regular.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Script-Regular.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Script-Regular.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Script-Regular.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Size1-Regular.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Size1-Regular.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Size1-Regular.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Size2-Regular.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Size2-Regular.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Size2-Regular.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Size3-Regular.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Size3-Regular.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Size3-Regular.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Size4-Regular.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Size4-Regular.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Size4-Regular.woff2
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Typewriter-Regular.ttf
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Typewriter-Regular.woff
+ mode change 100644 => 100755 extracted/public/katex/fonts/KaTeX_Typewriter-Regular.woff2
+ mode change 100644 => 100755 extracted/public/katex/katex-swap.css
+ mode change 100644 => 100755 extracted/public/katex/katex-swap.min.css
+ mode change 100644 => 100755 extracted/public/katex/katex.css
+ mode change 100644 => 100755 extracted/public/katex/katex.js
+ mode change 100644 => 100755 extracted/public/katex/katex.min.css
+ mode change 100644 => 100755 extracted/public/katex/katex.min.js
+ mode change 100644 => 100755 extracted/public/katex/katex.mjs
+ mode change 100644 => 100755 extracted/public/pic/audio-20260915-095231-817-step1.mp3
+ mode change 100644 => 100755 extracted/public/pic/audio-20260915-095233-751-step2.mp3
+ mode change 100644 => 100755 extracted/public/pic/audio-20260915-095234-992-step3.mp3
+ mode change 100644 => 100755 extracted/public/pic/audio-20260915-095236-664-step4.mp3
+ mode change 100644 => 100755 extracted/public/pic/shot-20260914-171159-861.jpg
+ mode change 100644 => 100755 extracted/public/pic/shot-20260914-202931-507.jpg
+ mode change 100644 => 100755 extracted/public/pic/shot-20260915-094136-930.jpg
+ mode change 100644 => 100755 extracted/public/pic/shot-20260915-094751-363.jpg
+ mode change 100644 => 100755 extracted/public/question.png
+ mode change 100644 => 100755 extracted/public/rough.js
+ mode change 100644 => 100755 extracted/public/snapdom.js
+ mode change 100644 => 100755 extracted/public/solution.png
+ mode change 100644 => 100755 extracted/public/summary.png
+ mode change 100644 => 100755 extracted/public/topic.png
+ mode change 100644 => 100755 extracted/reasonix.toml
+ mode change 100644 => 100755 extracted/server/agentAKnowledge.js
+ mode change 100644 => 100755 extracted/server/agentAKnowledgeSelfCheck.js
+ mode change 100644 => 100755 extracted/server/agentBV2Handler.js
+ mode change 100644 => 100755 extracted/server/boardResultStore.js
+ mode change 100644 => 100755 extracted/server/checkAgentHandler.js
+ mode change 100644 => 100755 extracted/server/cleanupHandler.js
+ mode change 100644 => 100755 extracted/server/deliverableStoreHandler.js
+ mode change 100644 => 100755 extracted/server/docReferences.js
+ mode change 100644 => 100755 extracted/server/fishAudioHandler.js
+ mode change 100644 => 100755 extracted/server/handoffStoreHandler.js
+ mode change 100644 => 100755 extracted/server/http.js
+ mode change 100644 => 100755 extracted/server/knowledgeRefineHandler.js
+ mode change 100644 => 100755 extracted/server/productionServer.js
+ mode change 100644 => 100755 extracted/server/proxySelfCheck.js
+ mode change 100644 => 100755 extracted/server/recognitionHandler.js
+ mode change 100644 => 100755 extracted/server/recognitionPrompt.js
+ mode change 100644 => 100755 extracted/server/renderDeliverableHtml.js
+ mode change 100644 => 100755 extracted/server/screenshotStoreHandler.js
+ mode change 100644 => 100755 extracted/src/App.vue
+ mode change 100644 => 100755 extracted/src/agent-b-v2/AgentBDirect.vue
+ mode change 100644 => 100755 extracted/src/agent-b-v2/DirectFlow.vue
+ mode change 100644 => 100755 extracted/src/agent-b-v2/contract.js
+ mode change 100644 => 100755 extracted/src/agent-b-v2/knowledgeRefinePrompt.js
+ mode change 100644 => 100755 extracted/src/agent-b-v2/main.js
+ mode change 100644 => 100755 extracted/src/agent-b-v2/prompt.js
+ mode change 100644 => 100755 extracted/src/agent-b-v2/service.js
+ mode change 100644 => 100755 extracted/src/agent-b-v2/timing.js
+ mode change 100644 => 100755 extracted/src/assets/vue.svg
+ mode change 100644 => 100755 extracted/src/board-preview/BoardPreviewApp.vue
+ mode change 100644 => 100755 extracted/src/board-preview/liveBoardPreview.js
+ mode change 100644 => 100755 extracted/src/board-preview/main.js
+ mode change 100644 => 100755 extracted/src/board-tools/boardToolCatalog.js
+ mode change 100644 => 100755 extracted/src/board-tools/boardToolTiming.js
+ mode change 100644 => 100755 extracted/src/board-tools/boardTypography.css
+ mode change 100644 => 100755 extracted/src/board-tools/drawIntentTool.js
+ mode change 100644 => 100755 extracted/src/board-tools/handActionScheduler.js
+ mode change 100644 => 100755 extracted/src/board-tools/roughDrawingTool.js
+ mode change 100644 => 100755 extracted/src/board-tools/roughNotationTool.js
+ mode change 100644 => 100755 extracted/src/board-tools/textTargetRegistry.js
+ mode change 100644 => 100755 extracted/src/check-agent/asrPolish.js
+ mode change 100644 => 100755 extracted/src/check-agent/contract.js
+ mode change 100644 => 100755 extracted/src/check-agent/prompt.js
+ mode change 100644 => 100755 extracted/src/check-agent/service.js
+ mode change 100644 => 100755 extracted/src/components/BoardContentLayer.vue
+ mode change 100644 => 100755 extracted/src/components/GlobalPulseLoading.vue
+ mode change 100644 => 100755 extracted/src/components/ProcessLoadingModal.vue
+ mode change 100644 => 100755 extracted/src/components/QhPageHeader.vue
+ mode change 100644 => 100755 extracted/src/components/RealBoardPreview.vue
+ mode change 100644 => 100755 extracted/src/components/Step1Entry.vue
+ mode change 100644 => 100755 extracted/src/components/VisualTimeline.vue
+ mode change 100644 => 100755 extracted/src/index.css
+ mode change 100644 => 100755 extracted/src/lib/agentBApiConfig.js
+ mode change 100644 => 100755 extracted/src/lib/checkAgentApiConfig.js
+ mode change 100644 => 100755 extracted/src/lib/dualStore.js
+ mode change 100644 => 100755 extracted/src/lib/mathAsrConverter.js
+ mode change 100644 => 100755 extracted/src/lib/registerAntd.js
+ mode change 100644 => 100755 extracted/src/lib/simpleIndexedDb.js
+ mode change 100644 => 100755 extracted/src/lib/speechMarkdown.js
+ mode change 100644 => 100755 extracted/src/lib/userApiConfig.js
+ mode change 100644 => 100755 extracted/src/main.js
+ mode change 100644 => 100755 extracted/src/services/agentAKnowledge.js
+ mode change 100644 => 100755 extracted/src/services/globalLoading.js
+ mode change 100644 => 100755 extracted/src/services/recognitionClient.js
+ mode change 100644 => 100755 extracted/src/services/stepHandoff.js
+ mode change 100644 => 100755 extracted/src/style.css
+ mode change 100644 => 100755 extracted/src/utils/boardLayout.js
+ mode change 100644 => 100755 extracted/src/utils/canvasCoords.js
+ mode change 100644 => 100755 extracted/src/utils/cdnLoader.js
+ mode change 100644 => 100755 extracted/src/utils/mathText.js
+ mode change 100644 => 100755 extracted/truth/00-TRUTH-BASE.md
+ mode change 100644 => 100755 "extracted/truth/00-\345\244\217\345\244\217\345\216\237\350\257\235\346\261\207\346\200\273.md"
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/auto-checkpoint.ps1
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/auto-continuity-chain.ps1
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-a-track-production-contract.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-abc-architecture.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-app-settings-fields.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-board-boundaries.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-board-clips-merge.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-board-event-clips.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-board-events.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-board-handwriting-support.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-cosyvoice-gateway-contract.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-dependencies.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-drawboard-component-boundaries.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-performance.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-portable.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-protocol-kit-boundaries.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-script-agent-rows-contract.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-script-splitter.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-security-secrets.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-timeline-window-contract.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/check-tts-batch-jobs.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/cosyvoice-contract.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/cosyvoice-gateway.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/debug-browser-monitor.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/debug-browser-project.ps1
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/debug-read-browser-project.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/doctor.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/feishu-board-script-import.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/generate-project-health-report.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/install-auto-checkpoint-task.ps1
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/live-fill-and-generate.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/live-fill-problem-cdp.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/live-step1-agent-generate.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/load-local-env.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/script-agent-rows-contract.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-abc-playback-mixed-arithmetic.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-asset-panel-collapse.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-b-timeline-drag-lane.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-board-end-pin-visible.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-c-drag-offset.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-cosyvoice-sentence.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-default-save-directory.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-golden-finger-minimal.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-local-task-archive-import.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-pending-new-problem.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-pending-project-promotion.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-playback-live-playhead-store.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-playback-seek-while-playing.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-playback-smoothness.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-portable-playwright-math.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-recording-focus-mode.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-ui-workbench.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-user-click-generate-repro.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/smoke-user-full-math-journey.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/uninstall-auto-checkpoint-task.ps1
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/verify-agent-draft-persists-after-reopen.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/write-continuity-summary.ps1
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/zeabur-server.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/scripts/zeabur-start.mjs
+ mode change 100644 => 100755 extracted/truth/_extracted/src/App.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/agent/scriptBoardAgentPrompt.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/AgentReviewCard.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/AppSettingsDrawer.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/AssetList.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/AssetPanel.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/AssetWorkflowTabs.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/AutoHandwritingLayer.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/BoardClipInspector.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/BoardControlResponsibilitiesPanel.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/BoardHandwritingStickerContent.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/BoardMathStickerContent.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/BoardPreviewCard.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/BoardStageToolOverlay.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/BoardTextSticker.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/BoardTypographyFields.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/COMPONENT_TAGS.md
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/CStickerFrame.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/CanvasInspector.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/CanvasRecordingSurface.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/CurrentProblemPreview.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/CurrentProjectBoardFontInspector.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/DrawboardStage.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/FloatingToolDock.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/FormulaText.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/GoldenFingerCanvasLayer.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/InspectorPanel.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/LegacyStagePreview.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/MathText.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/ProblemImportCard.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/ProblemOcrCard.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/ProblemUploadPreview.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/ProblemWorkspace.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/ProjectArchiveActions.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/ScriptAgentWorkspace.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/ScriptBoardSummaryStep.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/StagePreview.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/StagePreviewToolbar.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/StageRecorderControl.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/TeachingTimeline.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/TimelineClipBlock.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/TimelineTrackRow.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/TldrawStagePreview.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/VoiceBatchStatusPanel.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/VoiceTrack.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/VoiceWorkspace.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/assetPanelMeta.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/boardClipInspector/BoardClipInspectorSections.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/boardClipInspector/boardClipInspectorContract.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/components/drawboardStageTypes.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/config/assetTabs.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/config/defaultConfig.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/domain/globalRules.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/domain/teachingProject.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/main.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/README.md
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/aTrackProduction/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/aTrackProduction/scriptRowsOutput.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/abcChain/abcChainKey.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/asset-factory/README.md
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/asset-factory/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/asset-factory/types.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/audioPlayback/activeVoiceAudioElement.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/audioPlayback/useVoiceTrackAudio.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/audioPlayback/voiceAudioSeek.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/audioPlayback/voicePlaybackStart.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardControlLayers/boardControlResponsibilities.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardFont/boardFontConfig.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardOrdering/boardClipLayerOrder.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardOrdering/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardReveal/boardRevealConfig.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardReveal/getBoardRevealProgress.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardReveal/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardReveal/normalizeBoardRevealWindow.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardSticker/README.md
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardSticker/boardStickerGeometry.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardSticker/boardStickerPluginContract.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardSticker/boardTextDisplayRoute.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardSticker/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardSticker/mathBoardText.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardSticker/renderBoardMathStickerImage.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardSticker/renderBoardTextStickerImage.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardSticker/useBoardStickerDragController.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardTiming/boardDisplayTiming.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/boardTiming/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/cAssetPrewarm/createCAssetPrewarmQueue.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/cAssetPrewarm/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/canvasStage/drawCoursewareStageFrame.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/export-factory/README.md
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/export-factory/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/export-factory/types.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/feishuImport/README.md
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/feishuImport/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/inspector-factory/README.md
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/inspector-factory/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/inspector-factory/types.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/konvaStage/KonvaStagePreview.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/konvaStage/abcToKonvaNodes.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/localTaskArchive/localTaskArchive.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/localTaskArchive/localTaskDb.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/math-symbol-factory/README.md
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/math-symbol-factory/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/math-symbol-factory/types.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/scriptAgentDraft/README.md
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/scriptAgentDraft/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/scriptAgentDraft/normalizeScriptAgentDraft.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/scriptAgentDraft/scriptAgentDraftState.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/scriptAgentTable/README.md
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/scriptAgentTable/ScriptAgentTableEditor.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/scriptAgentTable/compileScriptAgentTableDraft.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/scriptAgentTable/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/scriptAgentTable/normalizeScriptAgentTableDraft.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/scriptAgentTable/types.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/scriptSegments/README.md
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/scriptSegments/ScriptSegmentPreview.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/scriptSegments/ScriptSegmentWorkbench.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/scriptSegments/createScriptSegments.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/scriptSegments/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/scriptSegments/scriptSegmentBoardMarkers.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/scriptSegments/scriptSegmentDisplayLabels.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/scriptSegments/types.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/speechText/README.md
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/speechText/aliyunMathSpeechText.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/speechText/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/stage-factory/README.md
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/stage-factory/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/stage-factory/types.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/stageRecorder/useCanvasRecorder.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/timeline-factory/README.md
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/timeline-factory/applyBoardEventsToTeachingTimeline.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/timeline-factory/createBoardEventsFromTtsUnits.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/timeline-factory/createTtsBatchJobs.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/timeline-factory/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/timeline-factory/mapBoardEventsToTimelineClips.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/timeline-factory/mergeBoardClipsIntoTimelineClips.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/timeline-factory/orderTtsSentenceResults.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/timeline-factory/splitScriptIntoTtsSentenceUnits.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/timeline-factory/types.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/timeline/timelineWindow.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/tldrawStage/abcToTldrawShapes.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/ttsPreprocessor/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/modules/ttsPreprocessor/ttsFormatFilterLayer.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/protocols/exportPackage.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/protocols/index.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/protocols/materialInput.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/protocols/performancePlan.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/protocols/scriptRow.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/protocols/stageConfig.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/protocols/voiceTiming.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/services/boardLayoutPreviewGatewayClient.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/services/cosyvoiceGatewayClient.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/services/recognitionGatewayClient.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/services/scriptAgentGatewayClient.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/standalone/CStickerStandalonePage.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/standalone/DrawboardCoreStandalonePage.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/standalone/DrawboardHybridPrototypePage.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/standalone/TldrawProofPage.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/store/useTeachingEditorStore.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/styles.css
+ mode change 100644 => 100755 extracted/truth/_extracted/src/ui/ChenYuluoyan-Thin-Monospaced.ttf
+ mode change 100644 => 100755 extracted/truth/_extracted/src/ui/colorSystem.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/ui/cut.png
+ mode change 100644 => 100755 extracted/truth/_extracted/src/ui/pen.png
+ mode change 100644 => 100755 extracted/truth/_extracted/src/ui/theme.ts
+ mode change 100644 => 100755 "extracted/truth/_extracted/src/ui/\345\271\263\346\226\271\344\271\224\346\234\250\344\275\223.ttf"
+ mode change 100644 => 100755 extracted/truth/_extracted/src/vite-env.d.ts
+ mode change 100644 => 100755 extracted/truth/_extracted/src/workflow/assetWorkflowFlow.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/workflow/createAssetWorkflowSteps.tsx
+ mode change 100644 => 100755 extracted/truth/_extracted/src/workflow/workflowStepSdk.ts
+ mode change 100644 => 100755 extracted/truth/_reference/video-dev-modules/boardRevealConfig.ts
+ mode change 100644 => 100755 extracted/truth/_reference/video-dev-modules/boardStickerGeometry.ts
+ mode change 100644 => 100755 extracted/truth/_reference/video-dev-modules/getBoardRevealProgress.ts
+ mode change 100644 => 100755 extracted/truth/_reference/video-dev-modules/mathBoardText.ts
+ mode change 100644 => 100755 extracted/truth/_reference/video-dev-modules/normalizeBoardRevealWindow.ts
+ mode change 100644 => 100755 extracted/truth/_reference/video-dev-modules/renderBoardTextStickerImage.ts
+ mode change 100644 => 100755 extracted/truth/_reference/video-dev-modules/scriptRow.ts
+ mode change 100644 => 100755 extracted/truth/_reference/video-dev-modules/useVoiceTrackAudio.ts
+ mode change 100644 => 100755 extracted/truth/_reference/video-dev-modules/voiceTiming.ts
+ mode change 100644 => 100755 extracted/truth/src.zip
+ mode change 100644 => 100755 extracted/truth/territory-A-agent-b.md
+ mode change 100644 => 100755 extracted/truth/territory-B-contract.md
+ mode change 100644 => 100755 extracted/truth/territory-C-actions-and-anchors.md
+ mode change 100644 => 100755 extracted/truth/territory-C-tools.md
+ mode change 100644 => 100755 extracted/truth/territory-E-render.md
+ mode change 100644 => 100755 extracted/vercel.json
+ mode change 100644 => 100755 extracted/vite.config.js
+ mode change 100644 => 100755 "extracted/\347\231\275\346\235\277\346\222\255\346\224\276\345\231\250-\345\271\263\350\241\214\345\233\233\350\276\271\345\275\242DEMO.html"
+ mode change 100644 => 100755 "extracted/\351\241\271\347\233\256\345\256\236\346\227\266\346\236\266\346\236\204\346\250\241\345\235\227\345\233\276.md"
+ delete mode 100755 upload/remix-remix-remix-copy-of--googel--1-.zip
+ mode change 100644 => 100755 worklog.md
+
+=== 3. 验证 feature 分支当前 commit ===
+dd69793 feat(scan): 6阶段深度扫描 + 遗留治理 + 施工手册 + prompt.js对齐审查
+c9b304f 8391eb35-6fd4-438f-9b8b-2779570554b4
+b8cf4ec Initial commit
+
+=== 4. 当前分支与跟踪关系 ===
+* feature/depth-scan-handoff-2026-09-17 dd69793 [origin/feature/depth-scan-handoff-2026-09-17: ahead 1] feat(scan): 6阶段深度扫描 + 遗留治理 + 施工手册 + prompt.js对齐审查
+  main                                  dd69793 feat(scan): 6阶段深度扫描 + 遗留治理 + 施工手册 + prompt.js对齐审查
+
+=== 5. 强制推送更新远程 feature 分支 ===
+To https://github.com/zo4xia/2222.git
+   c9b304f..dd69793  feature/depth-scan-handoff-2026-09-17 -> feature/depth-scan-handoff-2026-09-17
+
+=== 6. 验证远程分支 ===
+dd697939512d0ce692bb5723bb4ba264f4634b43	refs/heads/feature/depth-scan-handoff-2026-09-17
+ebe536b5eddaff64f09af98c0fcfbede4d2c2767	refs/heads/main
