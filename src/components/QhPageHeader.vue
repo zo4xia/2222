@@ -1,5 +1,5 @@
 <script setup>
-import { ArrowLeftOutlined } from '@ant-design/icons-vue'
+import { ArrowLeftOutlined, PlayCircleOutlined } from '@ant-design/icons-vue'
 
 defineProps({
   stepLabel: { type: String, required: true },
@@ -21,6 +21,10 @@ const emit = defineEmits(['back'])
       <a-typography-text type="secondary">{{ subtitle }}</a-typography-text>
     </div>
     <a-space :size="8">
+      <a-button class="qh-player-entry" type="primary" ghost size="small" href="/row-player.html" target="_blank" rel="noopener" title="打开播放页面（row-player）">
+        <template #icon><PlayCircleOutlined /></template>
+        播放页
+      </a-button>
       <slot name="actions" />
     </a-space>
   </a-layout-header>
