@@ -1,6 +1,9 @@
-import { normalizeAgentBV2ActionSpec } from '../agent-b-v2/contract.js'
+import { normalizeAgentBV2ActionSpec, normalizeBoardsField } from '../agent-b-v2/contract.js'
 
-const ALLOWED_FIELDS = new Set(['speech', 'board', 'actionSpec'])
+// 契约定案（2026-09-17）：row 五字段 {stage, mp3, speech, boards, actionSpec}
+// changes.field 允许值；diff 只比较 speech / boards / actionSpec 三个可修字段
+const ALLOWED_FIELDS = new Set(['speech', 'boards', 'board_timing', 'actionSpec', 'answer_error', 'common_mistake'])
+const DIFF_FIELDS = ['speech', 'boards', 'actionSpec']
 
 function parseJsonObject(text) {
   const source = String(text || '').trim()
@@ -24,6 +27,14 @@ function valuesMatch(left, right) {
   return JSON.stringify(left) === JSON.stringify(right)
 }
 
+// row 级 boards 归一：新合同 boards 数组优先，旧 board 单对象兼容读取
+function resolveBoards(row, fallbackRow) {
+  if (row?.boards !== undefined || row?.board !== undefined) {
+    return normalizeBoardsField(row.boards, row.board)
+  }
+  return normalizeBoardsField(fallbackRow?.boards, fallbackRow?.board)
+}
+
 export function parseCheckAgentResponse(text, originalRows) {
   const parsed = parseJsonObject(text)
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
@@ -35,11 +46,13 @@ export function parseCheckAgentResponse(text, originalRows) {
   const rows = parsed.rows.map((row, index) => ({
     ...originalRows[index],
     speech: typeof row?.speech === 'string' ? row.speech : originalRows[index].speech,
-    board: typeof row?.board === 'string' ? row.board : originalRows[index].board,
+    boards: resolveBoards(row, originalRows[index]),
     actionSpec: Array.isArray(row?.actionSpec)
       ? normalizeAgentBV2ActionSpec(row.actionSpec)
       : originalRows[index].actionSpec,
   }))
+  // 旧 board 字段已被 boards 归一取代，避免同一行残留两份板书
+  rows.forEach((row) => { delete row.board })
 
   const reportedChanges = (Array.isArray(parsed.changes) ? parsed.changes : []).map((change) => ({
     row: Number.isFinite(Number(change?.row)) ? Math.max(1, Math.round(Number(change.row))) : null,
@@ -49,11 +62,16 @@ export function parseCheckAgentResponse(text, originalRows) {
 
   const changes = []
   rows.forEach((row, index) => {
-    for (const field of ALLOWED_FIELDS) {
-      const originalValue = originalRows[index][field]
+    for (const field of DIFF_FIELDS) {
+      const originalValue = field === 'boards'
+        ? normalizeBoardsField(originalRows[index].boards, originalRows[index].board)
+        : originalRows[index][field]
       const nextValue = row[field]
       if (valuesMatch(nextValue, originalValue)) continue
-      const reported = reportedChanges.find((change) => change.row === index + 1 && change.field === field)
+      // board_timing 归并到 boards 维度做同 row 匹配
+      const reported = reportedChanges.find((change) =>
+        change.row === index + 1
+        && (change.field === field || (field === 'boards' && change.field === 'board_timing')))
 
       // 防「静默删动作」：动作被改小或清空，Check Agent 必须给出校验失败原因，否则一律回滚原值。
       // 板书动作是画面表现力资产，宁可保留可疑动作让人复核，也不允许模型无理由清空。
