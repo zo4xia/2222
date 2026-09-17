@@ -1,0 +1,24 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/recognition/problem.js": {
+      "maxDuration": 120,
+      "includeFiles": "doc/**"
+    },
+    "api/agent-b-v2/generate.js": {
+      "maxDuration": 180
+    },
+    "api/check-agent/check.js": {
+      "maxDuration": 180,
+      "includeFiles": "doc/**"
+    },
+    "api/check-agent/apply.js": {
+      "maxDuration": 30
+    },
+    "api/check-agent/revert.js": {
+      "maxDuration": 30
+    }
+  }
+}

@@ -1,0 +1,8 @@
+[permissions]
+allow = ["Edit", "Bash=cd / && npm run build 2>&1 | head -100", "Bash=cd /K/4 && ./node_modules/.bin/vite --version", "Bash=cd /K/4 && grep -n \"```json\" src/agent-b-v2/prompt.js", "Bash=grep -n \"```json\" /K/4/src/agent-b-v2/prompt.js", "Bash=grep -n \"```json\" /K/4/src/agent-b-v2/prompt.js 2>&1 | head -5", "run_skill", "Bash=cd K:/4 && rtk rg -n \"planBoardLabels|\\.catch\\(\" src/Step1Entry.vue src server", "Bash=cd K:/4 && rtk rg -n -C 12 \"function planBoardLabels|gridPreviewCapture|snapdom grid preview capture failed\" src/components/Step1Entry.vue", "Bash=cd K:/4 && rtk npm run check:proxy", "Bash=cd K:/4 && rtk npm run build", "Bash(rtk git:*)", "Bash=cd /k/4 && sed -n '520,550p' src/components/Step1Entry.vue", "Bash=cd K:\\4 && Select-String -Path src/agent-b-v2/prompt.js -Pattern \"小学数学\" | Select-Object -First 5", "Bash=cd K:\\4\necho \"=== 1. 确认 AgentBDirect.vue 里 generateRows 的 canvasParams 使用 ===\"\nSelect-String -Path src/agent-b-v2/AgentBDirect.vue -Pattern \"canvasParams\" | ForEach-Object { \"{0}: {1}\" -f $_.LineNumber, $_.Line.Trim() }"]
+
+
+[skills]
+disable_implicit_invocation = false
+disabled_skills = ["agnes-free-image", "agnes-free-text"]
+

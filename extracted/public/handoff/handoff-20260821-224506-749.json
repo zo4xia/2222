@@ -1,0 +1,230 @@
+{
+  "handoffVersion": 1,
+  "confirmedAt": "2026-08-21T14:45:06.746Z",
+  "problemText": "3. 王叔叔买了一套125平方米的房子，房价是140万。请你帮他算一算，过户时要缴纳契税和交易手续费共多少钱？\n①交易手续费：6元/平方米。\n②契税：90平方米以下按房价的1%缴纳，90~140平方米按房价的1.5%缴纳，140平方米以上按房价的3%缴纳。",
+  "problemType": "word",
+  "boardFocus": "relation_understanding",
+  "relatedKnowledge": [
+    "分段计费（契税税率）：90平方米以下按房价1%、90~140平方米按1.5%、140平方米以上按3%，125平方米属于90~140区间，适用1.5%税率",
+    "总价公式：总价=单价×数量，交易手续费=6元/平方米×125平方米",
+    "百分数乘法：求一个数的百分之几是多少用乘法，契税=140万×1.5%",
+    "分段计费求和：先分别计算各部分费用，再将结果相加"
+  ],
+  "knowledgeAnalysis": {
+    "teachingFocus": "掌握分段计费问题的解题思路：先判断所属区间确定税率，再分别计算各项费用后求和",
+    "keyFormulaList": [
+      "总价=单价×数量",
+      "契税=房价×对应税率",
+      "总费用=交易手续费+契税"
+    ],
+    "formulaHints": [
+      "总价公式：总价=单价×数量，已知单价和数量求总价时用，本题用于计算交易手续费（6元/㎡×125㎡）",
+      "百分数乘法：求一个数的百分之几是多少用乘法，本题用于计算契税（140万×1.5%）",
+      "分段计费：不同区间适用不同标准，需先判断125㎡属于90~140区间，再选用对应税率1.5%"
+    ]
+  },
+  "suggestedGrade": "",
+  "uncertainItems": [],
+  "suggestedLayout": null,
+  "imageKind": "text_only",
+  "keepOriginal": false,
+  "coordinateSpec": {
+    "coordinateSystem": "百分比坐标（0—100），原点左上",
+    "format": {
+      "region": "区域：[左%, 上%, 宽%, 高%]，所有百分比最多保留 2 位小数",
+      "point": "起点/终点：[x%, y%]"
+    },
+    "example": "若分析区起手坐标为 (6%, 41%)，则动作点为 [6, 41]"
+  },
+  "zoneAnchors": {
+    "question": {
+      "label": {
+        "x": 5.7,
+        "y": 6.6,
+        "w": 7.1
+      },
+      "labelStartCoord": {
+        "x": 5.7,
+        "y": 6.6
+      },
+      "regionStartCoord": {
+        "x": 6,
+        "y": 13.2,
+        "w": 40.4,
+        "h": null
+      }
+    },
+    "analysis": {
+      "label": {
+        "x": 5.7,
+        "y": 50.68,
+        "w": 7.2
+      },
+      "labelStartCoord": {
+        "x": 5.7,
+        "y": 50.68
+      },
+      "regionStartCoord": {
+        "x": 6,
+        "y": 56.8,
+        "w": 44,
+        "h": 38.2
+      }
+    },
+    "solution": {
+      "label": {
+        "x": 53.7,
+        "y": 6.6,
+        "w": 7.4
+      },
+      "labelStartCoord": {
+        "x": 53.7,
+        "y": 6.6
+      },
+      "regionStartCoord": {
+        "x": 54,
+        "y": 14,
+        "w": 40,
+        "h": 44
+      }
+    },
+    "summary": {
+      "label": {
+        "x": 53.7,
+        "y": 62,
+        "w": 7.2
+      },
+      "labelStartCoord": {
+        "x": 53.7,
+        "y": 62
+      },
+      "regionStartCoord": {
+        "x": 54,
+        "y": 69.5,
+        "w": 40,
+        "h": 22
+      }
+    }
+  },
+  "topicLayout": {
+    "topicLabel": {
+      "x": 5.7,
+      "y": 6.6,
+      "w": 7.1
+    },
+    "question": {
+      "x": 6,
+      "y": 13.2,
+      "w": 40.4,
+      "fontSize": 30
+    },
+    "image": null,
+    "keepOriginal": false
+  },
+  "boardPlan": {
+    "canvas": {
+      "w": 1726,
+      "h": 980
+    },
+    "layoutMode": "portrait",
+    "topicBottomPct": 48.68,
+    "topicLabel": {
+      "x": 5.7,
+      "y": 6.6,
+      "w": 7.1
+    },
+    "question": {
+      "x": 6,
+      "y": 13.2,
+      "w": 40.4,
+      "fontSize": 30
+    },
+    "image": null,
+    "analysisLabel": {
+      "x": 5.7,
+      "y": 50.68,
+      "w": 7.2
+    },
+    "analysis": {
+      "x": 6,
+      "y": 56.8,
+      "w": 44,
+      "h": 38.2
+    },
+    "solutionLabel": {
+      "x": 53.7,
+      "y": 6.6,
+      "w": 7.4
+    },
+    "solution": {
+      "x": 54,
+      "y": 14,
+      "w": 40,
+      "h": 44
+    },
+    "summaryLabel": {
+      "x": 53.7,
+      "y": 62,
+      "w": 7.2
+    },
+    "summary": {
+      "x": 54,
+      "y": 69.5,
+      "w": 40,
+      "h": 22
+    },
+    "plannedAt": "2026-08-21T14:45:03.568Z",
+    "method": "topic-aware-layout-rule",
+    "overflow": false
+  },
+  "canvasParams": {
+    "canvasSize": {
+      "width": 1726,
+      "height": 980,
+      "unit": "px",
+      "origin": "左上角(0,0), X向右Y向下"
+    },
+    "coordinateSystem": "百分比坐标 0-100",
+    "fontSize": {
+      "question": {
+        "px": 30,
+        "family": "Segoe UI/PingFang SC/Microsoft YaHei（印刷体）",
+        "color": "黑色"
+      },
+      "analysis": {
+        "px": 32,
+        "family": "LikeJianJianTi（手写尖尖体）",
+        "color": "红色"
+      },
+      "solution": {
+        "px": 32,
+        "family": "LikeJianJianTi（手写尖尖体）",
+        "color": "黑色"
+      },
+      "summary": {
+        "px": 32,
+        "family": "LikeJianJianTi（手写尖尖体）",
+        "color": "黑色"
+      }
+    },
+    "lineHeight": {
+      "question": 1.65,
+      "others": "1.6-1.8 微小随机（不用管，按正常行高估算约1.7）"
+    },
+    "boardSpeed": "1秒2个汉字（手写字体书写速度）",
+    "actionSpeed": "差不多同样速度（rough-line/rough-arrow/rough-notation绘制速度）",
+    "lineHeightFormula": "每行高度(px)≈字号×行高；每行高度(%)=每行高度(px)/980×100。示例：32px×1.7=54.4px≈5.55%画布高度，即每写一行y约增5.5%"
+  },
+  "showGrid": true,
+  "agentPageName": "第1步 · 贴题识别",
+  "agentCapability": "multimodal",
+  "screenshotUrl": null,
+  "knowledgeBasePath": "doc/knowledge-a.compact.json",
+  "stageRatioSuggestion": null,
+  "commonMistakes": [
+    "搞错125平方米所属的契税区间，误用1%或3%的税率",
+    "忘记计算交易手续费，只算了契税",
+    "百分数计算错误，140万×1.5%算错",
+    "把契税和交易手续费的计费方式混淆，用同一标准计算"
+  ]
+}

@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>口播板书讲学 · 战士排队问题</title>
+  <style>
+    @font-face {
+      font-family: 'PingFangHand';
+      src: url('public/fonts/pingfang-qiaomu.ttf') format('truetype');
+      font-display: swap;
+    }
+    * { box-sizing: border-box; }
+    html { font-size: 30px; }  /* 1rem = 30px：题目基准字号（rem 相对，不硬编码于区域） */
+    body { margin: 0; padding: 0; height: 100%; background: #e8e8e8; font-size: 14px; font-family: 'PingFangHand', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+    #app { height: 100vh; display: flex; flex-direction: column; }
+
+    /* 主画板区 */
+    #board-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      overflow: hidden;
+    }
+    #board {
+      position: relative;
+      width: 1726px;
+      height: 980px;
+      background: #fff;
+      box-shadow: 0 8px 32px rgba(0,0,0,.12);
+      transform-origin: center;
+      overflow: hidden;
+    }
+    #board-frame {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 50;
+    }
+    .badge {
+      position: absolute;
+      z-index: 40;
+      pointer-events: none;
+      user-select: none;
+    }
+    #topic-badge    { left: 5.7%;  top: 6.6%;  width: 7.1%; }
+    #analysis-badge { left: 5.7%;  top: 34.5%; width: 7.2%; }
+    #solution-badge { left: 53.7%; top: 6.6%;  width: 7.4%; }
+    #summary-badge  { left: 53.7%; top: 62%;   width: 7.2%; }
+
+    .region {
+      position: absolute;
+      z-index: 10;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    #question-region  { left: 6%;    top: 13.32%; width: 40.32%; font-size: 1rem;    font-family: 'Microsoft YaHei', sans-serif; color: #1a1a1a; }
+    #analysis-region  { left: 6%;    top: 40.62%; width: 44%;    height: 54.38%; font-size: 1.35rem; color: #c9302c; }
+    #solution-region  { left: 54%;   top: 14%;    width: 40%;    height: 44%;    font-size: 1.35rem; color: #1a1a1a; }
+    #summary-region   { left: 54%;   top: 69.5%;  width: 40%;    height: 22%;    font-size: 1.35rem; color: #1a1a1a; }
+
+    #svg-overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 30;
+      pointer-events: none;
+    }
+
+    /* 板书内容块 */
+    .board-content {
+      position: absolute;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-weight: 500;
+    }
+    .board-line {
+      display: block;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      transform-origin: left center;
+    }
+    .board-content .char {
+      display: inline-block;
+      opacity: 0;
+      transition: opacity .06s ease;
+    }
+    .board-content .char.revealed { opacity: 1; }
+    .board-content .newline { display: block; }
+    /* 分数 / 上下标（轻量渲染，达芬奇手稿感；5.1：不得单独设 font-family，统一继承预设手写体） */
+    .frac { display: inline-flex; flex-direction: column; text-align: center; vertical-align: middle; margin: 0 .12em; line-height: 1.05; }
+    .frac > .num { border-bottom: 1.5px solid currentColor; padding: 0 .18em; }  /* 分数线用 currentColor，非印刷体 */
+    .frac > .den { padding: 0 .18em; }
+    .sup { font-size: .66em; vertical-align: super; }  /* 5.1：仅缩放字号，font-family 继承手写体 */
+    .sub { font-size: .66em; vertical-align: sub; }
+
+    /* 下划线目标 */
+    .mark-target {
+      position: relative;
+      display: inline;
+    }
+
+    /* 控制面板 */
+    #panel {
+      flex: 0 0 auto;
+      background: #fff;
+      border-top: 1px solid #ddd;
+      padding: 14px 22px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 100;
+    }
+    #progress-wrap { display: flex; align-items: center; gap: 12px; }
+    #progress-bar {
+      flex: 1;
+      height: 8px;
+      background: #eee;
+      border-radius: 4px;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    #progress-fill {
+      height: 100%;
+      width: 0%;
+      background: #c9302c;
+      border-radius: 4px;
+      transition: width .1s linear;
+    }
+    #row-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: #666;
+    }
+    #stage-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      background: #f2f2f2;
+      color: #333;
+      font-weight: 600;
+    }
+    #speech-text {
+      font-size: 18px;
+      line-height: 1.6;
+      color: #222;
+      min-height: 58px;
+      padding: 8px 12px;
+      background: #fafafa;
+      border-radius: 6px;
+    }
+    #controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    button {
+      font-family: inherit;
+      padding: 8px 18px;
+      border: none;
+      border-radius: 6px;
+      background: #c9302c;
+      color: #fff;
+      font-size: 15px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    button:hover { background: #a82521; }
+    button:disabled { background: #bbb; cursor: not-allowed; }
+    label { font-size: 14px; color: #555; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+    input[type="checkbox"] { width: 16px; height: 16px; }
+
+    #error-tip {
+      display: none;
+      color: #c9302c;
+      font-size: 13px;
+      padding: 6px 0;
+    }
+
+    /* 5.1 字体硬约束兜底：手写体加载失败时明确报错，禁止静默回退印刷体 */
+    #font-error {
+      display: none;
+      background: #c9302c;
+      color: #fff;
+      font-size: 15px;
+      line-height: 1.5;
+      padding: 10px 16px;
+      text-align: center;
+      position: relative;
+      z-index: 999;
+    }
+  </style>
+</head>
+<body>
+  <div id="font-error"></div>
+  <div id="app">
+    <div id="board-area">
+      <div id="board">
+        <img id="board-frame" src="https://i.ibb.co/tM01hb30/canvas.png" alt="">
+        <img id="topic-badge"    class="badge" src="https://i.ibb.co/4ZbfZygZ/question.png"    alt="题目">
+        <img id="analysis-badge" class="badge" src="https://i.ibb.co/Z6Ydwxc7/analysis.png" alt="分析">
+        <img id="solution-badge" class="badge" src="https://i.ibb.co/6Rkj5GbS/solution.png" alt="解答">
+        <img id="summary-badge"  class="badge" src="https://i.ibb.co/N6SdSFj0/summary.png"  alt="总结">
+
+        <div id="question-region" class="region"></div>
+        <div id="analysis-region" class="region"></div>
+        <div id="solution-region" class="region"></div>
+        <div id="summary-region"  class="region"></div>
+        <svg id="svg-overlay" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+    </div>
+
+    <div id="panel">
+      <div id="progress-wrap">
+        <div id="progress-bar"><div id="progress-fill"></div></div>
+      </div>
+      <div id="row-info">
+        <span id="stage-badge">准备</span>
+        <span id="time-display">00:00 / 00:00</span>
+      </div>
+      <div id="speech-text">点击「播放」开始口播板书讲学。</div>
+      <div id="error-tip"></div>
+      <div id="controls">
+        <button id="btn-play">播放</button>
+        <button id="btn-pause" disabled>暂停</button>
+        <button id="btn-restart">重来</button>
+        <button id="btn-scale-lock">🔒 缩放已锁定（点击解锁）</button>
+        <label><input type="checkbox" id="chk-tts" checked> 朗读口播（Web Speech）</label>
+      </div>
+    </div>
+  </div>
+
+  <script src="public/lib/rough.js"></script>
+  <script src="public/lib/rough-notation.iife.js"></script>
+  <script>
+    (async function() {
+      const board = document.getElementById('board');
+      const regions = {
+        题目: document.getElementById('question-region'),
+        分析: document.getElementById('analysis-region'),
+        解答: document.getElementById('solution-region'),
+        总结: document.getElementById('summary-region'),
+      };
+      const speechEl = document.getElementById('speech-text');
+      const stageBadge = document.getElementById('stage-badge');
+      const timeDisplay = document.getElementById('time-display');
+      const progressFill = document.getElementById('progress-fill');
+      const btnPlay = document.getElementById('btn-play');
+      const btnPause = document.getElementById('btn-pause');
+      const btnRestart = document.getElementById('btn-restart');
+      const chkTts = document.getElementById('chk-tts');
+      const svgOverlay = document.getElementById('svg-overlay');
+      const errorTip = document.getElementById('error-tip');
+
+      // 画板缩放：canvas 尺寸与比例锁定逻辑在读取 deliverable 后（rows 之后）初始化
+
+
+      const deliverable = {"$schema":"/deliverable/deliverable.schema.json","apiSpecVersion":"2.0.0","apiDocUrl":"/deliverable/DELIVERABLE_API_SPEC.md","specificationSummary":"每个 row 为一组原子单元；语音全程；板书与动作二者绝对互斥；动作时长定量 1~2 秒作为标点停顿。供下游课件制作与画布 Agent 直接消费。","projectCode":"deliverable-1789343131923","problemText":"若干名战士排成8列的长方形队列，若增加120人或减少120人都能组成一个新的正方形纵列。那么，原有战士（ ）人。","sourceImageUrl":"","keepOriginal":false,"topicLayout":{"topicLabel":{"x":5.7,"y":6.6,"w":7.1},"question":{"x":6,"y":13.32,"w":40.32,"fontSize":29},"image":null,"keepOriginal":false,"blocks":null},"boardPlan":{"canvas":{"w":1726,"h":980},"layoutMode":"portrait","topicBottomPct":28.57,"topicLabel":{"x":5.7,"y":6.6,"w":7.1},"question":{"x":6,"y":13.32,"w":40.32,"fontSize":29},"image":null,"analysisLabel":{"x":5.7,"y":34.5,"w":7.2},"analysis":{"x":6,"y":40.62,"w":44,"h":54.38},"solutionLabel":{"x":53.7,"y":6.6,"w":7.4},"solution":{"x":54,"y":14,"w":40,"h":44},"summaryLabel":{"x":53.7,"y":62,"w":7.2},"summary":{"x":54,"y":69.5,"w":40,"h":22},"plannedAt":"2026-09-13T23:24:57.720Z","method":"verified-layout-rule","overflow":false},"screenshotUrl":"/pic/shot-20260914-072458-896.jpg","meta":{"problemType":"word","boardFocus":"relation_understanding","gradeLevel":"小学阶段","knowledgeTitle":"核心知识点","canvasSize":{"width":1726,"height":980}},"stats":{"totalDuration":298,"totalDurationText":"4分58秒","stepCount":8,"charCount":766,"actionCount":5},"checkInfo":{"checkApplied":false,"changeCount":0},"rows":[{"duration":"待计算","stage":"题目","speech":"同学你好！很高兴为你讲解这道题！我们一起来读一下题目：若干名战士排成8列的长方形队列，若增加120人或减少120人都能组成一个新的正方形纵列。那么，原有战士多少人。","audioUrl":null,"board":{"startCoord":"","content":"","startDelay":0},"actionSpec":[{"action":{"tool":"rough-notation","action":"underline","target":{"region":"question","exactText":"排成8列的长方形队列","occurrence":1},"order":1,"options":{"type":"underline","animate":true,"color":"#d64545","strokeWidth":2,"padding":5,"iterations":2,"multiline":false,"rtl":false}}},{"action":{"tool":"rough-notation","action":"underline","target":{"region":"question","exactText":"增加120人或减少120人","occurrence":1},"order":2,"options":{"type":"underline","animate":true,"color":"#d64545","strokeWidth":2,"padding":5,"iterations":2,"multiline":false,"rtl":false}}},{"action":{"tool":"rough-notation","action":"underline","target":{"region":"question","exactText":"组成一个新的正方形纵列","occurrence":1},"order":3,"options":{"type":"underline","animate":true,"color":"#d64545","strokeWidth":2,"padding":5,"iterations":2,"multiline":false,"rtl":false}}}],"estimatedDurationMs":30525,"exclusiveExecutionPlan":[{"type":"speech","role":"narration_full","startOffsetMs":0,"durationMs":30525,"endOffsetMs":30525,"text":"同学你好！很高兴为你讲解这道题！我们一起来读一下题目：若干名战士排成8列的长方形队列，若增加120人或减少120人都能组成一个新的正方形纵列。那么，原有战士多少人。"},{"type":"action","role":"punctuation_pause","index":0,"startOffsetMs":1200,"durationMs":1200,"endOffsetMs":2400,"action":{"action":{"tool":"rough-notation","action":"underline","target":{"region":"question","exactText":"排成8列的长方形队列","occurrence":1},"order":1,"options":{"type":"underline","animate":true,"color":"#d64545","strokeWidth":2,"padding":5,"iterations":2,"multiline":false,"rtl":false}}}},{"type":"action","role":"punctuation_pause","index":1,"startOffsetMs":3000,"durationMs":1200,"endOffsetMs":4200,"action":{"action":{"tool":"rough-notation","action":"underline","target":{"region":"question","exactText":"增加120人或减少120人","occurrence":1},"order":2,"options":{"type":"underline","animate":true,"color":"#d64545","strokeWidth":2,"padding":5,"iterations":2,"multiline":false,"rtl":false}}}},{"type":"action","role":"punctuation_pause","index":2,"startOffsetMs":4800,"durationMs":1200,"endOffsetMs":6000,"action":{"action":{"tool":"rough-notation","action":"underline","target":{"region":"question","exactText":"组成一个新的正方形纵列","occurrence":1},"order":3,"options":{"type":"underline","animate":true,"color":"#d64545","strokeWidth":2,"padding":5,"iterations":2,"multiline":false,"rtl":false}}}}],"timingPolicy":"speech-full-board-action-mutually-exclusive"},{"duration":"待计算","stage":"分析","speech":"嗯……咱们先来看看这道题哈。题目说增加120人和减少120人都能组成正方形，那说明什么呀？正方形的总人数是个平方数对吧~。如果设原来的总人数是艾克斯，那加上120是个平方数，减去120也是个平方数，对不对呀？","audioUrl":null,"board":{"startCoord":"[8.0%, 43.0%]","content":"设原有人数x人\nx+120=平方数\nx-120=平方数","startDelay":2},"actionSpec":[{"action":{"tool":"rough-line","region":"analysis","order":4,"style":{"colorId":"red","strokeWidthId":"normal"},"start":[8,41],"end":[45,41]}}],"estimatedDurationMs":39275,"exclusiveExecutionPlan":[{"type":"speech","role":"narration_full","startOffsetMs":0,"durationMs":39275,"endOffsetMs":39275,"text":"嗯……咱们先来看看这道题哈。题目说增加120人和减少120人都能组成正方形，那说明什么呀？正方形的总人数是个平方数对吧~。如果设原来的总人数是艾克斯，那加上120是个平方数，减去120也是个平方数，对不对呀？"},{"type":"board","role":"writing","startOffsetMs":2000,"durationMs":9990,"endOffsetMs":11990,"content":"设原有人数x人\nx+120=平方数\nx-120=平方数","coord":"[8.0%, 43.0%]"},{"type":"action","role":"punctuation_pause","index":0,"startOffsetMs":12590,"durationMs":1000,"endOffsetMs":13590,"action":{"action":{"tool":"rough-line","region":"analysis","order":4,"style":{"colorId":"red","strokeWidthId":"normal"},"start":[8,41],"end":[45,41]}}}],"timingPolicy":"speech-full-board-action-mutually-exclusive"},{"duration":"待计算","stage":"分析","speech":"哎，那这两个平方数之间有什么关系捏？两个平方数的差，正好是加120和减120的差，也就是120加120等于240，对吧？咱们可以设新的正方形每行有y人，那就有关系式啦。","audioUrl":null,"board":{"startCoord":"[10.5%, 69.5%]","content":"平方差：120+120=240\n设新每行y人","startDelay":1.5},"actionSpec":[],"estimatedDurationMs":31700,"exclusiveExecutionPlan":[{"type":"speech","role":"narration_full","startOffsetMs":0,"durationMs":31700,"endOffsetMs":31700,"text":"哎，那这两个平方数之间有什么关系捏？两个平方数的差，正好是加120和减120的差，也就是120加120等于240，对吧？咱们可以设新的正方形每行有y人，那就有关系式啦。"},{"type":"board","role":"writing","startOffsetMs":1500,"durationMs":8400,"endOffsetMs":9900,"content":"平方差：120+120=240\n设新每行y人","coord":"[10.5%, 69.5%]"}],"timingPolicy":"speech-full-board-action-mutually-exclusive"},{"duration":"待计算","stage":"解答","speech":"好嘞，那我们来列方程解答。设原有人数为x，或者设正方形每行有y人。根据题意，增加120人后的总人数减去减少120人后的总人数，差就是240。我们可以用方程来写：设原有人数为x，或者设新正方形每行有y人。","audioUrl":null,"board":{"startCoord":"[56.0%, 16.0%]","content":"设新正方形每行有y人\n则原有人数=y^2-120\n或原有人数=x","startDelay":1.2},"actionSpec":[{"action":{"tool":"rough-arrow","region":"solution","order":5,"style":{"colorId":"ink","strokeWidthId":"emphasis"},"start":[58,16],"end":[90,16]}}],"estimatedDurationMs":39425,"exclusiveExecutionPlan":[{"type":"speech","role":"narration_full","startOffsetMs":0,"durationMs":39425,"endOffsetMs":39425,"text":"好嘞，那我们来列方程解答。设原有人数为x，或者设正方形每行有y人。根据题意，增加120人后的总人数减去减少120人后的总人数，差就是240。我们可以用方程来写：设原有人数为x，或者设新正方形每行有y人。"},{"type":"board","role":"writing","startOffsetMs":1200,"durationMs":11970,"endOffsetMs":13170,"content":"设新正方形每行有y人\n则原有人数=y^2-120\n或原有人数=x","coord":"[56.0%, 16.0%]"},{"type":"action","role":"punctuation_pause","index":0,"startOffsetMs":13770,"durationMs":1200,"endOffsetMs":14970,"action":{"action":{"tool":"rough-arrow","region":"solution","order":5,"style":{"colorId":"ink","strokeWidthId":"emphasis"},"start":[58,16],"end":[90,16]}}}],"timingPolicy":"speech-full-board-action-mutually-exclusive"},{"duration":"待计算","stage":"解答","speech":"来，咱们列出等量关系式：括号里y加1的平方 和 括号里y减1的平方 这种太复杂？换个思路！两个平方数的差是240。我们可以把240分解成两个偶数的乘积，因为平方数的差可以写成平方差公式：a的平方减b的平方等于括号里a加b乘以括号里a减b等于240，对吧？","audioUrl":null,"board":{"startCoord":"[58.5%, 42.5%]","content":"\\begin{aligned}\n(x+120)-(x-120)&=240\\\\\na^2-b^2&=(a+b)(a-b)\\\\ &=240\n\\end{aligned}","startDelay":1.5},"actionSpec":[],"estimatedDurationMs":45325,"exclusiveExecutionPlan":[{"type":"speech","role":"narration_full","startOffsetMs":0,"durationMs":45325,"endOffsetMs":45325,"text":"来，咱们列出等量关系式：括号里y加1的平方 和 括号里y减1的平方 这种太复杂？换个思路！两个平方数的差是240。我们可以把240分解成两个偶数的乘积，因为平方数的差可以写成平方差公式：a的平方减b的平方等于括号里a加b乘以括号里a减b等于240，对吧？"},{"type":"board","role":"writing","startOffsetMs":1500,"durationMs":19190,"endOffsetMs":20690,"content":"\\begin{aligned}\n(x+120)-(x-120)&=240\\\\\na^2-b^2&=(a+b)(a-b)\\\\ &=240\n\\end{aligned}","coord":"[58.5%, 42.5%]"}],"timingPolicy":"speech-full-board-action-mutually-exclusive"},{"duration":"待计算","stage":"解答","speech":"那我们就来看看240能拆成哪两个差是偶数的因数相乘呢？240等于12乘以20，或者24乘以10。我们来试一下，如果括号里a加b等于60，括号里a减b等于4，那么两数相加除以2，就能算出a和b啦！","audioUrl":null,"board":{"startCoord":"[56.0%, 73.0%]","content":"\\begin{aligned}\n240&=60\\times4\\\\\na+b&=60,\\,a-b=4\\\\\n2a&=64 \\Rightarrow a=32\\\\\n2b&=56 \\Rightarrow b=28\n\\end{aligned}","startDelay":1.5},"actionSpec":[],"estimatedDurationMs":36575,"exclusiveExecutionPlan":[{"type":"speech","role":"narration_full","startOffsetMs":0,"durationMs":36575,"endOffsetMs":36575,"text":"那我们就来看看240能拆成哪两个差是偶数的因数相乘呢？240等于12乘以20，或者24乘以10。我们来试一下，如果括号里a加b等于60，括号里a减b等于4，那么两数相加除以2，就能算出a和b啦！"},{"type":"board","role":"writing","startOffsetMs":1500,"durationMs":28370,"endOffsetMs":29870,"content":"\\begin{aligned}\n240&=60\\times4\\\\\na+b&=60,\\,a-b=4\\\\\n2a&=64 \\Rightarrow a=32\\\\\n2b&=56 \\Rightarrow b=28\n\\end{aligned}","coord":"[56.0%, 73.0%]"}],"timingPolicy":"speech-full-board-action-mutually-exclusive"},{"duration":"待计算","stage":"解答","speech":"太棒啦！算出来a是32，b是28。那么原来的正方形人数减去120就是28的平方，或者加上120就是32的平方。我们来算一下，28的平方加上120等于多少呢？28乘以28等于784，784加120等于904！","audioUrl":null,"board":{"startCoord":"[58.5%, 111.5%]","content":"\\begin{aligned}\nx-120&=28^2=784\\\\\nx&=784+120=904\n\\end{aligned}","startDelay":1.5},"actionSpec":[],"estimatedDurationMs":38650,"exclusiveExecutionPlan":[{"type":"speech","role":"narration_full","startOffsetMs":0,"durationMs":38650,"endOffsetMs":38650,"text":"太棒啦！算出来a是32，b是28。那么原来的正方形人数减去120就是28的平方，或者加上120就是32的平方。我们来算一下，28的平方加上120等于多少呢？28乘以28等于784，784加120等于904！"},{"type":"board","role":"writing","startOffsetMs":1500,"durationMs":12400,"endOffsetMs":13900,"content":"\\begin{aligned}\nx-120&=28^2=784\\\\\nx&=784+120=904\n\\end{aligned}","coord":"[58.5%, 111.5%]"}],"timingPolicy":"speech-full-board-action-mutually-exclusive"},{"duration":"待计算","stage":"总结","speech":"好嘞，我们来总结一下哈。这道题考的是平方数的应用和平方差公式的巧妙转化，把增加和减少的差转化为平方差，再分解因式求解。路虽远，行则将至，加油！","audioUrl":null,"board":{"startCoord":"[56.0%, 86.5%]","content":"答：原有战士904人。","startDelay":1.5},"actionSpec":[],"estimatedDurationMs":27525,"exclusiveExecutionPlan":[{"type":"speech","role":"narration_full","startOffsetMs":0,"durationMs":27525,"endOffsetMs":27525,"text":"好嘞，我们来总结一下哈。这道题考的是平方数的应用和平方差公式的巧妙转化，把增加和减少的差转化为平方差，再分解因式求解。路虽远，行则将至，加油！"},{"type":"board","role":"writing","startOffsetMs":1500,"durationMs":4390,"endOffsetMs":5890,"content":"答：原有战士904人。","coord":"[56.0%, 86.5%]"}],"timingPolicy":"speech-full-board-action-mutually-exclusive"}]};
+
+      // ===== 5.1 字体硬约束：手写体必须加载成功，失败明确报错（禁止静默回退印刷体）=====
+      // 王虹手写风范式：缺字体不得带替代字形交付。此前无检测 -> 字体挂了会静默变印刷体，夏夏看到的"不对劲"多半源于此。
+      async function ensureHandFont() {
+        try {
+          await document.fonts.load('16px PingFangHand', '测试手写abc123');
+          await document.fonts.ready;
+          if (!document.fonts.check('16px PingFangHand')) throw new Error('fonts.check 未通过');
+          return true;
+        } catch (e) {
+          const el = document.getElementById('font-error');
+          if (el) {
+            el.style.display = 'block';
+            el.textContent = '⚠ 手写字体未加载成功：public/fonts/pingfang-qiaomu.ttf 缺失或加载失败。当前画面已回退印刷体，板书手写效果失效！请检查字体文件后刷新页面。';
+          }
+          console.error('[字体兜底] 手写体加载失败：', e);
+          return false;
+        }
+      }
+      await ensureHandFont();
+
+      const rows = deliverable.rows || [];
+
+      // ===== 画布尺寸 + 比例锁死 + 缩放锁定（唯一真相源：deliverable.boardPlan.canvas）=====
+      const canvas = deliverable.boardPlan?.canvas || deliverable.meta?.canvasSize;
+      if (!canvas || canvas.w !== 1726 || canvas.h !== 980) {
+        errorTip.style.display = 'block';
+        errorTip.textContent = `画布配置异常：期望 1726×980，实际 ${canvas ? canvas.w + '×' + canvas.h : '缺失'}。比例不可变，已拒绝渲染。`;
+        return;
+      }
+      board.style.width = canvas.w + 'px';     // 单一真相源：从 handoff 读，覆盖 CSS 硬编码
+      board.style.height = canvas.h + 'px';
+      board.style.transformOrigin = 'center';
+
+      let currentScale = 1;
+      let scaleLocked = true;                  // 默认锁定缩放
+      function applyScale(s) {
+        currentScale = s;
+        board.style.transform = `scale(${currentScale})`;  // 单一 scale -> 宽高同比，比例锁死
+      }
+      // 填满中间：允许等比放大（去掉「只缩不放」的 1 上限），但用 MAX_SCALE 约束上限——
+      // 放大过头会让 canvas 外框 / 区角标这些位图糊掉。单一 scale 值，比例依旧恒不变。
+      const MAX_SCALE = 2;
+      function fitBoard() {
+        const area = document.getElementById('board-area');
+        const pad = 32;
+        const availW = area.clientWidth - pad;
+        const availH = area.clientHeight - pad;
+        applyScale(Math.min(availW / canvas.w, availH / canvas.h, MAX_SCALE));
+      }
+      function onResize() { if (!scaleLocked) fitBoard(); }   // 锁定时不随窗口自动变
+      window.addEventListener('resize', onResize);
+      fitBoard();                              // 初始 fit 一次（锁定态下冻结此值）
+
+      // 滚轮缩放（仅解锁时生效，始终等比 -> 比例不变）
+      document.getElementById('board-area').addEventListener('wheel', (e) => {
+        if (scaleLocked) return;
+        e.preventDefault();
+        applyScale(Math.min(MAX_SCALE, Math.max(0.3, currentScale * (1 - e.deltaY * 0.001))));
+      }, { passive: false });
+
+      // 缩放锁定按钮
+      const btnScaleLock = document.getElementById('btn-scale-lock');
+      function syncLockBtn() {
+        btnScaleLock.textContent = scaleLocked ? '🔒 缩放已锁定（点击解锁）' : '🔓 缩放已解锁（点击锁定）';
+        btnScaleLock.style.background = scaleLocked ? '#7a7a7a' : '#c9302c';
+      }
+      btnScaleLock.addEventListener('click', () => {
+        scaleLocked = !scaleLocked;
+        if (!scaleLocked) fitBoard();          // 解锁即按当前视口重新适配
+        syncLockBtn();
+      });
+      syncLockBtn();
+
+
+      // ===== 一维时间轴模型（下游动态测算：B 不输出时间字段）=====
+      const WORDS_PER_MIN = 160;     // 口播 1 分钟 160 字
+      const BOARD_SEC_PER_3 = 0.9;   // 板书每 3 字耗时（比 1.25 更快，修正"偏慢"）
+      const ACTION_SEC = 1.0;        // 动作时长（标点停顿）
+      const ROW_GAP_MS = 1000;       // row 之间空白停顿 1 秒
+      const coordinateMode = deliverable.coordinateMode || 'percentage'; // percentage | pixel
+      const stageToRegion = { 题目:'题目', 分析:'分析', 解答:'解答', 总结:'总结' };
+
+      function speechSec(text){ return (String(text||'').replace(/\s/g,'').length / WORDS_PER_MIN) * 60; }
+
+      // 每条 row：行内板书行与动作互斥、顺序出现；整 row 时长 = 口播自然时长（不足则按板书下限补）
+      const schedule = rows.map(row => {
+        const sp = speechSec(row.speech);
+        const lines = boardLines(row.board?.content);
+        const actions = (row.actionSpec||[]).map(a => a.action).filter(Boolean);
+        const startDelay = Number(row.board?.startDelay) || 0; // 秒
+        const segs = [];
+        let cursor = startDelay;
+        let boardNatural = 0;
+        const lineUnits = lines.map(line => {
+          const r = renderLine(sanitizeBoard(line));
+          const dur = Math.max(0.4, (r.units/3)*BOARD_SEC_PER_3);
+          boardNatural += dur;
+          return { html: r.html, dur };
+        });
+        const innerNatural = boardNatural + actions.length * ACTION_SEC;
+        const speechAvail = Math.max(0.5, sp - startDelay);
+        const scale = innerNatural > speechAvail ? speechAvail / innerNatural : 1; // 口播更长则自然写，更短则压缩进口播
+        lineUnits.forEach(({ html, dur }) => {
+          const sd = dur * scale;
+          segs.push({ kind:'board', html, region: stageToRegion[row.stage], t0: cursor, t1: cursor + sd });
+          cursor += sd;
+        });
+        actions.forEach(action => {
+          const ad = ACTION_SEC * scale;
+          const trigger = parseTriggerAt(action.triggerAt); // 数据暂无，按关键词后顺序排；预留 +00:00:SS
+          const t0 = trigger != null ? trigger : cursor;
+          segs.push({ kind:'action', action, region: stageToRegion[row.stage], t0, t1: t0 + ad });
+          cursor = Math.max(cursor, t0 + ad);
+        });
+        const inner = cursor;
+        const rowSec = Math.max(sp, startDelay + inner);
+        return { row, spSec: sp, actions, segs, rowSec, rowMs: Math.round(rowSec*1000) };
+      });
+
+      let rowStartTimes = [];
+      let cumulative = 0;
+      schedule.forEach((s, i) => { rowStartTimes.push(cumulative); cumulative += s.rowMs + (i < schedule.length - 1 ? ROW_GAP_MS : 0); });
+      const totalDuration = cumulative;
+
+      let isPlaying = false;
+      let isPaused = false;
+      let currentRow = -1;
+      let timers = [];
+      let startTime = 0;
+      let pauseOffset = 0;
+      let rafId = null;
+      let annotations = [];
+      let utterance = null;
+
+      // 初始化题目文本，并标记下划线目标
+      const questionText = deliverable.problemText || '';
+      const targets = rows[0]?.actionSpec?.map(a => a.action?.target?.exactText).filter(Boolean) || [];
+      regions['题目'].innerHTML = wrapTargets(questionText, targets);
+
+      function wrapTargets(text, targetList) {
+        let html = escapeHtml(text);
+        targetList.forEach((t, i) => {
+          const escaped = escapeHtml(t);
+          html = html.replace(escaped, `<span class="mark-target" id="mark-${i}">${escaped}</span>`);
+        });
+        return html;
+      }
+
+      function escapeHtml(s) {
+        return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+      }
+
+      function pctToPx(pct, dim) { return (pct / 100) * dim; }
+      function getBoardSize() { return { w: board.clientWidth, h: board.clientHeight }; }
+
+      // 板书内容按行切分（处理 \begin{aligned} / \\ / &）
+      function boardLines(content) {
+        let c = String(content || '');
+        c = c.replace(/\\begin\{aligned\}/g, '').replace(/\\end\{aligned\}/g, '');
+        c = c.replace(/\\\\/g, '\n');   // 两个反斜杠 -> 换行
+        c = c.replace(/&/g, '');         // 对齐符丢弃
+        return c.split('\n').map(l => l.trim()).filter(l => l.length);
+      }
+
+      // 门卫转义层：板书进渲染前的运算符/分数规范化（规矩 5.2 / 5.3）
+      // 乘法 -> 小写字母 x；除法 -> \frac 上下分写；禁印刷 ×÷；斜杠分数 -> \frac
+      function sanitizeBoard(line) {
+        let s = String(line || '');
+        s = s.replace(/\\times/g, 'x');
+        s = s.replace(/([^\s{}\\]+)\s*\\div\s*([^\s{}\\]+)/g, '\\frac{$1}{$2}');
+        s = s.replace(/[×÷]/g, '');
+        s = s.replace(/(\d+)\s*\/\s*(\d+)/g, '\\frac{$1}{$2}');
+        return s;
+      }
+
+      // 轻量 LaTeX 渲染：\frac / ^ / _ / 常用符号 -> HTML（每个原子包 .char 供逐字显现）
+      function renderLine(line) {
+        // 符号"常见凑"：手写体仅保证基础拉丁/数字/中文/标点，生僻 Unicode（⇒⇐≠≤≥·±）会缺字变豆腐块，
+        // 全部换成 ASCII 常见凑，保证渲染；根号 √ 在 5.1 白名单内保留。
+        const cmds = {
+          '\\Rightarrow':'->', '\\to':'->', '\\impliedby':'<-',
+          '\\pm':'+-', '\\cdot':'*', '\\approx':'~',
+          '\\neq':'!=', '\\leq':'<=', '\\geq':'>=',
+          '\\checkmark':'V'
+        };
+        let html = '', units = 0, i = 0;
+        const n = line.length;
+        while (i < n) {
+          const c = line[i];
+          if (c === '\\') {
+            if (line.startsWith('\\frac', i)) {
+              let j = i + 5;
+              const num = readBrace(line, j); j = num.next;
+              const den = readBrace(line, j); j = den.next;
+              html += `<span class="char frac"><span class="num">${escapeHtml(num.text)}</span><span class="den">${escapeHtml(den.text)}</span></span>`;
+              units += Math.max(1, num.text.length + den.text.length);
+              i = j; continue;
+            }
+            if (line.startsWith('\\sqrt', i)) {
+              let j = i + 5;
+              const body = readBrace(line, j); j = body.next;
+              html += `<span class="char">√(${escapeHtml(body.text)})</span>`;
+              units += Math.max(1, body.text.length); i = j; continue;
+            }
+            const m = line.slice(i).match(/^\\[a-zA-Z]+/);
+            if (m) {
+              const name = m[0];
+              if (cmds[name]) { html += `<span class="char">${cmds[name]}</span>`; units++; }
+              i += name.length; continue;
+            }
+            i++; continue; // 普通反斜杠（转义符）跳过
+          }
+          if (c === '^' || c === '_') {
+            let j = i + 1, content;
+            if (line[j] === '{') { const b = readBrace(line, j); content = b.text; j = b.next; }
+            else { content = line[j]; j++; }
+            const cls = c === '^' ? 'sup' : 'sub';
+            html += `<span class="char ${cls}">${escapeHtml(content)}</span>`;
+            units += Math.max(1, content.length); i = j; continue;
+          }
+          if (c === ' ') { html += ' '; i++; continue; }
+          html += `<span class="char">${escapeHtml(c)}</span>`; units++; i++;
+        }
+        return { html, units };
+      }
+
+      function readBrace(s, idx) {
+        if (s[idx] !== '{') return { text: '', next: idx };
+        let depth = 0, k = idx, out = '';
+        for (; k < s.length; k++) {
+          if (s[k] === '{') depth++;
+          else if (s[k] === '}') { depth--; if (depth === 0) { k++; break; } }
+          else out += s[k];
+        }
+        return { text: out, next: k };
+      }
+
+      // 动作 triggerAt：本 row 开始后秒数，格式 +00:00:SS（数据暂无则 NULL）
+      function parseTriggerAt(s) {
+        if (!s) return null;
+        const m = String(s).match(/\+?(\d+):(\d+):(\d+)/);
+        if (!m) return null;
+        return (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]);
+      }
+
+      function parseCoord(s) {
+        if (!s) return null;
+        const clean = String(s).replace(/[\[\]\s]/g, '');
+        if (coordinateMode === 'pixel') {
+          const m = clean.match(/(\d+(?:\.\d+)?),(\d+(?:\.\d+)?)/);
+          if (!m) return null;
+          const sz = getBoardSize();
+          return { x: (parseFloat(m[1]) / sz.w) * 100, y: (parseFloat(m[2]) / sz.h) * 100 };
+        }
+        const m = clean.match(/(\d+(?:\.\d+)?)%,(\d+(?:\.\d+)?)%/);
+        if (!m) return null;
+        return { x: parseFloat(m[1]), y: parseFloat(m[2]) };
+      }
+
+      function formatTime(ms) {
+        const totalSec = Math.floor(ms / 1000);
+        const m = Math.floor(totalSec / 60).toString().padStart(2, '0');
+        const s = (totalSec % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+      }
+
+      function clearAll() {
+        timers.forEach(t => clearTimeout(t));
+        timers = [];
+        if (utterance && window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+        }
+        annotations.forEach(a => a.remove?.());
+        annotations = [];
+        svgOverlay.innerHTML = '';
+        board.querySelectorAll('.board-content').forEach(el => el.remove());
+        boardContainers = {};
+        // 题目区保留，只清掉下划线样式
+        regions['题目'].querySelectorAll('.mark-target').forEach(el => { el.style.cssText = ''; });
+        if (rafId) cancelAnimationFrame(rafId);
+      }
+
+      function reset() {
+        isPlaying = false;
+        isPaused = false;
+        currentRow = -1;
+        pauseOffset = 0;
+        clearAll();
+        speechEl.textContent = '点击「播放」开始口播板书讲学。';
+        stageBadge.textContent = '准备';
+        progressFill.style.width = '0%';
+        timeDisplay.textContent = `${formatTime(0)} / ${formatTime(totalDuration)}`;
+        btnPlay.disabled = false;
+        btnPause.disabled = true;
+      }
+
+      function playRow(index) {
+        if (index >= rows.length) { finish(); return; }
+        currentRow = index;
+        const s = schedule[index];
+        const row = s.row;
+        const rowStart = rowStartTimes[index];
+
+        stageBadge.textContent = row.stage || '环节';
+        speechEl.textContent = row.speech || '';
+
+        // 口播：整行时长内朗读（音频自然时长 = 本 row 时长）
+        if (chkTts.checked && window.speechSynthesis && row.speech) {
+          try {
+            window.speechSynthesis.cancel();
+            utterance = new SpeechSynthesisUtterance(row.speech);
+            utterance.lang = 'zh-CN';
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            window.speechSynthesis.speak(utterance);
+          } catch (e) { console.warn('TTS 失败', e); }
+        }
+
+        // 行内调度：板书行与动作互斥、顺序出现（一维播放轴同一时刻仅一项）
+        s.segs.forEach(seg => {
+          const delay = seg.t0 * 1000;
+          const dur = (seg.t1 - seg.t0) * 1000;
+          const t = setTimeout(() => {
+            if (!isPlaying) return;
+            if (seg.kind === 'board') writeBoardLine(index, seg.html, seg.region, dur);
+            else executeAction(seg.action);
+          }, delay);
+          timers.push(t);
+        });
+
+        // 下一行（整行时长 + 1 秒空白停顿），row 间 one by one
+        const nextT = setTimeout(() => {
+          if (!isPlaying) return;
+          playRow(index + 1);
+        }, s.rowMs + (index < rows.length - 1 ? ROW_GAP_MS : 0));
+        timers.push(nextT);
+      }
+
+      // 每个 row 的板书容器（按 row 索引缓存，reset 时清空）
+      let boardContainers = {};
+
+      const stageColor = { 题目:'#1a1a1a', 分析:'#c9302c', 解答:'#1a1a1a', 总结:'#1a1a1a' };
+      const stageRem   = { 题目:'1rem', 分析:'1.35rem', 解答:'1.35rem', 总结:'1.35rem' };
+      const stageFont  = {
+        题目: "'Microsoft YaHei', sans-serif",
+        分析: "'PingFangHand','PingFang SC',sans-serif",
+        解答: "'PingFangHand','PingFang SC',sans-serif",
+        总结: "'PingFangHand','PingFang SC',sans-serif",
+      };
+
+      function getBoardContainer(index, stage) {
+        if (boardContainers[index]) return boardContainers[index];
+        const coord = parseCoord(rows[index].board?.startCoord);
+        const el = document.createElement('div');
+        el.className = 'board-content';
+        el.style.color = stageColor[stage] || '#1a1a1a';
+        el.style.fontSize = stageRem[stage] || '1.35rem';
+        el.style.fontFamily = stageFont[stage] || stageFont['分析'];
+        if (coord) {
+          el.style.left = coord.x + '%';
+          // 达芬奇式弹性收纳：坐标钳入 [3,88]%，保证内容不溢出画布
+          el.style.left = Math.min(Math.max(coord.x, 3), 88) + '%';
+          el.style.top = Math.min(Math.max(coord.y, 3), 88) + '%';
+        } else {
+          el.style.left = '6%';
+          el.style.top = '6%';
+        }
+        board.appendChild(el);
+        boardContainers[index] = el;
+        return el;
+      }
+
+      // 逐行书写：行内逐字/逐原子显现；每行轻微倾斜 + 行距 ±10% 抖动 + 逐字位移旋转抖动（老师板书感）
+      function writeBoardLine(index, html, stage, durMs) {
+        if (!html) return;
+        const container = getBoardContainer(index, stage);
+        const lineEl = document.createElement('div');
+        lineEl.className = 'board-line';
+        const tilt = (Math.random() * 3 - 1.5);          // 整行 ±1.5° 轻微倾斜
+        const gap = 1.55 * (0.9 + Math.random() * 0.2);  // 行距 ±10% 抖动
+        lineEl.style.transform = `rotate(${tilt}deg)`;
+        lineEl.style.marginBottom = `${gap}em`;
+        lineEl.innerHTML = html;
+        container.appendChild(lineEl);
+
+        const chars = Array.from(lineEl.querySelectorAll('.char'));
+        if (!chars.length) return;
+        const base = durMs / Math.max(chars.length, 1);
+        chars.forEach((span, i) => {
+          const jx = (Math.random() * 2 - 1);   // ±1px 位移
+          const jy = (Math.random() * 2 - 1);
+          const rot = (Math.random() * 2 - 1);  // ±1° 旋转
+          span.style.transform = `translate(${jx}px, ${jy}px) rotate(${rot}deg)`;
+          const jitter = base * 0.08 * (Math.random() - 0.5);
+          const t = setTimeout(() => span.classList.add('revealed'), Math.max(0, i * base + jitter));
+          timers.push(t);
+        });
+      }
+
+      function executeAction(action) {
+        if (!action || !action.tool) return;
+        if (action.tool === 'rough-notation') {
+          doUnderline(action);
+        } else if (action.tool === 'rough-line' || action.tool === 'rough-rough-line') {
+          doLine(action, false);
+        } else if (action.tool === 'rough-arrow') {
+          doLine(action, true);
+        }
+      }
+
+      function doUnderline(action) {
+        const target = action.target;
+        if (!target || !target.exactText) return;
+        const regionEl = regions[target.region === 'question' ? '题目' : target.region];
+        if (!regionEl) return;
+        // 找目标 span（按文本匹配第一个）
+        const spans = Array.from(regionEl.querySelectorAll('.mark-target'));
+        const el = spans.find(s => s.textContent.includes(target.exactText));
+        if (!el) return;
+        const annotate = window.RoughNotation?.annotate || window.annotate;
+        if (!annotate) return;
+        const color = action.options?.color || '#d64545';
+        const width = action.options?.strokeWidth || 2;
+        const an = annotate(el, {
+          type: action.action || 'underline',
+          color,
+          strokeWidth: width,
+          iterations: action.options?.iterations || 2,
+          multiline: action.options?.multiline ?? false,
+          padding: action.options?.padding ?? 2,
+          animationDuration: 1200,
+        });
+        an.show();
+        annotations.push(an);
+      }
+
+      function doLine(action, withArrow) {
+        const { start, end, style } = action;
+        if (!start || !end) return;
+        const size = getBoardSize();
+        const x1 = pctToPx(start[0], size.w);
+        const y1 = pctToPx(start[1], size.h);
+        const x2 = pctToPx(end[0], size.w);
+        const y2 = pctToPx(end[1], size.h);
+
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        svgOverlay.appendChild(g);
+
+        const rc = rough.svg(svgOverlay);
+        const color = style?.colorId === 'red' ? '#c9302c' : (style?.colorId === 'ink' ? '#1a1a1a' : '#1a1a1a');
+        const width = style?.strokeWidthId === 'emphasis' ? 3 : 2;
+
+        const path = rc.linearPath([[x1, y1], [x2, y2]], {
+          stroke: color,
+          strokeWidth: width,
+          roughness: 1.2,
+          bowing: 1.2,
+        });
+        g.appendChild(path);
+
+        if (withArrow) {
+          const angle = Math.atan2(y2 - y1, x2 - x1);
+          const len = 14;
+          const a1 = angle + Math.PI * 0.85;
+          const a2 = angle - Math.PI * 0.85;
+          const arrPath = rc.linearPath([
+            [x2, y2],
+            [x2 + len * Math.cos(a1), y2 + len * Math.sin(a1)],
+            [x2, y2],
+            [x2 + len * Math.cos(a2), y2 + len * Math.sin(a2)],
+          ], { stroke: color, strokeWidth: width, roughness: 1.2 });
+          g.appendChild(arrPath);
+        }
+
+        animatePath(path);
+      }
+
+      function animatePath(node) {
+        const path = node.tagName === 'path' ? node : node.querySelector('path');
+        if (!path || typeof path.getTotalLength !== 'function') return;
+        try {
+          const len = path.getTotalLength();
+          path.style.strokeDasharray = len;
+          path.style.strokeDashoffset = len;
+          path.getBoundingClientRect(); // force reflow
+          path.style.transition = 'stroke-dashoffset 1.2s ease-out';
+          path.style.strokeDashoffset = '0';
+        } catch (e) { console.warn('路径动画失败', e); }
+      }
+
+      function updateProgress() {
+        if (!isPlaying || isPaused) return;
+        const now = performance.now();
+        const elapsed = pauseOffset + (now - startTime);
+        const pct = totalDuration ? Math.min(100, (elapsed / totalDuration) * 100) : 0;
+        progressFill.style.width = pct + '%';
+        timeDisplay.textContent = `${formatTime(elapsed)} / ${formatTime(totalDuration)}`;
+        rafId = requestAnimationFrame(updateProgress);
+      }
+
+      function finish() {
+        isPlaying = false;
+        btnPlay.disabled = false;
+        btnPause.disabled = true;
+        progressFill.style.width = '100%';
+        timeDisplay.textContent = `${formatTime(totalDuration)} / ${formatTime(totalDuration)}`;
+        speechEl.textContent = '讲学结束。';
+        stageBadge.textContent = '完成';
+      }
+
+      function play() {
+        if (isPlaying) return;
+        if (currentRow === -1 || currentRow >= rows.length) {
+          reset();
+          isPlaying = true;
+          startTime = performance.now();
+          pauseOffset = 0;
+          playRow(0);
+        } else {
+          isPlaying = true;
+          startTime = performance.now();
+          // 重新调度剩余行（简化：从当前行开头重播）
+          clearAll();
+          playRow(currentRow);
+        }
+        btnPlay.disabled = true;
+        btnPause.disabled = false;
+        rafId = requestAnimationFrame(updateProgress);
+      }
+
+      function pause() {
+        if (!isPlaying) return;
+        isPlaying = false;
+        isPaused = true;
+        pauseOffset += performance.now() - startTime;
+        clearAll();
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        btnPlay.disabled = false;
+        btnPause.disabled = true;
+        if (rafId) cancelAnimationFrame(rafId);
+      }
+
+      btnPlay.addEventListener('click', play);
+      btnPause.addEventListener('click', pause);
+      btnRestart.addEventListener('click', () => { reset(); play(); });
+
+      document.getElementById('progress-bar').addEventListener('click', (e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const ratio = (e.clientX - rect.left) / rect.width;
+        const targetMs = ratio * totalDuration;
+        // 定位到最近的一行开头（精确seek复杂，先按行）
+        let idx = rowStartTimes.findIndex((t, i) => (rowStartTimes[i+1] ?? totalDuration) > targetMs);
+        if (idx < 0) idx = 0;
+        reset();
+        currentRow = idx;
+        pauseOffset = rowStartTimes[idx];
+        play();
+      });
+
+      reset();
+    })();
+  </script>
+</body>
+</html>
