@@ -42,6 +42,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(projectRoot, 'index.html'),
+        'agent-b-v2': resolve(projectRoot, 'agent-b-v2.html'),
         'board-preview': resolve(projectRoot, 'board-preview.html'),
       },
     },
