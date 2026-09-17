@@ -1,0 +1,203 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/deliverable/deliverable.schema.json",
+  "title": "教学板书微课交付物（deliverable）",
+  "description": "Agent B 交付合同 v2.0.0。每个 row 为一组原子播放单元；语音贯穿全程；板书与动作在时间上绝对互斥；动作时长定量 1~2 秒作为口播标点停顿。供下游课件制作与画布 Agent 直接消费。",
+  "type": "object",
+  "required": ["apiSpecVersion", "projectCode", "problemText", "boardPlan", "rows"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "apiSpecVersion": { "const": "2.0.0" },
+    "apiDocUrl": { "type": "string" },
+    "specificationSummary": { "type": "string" },
+    "specAnnotation": {
+      "type": "string",
+      "description": "画布规格批注：尺寸 1726x980、比例、题目/板书字号、stage 四区坐标落座区间、越界与手稿风格。"
+    },
+    "projectCode": {
+      "type": "string",
+      "pattern": "^\\d{8}-\\d{6}-\\d{3}$",
+      "description": "项目编码（服务端唯一真源生成），归档文件名 = deliverable-<projectCode>.json/.html。"
+    },
+    "filename": { "type": "string", "description": "归档 JSON 文件名。" },
+    "htmlFilename": { "type": "string", "description": "配对交付单页 HTML 文件名（row-player 模板自包含渲染）。" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "problemText": { "type": "string", "description": "题目全文（已过错误转义清洗）。" },
+    "sourceImageUrl": { "type": "string", "description": "原题图片地址（图片题才有）。" },
+    "keepOriginal": { "type": "boolean", "description": "是否把原图贴入题目区。" },
+    "topicLayout": { "type": ["object", "null"], "description": "Agent A 画布落座布局（题目/图片区域坐标）。" },
+    "boardPlan": {
+      "$ref": "#/$defs/boardPlan",
+      "description": "★盲测必填：本题目参数信息。四区范围 + 四个 stage 标签坐标 + 画布尺寸 + 落座模式。缺它 = 无上下文 Agent 无法定范围、无法贴标签。"
+    },
+    "screenshotUrl": { "type": "string", "description": "原题截图持久资产地址（= 第一步截图，Step1Entry 存档 /pic/*.jpg）。文本题目也带，仅作溯源，不渲染。" },
+    "screenshotDataUrl": {
+      "type": "string",
+      "description": "★图片题（boardPlan.image 存在时）：第一步截图内嵌 base64，交付页脱环境、离线双击即有图。由 server/renderDeliverableHtml.js 导出时注入，文本题目不注入。"
+    },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "problemType": { "type": "string" },
+        "boardFocus": { "type": "string" },
+        "gradeLevel": { "type": "string" },
+        "knowledgeTitle": { "type": "string" },
+        "canvasSize": {
+          "type": "object",
+          "properties": { "width": { "type": "number" }, "height": { "type": "number" } }
+        }
+      }
+    },
+    "stats": {
+      "type": "object",
+      "properties": {
+        "totalDuration": { "type": "number", "description": "总时长（秒）。" },
+        "totalDurationText": { "type": "string" },
+        "stepCount": { "type": "integer", "description": "row 数量。" },
+        "charCount": { "type": "integer", "description": "口播总字数。" },
+        "actionCount": { "type": "integer", "description": "动作总数。" }
+      }
+    },
+    "checkInfo": {
+      "type": "object",
+      "properties": {
+        "checkApplied": { "type": "boolean", "description": "是否经过 Check Agent 校对。" },
+        "changeCount": { "type": "integer" }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/row" }
+    }
+  },
+  "$defs": {
+    "boardPlan": {
+      "type": "object",
+      "title": "本题目参数信息（四区范围 + stage 标签定位）",
+      "description": "唯一真源 = src/utils/boardLayout.js 按 layoutMode 算出的落座结果。交付页 row-player.html 装载即读：四个 Label 决定 stage 贴纸落点，四个区决定书写范围，两者同源，缺一即错位。",
+      "required": ["canvas", "layoutMode", "question", "analysis", "solution", "summary", "topicLabel", "analysisLabel", "solutionLabel", "summaryLabel"],
+      "properties": {
+        "canvas": {
+          "type": "object",
+          "required": ["w", "h"],
+          "properties": {
+            "w": { "const": 1726, "description": "画布宽（锁定，禁止改）。" },
+            "h": { "const": 980, "description": "画布高（锁定，禁止改）。" }
+          }
+        },
+        "layoutMode": {
+          "type": "string",
+          "enum": ["portrait", "portrait-left-image", "landscape-top-image"],
+          "description": "落座模式：纯文字 / 竖图左图右三区 / 横图上图下三列。四区与 Label 坐标随它变化，写死必错。"
+        },
+        "topicBottomPct": { "type": "number", "description": "题区实际底部百分比（后续区据此下推避让）。" },
+        "question": { "$ref": "#/$defs/zoneBox", "description": "题目区：problemText 静态呈现与圈画，30px 印刷体。" },
+        "analysis": { "$ref": "#/$defs/zoneBox", "description": "分析区：红笔手写。" },
+        "solution": { "$ref": "#/$defs/zoneBox", "description": "解答区：黑笔手写。" },
+        "summary": { "$ref": "#/$defs/zoneBox", "description": "总结区：黑笔手写。" },
+        "topicLabel": { "$ref": "#/$defs/labelBox", "description": "「题目」贴纸左上角（百分比）。" },
+        "analysisLabel": { "$ref": "#/$defs/labelBox", "description": "「分析」贴纸左上角。" },
+        "solutionLabel": { "$ref": "#/$defs/labelBox", "description": "「解答」贴纸左上角。" },
+        "summaryLabel": { "$ref": "#/$defs/labelBox", "description": "「总结」贴纸左上角。" },
+        "image": {
+          "type": ["object", "null"],
+          "description": "图片题原题图落座（x/y/w/h/maxH）。⚠ 当前 row-player 不渲染此项，图片题交付页仍无图（已知 P0）。"
+        },
+        "method": { "type": "string" },
+        "plannedAt": { "type": "string" }
+      }
+    },
+    "zoneBox": {
+      "type": "object",
+      "required": ["x", "y", "w"],
+      "properties": {
+        "x": { "type": "number", "description": "左边界百分比，0~100。" },
+        "y": { "type": "number", "description": "上边界百分比，0~100。" },
+        "w": { "type": "number", "description": "宽度百分比。" },
+        "h": { "type": "number", "description": "高度百分比（区可选，用于越界检查）。" },
+        "fontSize": { "type": "number", "description": "仅 question：题目字号（唯一真源 stepHandoff.js QUESTION_FONT_SIZE = 30）。" }
+      }
+    },
+    "labelBox": {
+      "type": "object",
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "w": { "type": "number" }
+      }
+    },
+    "row": {
+      "type": "object",
+      "required": ["stage", "speech"],
+      "properties": {
+        "stage": {
+          "type": "string",
+          "enum": ["题目", "分析", "解答", "总结"],
+          "description": "★盲测必填且只能四选一。决定：① 该段板书落哪个区 ② 贴哪枚 stage 标签 ③ 分析区用红笔、其余黑笔。取值不在四值内 → 标签不显示、落区退化。"
+        },
+        "speech": { "type": "string", "description": "本 row 口播稿（贯穿全程，只清错误转义不动口语毛料）。" },
+        "mp3": { "type": "string", "description": "★盲测优先：本段配音地址（播放器第一取值槽）。未生成写空串 \"\"，播放器自动降级无声虚拟时钟。" },
+        "audioUrl": { "type": "string", "description": "本地持久化音频地址（/audio/*.mp3）；空串表示未生成。播放器归一顺序 mp3 > audio > audioUrl > voice，与 mp3 等价可用。" },
+        "audioDurationMs": { "type": ["integer", "null"], "minimum": 0, "description": "真实音频时长（毫秒）；null=未合成。" },
+        "duration": { "type": "number", "minimum": 0, "description": "row 时长（秒）。有真实音频时为 audioDurationMs/1000（保留1位小数）；否则为估算。" },
+        "durationLabel": { "type": "string", "description": "时长来源标注（真实音频时长/预估）。" },
+        "board": {
+          "type": "object",
+          "description": "板书（与 actionSpec 时间上绝对互斥）。content/lines 已过车同轨超级过滤器（一行一个）。",
+          "properties": {
+            "content": { "type": "string" },
+            "lines": { "type": "array", "items": { "type": "string" }, "description": "板书按行拆分（写完一行再写一行）。" },
+            "triggerKeyword": { "type": "string", "description": "口播念到该词时落笔（与 startDelay 二选一）。" },
+            "startDelay": { "type": "number", "minimum": 0, "description": "语音起手后延迟落笔秒数（与 triggerKeyword 二选一）。" },
+            "startCoord": {
+              "type": "string",
+              "pattern": "^\\[\\s*[\\d.]+\\s*%?\\s*,\\s*[\\d.]+\\s*%?\\s*\\]$",
+              "description": "○ 可选（2026-09-17 拍板降为可选）：本段落笔起点，格式 \"[x%, y%]\"，百分比坐标、原点左上。**不写也能演** —— 缺省时渲染层按 boardPlan 该 stage 区左上角(+2%,+4%) 自动落座，四区照样板开。写则优先采用（真源：row-player.html resolveBoardCoord 三层回退）。上游 Agent B 提示词已明令不输出起手坐标，故常规产物本字段缺省。"
+            }
+          }
+        },
+        "actionSpec": {
+          "type": "array",
+          "description": "画布动作（圈画/擦除等），每个动作定量 1~2 秒，作为口播标点停顿。",
+          "items": { "type": "object" }
+        },
+        "estimatedDurationMs": { "type": "integer", "description": "row 估算总时长（毫秒）。" },
+        "rowTotalDurationMs": { "type": "integer" },
+        "totalDurationMs": { "type": "integer" },
+        "exclusiveExecutionPlan": {
+          "type": "array",
+          "description": "单手互斥时序计划（按 startOffsetMs 升序）：speech 全程 + board/action 互插时间缝隙。",
+          "items": { "$ref": "#/$defs/planItem" }
+        },
+        "plan": {
+          "type": "array",
+          "description": "exclusiveExecutionPlan 的兼容别名。",
+          "items": { "$ref": "#/$defs/planItem" }
+        },
+        "timingPolicy": { "const": "speech-full-board-action-mutually-exclusive" }
+      }
+    },
+    "planItem": {
+      "type": "object",
+      "required": ["type", "startOffsetMs", "durationMs", "endOffsetMs"],
+      "properties": {
+        "type": { "enum": ["speech", "board", "action"] },
+        "role": {
+          "type": "string",
+          "description": "speech→narration_full；board→writing；action→punctuation_pause。"
+        },
+        "index": { "type": "integer", "description": "仅 action：actionSpec 下标。" },
+        "startOffsetMs": { "type": "integer", "minimum": 0, "description": "相对本 row 起点的开始毫秒。" },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "endOffsetMs": { "type": "integer", "minimum": 0 },
+        "text": { "type": "string", "description": "仅 speech：口播全文。" },
+        "content": { "type": "string", "description": "仅 board：板书全文。" },
+        "lines": { "type": "array", "items": { "type": "string" }, "description": "仅 board：按行板书。" },
+        "triggerKeyword": { "type": "string", "description": "仅 board：触发关键词。" },
+        "action": { "type": "object", "description": "仅 action：动作规格原样。" }
+      }
+    }
+  }
+}

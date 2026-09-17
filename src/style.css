@@ -1,0 +1,325 @@
+:root {
+  color: #1f1f1f;
+  background: #f5f7fb;
+  font-family: "Segoe UI", "PingFang SC", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /*
+   * 视觉单一真相（2026-09-16 资产化改造）
+   * 全部页面/组件只允许引用这些 token，禁止各自写死浅灰、蓝渐变与圆角。
+   * 层次原则：工作区底色偏冷中性灰 → 卡片纸白 → 正文墨黑，底色与容器必须可区分。
+   */
+  --qh-canvas-bg: #e9edf4;
+  --qh-canvas-bg-deep: #dde3ec;
+  --qh-surface: #ffffff;
+  --qh-surface-sub: #f6f8fb;
+  --qh-surface-sunken: #f1f4f9;
+  --qh-border: #dbe2ec;
+  --qh-border-soft: #e8edf5;
+  --qh-ink: #101828;
+  --qh-ink-2: #344054;
+  --qh-muted: #667085;
+  --qh-faint: #98a2b3;
+  --qh-brand: #1d4ed8;
+  --qh-brand-soft: #eef2ff;
+  --qh-brand-border: #c7d2fe;
+  --qh-board-red: #c0392b;
+  --qh-radius-control: 6px;
+  --qh-radius-card: 10px;
+  --qh-radius-dialog: 12px;
+  --qh-shadow-card: 0 1px 2px rgba(16, 24, 40, 0.05), 0 10px 24px rgba(16, 24, 40, 0.06);
+  --qh-shadow-raise: 0 1px 2px rgba(16, 24, 40, 0.06), 0 14px 32px rgba(16, 24, 40, 0.1);
+
+  /* 甲方画布锚 */
+  --canvas-design-w: 1726;
+  --canvas-design-h: 980;
+  --canvas-aspect: 1.7612;
+
+  /*
+   * 页面基础参数（夏夏：格局尽量不要一直变动）
+   * 注意：这里的“侧栏”指页内右列（预览旁/配置旁），不是全站左侧导航
+   */
+  --page-max-width: 1080px;
+  --page-padding-x: 24px;
+  --page-padding-y: 16px;
+  --header-height: 56px;
+  --header-padding-x: 24px;
+  --card-radius: var(--qh-radius-card);
+  --card-shadow: var(--qh-shadow-card);
+  --main-gap: 16px;
+  --board-preview-max: min(680px, 46vw);
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-width: 320px;
+  /* 工作区底色：与纸白卡片形成明确层次，避免整屏白惨惨 */
+  background:
+    radial-gradient(1200px 420px at 50% -180px, rgba(29, 78, 216, 0.07), transparent 70%),
+    linear-gradient(180deg, var(--qh-canvas-bg) 0%, var(--qh-canvas-bg-deep) 100%);
+  background-attachment: fixed;
+  color: var(--qh-ink);
+}
+
+button, input, textarea { font: inherit; }
+
+#app { min-height: 100vh; }
+
+.qh-page {
+  min-height: 100vh;
+  background: transparent;
+}
+
+.qh-page-header.ant-layout-header,
+.qh-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-height);
+  line-height: var(--header-height);
+  padding: 0 var(--header-padding-x);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: saturate(140%) blur(8px);
+  border-bottom: 1px solid var(--qh-border);
+  box-shadow: 0 1px 0 rgba(16, 24, 40, 0.03);
+}
+
+.qh-page-content {
+  width: 100%;
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  padding: var(--page-padding-y) var(--page-padding-x) 28px;
+}
+
+.qh-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* 品牌标记：墨黑字 + 单一品牌蓝竖条，不用渐变、不用胶囊 */
+.qh-brand-mark {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding-left: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--qh-ink);
+}
+
+.qh-brand-mark::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 14px;
+  transform: translateY(-50%);
+  border-radius: 2px;
+  background: var(--qh-brand);
+}
+
+.qh-surface-card.ant-card {
+  border-radius: var(--card-radius);
+  border: 1px solid var(--qh-border);
+  box-shadow: var(--qh-shadow-card);
+  background: var(--qh-surface);
+}
+
+.qh-surface-card.ant-card .ant-card-head {
+  min-height: 52px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--qh-border-soft);
+}
+
+.qh-surface-card.ant-card .ant-card-body {
+  padding: 16px 20px;
+}
+
+/* 主按钮：单一品牌蓝实色，6px 控件圆角，弱阴影，不用胶囊与渐变 */
+.ant-btn-primary {
+  border-radius: var(--qh-radius-control);
+  height: 36px;
+  padding: 0 20px;
+  font-weight: 500;
+  background: var(--qh-brand);
+  border-color: var(--qh-brand);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+  transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1), box-shadow 0.2s cubic-bezier(0.32, 0.72, 0, 1), background-color 0.2s cubic-bezier(0.32, 0.72, 0, 1), border-color 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ant-btn-primary:hover {
+  background: #1a45bd;
+  border-color: #1a45bd;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.12);
+  transform: translateY(-1px);
+}
+.ant-btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.1);
+}
+.ant-btn-default {
+  border-radius: var(--qh-radius-control);
+  border-color: var(--qh-border);
+  color: var(--qh-ink-2);
+  height: 36px;
+  padding: 0 20px;
+  transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1), background-color 0.2s cubic-bezier(0.32, 0.72, 0, 1), border-color 0.2s cubic-bezier(0.32, 0.72, 0, 1), color 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ant-btn-default:hover {
+  border-color: var(--qh-brand);
+  color: var(--qh-brand);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.06);
+}
+
+/* 键盘焦点：仅 Tab 键导航时可见，鼠标用户无感知 */
+.ant-btn-primary:focus-visible,
+.ant-btn-default:focus-visible {
+  outline: 2px solid var(--qh-brand);
+  outline-offset: 2px;
+}
+
+.qh-handoff-steps {
+  margin: 4px 0 20px;
+}
+
+.qh-handoff-stats {
+  margin-bottom: 16px;
+}
+
+.qh-handoff-stats .ant-statistic {
+  min-height: 72px;
+  padding: 10px 11px;
+  background: var(--qh-surface-sub);
+  border: 1px solid var(--qh-border-soft);
+  border-radius: var(--qh-radius-control);
+}
+
+.qh-handoff-stats .ant-statistic-title {
+  margin-bottom: 4px;
+  color: #667085;
+}
+
+.qh-handoff-stats .ant-statistic-content {
+  color: #1f2937;
+  font-size: 16px;
+}
+
+/* 减少动效偏好：前庭功能障碍用户，禁用上浮和过渡 */
+@media (prefers-reduced-motion: reduce) {
+  .ant-btn-primary,
+  .ant-btn-default {
+    transition: none;
+  }
+  .ant-btn-primary:hover,
+  .ant-btn-default:hover {
+    transform: none;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --page-max-width: 100%;
+    --board-preview-max: 100%;
+  }
+
+  .qh-page-header.ant-layout-header,
+  .qh-page-header {
+    height: auto;
+    min-height: var(--header-height);
+    padding: 8px 11px;
+    gap: 8px;
+    flex-wrap: wrap;
+    line-height: 1.4;
+  }
+
+  .qh-page-header .qh-brand {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .qh-page-header > .ant-space {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+}
+
+/* ===== 全局容器换行保护（排除板书画布） ===== */
+/* 防止长文本、长URL、公式、代码等溢出容器 */
+.ant-card-body,
+.ant-descriptions-item-content,
+.ant-descriptions-item-label,
+.ant-table-tbody > tr > td,
+.ant-table-thead > tr > th,
+.ant-typography,
+.ant-tag,
+.qh-surface-card,
+.qh-handoff-stats .ant-statistic,
+.qh-section-title {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* 描述列表：长内容强制换行，不撑宽容器 */
+.ant-descriptions-item-content {
+  min-width: 0;
+}
+
+/* 表格单元格：允许内容在列宽内换行 */
+.ant-table-cell {
+  min-width: 0;
+}
+
+/* 夏夏极简半透明浅浅滑动条规范：针对 iframe、全局容器与 Ant Design 表格 */
+html, body, #app, .ant-table-body, .ant-table-content, .ant-table-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.16) transparent;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+#app::-webkit-scrollbar,
+.ant-table-body::-webkit-scrollbar,
+.ant-table-content::-webkit-scrollbar,
+.ant-table-container::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track,
+#app::-webkit-scrollbar-track,
+.ant-table-body::-webkit-scrollbar-track,
+.ant-table-content::-webkit-scrollbar-track,
+.ant-table-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb,
+#app::-webkit-scrollbar-thumb,
+.ant-table-body::-webkit-scrollbar-thumb,
+.ant-table-content::-webkit-scrollbar-thumb,
+.ant-table-container::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.16);
+  border-radius: 999px;
+}
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover,
+#app::-webkit-scrollbar-thumb:hover,
+.ant-table-body::-webkit-scrollbar-thumb:hover,
+.ant-table-content::-webkit-scrollbar-thumb:hover,
+.ant-table-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.32);
+}

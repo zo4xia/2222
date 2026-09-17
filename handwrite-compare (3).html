@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>手写感 4 档对比 · 选一档固化进讲学页</title>
+  <style>
+    /* 与 lecture.html 同源：同一手写体、同一 5.1 规则（分数/上下标只缩放不切字体） */
+    @font-face {
+      font-family: 'PingFangHand';
+      src: url('public/fonts/pingfang-qiaomu.ttf') format('truetype');
+      font-display: swap;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 24px; background: #f5f5f5;
+      font-family: 'PingFangHand', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      color: #222;
+    }
+    h1 { font-size: 22px; margin: 0 0 6px; font-weight: 600; }
+    .lead { font-size: 14px; color: #666; margin: 0 0 16px; line-height: 1.6; }
+
+    #font-error {
+      display: none; background: #c9302c; color: #fff; font-size: 15px;
+      padding: 10px 16px; border-radius: 6px; margin-bottom: 16px; text-align: center;
+    }
+
+    .toolbar { margin-bottom: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    button {
+      font-family: inherit; padding: 8px 18px; border: none; border-radius: 6px;
+      background: #c9302c; color: #fff; font-size: 15px; cursor: pointer;
+    }
+    button:hover { background: #a82521; }
+    .hint { font-size: 13px; color: #888; }
+
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+    @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: #ffe7ce; border: 2px solid #ddd; border-radius: 10px;
+      padding: 16px 18px; cursor: pointer; transition: border-color .2s, box-shadow .2s;
+    }
+    .card:hover { border-color: #999; }
+    .card.selected { border-color: #c9302c; box-shadow: 0 0 0 3px rgba(201,48,44,.15); }
+    .card h2 { font-size: 17px; margin: 0 0 4px; font-weight: 600; }
+    .card .desc { font-size: 13px; color: #777; margin: 0 0 12px; line-height: 1.5; }
+
+    /* 板书样本区：浅蓝格纸感，贴近真实画布 */
+    .board {
+      background: #fbfbf7; border: 1px solid #e2e2d8; border-radius: 6px;
+      padding: 14px 16px; min-height: 150px;
+      font-family: 'PingFangHand', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-size: 28px; color: #1a1a1a;
+    }
+    .board-line { display: block; transform-origin: left center; }
+
+    /* 5.1：分数/上下标只缩放字号，绝不单独设 font-family（继承手写体） */
+    .frac { display: inline-flex; flex-direction: column; text-align: center; vertical-align: middle; margin: 0 .12em; line-height: 1.05; }
+    .frac > .num { border-bottom: 1.5px solid currentColor; padding: 0 .18em; }
+    .frac > .den { padding: 0 .18em; }
+    .sup { font-size: .66em; vertical-align: super; }
+    .sub { font-size: .66em; vertical-align: sub; }
+
+    /* 对比器里字直接显示（正式页才做逐字显现动画） */
+    .char { display: inline-block; }
+
+    /* C 档：SVG 位移滤镜（笔触质感，王虹范式） */
+    .mode-c .board { filter: url(#ink-warp); }
+
+    .pick { margin-top: 14px; font-size: 14px; color: #c9302c; min-height: 22px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <!-- C 档墨迹位移滤镜 -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="ink-warp">
+      <feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="3" seed="7" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.6" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </svg>
+
+  <div id="font-error"></div>
+
+  <h1>手写感 4 档对比 · 同一段真实板书</h1>
+  <p class="lead">
+    下面 4 块用的是<strong>同一段真实板书内容</strong>（战士排队题 row2 / row5 / row6 原文：含乘号、上标、分数、推导箭头），
+    字体也一样（手写体 pingfang-qiaomu）。差别只在<strong>「手写感」怎么造</strong>。
+    点一块选中，告诉我 A / B / C / D 哪个顺眼，我就把它固化进正式讲学页 <code>lecture.html</code>。
+  </p>
+
+  <div class="toolbar">
+    <button id="btn-reshuffle">换一批随机抖动（B / D 档会变）</button>
+    <span class="hint">B、D 档带随机，多点几次看稳定效果</span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="pick" id="pick"></div>
+
+  <script>
+    // ===== 与 lecture.html 同源的渲染逻辑（原样复制，保证「看到的 = 成品效果」）=====
+    function escapeHtml(s) {
+      return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    }
+    function boardLines(content) {
+      let c = String(content || '');
+      c = c.replace(/\\begin\{aligned\}/g, '').replace(/\\end\{aligned\}/g, '');
+      c = c.replace(/\\\\/g, '\n');
+      c = c.replace(/&/g, '');
+      return c.split('\n').map(l => l.trim()).filter(l => l.length);
+    }
+    // 门卫转义层（5.2 / 5.3）：乘法 -> x；禁 ×÷；斜杠分数 -> \frac
+    function sanitizeBoard(line) {
+      let s = String(line || '');
+      s = s.replace(/\t/g, '\\t').replace(/[\u0008]/g, '\\b').replace(/[\u000C]/g, '\\f');
+      s = s.replace(/\\times/g, 'x');
+      s = s.replace(/([^\s{}\\]+)\s*\\div\s*([^\s{}\\]+)/g, '\\frac{$1}{$2}');
+      s = s.replace(/[×÷]/g, '');
+      s = s.replace(/(\d+)\s*\/\s*(\d+)/g, '\\frac{$1}{$2}');
+      return s;
+    }
+    function readBrace(s, idx) {
+      if (s[idx] !== '{') return { text: '', next: idx };
+      let depth = 0, k = idx, out = '';
+      for (; k < s.length; k++) {
+        if (s[k] === '{') depth++;
+        else if (s[k] === '}') { depth--; if (depth === 0) { k++; break; } }
+        else out += s[k];
+      }
+      return { text: out, next: k };
+    }
+    function renderLine(line) {
+      const cmds = {
+        '\\Rightarrow':'->', '\\to':'->', '\\impliedby':'<-',
+        '\\pm':'+-', '\\cdot':'*', '\\approx':'~',
+        '\\neq':'!=', '\\leq':'<=', '\\geq':'>=',
+        '\\checkmark':'V'
+      };
+      let html = '', units = 0, i = 0;
+      const n = line.length;
+      while (i < n) {
+        const c = line[i];
+        if (c === '\\') {
+          if (line.startsWith('\\frac', i)) {
+            let j = i + 5;
+            const num = readBrace(line, j); j = num.next;
+            const den = readBrace(line, j); j = den.next;
+            html += '<span class="char frac"><span class="num">' + escapeHtml(num.text) + '</span><span class="den">' + escapeHtml(den.text) + '</span></span>';
+            units += Math.max(1, num.text.length + den.text.length);
+            i = j; continue;
+          }
+          if (line.startsWith('\\sqrt', i)) {
+            let j = i + 5;
+            const body = readBrace(line, j); j = body.next;
+            html += '<span class="char">√(' + escapeHtml(body.text) + ')</span>';
+            units += Math.max(1, body.text.length); i = j; continue;
+          }
+          const m = line.slice(i).match(/^\\[a-zA-Z]+/);
+          if (m) {
+            const name = m[0];
+            if (cmds[name]) { html += '<span class="char">' + cmds[name] + '</span>'; units++; }
+            i += name.length; continue;
+          }
+          i++; continue;
+        }
+        if (c === '^' || c === '_') {
+          let j = i + 1, content;
+          if (line[j] === '{') { const b = readBrace(line, j); content = b.text; j = b.next; }
+          else { content = line[j]; j++; }
+          const cls = c === '^' ? 'sup' : 'sub';
+          html += '<span class="char ' + cls + '">' + escapeHtml(content) + '</span>';
+          units += Math.max(1, content.length); i = j; continue;
+        }
+        if (c === ' ') { html += ' '; i++; continue; }
+        html += '<span class="char">' + escapeHtml(c) + '</span>'; units++; i++;
+      }
+      return { html, units };
+    }
+
+    // ===== 真实板书原文（战士排队题 row2 / row5 / row6）=====
+    const SAMPLES = [
+      '设原有人数x人',
+      'x+120=平方数',
+      'x-120=平方数',
+      '\\begin{aligned}\n(x+120)-(x-120)&=240\\\\\na^2-b^2&=(a+b)(a-b)\\\\ &=240\n\\end{aligned}',
+      '\\begin{aligned}\n240&=60\\times4\\\\\na+b&=60,\\,a-b=4\\\\\n2a&=64 \\Rightarrow a=32\\\\\n2b&=56 \\Rightarrow b=28\n\\end{aligned}'
+    ];
+
+    // ===== 4 档手写感 =====
+    const MODES = [
+      {
+        id: 'a', name: 'A · 工整手写（王虹风）',
+        desc: '纯手写体，不倾斜、不抖动。干净整齐，像老师认真写给学生看的板书。最稳、最不会出错。'
+      },
+      {
+        id: 'b', name: 'B · 当前版（lecture.html 现状）',
+        desc: '整行 ±1.5° 轻微倾斜 + 行距 ±10% 抖动 + 逐字 ±1px 位移/±1° 旋转。轻微自然感，不抢戏。'
+      },
+      {
+        id: 'c', name: 'C · 笔触质感（墨迹微扰）',
+        desc: '字本身不扭，改用 SVG 位移滤镜让笔画边缘轻微渗透抖动——王虹范式的做法：手写感来自笔触，不是把字扭歪。'
+      },
+      {
+        id: 'd', name: 'D · 达芬奇手稿（最潦草）',
+        desc: '倾斜 ±3° + 行距不均 ±25% + 逐字 ±2px 抖动。最随性、手稿感最强，但可能偏乱。'
+      }
+    ];
+
+    function renderSample(container, modeId) {
+      container.innerHTML = '';
+      SAMPLES.forEach(raw => {
+        boardLines(raw).forEach(line => {
+          const { html } = renderLine(sanitizeBoard(line));
+          const lineEl = document.createElement('div');
+          lineEl.className = 'board-line';
+          lineEl.innerHTML = html;
+
+          // B / D：整行倾斜 + 行距抖动 + 逐字位移旋转；A / C 保持字形原样
+          if (modeId === 'b' || modeId === 'd') {
+            const tiltAmp = modeId === 'd' ? 3 : 1.5;
+            const gapAmp  = modeId === 'd' ? 0.25 : 0.10;
+            const posAmp  = modeId === 'd' ? 2.0 : 1.0;
+            const rotAmp  = modeId === 'd' ? 2.5 : 1.0;
+            lineEl.style.transform = 'rotate(' + ((Math.random() - 0.5) * 2 * tiltAmp).toFixed(2) + 'deg)';
+            lineEl.style.marginBottom = (0.38 * (1 + (Math.random() - 0.5) * 2 * gapAmp)).toFixed(3) + 'em';
+            lineEl.querySelectorAll('.char').forEach(ch => {
+              const dx = ((Math.random() - 0.5) * 2 * posAmp).toFixed(2);
+              const dy = ((Math.random() - 0.5) * 2 * posAmp).toFixed(2);
+              const rt = ((Math.random() - 0.5) * 2 * rotAmp).toFixed(2);
+              ch.style.transform = 'translate(' + dx + 'px,' + dy + 'px) rotate(' + rt + 'deg)';
+            });
+          }
+          container.appendChild(lineEl);
+        });
+      });
+    }
+
+    function build() {
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+      MODES.forEach(m => {
+        const card = document.createElement('div');
+        card.className = 'card mode-' + m.id;
+        card.innerHTML =
+          '<h2>' + m.name + '</h2>' +
+          '<p class="desc">' + m.desc + '</p>' +
+          '<div class="board"></div>';
+        card.addEventListener('click', () => {
+          document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          document.getElementById('pick').textContent = '已选：' + m.name + '　—— 告诉我这档，我就固化进 lecture.html';
+        });
+        grid.appendChild(card);
+        renderSample(card.querySelector('.board'), m.id);
+      });
+    }
+
+    document.getElementById('btn-reshuffle').addEventListener('click', () => {
+      document.querySelectorAll('.card').forEach(card => {
+        const modeId = [...card.classList].find(c => c.startsWith('mode-')).slice(5);
+        renderSample(card.querySelector('.board'), modeId);
+      });
+    });
+
+    build();
+
+    // 字体硬约束兜底：手写体没加载成功就明确报错（不静默回退印刷体）
+    (async function() {
+      try {
+        await document.fonts.load('28px PingFangHand', '测试手写abc123');
+        await document.fonts.ready;
+        if (!document.fonts.check('28px PingFangHand')) throw new Error('check 未通过');
+      } catch (e) {
+        const el = document.getElementById('font-error');
+        el.style.display = 'block';
+        el.textContent = '⚠ 手写字体未加载成功：public/fonts/pingfang-qiaomu.ttf 缺失或加载失败。下面 4 档都已回退成印刷体，对比无效！请检查字体文件后刷新。';
+        console.error('[字体兜底] 手写体加载失败：', e);
+      }
+    })();
+  </script>
+</body>
+</html>
