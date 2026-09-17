@@ -1560,6 +1560,7 @@ function isRefineFieldEqual(original, refined) {
     <QhPageHeader
       step-label="第 2 步 · Agent B"
       subtitle="题目信息 → 五字段"
+      :current-step="2"
       show-back
       @back="emit('back-to-step1')"
     >
@@ -1631,6 +1632,9 @@ function isRefineFieldEqual(original, refined) {
             <span class="handoff-stat-tag">工具能力 {{ toolCatalog.tools.length }} 项</span>
           </div>
 
+          <div class="qh-page-guide">
+            本页怎么用：核对下方交接信息 → 点右上角「<b>生成 Agent B 五字段</b>」→ 满意后点「<b>教学微课演播</b>」观看，或「<b>固化归档单页</b>」存档
+          </div>
           <div class="qh-section-title">
             题目信息
           </div>
@@ -4866,6 +4870,22 @@ function isRefineFieldEqual(original, refined) {
 .btn-refine-confirm:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25) !important;
+}
+
+.qh-page-guide {
+  margin: 2px 0 12px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--qh-ink-2);
+  background: var(--qh-brand-soft);
+  border: 1px solid var(--qh-brand-border);
+  border-radius: var(--qh-radius-control);
+}
+
+.qh-page-guide b {
+  color: var(--qh-brand);
+  font-weight: 600;
 }
 
 .handoff-summary-bar {

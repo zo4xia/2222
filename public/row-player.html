@@ -106,6 +106,21 @@
   .note{font-size:12px;color:var(--muted);line-height:1.75;margin-top:12px;
         border-left:3px solid var(--line);padding-left:10px}
   .warn{color:#b45309}.ok{color:#15803d}
+  /* 头部引导 + 控制栏分组 + 倍速（2026-09-17 体验改造） */
+  .player-head{margin:0 0 10px}
+  .player-head h1{margin:0 0 4px;display:flex;align-items:center;gap:10px}
+  .player-head .pcode{font-size:12px;font-weight:500;color:var(--muted);
+        padding:1px 8px;background:var(--surface);border:1px solid var(--line);border-radius:999px}
+  .guide{font-size:12.5px;color:var(--muted);margin:0;line-height:1.7}
+  .guide b{color:var(--ink-2);font-weight:600}
+  .bar-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+  .bar-divider{width:1px;align-self:stretch;background:var(--line);margin:0 2px}
+  .rate-box{display:flex;align-items:center;gap:6px;padding-left:4px}
+  .rate-label{font-size:12px;color:var(--muted);white-space:nowrap}
+  .rate-box input[type=range]{flex:0 0 110px;min-width:80px;width:110px}
+  .rate-val{font-variant-numeric:tabular-nums;font-size:12.5px;font-weight:700;
+        color:var(--ink-2);min-width:46px;text-align:right}
+  .sub-cap{font-size:12px;font-weight:600;color:var(--muted);margin:10px 0 4px}
   @media (max-width:640px){
     body{padding:10px}
     .bar{padding:8px;gap:6px}
@@ -123,14 +138,29 @@
 </head>
 <body>
 <div class="wrap">
+  <div class="player-head">
+    <h1>仿人板书微课<span class="pcode" id="pcode"></span></h1>
+    <p class="guide">怎么看：① 点 <b>▶ 播放</b> 看完整板书讲解 → ② 想边看边讲开 <b>✍ 批注</b> → ③ 满意后 <b>● 录制</b> 存成视频；进度条可拖动跳转，<b>倍速</b>同时加快板书与语音，双击倍速滑杆恢复 1×。</p>
+  </div>
   <div class="stage"><canvas id="board" width="1726" height="980"></canvas><canvas id="ink" width="1726" height="980"></canvas></div>
   <div class="bar">
-    <button id="btnPlay" data-step="1">▶ 播放</button>
-    <button id="btnInk" data-step="2">✍ 批注</button>
-    <button id="btnRec" data-step="3">● 录制</button>
-    <input type="range" id="seek" min="0" max="1000" value="0">
-    <span class="t" id="time">0.00 / 0.00 s</span>
+    <div class="bar-group">
+      <button id="btnPlay" data-step="1">▶ 播放</button>
+      <input type="range" id="seek" min="0" max="1000" value="0">
+      <span class="t" id="time">0.00 / 0.00 s</span>
+    </div>
+    <div class="rate-box" title="倍速 0.5×~3×：同时加速板书书写与语音">
+      <span class="rate-label">倍速</span>
+      <input type="range" id="rate" min="0.5" max="3" step="0.05" value="1">
+      <span class="rate-val" id="rateVal">1.00×</span>
+    </div>
+    <div class="bar-divider"></div>
+    <div class="bar-group">
+      <button id="btnInk" data-step="2">✍ 批注</button>
+      <button id="btnRec" data-step="3">● 录制</button>
+    </div>
   </div>
+  <div class="sub-cap">字幕（跟随讲解逐字出现）</div>
   <div id="sub"></div>
   <details class="cfg"><summary>⚙ 配置映射 · 填关键参数 / 一键导入 JSON（第 4、5 步：换题或对接时用，日常播放看上面 1→2→3）</summary>
     <div class="cfg-body">
@@ -980,14 +1010,28 @@ function drawTimeline(t){
 }
 
 /* ============ 7. 时钟：每行自带 mp3，串行自动连播；无音频走虚拟时钟 ============ */
-let rowIdx=0,rowAnchor=0,rowT0=0,rowHasAudio=false;
-function now(){ return rowAnchor+(rowHasAudio?audioEl.currentTime*1000:(performance.now()-rowT0)); }
+let rowIdx=0,rowAnchor=0,rowT0=0,rowHasAudio=false,rate=1;
+function now(){ return rowAnchor+(rowHasAudio?audioEl.currentTime*1000:(performance.now()-rowT0)*rate); }
+/* 倍速：音频行走 playbackRate（currentTime 随之加速，板书自动同步）；
+   无声虚拟时钟行按 rate 折算，换速时先把已走时长按旧速折回、再重排零点，画面不跳变 */
+function applyAudioRate(){ try{ audioEl.defaultPlaybackRate=rate; audioEl.playbackRate=rate; }catch(_e){} }
+function setRate(r){
+  r=Math.max(0.5,Math.min(3,Number(r)||1));
+  if(!rowHasAudio){
+    const elapsed=Math.max(0,now()-rowAnchor);
+    rate=r;
+    rowT0=performance.now()-elapsed/rate;
+  }else rate=r;
+  applyAudioRate();
+  document.getElementById('rateVal').textContent=rate.toFixed(2)+'×';
+  document.getElementById('rate').value=String(rate);
+}
 function startRow(i){
   if(!C)return;
   rowIdx=i; const r=C.rows[i];
   rowAnchor=r.startMs; rowT0=performance.now();
   const mp3=r.row.mp3||'';
-  if(mp3){ rowHasAudio=true; audioEl.src=mp3; audioEl.currentTime=0; audioEl.play().catch(function(){}); }
+  if(mp3){ rowHasAudio=true; audioEl.src=mp3; audioEl.currentTime=0; applyAudioRate(); audioEl.play().catch(function(){}); }
   else rowHasAudio=false;
 }
 function loop(ts){
@@ -1031,6 +1075,8 @@ audioEl.onerror=()=>{
 function load(data){
   C=compile(data);
   T=0; rowIdx=0; rowAnchor=0; rowT0=performance.now(); rowHasAudio=false;
+  const pcode=document.getElementById('pcode');
+  if(pcode)pcode.textContent=DATA.projectCode||'';
   render(0);
 }
 document.getElementById('btnPlay').onclick=()=>{playing?pause():play();};
@@ -1041,11 +1087,13 @@ function seekTo(v){
   const ri=i<0?C.rows.length-1:i;
   const r=C.rows[ri];
   rowIdx=ri; rowAnchor=r.startMs; rowT0=performance.now()-(v-r.startMs);
-  if(r.row.mp3){ rowHasAudio=true; audioEl.src=r.row.mp3; audioEl.currentTime=Math.max(0,(v-r.startMs)/1000); }
+  if(r.row.mp3){ rowHasAudio=true; audioEl.src=r.row.mp3; audioEl.currentTime=Math.max(0,(v-r.startMs)/1000); applyAudioRate(); }
   else rowHasAudio=false;
   T=v; render(v);
 }
 document.getElementById('seek').oninput=e=>seekTo(C.total*(+e.target.value)/1000);
+document.getElementById('rate').oninput=e=>setRate(+e.target.value);
+document.getElementById('rate').ondblclick=()=>setRate(1);
 /* ---- 顶层透明批注层：播放不挡，画笔可在上面随手画（录屏自动带进去） ---- */
 const ink=document.getElementById('ink'), ix=ink.getContext('2d');
 let inkOn=false, inking=false, lastPt=null;
