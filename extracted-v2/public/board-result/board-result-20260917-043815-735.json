@@ -1,0 +1,44 @@
+{
+  "rows": [
+    {
+      "stage": "题目",
+      "speech": "我们先读题。",
+      "board": {
+        "content": "",
+        "startDelay": 0
+      },
+      "actionSpec": []
+    },
+    {
+      "stage": "分析",
+      "speech": "我们开始分析。",
+      "board": {
+        "content": "分析内容",
+        "startDelay": 1
+      },
+      "actionSpec": []
+    },
+    {
+      "stage": "分析",
+      "speech": "我们继续分析。",
+      "board": {
+        "content": "继续分析",
+        "startDelay": 1
+      },
+      "actionSpec": []
+    }
+  ],
+  "model": "test",
+  "skillId": "default-fallback",
+  "handoff": {
+    "problemText": "1加1等于多少？",
+    "problemImage": "data:image/png;base64,PROBLEM",
+    "sourceImageDataUrl": "data:image/png;base64,SOURCE",
+    "previewDataUrl": "data:image/png;base64,PREVIEW",
+    "imageDataUrl": "data:image/png;base64,IMAGE",
+    "ignoredField": "不得进入模型文本 handoff"
+  },
+  "usage": null,
+  "finishReason": "",
+  "createdAt": "2026-09-17T04:38:15.735Z"
+}

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="板书微课演播 · canvas-drawing-editor + 小 agent 对话微调" />
+    <title>板书微课演播 · canvas-drawing-editor</title>
+    <!-- 板书手写字体（用户允许的国内 CDN 例外） -->
+    <link href="https://fontsapi.zeoseven.com/490/main/result.css"
+          onload="this.rel='stylesheet'"
+          onerror="console.warn('[Font] 板书字体 CDN 加载异常，已降级为系统楷体');"
+          rel="preload" as="style" crossorigin />
+    <noscript><link rel="stylesheet" href="https://fontsapi.zeoseven.com/490/main/result.css" /></noscript>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/player-main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      (function() {
+        var origDefineProperty = Object.defineProperty;
+        var initialNativeFetch = window.fetch;
+        var customFetch;
+        var hasCustomSet = false;
+        Object.defineProperty = function(obj, prop, desc) {
+          if (obj === window && prop === 'fetch') {
+            var origGet = desc && desc.get;
+            return origDefineProperty.call(Object, obj, prop, {
+              configurable: true,
+              enumerable: true,
+              get: function() {
+                if (hasCustomSet) return customFetch;
+                return origGet ? origGet.call(window) : (customFetch || initialNativeFetch);
+              },
+              set: function(val) {
+                customFetch = val;
+                hasCustomSet = true;
+              }
+            });
+          }
+          return origDefineProperty.apply(this, arguments);
+        };
+        try {
+          var desc = Object.getOwnPropertyDescriptor(window, 'fetch');
+          if (desc && desc.configurable && !desc.set) {
+            Object.defineProperty(window, 'fetch', desc);
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>画布预览 · 全屏</title>
+    <!-- 板书手写字体（分析/解答/总结区）；题目层用印刷体，不使用此字体。配置 onerror 优雅降级到系统楷体栈 -->
+    <link href="https://fontsapi.zeoseven.com/490/main/result.css" onload="this.rel='stylesheet'" onerror="console.warn('[Font] 板书字体 CDN 加载异常，已降级为系统楷体');" rel="preload" as="style" crossorigin />
+    <noscript><link rel="stylesheet" href="https://fontsapi.zeoseven.com/490/main/result.css" /></noscript>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/board-preview/main.js"></script>
+  </body>
+</html>

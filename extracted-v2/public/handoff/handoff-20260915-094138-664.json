@@ -1,0 +1,361 @@
+{
+  "handoffVersion": 1,
+  "confirmedAt": "2026-09-15T01:41:38.662Z",
+  "problemText": "若干名战士排成8列的长方形队列，若增加120人或减少120人都能组成一个新的正方形纵列。那么，原有战士（ ）人。",
+  "problemType": "word",
+  "boardFocus": "relation_understanding",
+  "relatedKnowledge": [
+    "长方形队列总人数公式：总人数 = 行数 × 列数",
+    "正方形方阵特点：行数 = 列数，总人数 = 边长 × 边长",
+    "列方程解应用题：设原有战士为x人，根据“增加120人或减少120人后都是正方形”列出方程求解"
+  ],
+  "knowledgeAnalysis": {
+    "suggestedGrade": "5-6年级",
+    "coreKnowledge": [
+      {
+        "knowledgeId": "kp_109",
+        "knowledgePoint": "列简单方程解应用题",
+        "formula": "设未知数，根据等量关系列出方程并求解",
+        "examinationPoint": "列方程步骤：设→找→列→解→验→答",
+        "strategy": "审题→设未知数→找等量关系→列方程→解方程→检验→写答句",
+        "commonMistakes": [
+          "等量关系找错",
+          "设未知数设错",
+          "解方程步骤错"
+        ],
+        "summary": "“列方程解应用题六步：设未知数、找等量关系、列方程、解方程、检验、写答句。关键是找准等量关系。”",
+        "rawKnowledgeRecord": {
+          "编号": "kp_109",
+          "学段": "5年级",
+          "系列": "列方程解应用题系列",
+          "类型": "应用题（含解题策略）",
+          "知识点": "列简单方程解应用题",
+          "经典样题": "题目中有明显未知量，可以用方程求解",
+          "考点": "列方程步骤：设→找→列→解→验→答",
+          "策略方法": [
+            "审题→设未知数→找等量关系→列方程→解方程→检验→写答句"
+          ],
+          "讲解要点举例": "①读题确定未知量→②设未知数（通常是问题）→③找等量关系列方程→④依据等式性质解方程→⑤代入检验→⑥写答句",
+          "总结归纳": "“列方程解应用题六步：设未知数、找等量关系、列方程、解方程、检验、写答句。关键是找准等量关系。”",
+          "易错点": [
+            "等量关系找错",
+            "设未知数设错",
+            "解方程步骤错"
+          ]
+        }
+      },
+      {
+        "knowledgeId": "kp_188",
+        "knowledgePoint": "因数×因数=积",
+        "formula": "行数×列数=总人数",
+        "examinationPoint": "四则运算",
+        "strategy": "理解加、减、乘、除的基本关系，正确应用公式。",
+        "commonMistakes": [
+          "因数与积混淆。"
+        ],
+        "summary": "积=因数×因数。",
+        "rawKnowledgeRecord": {
+          "编号": "kp_188",
+          "学段": "2-6年级",
+          "系列": "数量关系系列",
+          "类型": "四则运算",
+          "知识点": "因数×因数=积",
+          "经典样题": "5×3=？",
+          "考点": "四则运算",
+          "策略方法": [
+            "理解加、减、乘、除的基本关系，正确应用公式。"
+          ],
+          "讲解要点举例": "积=因数×因数。",
+          "总结归纳": "积=因数×因数。",
+          "易错点": [
+            "因数与积混淆。"
+          ]
+        }
+      }
+    ],
+    "teachingFocus": "掌握队列与方阵问题的转化方法，利用“增加或减少人数后能组成正方形”的平方关系列方程求解",
+    "keyFormulaList": [
+      "总人数 = 8 × 行数",
+      "总人数 + 120 = 新正方形边长²",
+      "总人数 - 120 = 较小正方形边长²"
+    ],
+    "formulaHints": [
+      "队列总人数公式：总人数 = 每列人数 × 列数（或行数 × 列数），已知列数为8，总人数是8的倍数",
+      "正方形方阵公式：总人数 = 边长 × 边长，增减人数后开方或利用平方差关系求解"
+    ]
+  },
+  "suggestedGrade": "5-6年级",
+  "uncertainItems": [],
+  "suggestedLayout": {
+    "topic": {
+      "x": 6,
+      "y": 5,
+      "w": 88
+    },
+    "analysis": {
+      "x": 6,
+      "y": 20,
+      "w": 42
+    },
+    "solution": {
+      "x": 52,
+      "y": 20,
+      "w": 42
+    },
+    "summary": {
+      "x": 6,
+      "y": 65,
+      "w": 88
+    }
+  },
+  "imageKind": "text_only",
+  "keepOriginal": false,
+  "coordinateSpec": {
+    "coordinateSystem": "百分比坐标（0—100），原点左上",
+    "format": {
+      "region": "区域：[左%, 上%, 宽%, 高%]，所有百分比最多保留 2 位小数",
+      "point": "起点/终点：[x%, y%]"
+    },
+    "example": "若分析区起手坐标为 (6%, 41%)，则动作点为 [6, 41]"
+  },
+  "zoneAnchors": {
+    "question": {
+      "label": {
+        "x": 5.7,
+        "y": 6.6,
+        "w": 7.1
+      },
+      "labelStartCoord": {
+        "x": 5.7,
+        "y": 6.6
+      },
+      "regionStartCoord": {
+        "x": 6,
+        "y": 13.32,
+        "w": 40.32,
+        "h": null
+      }
+    },
+    "analysis": {
+      "label": {
+        "x": 5.7,
+        "y": 34.5,
+        "w": 7.2
+      },
+      "labelStartCoord": {
+        "x": 5.7,
+        "y": 34.5
+      },
+      "regionStartCoord": {
+        "x": 6,
+        "y": 40.62,
+        "w": 44,
+        "h": 54.38
+      }
+    },
+    "solution": {
+      "label": {
+        "x": 53.7,
+        "y": 6.6,
+        "w": 7.4
+      },
+      "labelStartCoord": {
+        "x": 53.7,
+        "y": 6.6
+      },
+      "regionStartCoord": {
+        "x": 54,
+        "y": 14,
+        "w": 40,
+        "h": 44
+      }
+    },
+    "summary": {
+      "label": {
+        "x": 53.7,
+        "y": 62,
+        "w": 7.2
+      },
+      "labelStartCoord": {
+        "x": 53.7,
+        "y": 62
+      },
+      "regionStartCoord": {
+        "x": 54,
+        "y": 69.5,
+        "w": 40,
+        "h": 22
+      }
+    }
+  },
+  "topicLayout": {
+    "topicLabel": {
+      "x": 5.7,
+      "y": 6.6,
+      "w": 7.1
+    },
+    "question": {
+      "x": 6,
+      "y": 13.32,
+      "w": 40.32,
+      "fontSize": 29
+    },
+    "image": null,
+    "keepOriginal": false,
+    "blocks": null
+  },
+  "boardPlan": {
+    "canvas": {
+      "w": 1726,
+      "h": 980
+    },
+    "layoutMode": "portrait",
+    "topicBottomPct": 28.82,
+    "topicLabel": {
+      "x": 5.7,
+      "y": 6.6,
+      "w": 7.1
+    },
+    "question": {
+      "x": 6,
+      "y": 13.32,
+      "w": 40.32,
+      "fontSize": 29
+    },
+    "image": null,
+    "analysisLabel": {
+      "x": 5.7,
+      "y": 34.5,
+      "w": 7.2
+    },
+    "analysis": {
+      "x": 6,
+      "y": 40.62,
+      "w": 44,
+      "h": 54.38
+    },
+    "solutionLabel": {
+      "x": 53.7,
+      "y": 6.6,
+      "w": 7.4
+    },
+    "solution": {
+      "x": 54,
+      "y": 14,
+      "w": 40,
+      "h": 44
+    },
+    "summaryLabel": {
+      "x": 53.7,
+      "y": 62,
+      "w": 7.2
+    },
+    "summary": {
+      "x": 54,
+      "y": 69.5,
+      "w": 40,
+      "h": 22
+    },
+    "plannedAt": "2026-09-15T01:41:35.903Z",
+    "method": "verified-layout-rule",
+    "overflow": false
+  },
+  "canvasParams": {
+    "canvasSize": {
+      "width": 1726,
+      "height": 980,
+      "unit": "px",
+      "origin": "左上角(0,0), X向右Y向下"
+    },
+    "coordinateSystem": "百分比坐标 0-100",
+    "fontSource": {
+      "handwriting": {
+        "family": "LikeJianJianTi",
+        "label": "手写尖尖体（分析/解答/总结板书）",
+        "fontWeight": "normal",
+        "cssHref": "https://fontsapi.zeoseven.com/490/main/result.css",
+        "loadSnippet": "<link href=\"https://fontsapi.zeoseven.com/490/main/result.css\" onload=\"this.rel='stylesheet'\" rel=\"preload\" as=\"style\" crossorigin />",
+        "fallbackSnippet": "<noscript><link rel=\"stylesheet\" href=\"https://fontsapi.zeoseven.com/490/main/result.css\" /></noscript>",
+        "usage": "渲染前必须先加载该 CSS（font-family: \"LikeJianJianTi\"; font-weight: normal），否则回退为系统字体，写字效果会变"
+      },
+      "question": {
+        "family": "Segoe UI/PingFang SC/Microsoft YaHei",
+        "label": "印刷体（题目层，本地字体，不加载网络字体）",
+        "fontWeight": "normal"
+      }
+    },
+    "fontSize": {
+      "question": {
+        "px": 30,
+        "family": "微软雅黑（印刷体，30px）",
+        "color": "黑色"
+      },
+      "analysis": {
+        "px": 35,
+        "family": "LikeJianJianTi（手写尖尖体，网络字体 fontSource.handwriting，font-weight: normal，约题目的1.2~1.5倍，推荐35px）",
+        "color": "红色"
+      },
+      "solution": {
+        "px": 35,
+        "family": "LikeJianJianTi（手写尖尖体，网络字体 fontSource.handwriting，font-weight: normal，约题目的1.2~1.5倍，推荐35px）",
+        "color": "黑色"
+      },
+      "summary": {
+        "px": 35,
+        "family": "LikeJianJianTi（手写尖尖体，网络字体 fontSource.handwriting，font-weight: normal，约题目的1.2~1.5倍，推荐35px）",
+        "color": "黑色"
+      }
+    },
+    "lineHeight": {
+      "question": 1.65,
+      "others": "自然换行即可；渲染层会对行高做微小随机抖动营造手写感，B 按正常行高估算坐标，不需要自己叠加抖动"
+    },
+    "letterSpacing": {
+      "question": "0",
+      "others": "下游渲染参数：0-2px 微小随机（模拟手写感，B 不需要处理）"
+    },
+    "style": "老师上课草算演示，微微达芬奇手稿style（草稿推演质感，轻盈生动；板书绝不可溢出画布）",
+    "boardSpeed": "下游渲染参数：1秒约2~3个汉字，每行±10%轻微抖动（B 不需要处理速度细节）",
+    "actionSpeed": "差不多同样速度（rough-line/rough-arrow/rough-notation绘制速度）",
+    "lineHeightFormula": "按当前字号自然换行即可；渲染层会加微小随机抖动（手写感），B 用正常行高估算，不预置固定行高数值"
+  },
+  "showGrid": true,
+  "agentPageName": "第1步 · 贴题识别",
+  "agentCapability": "multimodal",
+  "screenshotUrl": "/pic/shot-20260915-094136-930.jpg",
+  "knowledgeBasePath": "doc/knowledge-a.compact.json",
+  "essence": "解答绝对主体，标准结构",
+  "stageRatioSuggestion": {
+    "type": "b",
+    "cuCode": "CU-03",
+    "category": "方法确定",
+    "topicExamples": "长方形&正方形(面积/周长)、平行四边形/梯形(面积)、植树、鸡兔同笼(假设)、归一、税率、利润利率、比和比例",
+    "suggestedRatio": {
+      "analysis": "5-15%",
+      "solution": "55-65%",
+      "summary": "5-10%",
+      "introAndClosing": "23%"
+    },
+    "essence": "解答绝对主体，标准结构",
+    "confidence": "high"
+  },
+  "环节配比占比": {
+    "type": "b",
+    "cuCode": "CU-03",
+    "category": "方法确定",
+    "topicExamples": "长方形&正方形(面积/周长)、平行四边形/梯形(面积)、植树、鸡兔同笼(假设)、归一、税率、利润利率、比和比例",
+    "suggestedRatio": {
+      "analysis": "5-15%",
+      "solution": "55-65%",
+      "summary": "5-10%",
+      "introAndClosing": "23%"
+    },
+    "essence": "解答绝对主体，标准结构",
+    "confidence": "high"
+  },
+  "commonMistakes": [
+    "忽略总人数必须是8的倍数这一隐含条件",
+    "混淆增加120人与减少120人后的方阵边长关系",
+    "列方程时未能正确表示正方形的边长与总人数的平方关系"
+  ]
+}

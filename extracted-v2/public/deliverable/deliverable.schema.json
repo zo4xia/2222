@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DeliverableSchema",
+  "description": "教学音画微课与课件解耦交付物标准 JSON Schema (v2.0)",
+  "type": "object",
+  "required": ["projectCode", "problemText", "boardPlan", "rows", "stats"],
+  "properties": {
+    "projectCode": { "type": "string", "description": "唯一项目流水编码" },
+    "apiSpecVersion": { "type": "string", "default": "2.0.0" },
+    "problemText": { "type": "string", "description": "题目完整纯文本" },
+    "sourceImageUrl": { "type": "string" },
+    "screenshotUrl": { "type": "string" },
+    "boardPlan": {
+      "type": "object",
+      "required": ["canvas"],
+      "properties": {
+        "canvas": {
+          "type": "object",
+          "properties": { "w": { "type": "number" }, "h": { "type": "number" } }
+        },
+        "layoutMode": { "type": "string" },
+        "question": { "type": "object" },
+        "analysis": { "type": "object" },
+        "solution": { "type": "object" },
+        "summary": { "type": "object" }
+      }
+    },
+    "stats": {
+      "type": "object",
+      "properties": {
+        "totalDuration": { "type": "number" },
+        "stepCount": { "type": "number" },
+        "charCount": { "type": "number" },
+        "actionCount": { "type": "number" }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["stage", "speech"],
+        "properties": {
+          "stage": { "type": "string", "enum": ["题目", "分析", "解答", "总结"] },
+          "speech": { "type": "string", "description": "纯口播文本，不含 TTS 控制标签" },
+          "audioUrl": { "type": "string", "description": "本地音频资源地址" },
+          "board": {
+            "type": "object",
+            "properties": {
+              "startCoord": { "type": "string" },
+              "content": { "type": "string" },
+              "startDelay": { "type": "number" }
+            }
+          },
+          "actionSpec": { "type": "array", "description": "动作指令列表" },
+          "exclusiveExecutionPlan": {
+            "type": "array",
+            "description": "单手绝对互斥执行计划（动作定量1-2s为标点停顿，绝不与板书重叠）",
+            "items": {
+              "type": "object",
+              "required": ["type", "role", "startOffsetMs", "durationMs", "endOffsetMs"],
+              "properties": {
+                "type": { "type": "string", "enum": ["speech", "board", "action"] },
+                "role": { "type": "string", "enum": ["narration_full", "writing", "punctuation_pause"] },
+                "startOffsetMs": { "type": "number", "description": "相对Row开始的毫秒起始偏移" },
+                "durationMs": { "type": "number", "description": "本动作或书写的持续毫秒数" },
+                "endOffsetMs": { "type": "number", "description": "相对Row开始的毫秒结束偏移" },
+                "text": { "type": "string", "description": "口播文本（当type为speech时）" },
+                "content": { "type": "string", "description": "板书文字内容（当type为board时）" },
+                "coord": { "type": "string", "description": "板书坐标（当type为board时）" },
+                "action": { "type": "object", "description": "动作参数指令（当type为action时）" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
