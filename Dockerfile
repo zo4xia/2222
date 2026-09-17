@@ -16,7 +16,7 @@ RUN npm ci --include=dev --no-audit --no-fund
 # Vite loads the server-side proxy modules from vite.config.js while building.
 # These directories therefore have to be present in the build stage even
 # though they are not bundled into the browser output.
-COPY index.html board-preview.html vite.config.js ./
+COPY index.html agent-b-v2.html board-preview.html vite.config.js ./
 COPY server ./server
 COPY src ./src
 COPY doc ./doc
