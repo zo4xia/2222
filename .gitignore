@@ -1,2 +1,34 @@
-skills/
+# === Dependencies ===
 node_modules/
+
+# === Environment variables (含 API Key，禁止推送) ===
+.env
+.env.local
+.env.*.local
+
+# === Build output ===
+dist/
+.headroom-cache/
+
+# === 上传的源 zip（29MB，不需要进仓库） ===
+upload/
+
+# === 本地 skills 目录（项目外的 skill 安装目录） ===
+skills/
+
+# === CodeGraph 本地数据 ===
+.codegraph/*
+!.codegraph/.gitignore
+
+# === IDE / 编辑器 ===
+.vscode/
+.idea/
+
+# === 日志与临时文件 ===
+*.log
+*.tmp
+*.bak
+
+# === OS ===
+.DS_Store
+Thumbs.db
