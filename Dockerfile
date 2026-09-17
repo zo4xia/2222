@@ -1,18 +1,21 @@
-# ============================================================
-# clean-package · Zeabur / Ubuntu 服务器 Docker 部署包
-# 构建链路：vite build -> dist；运行：node server/productionServer.js
-# 真相源：package.json / vite.config.js / server/productionServer.js
-# ============================================================
+# syntax=docker/dockerfile:1
+# clean-package · Zeabur / Docker deployment
+# Build: Vite -> /app/dist; runtime: the Node HTTP server on $PORT.
 
-# ---------- Stage 1：构建前端（含 devDeps：vite） ----------
+# ---------- Stage 1: build the frontend ----------
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
-# 先拷锁文件装依赖，利用 Docker 层缓存（源码改动不重装 node_modules）
-COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+# Keep npm's behavior deterministic and make the build independent of the
+# environment variables that Zeabur may inject into the build container.
+ENV NODE_ENV=development
 
-# 拷源码树：server/* 被 vite.config 加载；src/、doc/ 被 server 端 import/读取，必须全带
+COPY package.json package-lock.json ./
+RUN npm ci --include=dev --no-audit --no-fund
+
+# Vite loads the server-side proxy modules from vite.config.js while building.
+# These directories therefore have to be present in the build stage even
+# though they are not bundled into the browser output.
 COPY index.html board-preview.html vite.config.js ./
 COPY server ./server
 COPY src ./src
@@ -21,26 +24,43 @@ COPY public ./public
 
 RUN npm run build
 
-# ---------- Stage 2：生产运行（仅运行时依赖） ----------
+# ---------- Stage 2: production runtime ----------
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
-ENV NODE_ENV=production
-ENV HOST=0.0.0.0
-ENV PORT=3000
 
-# 运行时依赖（--omit=dev：vite/eslint 等构建工具不进镜像）
+ENV NODE_ENV=production \
+    HOST=0.0.0.0 \
+    PORT=3000
+
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --no-audit --no-fund
+RUN npm ci --omit=dev --no-audit --no-fund \
+    && npm cache clean --force
 
-# 运行镜像四件套：dist（前端产物）+ server（HTTP 服务）+ src（被 server import）+ doc（知识库）
+# The production server imports server/src modules and reads the knowledge
+# base from doc at runtime. Keep all of those runtime inputs in the image.
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/server ./server
 COPY --from=build /app/src ./src
 COPY --from=build /app/doc ./doc
-# public 预置内容（静态源 + 目录骨架）；运行时数据子目录由各 handler mkdirSync 自愈，
-# 持久化请挂载卷到 /app/public（见 docker-compose.yml / Zeabur Storage）
 COPY --from=build /app/public ./public
-RUN mkdir -p public/audio-cache public/deliverable public/handoff public/pic public/board-result
 
+# Runtime writes are intentionally kept under public. Zeabur can mount a
+# persistent volume at /app/public; the directories are also created on a
+# fresh, volume-less deployment.
+RUN mkdir -p \
+    /app/public/audio \
+    /app/public/audio-cache \
+    /app/public/board-result \
+    /app/public/deliverable \
+    /app/public/handoff \
+    /app/public/pic \
+    && chown -R node:node /app
+
+USER node
 EXPOSE 3000
+
+# Zeabur supplies PORT at runtime; productionServer.js reads it directly.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:' + (process.env.PORT || 3000)).then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"
+
 CMD ["node", "server/productionServer.js"]
