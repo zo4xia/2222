@@ -1,0 +1,26 @@
+# Base44 dev environment — runs the app from cloned source with live reload.
+# Vite dev server serves both the frontend and the backend (server plugins/middleware).
+services:
+  app:
+    image: node:22-bookworm-slim
+    working_dir: /app
+    container_name: base44-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - HOST=0.0.0.0
+      - PORT=3000
+      # Vite >= 6.1 appends this to allowedHosts automatically
+      - __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: sh -c "npm install --no-audit --no-fund && mkdir -p public/audio-cache public/audio public/board-result public/deliverable public/handoff public/pic && npm run dev"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
