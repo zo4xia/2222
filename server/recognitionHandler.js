@@ -54,7 +54,11 @@ function parseJsonCandidate(text) {
     const start = candidate.indexOf('{')
     const end = candidate.lastIndexOf('}')
     if (start >= 0 && end > start) {
-      try { return JSON.parse(candidate.slice(start, end + 1)) } catch {}
+      try {
+        return JSON.parse(candidate.slice(start, end + 1))
+      } catch (error) {
+        console.warn('[v0] JSON 候选解析失败:', error)
+      }
     }
     return { problemText: candidate }
   }

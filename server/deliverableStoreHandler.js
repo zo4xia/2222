@@ -61,7 +61,9 @@ export function syncExistingDeliverableHtmls(force = false) {
           const data = JSON.parse(raw)
           const htmlContent = renderDeliverableHtml({ ...data, projectCode: code })
           writeFileSync(htmlPath, htmlContent, 'utf-8')
-        } catch {}
+        } catch (error) {
+          console.warn('[v0] 同步交付 HTML 失败:', error)
+        }
       }
     }
     // 同步 current.html
@@ -72,9 +74,13 @@ export function syncExistingDeliverableHtmls(force = false) {
         if (cur?.deliverable) {
           writeFileSync(currentPath, renderDeliverableHtml(cur.deliverable), 'utf-8')
         }
-      } catch {}
+      } catch (error) {
+        console.warn('[v0] 同步当前交付 HTML 失败:', error)
+      }
     }
-  } catch {}
+  } catch (error) {
+    console.warn('[v0] 扫描交付文件失败:', error)
+  }
 }
 
 export function readDeliverableByCode(codeOrFilename) {
@@ -99,8 +105,6 @@ export function readCurrentDeliverable() {
   let filename = null
   let projectCode = null
   let createdAt = null
-  let deliverable = null
-
   if (existsSync(CURRENT_POINTER)) {
     try {
       const pointer = JSON.parse(readFileSync(CURRENT_POINTER, 'utf-8'))
@@ -130,7 +134,7 @@ export function readCurrentDeliverable() {
   if (!existsSync(filePath)) return null
 
   try {
-    deliverable = JSON.parse(readFileSync(filePath, 'utf-8'))
+    const deliverable = JSON.parse(readFileSync(filePath, 'utf-8'))
     return {
       filename,
       projectCode: projectCode || deliverable?.projectCode || null,
