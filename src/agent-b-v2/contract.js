@@ -3,10 +3,18 @@ import { validateBoardToolAction } from '../board-tools/boardToolCatalog.js'
 // 车同轨、书同文：板书内容与错误转义统一过全局唯一超级过滤器
 import { superCleanBoardField } from '../utils/superFilter.js'
 // 画布参数唯一真源：src/services/stepHandoff.js
+
+/* 2026-09-17 契约定案（对齐下游渲染引擎）：
+ *   row = { stage, mp3, speech, boards: [{startDelay, content}], actionSpec }
+ *   - boards 为数组（板书触发锚点 = speech 内 **加粗文本** 按序映射，startDelay 数字为兜底）
+ *   - mp3 为必填占位 ""，真实音频 URL 由下游回填
+ *   - 单手串行：本 row 所有 boards 写完 → 才按 order 执行 actionSpec
+ * 旧数据（board 单对象 / triggerKeyword / 字符串板书）在读取侧全部兼容归一为 boards 数组。 */
 export const AGENT_B_V2_COLUMNS = Object.freeze([
   'stage',
+  'mp3',
   'speech',
-  'board',
+  'boards',
   'actionSpec',
 ])
 
@@ -40,44 +48,91 @@ function normalizeStage(stage, index) {
   return fallback
 }
 
-// board 双兼容：读取历史坐标，但新合同只输出内容和一种触发方式。
-// startDelay 与 triggerKeyword 二选一；坐标、固定行高和行距不属于 Agent B 合同。
-export function normalizeBoard(board) {
-  const normalizeTriggerKeyword = (value) => {
-    const keyword = typeof value === 'string' ? value.trim() : ''
-    return keyword || ''
+// ---------- speech 加粗锚点（板书触发唯一真源） ----------
+// 提取 speech 内 **加粗** 片段：返回按出现顺序的锚点（含原文索引，供时序换算触发时刻）
+export function extractSpeechAnchors(speech) {
+  const text = String(speech || '')
+  const anchors = []
+  const re = /\*\*([^*\n]+?)\*\*/g
+  let match
+  while ((match = re.exec(text)) !== null) {
+    anchors.push({
+      text: match[1],
+      start: match.index,
+      end: match.index + match[0].length,
+    })
   }
-  const normalizeDelay = (value) => {
-    if (typeof value === 'number' && Number.isFinite(value) && value >= 0) return Number(value.toFixed(2))
-    if (typeof value === 'string') {
-      const match = value.match(/[\d.]+/)
-      const parsed = match ? parseFloat(match[0]) : NaN
-      if (Number.isFinite(parsed) && parsed >= 0) return Number(parsed.toFixed(2))
-    }
-    return null
+  return anchors
+}
+
+// TTS / 字幕侧使用：剔除 ** 标记（口播稿读出来不含任何符号）
+export function stripSpeechAnchors(speech) {
+  return String(speech || '').replace(/\*\*([^*\n]+?)\*\*/g, '$1')
+}
+
+// ---------- boards 数组归一 ----------
+function normalizeBoardDelay(value) {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) return Number(value.toFixed(2))
+  if (typeof value === 'string') {
+    const match = value.match(/[\d.]+/)
+    const parsed = match ? parseFloat(match[0]) : NaN
+    if (Number.isFinite(parsed) && parsed >= 0) return Number(parsed.toFixed(2))
   }
-  // 车同轨·书同文：board.content 允许字符串 / 一行一个的数组 / 对象，统一过超级过滤器
-  if (isRecord(board)) {
-    const cleaned = superCleanBoardField(board.content ?? board.text ?? '')
-    const triggerKeyword = normalizeTriggerKeyword(board.triggerKeyword ?? board.keyword)
-    const startDelay = triggerKeyword ? null : normalizeDelay(board.startDelay)
-    return {
-      content: cleaned.content,
-      lines: cleaned.lines,
-      ...(triggerKeyword ? { triggerKeyword } : { startDelay: startDelay ?? 0 }),
-    }
-  }
-  if (Array.isArray(board)) {
-    const cleaned = superCleanBoardField(board)
-    return { content: cleaned.content, lines: cleaned.lines, startDelay: 0 }
-  }
-  if (typeof board === 'string') {
-    const trimmed = board.trim()
+  return null
+}
+
+// 单个 BoardItem → { startDelay, content }（content 过超级过滤器，一行一个按序落笔）
+function normalizeBoardItem(item, keepTriggerKeyword) {
+  if (typeof item === 'string') {
+    const trimmed = item.trim()
     const legacyPrefix = trimmed.match(/^\s*[([]\s*[\d.]+(?:%|px)?\s*,\s*[\d.]+(?:%|px)?\s*[)\]]\s*(.*)$/s)
-    const cleaned = superCleanBoardField(legacyPrefix ? legacyPrefix[1] || '' : board)
-    return { content: cleaned.content, lines: cleaned.lines, startDelay: 0 }
+    const cleaned = superCleanBoardField(legacyPrefix ? legacyPrefix[1] || '' : item)
+    return { startDelay: null, content: cleaned.content }
   }
-  return { content: '', lines: [], startDelay: 0 }
+  if (isRecord(item)) {
+    const cleaned = superCleanBoardField(item.content ?? item.text ?? '')
+    const startDelay = normalizeBoardDelay(item.startDelay)
+    const out = { startDelay, content: cleaned.content }
+    // 旧数据 triggerKeyword 兼容读取：仅作触发兜底，序列化导出时剥离
+    if (keepTriggerKeyword && typeof item.triggerKeyword === 'string' && item.triggerKeyword.trim()) {
+      out.triggerKeyword = item.triggerKeyword.trim()
+    }
+    return out
+  }
+  if (Array.isArray(item)) {
+    const cleaned = superCleanBoardField(item)
+    return { startDelay: null, content: cleaned.content }
+  }
+  return { startDelay: null, content: '' }
+}
+
+// row 级 boards 归一：新合同 boards 数组优先，旧 board 单对象/字符串/数组全部兼容为 boards 数组
+export function normalizeBoardsField(value, legacyBoard) {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeBoardItem(item, true))
+  }
+  if (value != null) {
+    return [normalizeBoardItem(value, true)]
+  }
+  if (legacyBoard != null) {
+    return [normalizeBoardItem(legacyBoard, true)]
+  }
+  return []
+}
+
+// 旧 API 兼容：normalizeBoard（checkAgentHandler 等历史调用方）→ 从 boards 数组派生单对象视图
+export function normalizeBoard(board) {
+  const boards = normalizeBoardsField(board)
+  if (!boards.length) return { content: '', lines: [], startDelay: 0 }
+  const cleaned = superCleanBoardField(boards.map((b) => b.content).filter(Boolean).join('\n'))
+  const first = boards[0]
+  return {
+    content: cleaned.content,
+    lines: cleaned.lines,
+    ...(first.triggerKeyword
+      ? { triggerKeyword: first.triggerKeyword }
+      : { startDelay: first.startDelay ?? 0 }),
+  }
 }
 
 function tryParseCandidate(str) {
@@ -105,7 +160,7 @@ function parseJsonObject(text) {
   const source = String(text || '').trim()
   const fenced = source.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim()
   const candidate = fenced || source
-  
+
   let res = tryParseCandidate(candidate)
   if (res && isRecord(res)) return res
 
@@ -145,8 +200,9 @@ export function normalizeAgentBV2BoardCells(rows) {
     if (!isRecord(row)) return []
     return [{
       stage: normalizeStage(row.stage, index),
+      mp3: typeof row.mp3 === 'string' ? row.mp3 : '',
       speech: typeof row.speech === 'string' ? row.speech : '',
-      board: normalizeBoard(row.board),
+      boards: normalizeBoardsField(row.boards, row.board),
       // 模型偶尔漏写 actionSpec 或动作不合规，保留该行而不是卡死整表。
       actionSpec: normalizeAgentBV2ActionSpec(row.actionSpec),
       // 音频地址与实测时长由程序在 TTS 合成后回填，模型不产出；此处仅在已有值时透传，
@@ -159,12 +215,28 @@ export function normalizeAgentBV2BoardCells(rows) {
   })
 }
 
-// 板书只归一化内容和兼容时间字段；每行坐标由渲染层根据实际文本布局。
+// 板书归一化内容与触发兜底；每行坐标由渲染层根据实际文本布局。
 export function sanitizeRowLayout(rows) {
   if (!Array.isArray(rows)) return rows
   return rows.map((row) => {
     if (!isRecord(row)) return row
-    return { ...row, board: normalizeBoard(row.board) }
+    return { ...row, boards: normalizeBoardsField(row.boards, row.board) }
+  })
+}
+
+// 契约自检：speech 锚点数量与 boards 数量对齐（软校验，只打点不拦截，渲染端有 startDelay 兜底）
+export function auditRowAnchorAlignment(rows) {
+  return (Array.isArray(rows) ? rows : []).map((row, index) => {
+    const anchors = extractSpeechAnchors(row.speech)
+    const boards = normalizeBoardsField(row.boards, row.board)
+    const aligned = anchors.length === boards.length
+    if (boards.length && !aligned) {
+      console.warn(`[AgentB contract] 第${index + 1}行 speech 加粗锚点(${anchors.length}个)与 boards(${boards.length}个)数量不一致，渲染端将按 startDelay 兜底`)
+    }
+    if (boards.some((b) => /\*\*/.test(b.content))) {
+      console.warn(`[AgentB contract] 第${index + 1}行 boards.content 出现 ** 符号，已由超级过滤器清洗`)
+    }
+    return { index, aligned, anchors: anchors.length, boards: boards.length }
   })
 }
 
@@ -174,6 +246,7 @@ export function validateAgentBV2Rows(rows, _options = {}) {
     return { ok: false, error: 'Agent B 必须返回至少一行五字段数据' }
   }
   normalizedRows = sanitizeRowLayout(normalizedRows, _options)
+  auditRowAnchorAlignment(normalizedRows)
   return { ok: true, value: normalizedRows }
 }
 

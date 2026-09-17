@@ -201,7 +201,7 @@ export async function handleAgentBV2Request(req, res) {
     ]
     // coordinateMode 只约束 actionSpec 的绘图坐标，板书文字由渲染层排版。
     if (body.canvasParams?.coordinateMode) {
-      userContent.push({ type: 'text', text: `【动作坐标格式】\ncoordinateMode: ${body.canvasParams.coordinateMode}\n说明：仅 actionSpec 的 start/end 坐标按此模式输出；board 只输出 content（以及兼容的 startDelay）。percentage = 百分比 0-100，pixel = 像素。` })
+      userContent.push({ type: 'text', text: `【动作坐标格式】\ncoordinateMode: ${body.canvasParams.coordinateMode}\n说明：仅 actionSpec 的 start/end 坐标按此模式输出；boards 数组每项只输出 startDelay（数字秒，触发兜底）与 content。percentage = 百分比 0-100，pixel = 像素。` })
     }
 
     // 明确告知本次画布舞台配置与视觉参考（canvasParams, boardPlan, zoneAnchors, screenshotUrl）
@@ -309,7 +309,7 @@ export async function handleAgentBV2Request(req, res) {
       } else if (truncated) {
         lines.push('上一次输出在 JSON 闭合前就被截断了：请压缩口播与板书长度（可减行、缩短每行），确保输出是一个完整闭合的 JSON 对象。')
       } else {
-        lines.push('请直接输出一个完整的 JSON 对象（不要 Markdown 代码 fence、不要前后解释文字），顶层必须是 {"rows":[...]}，每行含 stage / speech / board / actionSpec 字段。')
+        lines.push('请直接输出一个完整的 JSON 对象（不要 Markdown 代码 fence、不要前后解释文字），顶层必须是 {"rows":[...]}，每行含 stage / mp3（固定空字符串""） / speech（用**加粗**标记boards触发锚点） / boards（数组，每项含 startDelay 与 content） / actionSpec 五个字段。')
       }
       lines.push('请基于上面的错误重新输出完整表格，不要只输出被指出错误的那几行。')
       const tail = String(badText || '').trim().slice(-600)

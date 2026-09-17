@@ -28,12 +28,19 @@ function sanitizeDeliverable(deliverable) {
       if (!row || typeof row !== 'object') return row
       const next = { ...row }
       if (typeof next.speech === 'string') next.speech = cleanTextEscapes(next.speech)
-      const board = superCleanBoardField(next.board?.content ?? next.board ?? '')
-      next.board = {
-        ...(next.board && typeof next.board === 'object' ? next.board : {}),
-        content: board.content,
-        lines: board.lines,
-      }
+      // 契约定案：boards 数组唯一契约（每项 startDelay + content），旧 board 单对象兼容归一
+      const rawBoards = Array.isArray(next.boards) && next.boards.length
+        ? next.boards
+        : [next.board ?? '']
+      next.boards = rawBoards.map((board) => {
+        const cleaned = superCleanBoardField(board?.content ?? board ?? '')
+        return {
+          startDelay: typeof board?.startDelay === 'number' && Number.isFinite(board.startDelay)
+            ? Math.max(0, board.startDelay)
+            : 0,
+          content: cleaned.content,
+        }
+      })
       return next
     })
   }
