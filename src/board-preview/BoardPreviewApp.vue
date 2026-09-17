@@ -14,16 +14,13 @@ import {
   DownloadOutlined,
   FullscreenOutlined,
   FullscreenExitOutlined,
-  FileDoneOutlined,
   CompassOutlined,
   TableOutlined,
   CodeOutlined,
-  RollbackOutlined,
   InfoCircleOutlined,
   ClockCircleOutlined,
   FileTextOutlined,
   FundProjectionScreenOutlined,
-  PictureOutlined,
   ShareAltOutlined,
 } from '@ant-design/icons-vue'
 import { saveLiveBoardPreview } from './liveBoardPreview.js'
@@ -160,7 +157,9 @@ function onTopicLayoutUpdated(newLayout) {
       sourceImageUrl: sourceImageUrl.value,
       keepOriginal: keepOriginal.value,
     })
-  } catch (_) {}
+  } catch (error) {
+    console.warn('[v0] 保存板书预览失败:', error)
+  }
 }
 
 function onProblemTextUpdated(newText) {
@@ -176,7 +175,9 @@ function onProblemTextUpdated(newText) {
       sourceImageUrl: sourceImageUrl.value,
       keepOriginal: keepOriginal.value,
     })
-  } catch (_) {}
+  } catch (error) {
+    console.warn('[v0] 保存板书预览失败:', error)
+  }
 }
 
 function applyDeliverablePayload(payload, code = null, created = null) {
@@ -280,7 +281,9 @@ onMounted(() => {
   window.addEventListener('message', handleWindowMessage)
   try {
     window.parent?.postMessage({ type: 'BOARD_PREVIEW_CANVAS_READY' }, '*')
-  } catch {}
+  } catch (error) {
+    console.warn('[v0] 通知父窗口失败:', error)
+  }
 })
 
 onBeforeUnmount(() => {
@@ -292,9 +295,6 @@ onBeforeUnmount(() => {
 
 // 计算属性
 const renderedProblemHtml = computed(() => renderProblemHtml(problemText.value || '暂无题目内容'))
-
-// 舞台长宽比
-const canvasAspectRatio = computed(() => `${DESIGN_W} / ${DESIGN_H}`)
 
 // 过滤后的五字段行
 const filteredRows = computed(() => {
@@ -451,10 +451,6 @@ function exportElementsMarkdown() {
   a.click()
   URL.revokeObjectURL(url)
   message.success('已导出五字段要素表 MD')
-}
-
-function printPage() {
-  window.print()
 }
 
 // 客户端原生录屏（纯浏览器交互授权，录制画布/动作/音频，0 后台服务器消耗）

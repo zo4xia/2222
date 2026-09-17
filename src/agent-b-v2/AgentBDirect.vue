@@ -431,7 +431,7 @@ function getRowRuntimeMs(row) {
   return realMs > 0 ? realMs : 0
 }
 
-// 全表时长（用户红线 §3.5）：只累加有真实音频的行；无音频行不计入总时长（避免估算当真实=误导），仅计数 estimatedRows 用于弹窗演示态
+// 全表时长（用户红线 §3.5）：�����累加有真实音频的行；无音频行不计入总时长（避免估算当真实=误导），仅计数 estimatedRows 用于弹窗演示态
 const totalRuntimeStats = computed(() => {
   if (!rows.value.length) return { text: '0秒', seconds: 0, audioRows: 0, estimatedRows: 0 }
   const gapMs = canvasParams.value?.rowGapMs || 1500
@@ -450,13 +450,14 @@ const totalRuntimeStats = computed(() => {
   return { text: `${m > 0 ? `${m}分` : ''}${s}秒`, seconds: totalSec, audioRows, estimatedRows }
 })
 
-// 顶部时长标签（用户红线 §3.5）：全有音频=实际用时；有不齐=「音频未齐·演示态」（不再静默「混合N行估算」误导）
-const runtimeLabel = computed(() => {
+// 顶部时长标签（用户红线 §3.5）：只展示真实音频时长；没有音频就明确标注不计时
+  const runtimeLabel = computed(() => {
   const { audioRows, estimatedRows } = totalRuntimeStats.value
-  if (!audioRows && !estimatedRows) return '时长'
-  if (!estimatedRows) return '实际用时'
-  return '音频未齐·演示态'
-})
+  if (!audioRows && !estimatedRows) return '尚无音频时长'
+  if (!estimatedRows) return '已录音实际用时'
+  if (!audioRows) return '等待音频，不计时'
+  return '部分录音实际用时'
+  })
 
 // 计算全表板书动作规范总数
 const totalActionCount = computed(() => {
@@ -527,7 +528,7 @@ const suggestedLayoutLabel = computed(() => ({
   left_right: '左右布局',
   top_bottom: '上下布局',
 }[handoff.value?.suggestedLayout?.layout] || handoff.value?.suggestedLayout?.layout || '无'))
-const confirmedAtLabel = computed(() => formatDisplayTime(handoff.value?.confirmedAt))
+
 const zoneParameterRows = computed(() => {
   const anchors = handoff.value?.zoneAnchors || {}
   const labels = { question: '题目区', analysis: '分析区', solution: '解答区', summary: '总结区' }
@@ -558,10 +559,6 @@ const handoffFlowSteps = computed(() => [
   },
 ])
 
-function formatDisplayTime(value) {
-  const date = value ? new Date(value) : new Date()
-  return Number.isNaN(date.valueOf()) ? String(value || '') : date.toLocaleString('zh-CN', { hour12: false })
-}
 
 function displayValue(value) {
   return typeof value === 'string' ? value : JSON.stringify(value)
@@ -877,7 +874,7 @@ function copyAudioUrl(url) {
   }
 }
 
-// 视觉时间轴事件：调整某 Row 组板书动画起手 +n 秒延时
+// 视觉时间轴事件：调整某 Row 组���书���画起手 +n 秒延时
 function onUpdateStartDelayFromTimeline({ index, startDelay }) {
   invalidateCheck()
   const current = parseBoard(rows.value[index]?.board)
@@ -1661,12 +1658,6 @@ function isRefineFieldEqual(original, refined) {
                 <span class="qh-field-key">boardFocus</span>
               </div>
             </a-descriptions-item>
-            <a-descriptions-item label="交接时间">
-              <div class="field-val-box">
-                <span class="field-val-main">{{ confirmedAtLabel }}</span>
-                <span class="qh-field-key">confirmedAt</span>
-              </div>
-            </a-descriptions-item>
             <a-descriptions-item label="建议年级">
               <div class="field-val-box">
                 <span class="field-val-main">{{ handoff?.suggestedGrade || '未判断' }}</span>
@@ -1709,7 +1700,7 @@ function isRefineFieldEqual(original, refined) {
                 </div>
                 <span class="qh-field-key">canvasParams</span>
               </div>
-              <span v-else class="param-empty-text">未携带画布参数</span>
+              <span v-else class="param-empty-text">未携带��布参数</span>
             </a-descriptions-item>
           </a-descriptions>
 
@@ -1724,7 +1715,7 @@ function isRefineFieldEqual(original, refined) {
             type="success"
             show-icon
             class="refine-applied-alert"
-            :message="`本次修缮已写入当前 handoff，并已刷新页面数据（${new Date(refineAppliedAt).toLocaleTimeString()}）`"
+            message="本次修缮已写入当前 handoff，页面数据已刷新。"
           />
           <a-descriptions
             bordered
@@ -2104,7 +2095,7 @@ function isRefineFieldEqual(original, refined) {
                         <DownloadOutlined /> 导出完整要素表 MD (五字段全量)
                       </a-menu-item>
                       <a-menu-item key="storyboard" @click="exportStoryboard">
-                        <DownloadOutlined /> 导出时序分镜表 MD (时序排版)
+                        <DownloadOutlined /> 导出时序分镜表 MD (��序排版)
                       </a-menu-item>
                     </a-menu>
                   </template>
@@ -2295,7 +2286,7 @@ function isRefineFieldEqual(original, refined) {
                 <button
                   type="button"
                   class="col-fold-trigger"
-                  :title="collapsedCols.board ? '点击展开课堂板书列' : '点击折叠收起课堂板书列，为口播腾出超大视野'"
+                  :title="collapsedCols.board ? '点��展开课堂板书列' : '点击折叠收起课堂板书列，为口播腾出超大视野'"
                   @click.stop="toggleColumn('board')"
                 >
                   {{ collapsedCols.board ? '展开' : '折叠' }}
@@ -2380,13 +2371,13 @@ function isRefineFieldEqual(original, refined) {
                 </div>
                 <!-- 口播列展开态：舒展大卡片 -->
                 <div v-else class="speech-textarea-card">
-                  <a-textarea
-                    :value="record.speech"
-                    :auto-size="{ minRows: 2, maxRows: 8 }"
-                    class="studio-speech-input"
-                    placeholder="请输入老师口播文案（支持自然标点停顿）..."
-                    @change="(event) => updateRow(index, 'speech', event.target.value)"
-                  />
+                <textarea
+                  :value="record.speech"
+                  rows="4"
+                  class="studio-speech-input"
+                  placeholder="请输入老师口播文案（支持自然标点停顿）..."
+                  @input="(event) => updateRow(index, 'speech', event.target.value)"
+                ></textarea>
                   <div class="speech-stat-footer">
                     <div class="speech-stat-left">
                       <span class="speech-stat-chars">{{ getRowEstimatedSeconds(record.speech).charCount }} 字</span>
@@ -2527,12 +2518,12 @@ function isRefineFieldEqual(original, refined) {
                     </div>
                   </div>
                   <div class="board-edit-label" style="margin-top: 6px;">板书内容 (支持 KaTeX):</div>
-                  <a-textarea
-                    :value="parseBoard(record.board).content"
-                    :auto-size="{ minRows: 2, maxRows: 8 }"
-                    class="board-content-input"
-                    @change="(event) => updateBoardContent(index, event.target.value)"
-                  />
+                <textarea
+                  :value="parseBoard(record.board).content"
+                  rows="4"
+                  class="board-content-input"
+                  @input="(event) => updateBoardContent(index, event.target.value)"
+                ></textarea>
                   <div class="board-edit-actions">
                     <a-button size="small" type="primary" class="board-done-btn" @click="editingBoardIndex = -1">
                       完成
@@ -2738,7 +2729,7 @@ function isRefineFieldEqual(original, refined) {
                           font-size="14"
                           fill="#263238"
                           font-family="serif"
-                        >高亮的文字</text>
+                        >��亮的文字</text>
                       </svg>
                       <svg
                         v-else-if="item.key === 'rough-line'"
@@ -3127,7 +3118,7 @@ function isRefineFieldEqual(original, refined) {
         讲解风格
       </a-divider>
       <a-typography-paragraph type="secondary" style="font-size: 12px;">
-        选择不同的讲解风格 Skill，决定老师的人设、讲解节奏和内容侧重。
+        选择不同的讲解���格 Skill，决定老师的人设、讲解节奏和内容侧重。
       </a-typography-paragraph>
       <a-select
         v-model:value="selectedSkillId"
@@ -3154,12 +3145,12 @@ function isRefineFieldEqual(original, refined) {
       <a-typography-paragraph type="secondary" style="font-size: 12px;">
         留空使用上方选中的 Skill 默认 Prompt；粘贴自定义 Prompt 后，点击生成即生效（优先级高于 Skill）。
       </a-typography-paragraph>
-      <a-textarea
-        v-model:value="customSystemPrompt"
-        :rows="16"
-        placeholder="留空使用默认 System Prompt"
-        :disabled="state === 'generating'"
-      />
+              <textarea
+                v-model="customSystemPrompt"
+                rows="16"
+                placeholder="留空使用默认 System Prompt"
+                :disabled="state === 'generating'"
+              ></textarea>
       <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
         <a-typography-text type="secondary" style="font-size: 12px;">
           {{ customSystemPrompt.length }} 字 · 当前使用：{{ currentSkillName }}
@@ -5306,5 +5297,69 @@ function isRefineFieldEqual(original, refined) {
 
 .refine-applied-fields {
   border-left: 3px solid #52c41a;
+}
+/* 纸白工作台皮肤：沿用根目录灵感卡的编辑排版方向，减少默认组件的堆叠感 */
+.qh-page {
+  --qh-page-bg: #f4f2ec;
+  background: var(--qh-page-bg);
+}
+:deep(.qh-page-content) {
+  background: linear-gradient(180deg, #f4f2ec 0%, #faf9f6 28rem);
+}
+.handoff-workbench-card,
+.studio-problem-card,
+.studio-workbench-card {
+  border-color: #ded8ca !important;
+  border-radius: 10px !important;
+  box-shadow: 0 2px 10px rgba(55, 47, 38, 0.06) !important;
+}
+.handoff-workbench-card :deep(.ant-card-head),
+.studio-workbench-card :deep(.ant-card-head) {
+  background: #fffdf7;
+  border-bottom-color: #e9e3d7;
+}
+.handoff-card-title,
+.workbench-title-box {
+  min-height: 38px;
+}
+.handoff-title-text,
+.workbench-main-title {
+  color: #28231d;
+}
+.handoff-title-sub,
+.params-panel-hint {
+  color: #8a8175;
+}
+.qh-section-title {
+  color: #6f3f2f;
+  border-left-color: #b36a4c !important;
+}
+.studio-params-panel,
+.studio-col-layout-bar {
+  background: #fbfaf5;
+  border-color: #e2dbcd;
+}
+.problem-text-content {
+  background: #fffdf7;
+  border-color: #e8e0d2;
+  color: #3f382f;
+}
+.workbench-stat-pill {
+  color: #7b3f2e;
+  background: #fff7ed;
+  border-color: #f0d7c5;
+}
+:deep(.studio-table .ant-table-thead > tr > th) {
+  background: #f7f3eb;
+  color: #51483e;
+  border-bottom-color: #ded5c6;
+}
+:deep(.studio-table .ant-table-tbody > tr > td) {
+  border-bottom-color: #eee8dd;
+}
+@media (max-width: 800px) {
+  :deep(.qh-page-content) { padding-left: 12px; padding-right: 12px; }
+  .workbench-title-box { align-items: flex-start; flex-direction: column; }
+  .studio-actions-container { width: 100%; }
 }
 </style>
