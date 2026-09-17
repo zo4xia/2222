@@ -431,7 +431,7 @@ function getRowRuntimeMs(row) {
   return realMs > 0 ? realMs : 0
 }
 
-// 全表时长（用户红线 §3.5）：只累加有真实音频的行；无音频行不计入总时长（避免估算当真实=误导），仅计数 estimatedRows 用于弹窗演示态
+// 全表时长（用户红线 §3.5）：���累加有真实音频的行；无音频行不计入总时长（避免估算当真实=误导），仅计数 estimatedRows 用于弹窗演示态
 const totalRuntimeStats = computed(() => {
   if (!rows.value.length) return { text: '0秒', seconds: 0, audioRows: 0, estimatedRows: 0 }
   const gapMs = canvasParams.value?.rowGapMs || 1500
@@ -877,7 +877,7 @@ function copyAudioUrl(url) {
   }
 }
 
-// 视觉时间轴事件：调整某 Row 组板书动画起手 +n 秒延时
+// 视觉时间轴事件：调整某 Row 组板书���画起手 +n 秒延时
 function onUpdateStartDelayFromTimeline({ index, startDelay }) {
   invalidateCheck()
   const current = parseBoard(rows.value[index]?.board)
@@ -2380,13 +2380,13 @@ function isRefineFieldEqual(original, refined) {
                 </div>
                 <!-- 口播列展开态：舒展大卡片 -->
                 <div v-else class="speech-textarea-card">
-                  <a-textarea
-                    :value="record.speech"
-                    :auto-size="{ minRows: 2, maxRows: 8 }"
-                    class="studio-speech-input"
-                    placeholder="请输入老师口播文案（支持自然标点停顿）..."
-                    @change="(event) => updateRow(index, 'speech', event.target.value)"
-                  />
+                <textarea
+                  :value="record.speech"
+                  rows="4"
+                  class="studio-speech-input"
+                  placeholder="请输入老师口播文案（支持自然标点停顿）..."
+                  @input="(event) => updateRow(index, 'speech', event.target.value)"
+                ></textarea>
                   <div class="speech-stat-footer">
                     <div class="speech-stat-left">
                       <span class="speech-stat-chars">{{ getRowEstimatedSeconds(record.speech).charCount }} 字</span>
@@ -2527,12 +2527,12 @@ function isRefineFieldEqual(original, refined) {
                     </div>
                   </div>
                   <div class="board-edit-label" style="margin-top: 6px;">板书内容 (支持 KaTeX):</div>
-                  <a-textarea
-                    :value="parseBoard(record.board).content"
-                    :auto-size="{ minRows: 2, maxRows: 8 }"
-                    class="board-content-input"
-                    @change="(event) => updateBoardContent(index, event.target.value)"
-                  />
+                <textarea
+                  :value="parseBoard(record.board).content"
+                  rows="4"
+                  class="board-content-input"
+                  @input="(event) => updateBoardContent(index, event.target.value)"
+                ></textarea>
                   <div class="board-edit-actions">
                     <a-button size="small" type="primary" class="board-done-btn" @click="editingBoardIndex = -1">
                       完成
@@ -2738,7 +2738,7 @@ function isRefineFieldEqual(original, refined) {
                           font-size="14"
                           fill="#263238"
                           font-family="serif"
-                        >高亮的文字</text>
+                        >��亮的文字</text>
                       </svg>
                       <svg
                         v-else-if="item.key === 'rough-line'"
@@ -3127,7 +3127,7 @@ function isRefineFieldEqual(original, refined) {
         讲解风格
       </a-divider>
       <a-typography-paragraph type="secondary" style="font-size: 12px;">
-        选择不同的讲解风格 Skill，决定老师的人设、讲解节奏和内容侧重。
+        选择不同的讲解���格 Skill，决定老师的人设、讲解节奏和内容侧重。
       </a-typography-paragraph>
       <a-select
         v-model:value="selectedSkillId"
@@ -3154,12 +3154,12 @@ function isRefineFieldEqual(original, refined) {
       <a-typography-paragraph type="secondary" style="font-size: 12px;">
         留空使用上方选中的 Skill 默认 Prompt；粘贴自定义 Prompt 后，点击生成即生效（优先级高于 Skill）。
       </a-typography-paragraph>
-      <a-textarea
-        v-model:value="customSystemPrompt"
-        :rows="16"
-        placeholder="留空使用默认 System Prompt"
-        :disabled="state === 'generating'"
-      />
+              <textarea
+                v-model="customSystemPrompt"
+                rows="16"
+                placeholder="留空使用默认 System Prompt"
+                :disabled="state === 'generating'"
+              ></textarea>
       <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
         <a-typography-text type="secondary" style="font-size: 12px;">
           {{ customSystemPrompt.length }} 字 · 当前使用：{{ currentSkillName }}
