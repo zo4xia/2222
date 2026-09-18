@@ -28,12 +28,13 @@
       "actionSpec": []
     }
   ],
-  "model": "test",
+  "model": "claude-sonnet-4-6",
   "skillId": "default-fallback",
   "handoff": {
-    "problemText": "1加1等于多少？"
+    "problemImage": "data:image/png;base64,PROBLEM",
+    "previewDataUrl": "data:image/png;base64,PREVIEW"
   },
   "usage": null,
-  "finishReason": "",
-  "createdAt": "2026-09-17T04:34:48.628Z"
+  "finishReason": "end_turn",
+  "createdAt": "2026-09-18T03:07:40.637Z"
 }

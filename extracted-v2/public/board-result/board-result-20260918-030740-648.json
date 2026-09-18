@@ -31,9 +31,9 @@
   "model": "test",
   "skillId": "default-fallback",
   "handoff": {
-    "problemText": "1加1等于多少？"
+    "sourceImageDataUrl": "data:image/png;base64,AA=="
   },
   "usage": null,
   "finishReason": "",
-  "createdAt": "2026-09-17T04:34:48.628Z"
+  "createdAt": "2026-09-18T03:07:40.648Z"
 }
