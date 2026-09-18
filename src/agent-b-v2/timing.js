@@ -1,6 +1,8 @@
 /* @qh-core LANE=B-V2 POINT=TIMING 160cpm + 1D single-hand row-group timeline */
 // 车同轨、书同文：板书内容统一过全局唯一超级过滤器（清洗错误转义 + 一行一个的行数组）
 import { superCleanBoardField } from '../utils/superFilter.js'
+import { normalizeBoardsField, extractSpeechAnchors } from './contract.js'
+
 export const AGENT_B_V2_SPEECH_RATE = 160
 export const AGENT_B_V2_ROW_GAP_MS = 1500
 export const BASE_CHAR_WRITE_MS = 400 // 1秒2~3字（基准 2.5 字/秒 = 400ms/字）
@@ -8,6 +10,11 @@ export const HAND_LIFT_GAP_MS = 600   // 动作抬笔换手间隔
 // 用户拍板 2026-09-17：书写时长超出音频窗口时自适应加速，压进音频时长内。
 // 音频是行时长唯一主时钟，绝不因书写慢把行拉长成静默尾；极端场景整行至少保留 300ms。
 export const ADAPTIVE_MIN_BOARD_MS = 300
+
+/* 2026-09-17 契约定案：单手一维串行（铁律）
+ *   mp3 开播 → speech **加粗锚点**（或 startDelay 兜底）依次串行写完 boards 全部板书
+ *   → 抬笔换手 → 按 action.order 串行执行 actionSpec → 等待 mp3 结束进入下一 row。
+ * 动作绝不允许插在板书前或板书之间。 */
 
 function normalizeSpeech(speech) {
   return String(speech || '').trim()
@@ -80,9 +87,17 @@ export function estimateActionDuration(action) {
   return 1200 // 其他动作兜底 1.2s，确保在 1-2 秒内
 }
 
+// 锚点 → 触发时刻：按锚点在 speech 中的字符占比换算为音频时间（TTS 语速近似均匀）
+function anchorTimeMs(speechRaw, anchor, speechDurationMs) {
+  const total = Math.max(1, [...String(speechRaw || '')].length)
+  const before = [...String(speechRaw || '').slice(0, anchor.start)].length
+  const ratio = Math.min(0.95, Math.max(0, before / total))
+  return Math.round(speechDurationMs * ratio)
+}
+
 /**
- * 计算单个 Row 组内部的一维串行时间线（每个 row 为一组，语音全程，板书和动作二者时间绝对互斥）
- * 动作时间定量 1-2s，看作口播句中的标点停顿
+ * 计算单个 Row 组内部的一维串行时间线（每个 row 为一组，语音全程）
+ * 契约顺序（铁律）：speech 锚点/startDelay 依次串行写完所有 boards → 抬笔 → 按 order 串行执行 actionSpec
  */
 export function computeRowGroupTimeline(row, _options = {}) {
   const speech = normalizeSpeech(row.speech)
@@ -97,59 +112,96 @@ export function computeRowGroupTimeline(row, _options = {}) {
     ? Math.max(1500, Math.round(speechCharacters * 60000 / AGENT_B_V2_SPEECH_RATE) + punctuationPauseMs)
     : 1500
 
-  // 2. 板书内容与基础耗时（车同轨·书同文：单个 row 组内板书一行一个，写完一个再写一个）
-  const boardField = superCleanBoardField(
-    row.board?.content ?? (Array.isArray(row.board) ? row.board : (typeof row.board === 'string' ? row.board : '')),
-  )
-  const boardContent = boardField.content
-  const boardLines = boardField.lines
-  const hasBoard = boardLines.length > 0
-  let boardDurationMs = hasBoard ? calculateBoardWritingDuration(boardContent) : 0
+  // 2. 板书数组（新契约 boards 数组；旧 board 单对象兼容读取）+ speech 加粗锚点
+  const boards = normalizeBoardsField(row.boards, row.board)
+    .filter((b) => String(b.content || '').trim())
+  const anchors = extractSpeechAnchors(speech)
+  const actionSpec = (Array.isArray(row.actionSpec) ? row.actionSpec : []).filter(Boolean)
+  // 动作按 order 从小到大串行
+  actionSpec.sort((a, b) => {
+    const oa = Number(a?.action?.order ?? a?.order ?? 0)
+    const ob = Number(b?.action?.order ?? b?.order ?? 0)
+    return oa - ob
+  })
 
-  // 3. 动作提取与严格 1-2 秒时长计算
-  const rawActions = Array.isArray(row.actionSpec) ? row.actionSpec : []
-  const actionSpec = rawActions.filter(Boolean)
-  const hasAction = actionSpec.length > 0
+  const trailingActionsMs = actionSpec.reduce((sum, act) => sum + estimateActionDuration(act), 0)
+    + HAND_LIFT_GAP_MS * Math.max(0, actionSpec.length)
 
-  let boardStartDelayMs = 0
-  let boardEndDelayMs = 0
-  const actionTimeline = []
-  const exclusiveExecutionPlan = []
-
-  // 加入全程口播计划
-  exclusiveExecutionPlan.push({
+  const exclusiveExecutionPlan = [{
     type: 'speech',
     role: 'narration_full',
     startOffsetMs: 0,
     durationMs: speechDurationMs,
     endOffsetMs: speechDurationMs,
     text: speech,
-  })
+  }]
 
-  if (hasBoard && !hasAction) {
-    // 纯板书情况：语音起手 0.8s~1.5s 后落笔
-    const rawDelay = typeof row.board?.startDelay === 'number' && row.board.startDelay > 0
-      ? Math.round(row.board.startDelay * 1000)
-      : Math.min(1800, Math.max(800, Math.round(speechDurationMs * 0.15)))
-    boardStartDelayMs = rawDelay
-    boardDurationMs = fitBoardDurationIntoWindow(boardDurationMs, speechDurationMs - boardStartDelayMs)
-    boardEndDelayMs = boardStartDelayMs + boardDurationMs
+  // 3. 板书串行排期：锚点优先 → startDelay 兜底 → 默认起手节奏；后一块绝不与前一块重叠
+  const boardsTimeline = []
+  let prevEndMs = 0
+  boards.forEach((board, index) => {
+    const cleaned = superCleanBoardField(board.content)
+    const writeDurRaw = calculateBoardWritingDuration(cleaned.content)
+    let triggerSource = 'default'
+    let rawStartMs = null
 
+    if (anchors[index]) {
+      rawStartMs = anchorTimeMs(speech, anchors[index], speechDurationMs)
+      triggerSource = 'anchor'
+    } else if (board.triggerKeyword) {
+      const kwIdx = String(speech || '').indexOf(board.triggerKeyword)
+      if (kwIdx >= 0) {
+        rawStartMs = anchorTimeMs(speech, { start: kwIdx }, speechDurationMs)
+        triggerSource = 'keyword'
+      }
+    }
+    if (rawStartMs == null && typeof board.startDelay === 'number' && board.startDelay > 0) {
+      rawStartMs = Math.round(board.startDelay * 1000)
+      triggerSource = 'startDelay'
+    }
+    if (rawStartMs == null) {
+      rawStartMs = Math.min(1800, Math.max(800, Math.round(speechDurationMs * 0.15)))
+    }
+
+    // 串行铁律：本块起手 = max(触发时刻, 上一块写完 + 抬笔)
+    const startMs = Math.max(rawStartMs, prevEndMs + (prevEndMs > 0 ? HAND_LIFT_GAP_MS : 0))
+    const availableMs = speechDurationMs - startMs - trailingActionsMs
+    const durationMs = fitBoardDurationIntoWindow(writeDurRaw, availableMs)
+    const endMs = startMs + durationMs
+
+    boardsTimeline.push({
+      index,
+      trigger: triggerSource,
+      startOffsetMs: startMs,
+      durationMs,
+      endOffsetMs: endMs,
+      content: cleaned.content,
+      lines: cleaned.lines,
+    })
     exclusiveExecutionPlan.push({
       type: 'board',
       role: 'writing',
-      startOffsetMs: boardStartDelayMs,
-      durationMs: boardDurationMs,
-      endOffsetMs: boardEndDelayMs,
-      content: boardContent,
-      lines: boardLines,
-      ...(typeof row.board?.triggerKeyword === 'string' && row.board.triggerKeyword.trim()
-        ? { triggerKeyword: row.board.triggerKeyword.trim() }
-        : {}),
+      index,
+      trigger: triggerSource,
+      startOffsetMs: startMs,
+      durationMs,
+      endOffsetMs: endMs,
+      content: cleaned.content,
+      lines: cleaned.lines,
     })
-  } else if (!hasBoard && hasAction) {
-    // 纯动作情况（如题目行圈关键词）：动作按标点停顿排布，每个动作 1-2s
-    let cursorMs = Math.min(1200, Math.max(600, Math.round(speechDurationMs * 0.12)))
+    prevEndMs = endMs
+  })
+
+  const boardStartDelayMs = boardsTimeline.length ? boardsTimeline[0].startOffsetMs : 0
+  const boardDurationMs = boardsTimeline.reduce((sum, b) => sum + b.durationMs, 0)
+  const boardEndDelayMs = boardsTimeline.length ? boardsTimeline[boardsTimeline.length - 1].endOffsetMs : 0
+
+  // 4. 动作串行排期：必须等本 row 所有 boards 写完并抬笔后，才按 order 依次执行
+  const actionTimeline = []
+  if (actionSpec.length) {
+    let cursorMs = boardEndDelayMs > 0
+      ? boardEndDelayMs + HAND_LIFT_GAP_MS
+      : Math.min(1200, Math.max(600, Math.round(speechDurationMs * 0.12)))
     for (let idx = 0; idx < actionSpec.length; idx++) {
       const act = actionSpec[idx]
       const dur = estimateActionDuration(act)
@@ -174,103 +226,6 @@ export function computeRowGroupTimeline(row, _options = {}) {
       })
       cursorMs = endMs + HAND_LIFT_GAP_MS
     }
-  } else if (hasBoard && hasAction) {
-    // 既有板书又有动作：板书与动作二者绝对互斥！动作作为标点停顿！
-    // 判定排期次序：
-    // 若动作为引导性（如题目区圈选或第一行动作），动作在前（标点停顿），板书紧跟在动作之后；
-    // 否则板书先写，写完后在句末标点停顿处执行动作。
-    const firstAct = actionSpec[0]?.action || actionSpec[0]
-    const isTargetingQuestion = firstAct?.target?.region === 'question' || row.stage === '题目'
-
-    if (isTargetingQuestion) {
-      // 模式 A：前置动作（标点停顿） -> 换手 -> 后置板书
-      let actCursor = Math.min(1000, Math.max(500, Math.round(speechDurationMs * 0.1)))
-      for (let idx = 0; idx < actionSpec.length; idx++) {
-        const act = actionSpec[idx]
-        const dur = estimateActionDuration(act)
-        const startMs = actCursor
-        const endMs = startMs + dur
-        actionTimeline.push({
-          index: idx,
-          action: act,
-          role: 'punctuation_pause',
-          startOffsetMs: startMs,
-          durationMs: dur,
-          endOffsetMs: endMs,
-        })
-        exclusiveExecutionPlan.push({
-          type: 'action',
-          role: 'punctuation_pause',
-          index: idx,
-          startOffsetMs: startMs,
-          durationMs: dur,
-          endOffsetMs: endMs,
-          action: act,
-        })
-        actCursor = endMs + HAND_LIFT_GAP_MS
-      }
-
-      // 动作结束并抬手后，板书才开始（绝对互斥）
-      boardStartDelayMs = actCursor
-      boardDurationMs = fitBoardDurationIntoWindow(boardDurationMs, speechDurationMs - boardStartDelayMs)
-      boardEndDelayMs = boardStartDelayMs + boardDurationMs
-      exclusiveExecutionPlan.push({
-        type: 'board',
-        role: 'writing',
-        startOffsetMs: boardStartDelayMs,
-        durationMs: boardDurationMs,
-        endOffsetMs: boardEndDelayMs,
-        content: boardContent,
-        lines: boardLines,
-      })
-    } else {
-      // 模式 B：前置板书 -> 换手 -> 后置动作（句末/阶段标点停顿）
-      const rawDelay = typeof row.board?.startDelay === 'number' && row.board.startDelay > 0
-        ? Math.round(row.board.startDelay * 1000)
-        : Math.min(1500, Math.max(600, Math.round(speechDurationMs * 0.12)))
-      boardStartDelayMs = rawDelay
-      // 后置动作占用：行尾抬笔 + 每个动作及其间抬笔
-      const trailingMs = HAND_LIFT_GAP_MS + actionSpec.reduce((s, a) => s + estimateActionDuration(a), 0) + HAND_LIFT_GAP_MS * Math.max(0, actionSpec.length - 1)
-      boardDurationMs = fitBoardDurationIntoWindow(boardDurationMs, speechDurationMs - boardStartDelayMs - trailingMs)
-      boardEndDelayMs = boardStartDelayMs + boardDurationMs
-
-      exclusiveExecutionPlan.push({
-        type: 'board',
-        role: 'writing',
-        startOffsetMs: boardStartDelayMs,
-        durationMs: boardDurationMs,
-        endOffsetMs: boardEndDelayMs,
-        content: boardContent,
-        lines: boardLines,
-      })
-
-      // 板书完全写完并抬手换笔后，再串行执行动作（绝对互斥）
-      let actCursor = boardEndDelayMs + HAND_LIFT_GAP_MS
-      for (let idx = 0; idx < actionSpec.length; idx++) {
-        const act = actionSpec[idx]
-        const dur = estimateActionDuration(act)
-        const startMs = actCursor
-        const endMs = startMs + dur
-        actionTimeline.push({
-          index: idx,
-          action: act,
-          role: 'punctuation_pause',
-          startOffsetMs: startMs,
-          durationMs: dur,
-          endOffsetMs: endMs,
-        })
-        exclusiveExecutionPlan.push({
-          type: 'action',
-          role: 'punctuation_pause',
-          index: idx,
-          startOffsetMs: startMs,
-          durationMs: dur,
-          endOffsetMs: endMs,
-          action: act,
-        })
-        actCursor = endMs + HAND_LIFT_GAP_MS
-      }
-    }
   }
 
   // 计算黑板/肢体物理操作总结束时间
@@ -289,12 +244,13 @@ export function computeRowGroupTimeline(row, _options = {}) {
     boardStartDelayMs,
     boardDurationMs,
     boardEndDelayMs,
+    boardsTimeline,
     actionTimeline,
     exclusiveExecutionPlan,
     handWorkEndMs,
     rowTotalDurationMs,
     // 明确声明互斥策略，给下游画布与课件 Agent 权威依据
-    mutualExclusivityPolicy: 'single-hand-serial-1-2s-action-pause',
+    mutualExclusivityPolicy: 'boards-all-written-then-actions-serial',
   }
 }
 

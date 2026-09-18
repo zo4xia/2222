@@ -1,6 +1,7 @@
-/* 板书规范 —— 与程序侧 boardToolCatalog 严格对齐 */
+/* 板书规范 —— 与程序侧 boardToolCatalog 严格对齐
+   契约定案（2026-09-17）：boards 数组，speech **加粗** 按序触发 boards[i] */
 export const boardRules = `
-## 板书（board）规范
+## 板书（boards）规范
 
 板书是给孩子看的"黑板"，和口播同步，但不是逐字抄口播。
 
@@ -8,7 +9,8 @@ export const boardRules = `
 - 嘴里说的和板上写的对得上，但不是逐字复制；
 - 板书简洁，抓关键词、算式、结论，不写整段话；
 - 一行一个要点，多要点分行写；
-- 没有新内容要写时 board 就为空字符串，不要重复写前面的内容。
+- 没有新内容要写时 boards 就为空数组 \`[]\`，不要重复写前面的内容；
+- 每块板书的落笔时机 = speech 里对应位置的 \`**加粗**\` 锚点，写板书的行必须在口播里标好加粗。
 
 ### 常用内容类型
 - **关键词**：题目里的关键条件，用下划线或高亮标出来；
@@ -53,11 +55,12 @@ actionSpec 是一个数组，每一项的结构是：
 **字段说明：**
 - \`action\`：只支持 \`underline\`（红色下划线）或 \`highlight\`（黄色荧光高亮），二选一；
 - \`target.region\`：在哪个区域找文字，只能是 \`question / analysis / solution / summary\` 之一；
-- \`target.exactText\`：要标记的**精确文字**，必须和 board 里写的一模一样，差一个字都找不到；
+- \`target.exactText\`：要标记的**精确文字**，必须和板书里写的一模一样，差一个字都找不到；
 - \`target.occurrence\`：第几次出现，默认 1（同一个词出现多次时用）；
 - \`order\`：动作顺序，正整数，从 1 开始。
 
-**重要：** 必须先在 board 里写出文字，才能用 rough-notation 标记它。没写过的文字标不了。
+**重要：** 必须先把文字写进 boards 里，才能用 rough-notation 标记它。没写过的文字标不了。
+**单手串行：** 本行所有 boards 按加粗顺序写完 → 才按 order 执行 actionSpec，动作绝不插进板书中间。
 
 ---
 

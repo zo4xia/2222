@@ -130,22 +130,34 @@
     },
     "row": {
       "type": "object",
-      "required": ["stage", "speech"],
+      "required": ["stage", "mp3", "speech", "boards", "actionSpec"],
       "properties": {
         "stage": {
           "type": "string",
           "enum": ["题目", "分析", "解答", "总结"],
           "description": "★盲测必填且只能四选一。决定：① 该段板书落哪个区 ② 贴哪枚 stage 标签 ③ 分析区用红笔、其余黑笔。取值不在四值内 → 标签不显示、落区退化。"
         },
-        "speech": { "type": "string", "description": "本 row 口播稿（贯穿全程，只清错误转义不动口语毛料）。" },
-        "mp3": { "type": "string", "description": "★盲测优先：本段配音地址（播放器第一取值槽）。未生成写空串 \"\"，播放器自动降级无声虚拟时钟。" },
+        "speech": { "type": "string", "description": "本 row 口播稿（贯穿全程，只清错误转义不动口语毛料）。**加粗文本** 按出现顺序映射 boards[i] 触发落笔锚点；TTS 侧自动剔除 ** 符号。" },
+        "mp3": { "type": "string", "description": "★契约必填：本段配音地址（下游回填）。未生成写空串 \"\"，播放器自动降级无声虚拟时钟。" },
+        "boards": {
+          "type": "array",
+          "description": "★契约必填：板书数组，按 speech 内 **加粗** 顺序一一对应触发；无板书为空数组 []。单手串行铁律：本 row 所有 boards 写完才执行 actionSpec。",
+          "items": {
+            "type": "object",
+            "required": ["startDelay", "content"],
+            "properties": {
+              "startDelay": { "type": "number", "minimum": 0, "description": "兜底触发延时（秒）：下游匹配不到加粗锚点时的超时落笔。" },
+              "content": { "type": "string", "description": "规范数学板书内容（多行用 \\n 换行），已过车同轨超级过滤器。" }
+            }
+          }
+        },
         "audioUrl": { "type": "string", "description": "本地持久化音频地址（/audio/*.mp3）；空串表示未生成。播放器归一顺序 mp3 > audio > audioUrl > voice，与 mp3 等价可用。" },
         "audioDurationMs": { "type": ["integer", "null"], "minimum": 0, "description": "真实音频时长（毫秒）；null=未合成。" },
         "duration": { "type": "number", "minimum": 0, "description": "row 时长（秒）。有真实音频时为 audioDurationMs/1000（保留1位小数）；否则为估算。" },
         "durationLabel": { "type": "string", "description": "时长来源标注（真实音频时长/预估）。" },
         "board": {
           "type": "object",
-          "description": "板书（与 actionSpec 时间上绝对互斥）。content/lines 已过车同轨超级过滤器（一行一个）。",
+          "description": "○ 已废弃（2026-09-17 契约定案）：历史遗留单对象板书字段，仅旧归档产物携带；新产物一律使用 boards 数组。渲染层读取顺序 boards > board。",
           "properties": {
             "content": { "type": "string" },
             "lines": { "type": "array", "items": { "type": "string" }, "description": "板书按行拆分（写完一行再写一行）。" },
@@ -168,7 +180,7 @@
         "totalDurationMs": { "type": "integer" },
         "exclusiveExecutionPlan": {
           "type": "array",
-          "description": "单手互斥时序计划（按 startOffsetMs 升序）：speech 全程 + board/action 互插时间缝隙。",
+          "description": "单手串行时序计划（按 startOffsetMs 升序）：speech 全程 + 依次写完所有 boards + 再串行执行 actionSpec。",
           "items": { "$ref": "#/$defs/planItem" }
         },
         "plan": {
@@ -176,7 +188,7 @@
           "description": "exclusiveExecutionPlan 的兼容别名。",
           "items": { "$ref": "#/$defs/planItem" }
         },
-        "timingPolicy": { "const": "speech-full-board-action-mutually-exclusive" }
+        "timingPolicy": { "enum": ["boards-all-written-then-actions-serial", "speech-full-board-action-mutually-exclusive"], "description": "当前契约为 boards-all-written-then-actions-serial；旧值仅历史归档携带。" }
       }
     },
     "planItem": {
@@ -188,14 +200,15 @@
           "type": "string",
           "description": "speech→narration_full；board→writing；action→punctuation_pause。"
         },
-        "index": { "type": "integer", "description": "仅 action：actionSpec 下标。" },
+        "index": { "type": "integer", "description": "board：boards 数组下标；action：actionSpec 下标。" },
+        "trigger": { "type": "string", "description": "仅 board：anchor（speech 加粗锚点）/ keyword（历史兼容）/ startDelay / default。" },
         "startOffsetMs": { "type": "integer", "minimum": 0, "description": "相对本 row 起点的开始毫秒。" },
         "durationMs": { "type": "integer", "minimum": 0 },
         "endOffsetMs": { "type": "integer", "minimum": 0 },
         "text": { "type": "string", "description": "仅 speech：口播全文。" },
         "content": { "type": "string", "description": "仅 board：板书全文。" },
         "lines": { "type": "array", "items": { "type": "string" }, "description": "仅 board：按行板书。" },
-        "triggerKeyword": { "type": "string", "description": "仅 board：触发关键词。" },
+        "triggerKeyword": { "type": "string", "description": "（已废弃）历史归档兼容字段：旧合同触发关键词，新契约改用 speech **加粗** 锚点。" },
         "action": { "type": "object", "description": "仅 action：动作规格原样。" }
       }
     }

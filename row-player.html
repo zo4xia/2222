@@ -97,6 +97,21 @@
   .note{font-size:12px;color:var(--muted);line-height:1.75;margin-top:12px;
         border-left:3px solid var(--line);padding-left:10px}
   .warn{color:#b45309}.ok{color:#15803d}
+  /* 头部引导 + 控制栏分组 + 倍速（2026-09-17 体验改造） */
+  .player-head{margin:0 0 10px}
+  .player-head h1{margin:0 0 4px;display:flex;align-items:center;gap:10px}
+  .player-head .pcode{font-size:12px;font-weight:500;color:var(--muted);
+        padding:1px 8px;background:var(--surface);border:1px solid var(--line);border-radius:999px}
+  .guide{font-size:12.5px;color:var(--muted);margin:0;line-height:1.7}
+  .guide b{color:var(--ink-2);font-weight:600}
+  .bar-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+  .bar-divider{width:1px;align-self:stretch;background:var(--line);margin:0 2px}
+  .rate-box{display:flex;align-items:center;gap:6px;padding-left:4px}
+  .rate-label{font-size:12px;color:var(--muted);white-space:nowrap}
+  .rate-box input[type=range]{flex:0 0 110px;min-width:80px;width:110px}
+  .rate-val{font-variant-numeric:tabular-nums;font-size:12.5px;font-weight:700;
+        color:var(--ink-2);min-width:46px;text-align:right}
+  .sub-cap{font-size:12px;font-weight:600;color:var(--muted);margin:10px 0 4px}
   @media (max-width:640px){
     body{padding:10px}
     .bar{padding:8px;gap:6px}
@@ -114,14 +129,29 @@
 </head>
 <body>
 <div class="wrap">
+  <div class="player-head">
+    <h1>仿人板书微课<span class="pcode" id="pcode"></span></h1>
+    <p class="guide">怎么看：① 点 <b>▶ 播放</b> 看完整板书讲解 → ② 想边看边讲开 <b>✍ 批注</b> → ③ 满意后 <b>● 录制</b> 存成视频；进度条可拖动跳转，<b>倍速</b>同时加快板书与语音，双击倍速滑杆恢复 1×。</p>
+  </div>
   <div class="stage"><canvas id="board" width="1726" height="980"></canvas><canvas id="ink" width="1726" height="980"></canvas></div>
   <div class="bar">
-    <button id="btnPlay" data-step="1">▶ 播放</button>
-    <button id="btnInk" data-step="2">✍ 批注</button>
-    <button id="btnRec" data-step="3">● 录制</button>
-    <input type="range" id="seek" min="0" max="1000" value="0">
-    <span class="t" id="time">0.00 / 0.00 s</span>
+    <div class="bar-group">
+      <button id="btnPlay" data-step="1">▶ 播放</button>
+      <input type="range" id="seek" min="0" max="1000" value="0">
+      <span class="t" id="time">0.00 / 0.00 s</span>
+    </div>
+    <div class="rate-box" title="倍速 0.5×~3×：同时加速板书书写与语音">
+      <span class="rate-label">倍速</span>
+      <input type="range" id="rate" min="0.5" max="3" step="0.05" value="1">
+      <span class="rate-val" id="rateVal">1.00×</span>
+    </div>
+    <div class="bar-divider"></div>
+    <div class="bar-group">
+      <button id="btnInk" data-step="2">✍ 批注</button>
+      <button id="btnRec" data-step="3">● 录制</button>
+    </div>
   </div>
+  <div class="sub-cap">字幕（跟随讲解逐字出现）</div>
   <div id="sub"></div>
   <details class="cfg"><summary>⚙ 配置映射 · 填关键参数 / 一键导入 JSON（第 4、5 步：换题或对接时用，日常播放看上面 1→2→3）</summary>
     <div class="cfg-body">
@@ -131,17 +161,17 @@
         <button id="btnApplyCfg" data-step="4">应用题目配置</button>
         <button id="btnImport" data-step="5">📂 导入 JSON（整体替换 rows）</button>
       </div>
-      <span class="hint">JSON 只要含 rows：[{stage, mp3, duration(秒), speech, board:{startDelay,startCoord,content}, actionSpec}]；多的字段忽略。</span>
+      <span class="hint">JSON 只要含 rows：[{stage, mp3(无则""), speech(**加粗**=boards落笔锚点), boards:[{startDelay(秒),content}], actionSpec}]；duration(秒)可选；多的字段忽略。</span>
       <div class="help">
         <b>每个字段是干嘛的（照抄就行）</b>
         <table>
           <tr><td>stage</td><td>这一段是哪个环节：<b>题目 / 分析 / 解答 / 总结</b>（填错不显示）</td></tr>
           <tr><td>mp3</td><td>这一段的配音网址。没配音就空着写 <code>""</code>，页面自动走无声时钟</td></tr>
           <tr><td>duration</td><td>这一段播多少秒，数字，如 <code>14.6</code></td></tr>
-          <tr><td>speech</td><td>这一段念的话，字幕也显示它</td></tr>
-          <tr><td>board.startDelay</td><td>这一段开始后几秒才下笔，如 <code>1.5</code></td></tr>
-          <tr><td>board.startCoord</td><td>（<b>可选</b>，不写也行）下笔位置，格式 <code>"[8%, 44%]"</code>（横%, 竖%）。不给的话自动落在本环节区域左上角，四区照样板开</td></tr>
-          <tr><td>board.content</td><td>板书写什么。一行一个，写完一个再写一个（可直接给数组，或用 <code>\n</code> 换行）。乘写 x、除写分数 <code>\frac{3}{4}</code>（不写 ÷）、平方写 ²、立方写 ³、三角形写"三角形"三个字</td></tr>
+          <tr><td>speech</td><td>这一段念的话，字幕也显示它。要落笔的关键词用 <code>**加粗**</code> 包住：第1个加粗触发 boards[0]，第2个触发 boards[1]…按顺序对应</td></tr>
+          <tr><td>boards</td><td><b>板书数组</b>，每项 <code>{startDelay, content}</code>；没板书写空数组 <code>[]</code>。多块按 speech 加粗顺序依次串行写完</td></tr>
+          <tr><td>boards[i].startDelay</td><td>兜底延时：匹配不到加粗锚点时，这一段开始后几秒才下笔，如 <code>1.5</code></td></tr>
+          <tr><td>boards[i].content</td><td>板书写什么。一行一个，写完一个再写一个（多行用 <code>\n</code> 换行）。乘写 x、除写分数 <code>\frac{3}{4}</code>（不写 ÷）、平方写 ²、立方写 ³、三角形写"三角形"三个字</td></tr>
           <tr><td>actionSpec</td><td>这一段要强调就放这里。<b>一期只有 2 个动作</b>：圈字 <code>{tool:"rough-notation",action:"circle",target:{exactText:"要圈的字"}}</code>；划线同理改 <code>"underline"</code>。必须锚定已写出的文字（exactText），波浪线/箭头等二期再放</td></tr>
         </table>
       </div>
@@ -165,7 +195,7 @@
   排版与落笔规则：
     1. 四区坐标区间已给定，板书不输出起手坐标，采用当前字体自然段落换行的自然间距，不做多余人为限制；
     2. 单个 row 组内板书一行一个、写完一个再写一个（本质是一行一行的数组序列）；
-    3. 板书与动作在一维时间线上绝对互斥、没有交集，动作可插在板书前 / 行间时间缝隙 / 板书之后；
+    3. 单手串行铁律：本 row 所有 boards 依次写完 → 抬笔 → 才按 order 串行执行 actionSpec（动作绝不插入板书前 / 行间）；
     4. 特殊内容较多时，板书区间可按需自由越界，只要不出 1726×980 画布即可 —— 达芬奇手稿毛料草算风格，不死板；
     5. 所有外部 JSON / 画布 / 单页 HTML 的文本统一过「车同轨书同文」超级过滤器：清洗错误转义与多余换行，除号写分数 \frac{}{}（不写 ÷）、乘号用 x、平方立方用 ² ³、因为/因此写中文。
 ===== -->
@@ -182,8 +212,10 @@ const SAFE={"left":1.80,"top":3.37,"right":98.15,"bottom":96.33};
 
 /* ============ 1. 数据：协议第 8 章示例（可替换为载入的 deliverable.json） ============ */
 /* ============ 1. 数据：对外字段空表 —— 第三方/手工往 rows 里填即可，多的字段无视 ============
-   每行六字段： stage | mp3(音频URL，无则"") | duration(秒) | speech(口播稿) |
-               board{ startDelay(秒), startCoord, content(板书,\n换行) } | actionSpec[]
+   每行五字段（2026-09-17 契约定案）： stage | mp3(音频URL，无则"") | speech(口播稿,
+               **加粗**按序=boards[i]落笔锚点) | boards[{startDelay(秒兜底), content(板书,\n换行)}] | actionSpec[]
+   duration(秒) 可选：无真实音频时用于时长兜底。
+   单手串行：本 row 所有 boards 写完 → 才按 order 执行 actionSpec。
    填法随便：手粘 / API / 表格导入都行。
    符号从简（手写体缺字，用常见字符凑）：乘=x  平方=小字2  除=写分数\frac{a}{b}（不写÷）  因为/因此=写中文  三角形=写中文"三角形"，不用符号
 ==================================================================================== */
@@ -207,7 +239,7 @@ const DATA = {
       mp3: "",
       duration: 17.8,
       speech: "同学们好，今天我们一起来看这道平行四边形面积的经典应用题。已知底是 9 厘米，高是 20.4 厘米。",
-      board: { startDelay: 0.0, startCoord: "[6%, 12%]", content: "" },
+      boards: [],
       actionSpec: [
         { tool: "rough-notation", action: "circle",
           target: { region: "question", exactText: "9", occurrence: 1 },
@@ -221,27 +253,30 @@ const DATA = {
       stage: "分析",
       mp3: "",
       duration: 14.6,
-      speech: "首先，我们观察图形，平行四边形沿高分割后，会形成一个直角三角形和一个梯形。",
-      board: { startDelay: 1.8, startCoord: "[8%, 44%]",
-               content: "1. 分析分割特征\n沿高 DE 分割成 三角形ADE 和 梯形DEBC" },
+      speech: "首先，我们观察图形，平行四边形**沿高分割**后，会形成一个直角三角形和一个梯形。",
+      boards: [
+        { startDelay: 1.8, content: "1. 分析分割特征\n沿高 DE 分割成 三角形ADE 和 梯形DEBC" }
+      ],
       actionSpec: []   /* 一期动作白名单 = circle + underline（truth/领地C），波浪线 rough-line 二期再放 */
     },
     {
       stage: "解答",
       mp3: "",
       duration: 19.3,
-      speech: "接下来我们列式计算。平行四边形面积公式是底乘以高，也就是 9 乘以 20.4，算得面积为 183.6 平方厘米。",
-      board: { startDelay: 1.5, startCoord: "[56%, 16%]",
-               content: "方法一：面积公式\nS = 底 x 高\n  = 9 x 20.4\n  = 183.6 (cm²)\n平方：9² = 81\n分数：\\frac{3}{4} x 20.4 = 15.3" },
+      speech: "接下来我们**列式计算**。平行四边形面积公式是底乘以高，也就是 9 乘以 20.4，算得面积为 183.6 平方厘米。",
+      boards: [
+        { startDelay: 1.5, content: "方法一：面积公式\nS = 底 x 高\n  = 9 x 20.4\n  = 183.6 (cm²)\n平方：9² = 81\n分数：\\frac{3}{4} x 20.4 = 15.3" }
+      ],
       actionSpec: []   /* 一期：rough-arrow 也不输出，见 truth/领地C 两个核心兜底 */
     },
     {
       stage: "总结",
       mp3: "",
       duration: 18.2,
-      speech: "最后我们作答，这道题的答案是 183.6 平方厘米。遇到组合图形，通过割补或直接应用公式都能清晰求解！",
-      board: { startDelay: 1.2, startCoord: "[56%, 70%]",
-               content: "竖式验算：\n      20.4\n   ________\n9 )183.6\n答：183.6 平方厘米" },
+      speech: "最后我们**作答**，这道题的答案是 183.6 平方厘米。遇到组合图形，通过割补或直接应用公式都能清晰求解！",
+      boards: [
+        { startDelay: 1.2, content: "竖式验算：\n      20.4\n   ________\n9 )183.6\n答：183.6 平方厘米" }
+      ],
       actionSpec: []
     }
   ]
@@ -318,23 +353,53 @@ function compile(data){
             ? r.duration*1000
             : Math.max(1000,Math.round((r.speech||'').replace(/\s/g,'').length*60/160*1000)));
     const plan=[];
-    plan.push({type:'speech',startOffsetMs:0,durationMs:dur,text:r.speech||''});
-    let cursor=0;
-    const lines=r.board&&r.board.content?boardLineCount(r.board.content):[];
-    if(lines.length){
-      const keyword=typeof r.board.triggerKeyword==='string'?r.board.triggerKeyword.trim():'';
-      const sd=keyword?0:Math.max(0,Number(r.board.startDelay)||0)*1000;
+    // 字幕/口播：**加粗** 是板书触发锚点，TTS/字幕一律剔除符号只读纯文字
+    const rawSpeech=r.speech||'';
+    plan.push({type:'speech',startOffsetMs:0,durationMs:dur,text:rawSpeech.replace(/\*\*([^*\n]+)\*\*/g,'$1')});
+    /* 契约定案（2026-09-17）：row 五字段 {stage,mp3,speech,boards:[{startDelay,content}],actionSpec}
+       speech 内 **加粗** 按序映射 boards[i] 触发落笔；
+       单手串行铁律 = 本 row 所有 boards 依次写完 → 抬笔 → 才按 order 串行执行 actionSpec */
+    const rawBoards=(Array.isArray(r.boards)&&r.boards.length)?r.boards:(r.board!=null?[r.board]:[]);
+    const boards=rawBoards.map(function(b){return (b&&typeof b==='object')?b:{content:String(b==null?'':b),startDelay:0};});
+    const anchors=[];{const re=/\*\*([^*\n]+)\*\*/g;let m;while((m=re.exec(rawSpeech))!==null)anchors.push(m.index);}
+    const anchorMs=function(bi){
+      if(!anchors.length)return null;
+      const a=anchors[Math.min(bi,anchors.length-1)]||0;
+      return Math.round(dur*Math.min(0.95,a/Math.max(1,rawSpeech.length)));
+    };
+    const trailingMs=600+(r.actionSpec||[]).length*1200;   // 行尾抬笔 + 动作（动作全部排在板书写完之后）
+    const baseCoord=boards.length?resolveBoardCoord({board:{startCoord:boards[0].startCoord}},bp,r.stage):null;
+    let cursor=0, prevEndMs=0, stackedLines=0;
+    boards.forEach(function(b,bi){
+      const blines=b.content?boardLineCount(b.content):[];
+      if(!blines.length)return;
+      // 触发优先级：speech 加粗锚点 > 旧 triggerKeyword（历史兼容）> startDelay 兜底
+      let trigger=anchorMs(bi);
+      if(trigger==null&&typeof b.triggerKeyword==='string'&&b.triggerKeyword.trim()){
+        const kw=rawSpeech.indexOf(b.triggerKeyword.trim());
+        if(kw>=0)trigger=Math.round(dur*Math.min(0.95,kw/Math.max(1,rawSpeech.length)));
+      }
+      if(trigger==null)trigger=Math.max(0,Number(b.startDelay)||0)*1000;
+      // 串行铁律：本块起手绝不早于上一块写完 + 抬笔
+      const sd=Math.max(trigger||0,prevEndMs>0?prevEndMs+600:0);
       // 用户拍板 2026-09-17：书写时长超出音频窗口时自适应加速，压进音频时长内（音频=行时长唯一主时钟）
-      const charCount=Math.max(1,lines.reduce((a,l)=>a+(isRuleLine(l)?2:visualLen(l)),0));   // 横线行快写（用户拍板）
-      const trailingMs=600+(r.actionSpec||[]).length*1200;   // 行尾抬笔 + 动作（compile 现行：动作排在板书后）
+      const charCount=Math.max(1,blines.reduce((a,l)=>a+(isRuleLine(l)?2:visualLen(l)),0));   // 横线行快写（用户拍板）
       let bw=charCount*BASE_CHAR_MS;
       const avail=dur-sd-trailingMs;
       if(avail>0&&bw>avail)bw=Math.max(300,Math.min(bw,avail));
-      plan.push({type:'board',startOffsetMs:sd,durationMs:bw,
-                 content:r.board.content,coord:resolveBoardCoord(r,bp,r.stage),
-                 ...(keyword?{triggerKeyword:keyword}:{})});
-      cursor=sd+bw+600;
-    }
+      // 多块板书纵向堆叠：后续块起点 = 区锚点下移前面块已写行数（38px×1.7 行高 ≈ 6.6%/行）
+      let coord=baseCoord;
+      if(bi>0&&coord){
+        coord=coord.pct?{x:coord.x,y:coord.y+stackedLines*6.6+2,pct:true}
+                       :{x:coord.x,y:coord.y+stackedLines*66,pct:false};
+      }
+      plan.push({type:'board',startOffsetMs:sd,durationMs:bw,index:bi,
+                 content:b.content,coord:coord});
+      prevEndMs=sd+bw;
+      stackedLines+=blines.length;
+    });
+    // 动作：本 row 所有板书写完并抬笔后才串行执行（契约定案，不再插入板书前/行间缝隙）
+    cursor=(prevEndMs>0?prevEndMs+600:Math.min(1200,Math.max(600,Math.round(dur*0.12))));
     (r.actionSpec||[]).forEach(a=>{
       plan.push({type:'action',startOffsetMs:cursor,durationMs:1200,action:a});
       cursor+=1200;
@@ -954,14 +1019,28 @@ function drawTimeline(t){
 }
 
 /* ============ 7. 时钟：每行自带 mp3，串行自动连播；无音频走虚拟时钟 ============ */
-let rowIdx=0,rowAnchor=0,rowT0=0,rowHasAudio=false;
-function now(){ return rowAnchor+(rowHasAudio?audioEl.currentTime*1000:(performance.now()-rowT0)); }
+let rowIdx=0,rowAnchor=0,rowT0=0,rowHasAudio=false,rate=1;
+function now(){ return rowAnchor+(rowHasAudio?audioEl.currentTime*1000:(performance.now()-rowT0)*rate); }
+/* 倍速：音频行走 playbackRate（currentTime 随之加速，板书自动同步）；
+   无声虚拟时钟行按 rate 折算，换速时先把已走时长按旧速折回、再重排零点，画面不跳变 */
+function applyAudioRate(){ try{ audioEl.defaultPlaybackRate=rate; audioEl.playbackRate=rate; }catch(_e){} }
+function setRate(r){
+  r=Math.max(0.5,Math.min(3,Number(r)||1));
+  if(!rowHasAudio){
+    const elapsed=Math.max(0,now()-rowAnchor);
+    rate=r;
+    rowT0=performance.now()-elapsed/rate;
+  }else rate=r;
+  applyAudioRate();
+  document.getElementById('rateVal').textContent=rate.toFixed(2)+'×';
+  document.getElementById('rate').value=String(rate);
+}
 function startRow(i){
   if(!C)return;
   rowIdx=i; const r=C.rows[i];
   rowAnchor=r.startMs; rowT0=performance.now();
   const mp3=r.row.mp3||'';
-  if(mp3){ rowHasAudio=true; audioEl.src=mp3; audioEl.currentTime=0; audioEl.play().catch(function(){}); }
+  if(mp3){ rowHasAudio=true; audioEl.src=mp3; audioEl.currentTime=0; applyAudioRate(); audioEl.play().catch(function(){}); }
   else rowHasAudio=false;
 }
 function loop(ts){
@@ -1005,6 +1084,8 @@ audioEl.onerror=()=>{
 function load(data){
   C=compile(data);
   T=0; rowIdx=0; rowAnchor=0; rowT0=performance.now(); rowHasAudio=false;
+  const pcode=document.getElementById('pcode');
+  if(pcode)pcode.textContent=DATA.projectCode||'';
   render(0);
 }
 document.getElementById('btnPlay').onclick=()=>{playing?pause():play();};
@@ -1015,11 +1096,13 @@ function seekTo(v){
   const ri=i<0?C.rows.length-1:i;
   const r=C.rows[ri];
   rowIdx=ri; rowAnchor=r.startMs; rowT0=performance.now()-(v-r.startMs);
-  if(r.row.mp3){ rowHasAudio=true; audioEl.src=r.row.mp3; audioEl.currentTime=Math.max(0,(v-r.startMs)/1000); }
+  if(r.row.mp3){ rowHasAudio=true; audioEl.src=r.row.mp3; audioEl.currentTime=Math.max(0,(v-r.startMs)/1000); applyAudioRate(); }
   else rowHasAudio=false;
   T=v; render(v);
 }
 document.getElementById('seek').oninput=e=>seekTo(C.total*(+e.target.value)/1000);
+document.getElementById('rate').oninput=e=>setRate(+e.target.value);
+document.getElementById('rate').ondblclick=()=>setRate(1);
 /* ---- 顶层透明批注层：播放不挡，画笔可在上面随手画（录屏自动带进去） ---- */
 const ink=document.getElementById('ink'), ix=ink.getContext('2d');
 let inkOn=false, inking=false, lastPt=null;
@@ -1088,26 +1171,37 @@ function isAudioSrc(v){
   return s!=='' && /(^data:audio\/|^blob:|^https?:\/\/|^\.{0,2}\/|\.(mp3|wav|m4a|aac|ogg|webm|mpeg)(\?|#|$))/i.test(s);
 }
 function normRow(r){
-  const b=(r&&typeof r.board==='object'&&r.board)||{};
-  // 车同轨·书同文：外部 JSON 的 board 可能是字符串 / 对象 / 数组（一行一个），统一过超级过滤器
-  const rawContent=pick(b,['content','boardText','text'])??pick(r,['content','boardContent','board']);
-  const content=Array.isArray(rawContent)?rawContent.map(function(x){return (x&&typeof x==='object')?(x.content??x.text??''):String(x??'');}).join('\n'):(rawContent||'');
+  // 契约定案（2026-09-17）：row 五字段 {stage,mp3,speech,boards:[{startDelay,content}],actionSpec}
+  // boards 数组优先；旧 board 单对象 / 字符串 / 数组（一行一个）统一兼容归一为 boards 数组
+  const rawBoards=(Array.isArray(r&&r.boards)&&r.boards.length)
+    ? r.boards
+    : ((r&&r.board!==undefined&&r.board!==null)?[r.board]:[]);
+  const boards=rawBoards.map(function(b){
+    if(b&&typeof b==='object'){
+      const rawContent=pick(b,['content','boardText','text']);
+      const content=Array.isArray(rawContent)
+        ? rawContent.map(function(x){return (x&&typeof x==='object')?(x.content??x.text??''):String(x??'');}).join('\n')
+        : (rawContent||'');
+      const coord=pick(b,['startCoord','coord']);
+      const kw=pick(b,['triggerKeyword','keyword']);
+      return {
+        content: content||'',
+        startDelay: pick(b,['startDelay'])??0,
+        ...(coord?{startCoord:coord}:{}),
+        ...(kw?{triggerKeyword:kw}:{}),
+      };
+    }
+    return {content:String(b??''), startDelay:0};
+  });
   const rawMp3=pick(r,['mp3','audio','audioUrl','voice']);
   const audioMs=Number(pick(r,['audioDurationMs']));
-  const rawCoord=pick(b,['startCoord','coord'])??pick(r,['startCoord','coord']);
   return {
     stage: pick(r,['stage','role','section','step'])||'解答',
     mp3: isAudioSrc(rawMp3)?rawMp3.trim():'',
     audioDurationMs: audioMs>0?audioMs:null,
     duration: pick(r,['duration','durationSec']) ?? (audioMs>0?audioMs/1000:null) ?? (typeof r.estimatedDurationMs==='number'?r.estimatedDurationMs/1000:null) ?? 0,
     speech: pick(r,['speech','narration','text','口播'])||'',
-    board:{
-      content: content||'',
-      ...(rawCoord?{startCoord:rawCoord}:{}),
-      ...(pick(b,['triggerKeyword','keyword'])??pick(r,['triggerKeyword','keyword'])
-        ? { triggerKeyword: pick(b,['triggerKeyword','keyword'])??pick(r,['triggerKeyword','keyword']) }
-        : { startDelay: pick(b,['startDelay'])??pick(r,['startDelay'])??0 })
-    },
+    boards,
     actionSpec: pick(r,['actionSpec','actions'])||[]
   };
 }

@@ -25,7 +25,7 @@ export const KNOWLEDGE_REFINE_SYSTEM_PROMPT = `
 ### 3. knowledgeAnalysis.keyFormulaList — 关键公式清单
 - 格式：字符串数组
 - 只写公式本身，例如：\`["s=vt", "总价=单价×数量", "时间=路程÷速度"]\`
-- Agent B 会把这些公式随手记在分析区 board 上
+- Agent B 会把这些公式随手记在分析区板书（boards）上
 
 ### 4. knowledgeAnalysis.formulaHints — 公式提示（给 B 看的重要）
 - 格式：字符串数组

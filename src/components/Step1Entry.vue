@@ -766,7 +766,7 @@ function pct(style) {
 
 <template>
   <a-layout class="qh-page">
-    <QhPageHeader step-label="第 1 步 · 生产车间" subtitle="识别 → 真画布落位">
+    <QhPageHeader step-label="第 1 步 · 生产车间" subtitle="识别 → 真画布落位" :current-step="1">
       <template #actions>
         <a-tag :color="userApiConfig.endpoint ? 'purple' : 'default'">{{ agentSummary }}</a-tag>
         <a-tooltip title="本页 Agent 配置">
@@ -779,7 +779,7 @@ function pct(style) {
     <a-layout-content class="qh-page-content">
       <a-row :gutter="[16, 16]">
         <a-col :xs="24" :lg="10">
-          <a-card title="创建一道题" class="qh-surface-card" :bordered="false">
+          <a-card title="① 创建一道题" class="qh-surface-card" :bordered="false">
             <div class="agent-a-params">
               <div class="param-head">
                 <div>
@@ -901,7 +901,7 @@ function pct(style) {
         <a-col :xs="24" :lg="14">
           <a-card class="qh-surface-card" :bordered="false">
             <template #title>
-              <span>预览</span>
+              <span>② 预览</span>
               <a-typography-text type="secondary" class="preview-sub">
                 缩小的真画布 · 初始空白 · 现做现产
               </a-typography-text>
@@ -989,7 +989,7 @@ function pct(style) {
 
       <a-row :gutter="[16, 16]" style="margin-top: 0">
         <a-col :xs="24">
-          <a-card title="知识关联点" class="qh-surface-card" :bordered="false">
+          <a-card title="③ 知识关联点（可选）" class="qh-surface-card" :bordered="false">
             <template #extra>
               <a-button
                 size="small"

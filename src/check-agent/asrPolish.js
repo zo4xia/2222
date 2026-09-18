@@ -14,6 +14,9 @@
 import { formatMathSpeechToChinese } from '../lib/mathAsrConverter.js'
 // 车同轨、书同文：板书统一过全局唯一超级过滤器
 import { superCleanText } from '../utils/superFilter.js'
+// 契约定案（2026-09-17）：row 五字段 {stage, mp3, speech, boards, actionSpec}，
+// speech **加粗锚点** 按序触发 boards[i]，startDelay 仅为无锚点时的超时兜底
+import { normalizeBoardsField, extractSpeechAnchors } from '../agent-b-v2/contract.js'
 
 /**
  * 优化单行 speech 口播稿文本（结合数学算式口播转换库）
@@ -118,77 +121,62 @@ export function polishRowsASR(originalRows) {
       })
     }
 
-    let origBoardObj = origRow?.board
-    let newBoard = origBoardObj
+    // 契约定案（2026-09-17）：boards 数组优先，旧 board 单对象/字符串兼容归一
+    const origBoards = normalizeBoardsField(origRow?.boards, origRow?.board)
+    const anchorCount = extractSpeechAnchors(polishedSpeech).length
 
-    if (typeof origBoardObj === 'string') {
-      const normalizedStr = normalizeBoardContent(origBoardObj)
-      if (normalizedStr !== origBoardObj) {
-        changes.push({
-          row: rowNum,
-          field: 'board',
-          before: origBoardObj,
-          after: normalizedStr,
-          reason: '板书符号规范化：乘法统一为小写 x，规范分数与公式',
-        })
-      }
-      const estDelay = estimateKeywordStartDelay(polishedSpeech, normalizedStr, stage)
-      if (estDelay > 0) {
-        changes.push({
-          row: rowNum,
-          field: 'board_timing',
-          before: '+0.0s (开播即显)',
-          after: `+${estDelay.toFixed(1)}s`,
-          reason: `语义校准板书时机：结合口播关键词换算延迟约 +${estDelay.toFixed(1)}s 落笔，避免提前剧透并保证音画同步`,
-        })
-      }
-      newBoard = {
-        content: normalizedStr,
-        startDelay: estDelay,
-      }
-    } else if (origBoardObj && typeof origBoardObj === 'object') {
-      const origContent = String(origBoardObj.content || '')
+    const boards = origBoards.map((origBoard, boardIndex) => {
+      const origContent = String(origBoard?.content || '')
       const normalizedContent = normalizeBoardContent(origContent)
       if (origContent !== normalizedContent) {
         changes.push({
           row: rowNum,
-          field: 'board',
+          field: 'boards',
           before: origContent,
           after: normalizedContent,
           reason: '板书符号规范化：乘法统一为小写 x，规范分数与公式',
         })
       }
 
-      let currentDelay = origBoardObj.startDelay
+      // 有 speech 加粗锚点时锚点是触发真源，startDelay 仅超时兜底，不估算
+      if (anchorCount > boardIndex) {
+        return { ...origBoard, content: normalizedContent }
+      }
+
+      let currentDelay = origBoard?.startDelay
       if (typeof currentDelay === 'number' && currentDelay > 0) {
-        // 模型或人工已显式设定时机，保留
+        // 模型或人工已显式设定兜底时机，保留
       } else if (normalizedContent && stage !== '题目') {
         const estDelay = estimateKeywordStartDelay(polishedSpeech, normalizedContent, stage)
-        if (estDelay > 0 && (!currentDelay || currentDelay === 0)) {
+        if (estDelay > 0) {
           changes.push({
             row: rowNum,
             field: 'board_timing',
             before: '+0.0s (开播即显)',
             after: `+${estDelay.toFixed(1)}s`,
-            reason: `语义校准板书时机：结合口播关键词换算延迟约 +${estDelay.toFixed(1)}s 落笔，避免提前剧透并保证音画同步`,
+            reason: `语义校准板书时机：本块无加粗锚点，结合口播关键词换算 startDelay 兜底约 +${estDelay.toFixed(1)}s 落笔，避免提前剧透并保证音画同步`,
           })
           currentDelay = estDelay
         }
       }
 
-      newBoard = {
+      return {
+        ...origBoard,
         content: normalizedContent,
-        startDelay: currentDelay !== undefined ? currentDelay : 0,
+        startDelay: typeof currentDelay === 'number' ? currentDelay : 0,
       }
-    }
+    })
 
-    return {
+    // 旧 board 字段已被 boards 数组取代，避免同一行残留两份板书
+    const polishedRow = {
       ...origRow,
       stage,
       speech: polishedSpeech,
-      board: newBoard,
+      boards,
       actionSpec: Array.isArray(origRow?.actionSpec) ? origRow.actionSpec : [],
     }
+    delete polishedRow.board
+    return polishedRow
   })
 
   return { rows: polishedRows, changes }
