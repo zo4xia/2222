@@ -5,15 +5,12 @@
  */
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
-// 车同轨、书同文：错误转义 / 控制字符 / HTML 实体统一过全局唯一超级过滤器
-import { cleanTextEscapes } from './superFilter.js'
+// 画布专属规则：只清理即将进入画布的题文，不改口播或页面元数据。
+import { normalizeCanvasText } from './canvasText.js'
 
 const LATEX_HINT = /\\[a-zA-Z]|[_^]\{|\$\$|\$|\\\(|\\\[/
 const CJK = /[\u4e00-\u9fff\uff00-\uffef]/
 const SIMPLE_FRACTION = /(^|[^\w./])(\d+)\/(\d+)(?=$|[^\w./])/g
-
-// 控制字符 / 错误转义清洗统一由唯一真源 src/utils/superFilter.js 的 cleanTextEscapes 负责，
-// 本文件只保留 KaTeX 渲染职责，不再自带第二份归一化实现。
 
 function escapeHtml(s) {
   return String(s)
@@ -79,7 +76,6 @@ function renderDelimited(text) {
         continue
       }
     }
-    // plain until next delimiter or bare latex command
     let j = i + 1
     while (j < src.length) {
       if (src.startsWith('$$', j) || src[j] === '$' || src.startsWith('\\[', j) || src.startsWith('\\(', j)) break
@@ -108,51 +104,28 @@ function renderMixedBareLatex(text) {
       let depth = 0
       while (j < src.length) {
         const ch = src[j]
-        if (ch === '{') {
-          depth++
-          j++
-          continue
-        }
-        if (ch === '}') {
-          depth--
-          j++
-          continue
-        }
+        if (ch === '{') { depth++; j++; continue }
+        if (ch === '}') { depth--; j++; continue }
         if (depth === 0 && CJK.test(ch)) break
-        // stop bare command at whitespace when depth 0 after command body started
         if (depth === 0 && j > i + 1 && /[\s，。；：！？、]/.test(ch)) break
         j++
       }
-      // include trailing ^\circ or _x loosely
       while (j < src.length && /[\^_]/.test(src[j])) {
         j++
         if (src[j] === '{') {
           let d = 0
           while (j < src.length) {
             if (src[j] === '{') d++
-            if (src[j] === '}') {
-              d--
-              j++
-              if (d === 0) break
-              continue
-            }
+            if (src[j] === '}') { d--; j++; if (d === 0) break; continue }
             j++
           }
-        } else if (src[j]) {
-          j++
-        }
+        } else if (src[j]) j++
       }
-      const mathPart = src.slice(i, j).trim()
-      parts.push(renderKatex(mathPart, false))
+      parts.push(renderKatex(src.slice(i, j).trim(), false))
       i = j
     } else {
       let j = i
-      while (
-        j < src.length &&
-        !(src[j] === '\\' && j + 1 < src.length && /[a-zA-Z]/.test(src[j + 1]))
-      ) {
-        j++
-      }
+      while (j < src.length && !(src[j] === '\\' && j + 1 < src.length && /[a-zA-Z]/.test(src[j + 1]))) j++
       parts.push(escapeHtml(src.slice(i, j)).replace(/\n/g, '<br>'))
       i = j
     }
@@ -160,14 +133,9 @@ function renderMixedBareLatex(text) {
   return parts.join('')
 }
 
-/**
- * 把题文渲染成可安全 v-html 的 HTML
- * - 普通中文/数字原样（转义）
- * - 分数 3/4、LaTeX 命令、$...$ 走 KaTeX
- */
+/** 把题文渲染成可安全 v-html 的 HTML；规则仅作用于画布题文。 */
 export function renderProblemHtml(text) {
-  // 超级过滤器：先清错误转义与多余换行转义，再走 KaTeX / 富文本渲染
-  const raw = cleanTextEscapes(text).trim()
+  const raw = normalizeCanvasText(text).trim()
   if (!raw) return ''
   const promoted = promoteSimpleFractions(raw)
   if (!LATEX_HINT.test(promoted) && !/\d+\/\d+/.test(raw)) {
@@ -177,6 +145,6 @@ export function renderProblemHtml(text) {
 }
 
 export function hasMathContent(text) {
-  const raw = String(text || '')
+  const raw = normalizeCanvasText(text)
   return LATEX_HINT.test(raw) || /\d+\/\d+/.test(raw)
 }
