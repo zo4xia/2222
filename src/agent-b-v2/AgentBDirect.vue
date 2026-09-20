@@ -266,10 +266,17 @@ function parseBoard(board) {
   return { content: n.content, startDelay: n.startDelay || null }
 }
 
+// ponytail: 板书列渲染 — 先过 superFilter 清洗, 再用 KaTeX 渲染, v-html 前转义
+import { normalizeBoardLine } from '../utils/superFilter.js'
 function renderBoardContent(board) {
   const { content } = parseBoard(board)
   if (!content) return ''
-  let result = String(content)
+  // 每行先过 superFilter 10 步清洗 (×→x, ÷→/, $删除, LaTeX→Unicode 等)
+  let result = content.split('\n')
+    .map(line => normalizeBoardLine(line))
+    .filter(line => line.length)
+    .join('\n')
+  if (!result) return ''
   // 处理 $$...$$（display mode）
   result = result.replace(/\$\$([\s\S]+?)\$\$/g, (match, expr) => {
     try {
@@ -1140,8 +1147,9 @@ function serializeCurrentDeliverableState() {
   const cleanRows = (rows.value || []).map((r, idx) => {
     const parsedBoard = parseBoard(r.board)
     const normalizedRow = {
+      // ponytail: duration 统一为秒 (row-player 合同是秒, 不是毫秒)
       duration: Number(r.audioDurationMs) > 0
-        ? Math.round(Number(r.audioDurationMs))
+        ? Math.round(Number(r.audioDurationMs) / 1000 * 10) / 10  // ms → 秒, 保留1位小数
         : (Number(r.duration) || 0),
       durationLabel: Number(r.audioDurationMs) > 0 ? '真实音频时长' : '预估',
       stage: r.stage || (idx === 0 ? '题目' : '分析'),
@@ -1304,11 +1312,13 @@ function openDeliverablePage() {
 
 function openHanddrawPlayer() {
   const payload = serializeCurrentDeliverableState()
-  window._LATEST_AGENT_B_RESULT = payload
-  try {
-    localStorage.setItem('agent-b-deliverable', JSON.stringify(payload))
-  } catch {}
-  window.open('/deliverable/row-player.html', '_blank')
+  // ponytail: 改开 /row-player.html (根目录真播放器 133KB)
+  // 用 Blob URL 传数据 (row-player 已支持 ?deliverable= URL 参数加载, Task 12 已修)
+  const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' })
+  const blobUrl = URL.createObjectURL(blob)
+  window.open(`/row-player.html?deliverable=${encodeURIComponent(blobUrl)}`, '_blank')
+  // 30 秒后释放 Blob URL (row-player 已加载完)
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 30000)
 }
 
 function downloadDeliverableJson() {
@@ -1912,7 +1922,7 @@ function isRefineFieldEqual(original, refined) {
                 :options="skillOptions"
                 @change="(val) => onSkillChange(val)"
               />
-              </div>
+
             </div>
           </template>
 

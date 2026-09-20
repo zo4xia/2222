@@ -2,8 +2,8 @@
  * superFilter.js — 车同轨·书同文 10 步过滤流水线（唯一真源）
  *
  * ponytail: 从 row-player.html L648-716 抽出，Vue 项目 src/ 与 row-player.html 共用。
- * row-player.html 里的注释说"镜像 src/utils/superFilter.js"——但这个文件一直不存在！
- * 现在补上，让 BoardContentLayer / RealBoardPreview / mathText 都能 import。
+ * 当前接入点: RealBoardPreview.vue (B 页画布预览) + AgentBDirect.vue (表格板书列渲染)
+ * 未接入: BoardContentLayer.vue (Step1 题目文本, 不需要过滤) / mathText.js (未用)
  *
  * 10 步流水线（顺序不能倒）:
  *   ① \n 还原（后非字母）   ② 控制字符退化为空格

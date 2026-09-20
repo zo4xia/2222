@@ -3,8 +3,9 @@ import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const rowPlayerTemplatePath = resolve(__dirname, '../public/deliverable/row-player.html')
-const handdrawPlayerTemplatePath = resolve(__dirname, '../public/deliverable/handdraw-player.html')
+// ponytail: 模板路径从 public/deliverable/row-player.html (不存在) 改为根 row-player.html (133KB 真播放器)
+const rowPlayerTemplatePath = resolve(__dirname, '../row-player.html')
+const handdrawPlayerTemplatePath = resolve(__dirname, '../row-player.html')
 
 /**
  * 统一微课与参数交付物单页生成器
