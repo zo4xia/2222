@@ -986,7 +986,9 @@ async function generateRows(force = false) {
   } catch (error) {
     state.value = 'error'
     errorText.value = error?.message || String(error)
-    message.error(errorText.value)
+    // ponytail: 静默软提示 — 不直接弹 message.error，改为 console.warn + 可展开的 errorText 条
+    // 用户看到的是红色状态条(errorText ref 已绑定到模板上的 a-alert)，不是突兀的弹出框
+    console.warn('[Agent B 生成失败]', errorText.value)
   } finally {
     stopGeneratingTimer()
   }
@@ -1021,7 +1023,8 @@ async function checkRows(mode = 'standard') {
     if (runId !== checkRunId) return
     checkState.value = 'error'
     errorText.value = error?.message || String(error)
-    message.error(errorText.value)
+    // ponytail: 静默软提示 — 不直接弹
+    console.warn('[Check Agent 失败]', errorText.value)
   }
 }
 
