@@ -139,13 +139,20 @@ for (const row of rows) {
   title="讲学播放器"
 ></iframe>
 
-<!-- ─── 2. 或用 deliverable HTML 直接打开 ────────────────── -->
-<!-- deliverable-{timestamp}.html 是单文件, 含内嵌 base64 音频, 可直接双击打开 -->
-<a href="/deliverable/deliverable-deliverable-1789337449932.html" target="_blank">
-  打开讲学页（单文件离线）
+<!-- ─── 2. 或用 Blob URL 传当前 rows (B 页演播按钮同款) ─── -->
+<script>
+  const payload = { projectCode: 'demo', problemText: '题目', rows: [...] };
+  const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+  const blobUrl = URL.createObjectURL(blob);
+  window.open('/row-player.html?deliverable=' + encodeURIComponent(blobUrl), '_blank');
+</script>
+
+<!-- ─── 3. 或用 deliverable HTML 直开 (已注入 __INITIAL_DELIVERABLE__) ─── -->
+<a href="/deliverable/current.html" target="_blank">
+  打开讲学页（单文件离线，已注入数据）
 </a>
 
-<!-- ─── 3. AgentCanvas 控制桥（可选, 程序控制）────────────── -->
+<!-- ─── 4. AgentCanvas 控制桥（可选, 程序控制）────────────── -->
 <script>
   const iframe = document.querySelector('iframe');
   iframe.addEventListener('load', () => {
