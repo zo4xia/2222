@@ -75,7 +75,15 @@ export function normalizeBoardLine(s) {
   t = decodeHtmlEntities(t)
   // ④ LaTeX 损伤修复
   t = repairCommonLatexEscapeDamage(t)
-  // ⑤ 删 $ \left \right（绝不字面落板）
+  // ⑤ LaTeX 环境与定界符剥壳：\begin{aligned}/\end{aligned}、\\ 换行、& 对齐符、\(\) \[\]
+  //    （渲染层没有 KaTeX，prompt 让模型用 aligned 排版 → 统一剥壳成普通板书行，绝不字面落板）
+  t = t
+    .replace(/\\(?:begin|end)\s*\{[^}]*\}/g, '')
+    .replace(/\\\\/g, '\n')
+    .replace(/\\\(|\\\)/g, '')
+    .replace(/\\\[|\\\]/g, '')
+    .replace(/&/g, '')
+  // ⑥ 删 $ \left \right（绝不字面落板）
   t = t.replace(/\$+/g, '').replace(/\\left\b|\\right\b/g, '')
   // ⑥ 手写体缺字降级（先跑）
   for (const [re, s2] of GLYPH2COMMON) t = t.replace(re, s2)
@@ -97,13 +105,15 @@ export function toBoardLines(v) {
   if (Array.isArray(v)) {
     return v
       .map(x => (x && typeof x === 'object') ? (x.content ?? x.text ?? '') : (x ?? ''))
-      .map(normalizeBoardLine)
+      .flatMap(x => normalizeBoardLine(x).split('\n'))
+      .map(l => l.trim())
       .filter(l => l.length)
   }
   if (v && typeof v === 'object') return toBoardLines(v.content ?? v.text ?? '')
   return String(v == null ? '' : v)
     .split('\n')
-    .map(normalizeBoardLine)
+    .flatMap(l => normalizeBoardLine(l).split('\n'))
+    .map(l => l.trim())
     .filter(l => l.length)
 }
 

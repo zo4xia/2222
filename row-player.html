@@ -690,10 +690,13 @@ function decodeHtmlEntities(t){
 function toBoardLines(v){
   if(Array.isArray(v)){
     return v.map(function(x){return (x&&typeof x==='object')?(x.content??x.text??''):(x??'');})
-            .map(normalizeBoardLine).filter(function(l){return l.length;});
+            .flatMap(function(x){return normalizeBoardLine(x).split('\n');})
+            .map(function(l){return l.trim();}).filter(function(l){return l.length;});
   }
   if(v&&typeof v==='object')return toBoardLines(v.content??v.text??'');
-  return String(v==null?'':v).split('\n').map(normalizeBoardLine).filter(function(l){return l.length;});
+  return String(v==null?'':v).split('\n')
+        .flatMap(function(l){return normalizeBoardLine(l).split('\n');})
+        .map(function(l){return l.trim();}).filter(function(l){return l.length;});
 }
 function normalizeBoardLine(s){
   let t=String(s==null?'':s);
@@ -703,6 +706,13 @@ function normalizeBoardLine(s){
   t=t.replace(/[\t\u0008\u000B\u000C]+/g,' ');      // 控制字符损伤：统一退化为空格，绝不字面落板
   t=decodeHtmlEntities(t);
   t=repairCommonLatexEscapeDamage(t);
+  // LaTeX 环境与定界符剥壳（镜像 src/utils/superFilter.js，改那边必须同步这边）：
+  // \begin{aligned}/\end{aligned}、\\ 换行、& 对齐符、\(\) \[\] —— 没有 KaTeX，剥壳成普通板书行
+  t=t.replace(/\\(?:begin|end)\s*\{[^}]*\}/g,'');
+  t=t.replace(/\\\\/g,'\n');
+  t=t.replace(/\\\(|\\\)/g,'');
+  t=t.replace(/\\\[|\\\]/g,'');
+  t=t.replace(/&/g,'');
   t=t.replace(/\$+/g,'');                     // 安全网：$ 绝不字面落板
   t=t.replace(/\\left\b|\\right\b/g,'');
   for(let i=0;i<GLYPH2COMMON.length;i++)t=t.replace(GLYPH2COMMON[i][0],GLYPH2COMMON[i][1]); // 缺字降级先跑

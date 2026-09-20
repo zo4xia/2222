@@ -231,17 +231,21 @@ export async function handleAgentBV2Request(req, res) {
       })
     }
 
-    const MAX_RETRIES = 1
+    const MAX_RETRIES = 2
     let parsed = null
     let lastText = ''
     let lastData = null
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      // 静默重试：不把解析错误抛给用户，带上错误反馈让模型自己修正重出
       const currentUserContent = attempt === 0
         ? userContent
         : [
             ...userContent,
-            { type: 'text', text: `【上一次输出错误】${parsed.error}。请严格按照 stage 仅限"题目/分析/解答/总结"四种值重新输出完整五字段表，禁止使用"思路""讲解""过程""步骤""方法""计算""答案"等同义词。` },
+            {
+              type: 'text',
+              text: `【上一次输出解析失败，请修正后重新输出完整结果】错误：${parsed.error}。硬性要求：顶层必须是 JSON 对象 {"rows":[...]}；每行必须含 stage/speech/board/actionSpec 五字段；stage 仅限"题目""分析""解答""总结"四种值，禁止使用"思路""讲解""过程""步骤""方法""计算""答案"等同义词。`,
+            },
           ]
 
       const { response, data } = isAnthropic
@@ -289,8 +293,8 @@ export async function handleAgentBV2Request(req, res) {
       })
 
       if (parsed.ok) break
-      // 只有 INVALID_STAGE 错误才自动重试，其他错误（JSON格式错等）直接返回
-      if (parsed.code !== 'INVALID_STAGE') break
+      // 所有解析失败（JSON 格式错、缺 rows、非法 stage 等）都带错误反馈静默重试
+      console.warn(`[Agent B] 第 ${attempt + 1} 次输出解析失败(${parsed.code || 'CONTRACT_INVALID'})，${attempt < MAX_RETRIES ? '带错误反馈重试' : '进入软降级提取'}`)
     }
 
     if (!parsed.ok) {
