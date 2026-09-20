@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>skill 7 · blingbling小眼睛 · DOM 观察</title>
+<style>
+  :root{--bg:#0f172a;--surface:#1e293b;--surface-2:#334155;--ink:#f1f5f9;--muted:#94a3b8;
+        --brand:#22d3ee;--warn:#fbbf24;--ok:#4ade80;--err:#f87171;--line:#334155}
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;background:var(--bg);color:var(--ink);
+       font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;line-height:1.6}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+  .grid{display:grid;grid-template-columns:280px 1fr;gap:16px}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+  .panel h2{font-size:14px;margin:0 0 10px;color:var(--brand)}
+  .targets{display:flex;flex-direction:column;gap:8px}
+  .target-btn{background:var(--surface-2);color:var(--ink);border:1px solid var(--line);
+              border-radius:6px;padding:10px;cursor:pointer;text-align:left;
+              font-family:inherit;font-size:13px}
+  .target-btn:hover{border-color:var(--brand)}
+  .target-btn.active{background:var(--brand);color:#0b1220;border-color:var(--brand);font-weight:600}
+  .target-btn .desc{display:block;font-size:11px;opacity:.8;margin-top:3px;font-weight:normal}
+  .demo-stage{background:#fbfaf6;border:1px solid #cbd5e1;border-radius:8px;
+              padding:20px;min-height:380px;color:#101828}
+  .demo-stage input,.demo-stage select,.demo-stage button{padding:6px 10px;margin:4px;
+    border:1px solid #94a3b8;border-radius:4px;font-size:13px}
+  .demo-stage button{background:#1d4ed8;color:#fff;border-color:#1d4ed8;cursor:pointer}
+  .obs{background:#0b1220;border:1px solid var(--line);border-radius:6px;padding:12px;
+       font-family:monospace;font-size:12px;white-space:pre-wrap;min-height:200px;
+       color:var(--ok);margin-top:10px}
+  .note{color:var(--muted);font-size:11px;margin-top:8px;line-height:1.5}
+  .principle{padding:8px 10px;border-left:3px solid var(--brand);margin:6px 0;
+             background:var(--surface-2);border-radius:0 6px 6px 0;font-size:12px}
+  .principle b{color:var(--brand)}
+</style>
+</head>
+<body>
+<h1>skill 7 · blingbling小眼睛 · DOM 观察</h1>
+<p class="sub">DOM-first 不是 screenshot-first · 结构化页面先于自动化 · 输出 compact JSON 给主 agent 决策下一步安全动作</p>
+
+<div class="grid">
+  <div class="panel">
+    <h2>观察目标</h2>
+    <div class="targets" id="targets"></div>
+    <p class="note">点切换观察目标。右下角"观察"按钮跑 observe 逻辑，输出 compact JSON。</p>
+    <h2 style="margin-top:14px">核心原则</h2>
+    <div class="principle"><b>1. DOM-first</b>：从页面结构、可见文本、可交互控件出发，不是从截图</div>
+    <div class="principle"><b>2. 小而有用</b>：内部 skill，不需要漂亮 prose，要稳定结构和有用信号</div>
+    <div class="principle"><b>3. 高价值元素优先</b>：主按钮、导航、表单、搜索、过滤器、区域标题</div>
+    <div class="principle"><b>4. 看不清就直说</b>：页面不可读/DOM-poor/视觉欺骗 → 写进 warnings</div>
+    <div class="principle"><b>5. 轻量</b>：1.0 只看页面够不够清晰，不负责完成整个浏览器任务</div>
+  </div>
+  <div class="panel">
+    <h2>观察舞台（真实可交互 DOM）</h2>
+    <div class="demo-stage" id="stage"></div>
+    <button onclick="observe()" style="background:var(--brand);color:#0b1220;border:0;
+      border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer;margin-top:10px">▶ 观察当前页</button>
+    <div class="obs" id="obs">点"观察当前页"看 compact JSON 输出...</div>
+  </div>
+</div>
+
+<script>
+// ─── 3 个观察目标 ──────
+const TARGETS=[
+  {key:'form',name:'表单页',
+   desc:'典型登录/设置表单',
+   html:`
+   <h3 style="margin:0 0 12px">账户设置</h3>
+   <div style="margin-bottom:10px"><label style="display:block;font-size:12px;color:#64748b">邮箱</label><input type="email" placeholder="you@example.com" required></div>
+   <div style="margin-bottom:10px"><label style="display:block;font-size:12px;color:#64748b">昵称</label><input type="text" value="夏夏"></div>
+   <div style="margin-bottom:10px"><label style="display:block;font-size:12px;color:#64748b">时区</label><select><option>Asia/Shanghai</option><option>UTC</option></select></div>
+   <div style="margin-bottom:10px"><label style="display:block;font-size:12px;color:#64748b">主题</label><label><input type="radio" name="t" checked>浅色</label> <label><input type="radio" name="t">深色</label></div>
+   <button>保存设置</button> <button>取消</button>
+   `},
+  {key:'doc',name:'文档页',
+   desc:'说明/帮助文档',
+   html:`
+   <nav style="border-bottom:1px solid #94a3b8;padding-bottom:8px;margin-bottom:12px"><a href="#" style="margin-right:10px">首页</a><a href="#" style="margin-right:10px">文档</a><a href="#">关于</a></nav>
+   <h2 style="margin:0 0 8px">如何使用 Skills 沉淀</h2>
+   <p style="font-size:13px;line-height:1.7;color:#475569">Skills 沉淀是把工程技巧压成可复用的结构。每个 skill 含 front-matter + 蒸馏合同 + 真相源 + 反模式 + 快速参考。</p>
+   <h3 style="margin:12px 0 6px">步骤</h3>
+   <ol style="font-size:13px;color:#475569;padding-left:20px"><li>读源码</li><li>提关键技巧</li><li>写 SKILL.md</li></ol>
+   <a href="#">编辑本页</a>
+   `},
+  {key:'list',name:'列表/搜索页',
+   desc:'表格 + 搜索 + 筛选',
+   html:`
+   <div style="display:flex;gap:8px;margin-bottom:10px"><input type="search" placeholder="搜索..."> <button>筛选</button> <select><option>全部</option><option>已用</option></select></div>
+   <table style="width:100%;border-collapse:collapse;font-size:12px">
+     <tr style="background:#f1f5f9"><th style="text-align:left;padding:6px">Skill</th><th>版本</th><th>状态</th></tr>
+     <tr><td style="padding:6px">board-zone-layout</td><td>v1.0</td><td>✓</td></tr>
+     <tr><td style="padding:6px">handwriting-font-policy</td><td>v1.0</td><td>✓</td></tr>
+     <tr><td style="padding:6px">board-lecture-player</td><td>v2.0</td><td>✓</td></tr>
+   </table>
+   <div style="margin-top:10px"><button>上一页</button> <button>下一页</button></div>
+   `}
+];
+let current=TARGETS[0];
+
+function render(){
+  const stage=document.getElementById('stage');
+  stage.innerHTML=current.html;
+  // 把 a 改成不跳转
+  stage.querySelectorAll('a').forEach(a=>a.addEventListener('click',e=>e.preventDefault()));
+}
+
+// ─── observe 逻辑（与 observe-page.mjs 对齐的简化版） ──────
+function observe(){
+  const stage=document.getElementById('stage');
+  const out={pageTitle:'',pageUrl:'',pageGoalGuess:'',mainRegions:[],
+    interactiveElements:[],inputs:[],primaryActions:[],warnings:[],recommendedNextStep:''};
+
+  // 主区域
+  const headings=stage.querySelectorAll('h2,h3,nav');
+  headings.forEach(h=>out.mainRegions.push(h.textContent.trim().slice(0,40)));
+
+  // 目的猜测
+  if(stage.querySelector('input[type=email]')){out.pageGoalGuess='填写并提交表单';}
+  else if(stage.querySelector('table')){out.pageGoalGuess='浏览/搜索列表数据';}
+  else if(stage.querySelector('nav')){out.pageGoalGuess='阅读文档内容';}
+
+  // 按钮
+  stage.querySelectorAll('button').forEach(b=>{
+    const label=b.textContent.trim();
+    if(!label)return;
+    out.interactiveElements.push({type:'button',label,
+      priority:/保存|提交|确定|下一步/.test(label)?'high':'medium'});
+  });
+  // 链接
+  stage.querySelectorAll('a').forEach(a=>{
+    const label=a.textContent.trim();
+    if(!label)return;
+    out.interactiveElements.push({type:'link',label,priority:'medium'});
+  });
+
+  // 输入
+  stage.querySelectorAll('input,select,textarea').forEach(el=>{
+    const type=el.type||el.tagName.toLowerCase();
+    const label=el.placeholder||el.value||el.options?.[el.selectedIndex]?.text||'';
+    out.inputs.push({type,label:label.slice(0,30),required:el.required});
+  });
+
+  // 主操作建议
+  out.interactiveElements.filter(e=>e.priority==='high')
+    .forEach(e=>out.primaryActions.push('Click '+e.label));
+  if(out.inputs.length)out.primaryActions.push('Inspect form fields');
+
+  // 下一步建议
+  if(out.pageGoalGuess.includes('表单')){
+    out.recommendedNextStep='先检查必填字段（required），再点击高优先级按钮提交';
+  } else if(out.pageGoalGuess.includes('列表')){
+    out.recommendedNextStep='使用搜索/筛选缩小范围，再点击表格行查看详情';
+  } else {
+    out.recommendedNextStep='浏览主要内容区域，识别关键导航/操作入口';
+  }
+
+  document.getElementById('obs').textContent=JSON.stringify(out,null,2);
+}
+
+// 目标按钮
+const targetsEl=document.getElementById('targets');
+TARGETS.forEach((t,i)=>{
+  const b=document.createElement('button');
+  b.className='target-btn'+(i===0?' active':'');
+  b.innerHTML=t.name+'<span class="desc">'+t.desc+'</span>';
+  b.onclick=()=>{
+    document.querySelectorAll('.target-btn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    current=t;render();
+  };
+  targetsEl.appendChild(b);
+});
+
+render();
+</script>
+</body>
+</html>

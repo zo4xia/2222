@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>hand-action-control · 工具白名单与互斥队列示例</title>
+<style>
+  :root{--bg:#0f172a;--surface:#1e293b;--surface-2:#334155;--ink:#f1f5f9;--muted:#94a3b8;
+        --brand:#22d3ee;--warn:#fbbf24;--ok:#4ade80;--err:#f87171;--line:#334155}
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;background:var(--bg);color:var(--ink);
+       font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;line-height:1.6}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+  .panel h2{font-size:14px;margin:0 0 10px;color:var(--brand)}
+  textarea{width:100%;height:160px;background:#0b1220;color:var(--ink);
+            border:1px solid var(--line);border-radius:6px;padding:10px;
+            font-family:"JetBrains Mono","Consolas",monospace;font-size:12px;resize:vertical}
+  button{background:var(--brand);color:#0b1220;border:0;border-radius:6px;
+         padding:8px 14px;font-weight:600;cursor:pointer;margin-top:8px}
+  button:hover{filter:brightness(1.1)}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .presets button{background:var(--surface-2);color:var(--ink);font-size:11px;padding:5px 10px}
+  .presets button:hover{background:var(--brand);color:#0b1220}
+  .result{margin-top:10px;padding:10px;border-radius:6px;font-size:12px;
+          font-family:monospace;white-space:pre-wrap;min-height:40px}
+  .result.ok{background:rgba(74,222,128,.12);color:var(--ok)}
+  .result.err{background:rgba(248,113,113,.12);color:var(--err)}
+  .queue{margin-top:10px}
+  .row{display:flex;align-items:center;gap:8px;padding:6px 10px;
+       background:var(--surface-2);border-radius:6px;margin:4px 0;font-size:12px}
+  .row .order{display:inline-block;width:22px;height:22px;border-radius:50%;
+               background:var(--brand);color:#0b1220;text-align:center;line-height:22px;
+               font-weight:700;font-size:11px}
+  .row .name{flex:1;color:var(--ink)}
+  .row .dur{color:var(--muted);font-family:monospace}
+  .row .gap{color:var(--warn);font-family:monospace;font-size:10px}
+  .timeline{position:relative;height:40px;background:#0b1220;border-radius:6px;
+            margin-top:10px;overflow:hidden}
+  .bar{position:absolute;height:24px;top:8px;border-radius:3px;
+       display:flex;align-items:center;justify-content:center;
+       font-size:10px;color:#fff;font-weight:600;overflow:hidden}
+  .bar.notation{background:#f87171}
+  .bar.line{background:#22d3ee;color:#0b1220}
+  .bar.arrow{background:#4ade80;color:#0b1220}
+  .bar.gap{background:#475569;color:#94a3b8}
+  .axis{position:relative;height:20px;margin-top:4px;font-size:10px;color:var(--muted)}
+  .tick{position:absolute;top:0;border-left:1px solid var(--line);padding-left:2px}
+  .note{color:var(--muted);font-size:11px;margin-top:8px;line-height:1.5}
+</style>
+</head>
+<body>
+<h1>hand-action-control · 工具白名单与互斥队列</h1>
+<p class="sub">3 工具白名单校验 · teacher-hand-exclusive 互斥 · 时长由程序算 Agent 不得填 · 抬笔间隔 600ms 硬下限</p>
+
+<div class="presets" id="presets"></div>
+
+<div class="grid">
+  <div class="panel">
+    <h2>actionSpec JSON 输入</h2>
+    <textarea id="input"></textarea>
+    <button onclick="validate()">▶ 校验单条</button>
+    <button onclick="enqueueAll()" style="background:var(--surface-2);color:var(--ink);margin-left:6px">▶ 校验并入互斥队列</button>
+    <div class="result" id="result"></div>
+  </div>
+  <div class="panel">
+    <h2>互斥队列时间线（teacher-hand-exclusive）</h2>
+    <div id="queue" class="queue"></div>
+    <div id="timeline" class="timeline"></div>
+    <div id="axis" class="axis"></div>
+    <p class="note">任意时刻只允许一笔。动作按 order 串行，每个动作后加 600ms 抬笔间隔。</p>
+  </div>
+</div>
+
+<script>
+// ─── 工具白名单与时长算法（与 src/board-tools/* 对齐） ──────
+const TOOLS=['rough-notation','rough-line','rough-arrow'];
+const REGIONS=['question','analysis','solution','summary'];
+const MIN_GAP_MS=600;
+const NOTATION_COLORS={underline:'red',highlight:'yellow'};
+const LOCKED_COLORS={red:'#d64545',yellow:'#f8e58c'};
+const DRAW_COLORS={ink:'#263238',red:'#d64545'};
+const STROKE_W={normal:2,emphasis:3};
+
+function validateAction(a){
+  if(!a||!TOOLS.includes(a.tool))return{ok:false,err:`未支持的板书工具: ${a?.tool||'空'}`};
+  if(a.tool==='rough-notation'){
+    if(!['underline','highlight'].includes(a.action))return{ok:false,err:`action 只支持 underline|highlight`};
+    if(!a.targetId&&!a.target?.region)return{ok:false,err:'需要 targetId 或 target.region'};
+    if(a.durationMs!=null||a.gapAfterMs!=null)return{ok:false,err:'标记时长与抬笔间隔由程序工具计算，Agent 不得覆盖'};
+    if(a.options?.colorId&&NOTATION_COLORS[a.action]!==a.options.colorId)
+      return{ok:false,err:`${a.action} 颜色固定为 ${NOTATION_COLORS[a.action]}`};
+    return{ok:true,v:{tool:a.tool,action:a.action,target:a.targetId||a.target,order:a.order||1,
+      color:LOCKED_COLORS[NOTATION_COLORS[a.action]]}};
+  }
+  if(!REGIONS.includes(a.region))return{ok:false,err:`rough 图形只能画在 ${REGIONS.join('|')} 区域`};
+  if(!a.start||!a.end)return{ok:false,err:'rough-line/arrow 需要 start 和 end'};
+  if(a.start[0]<0||a.start[0]>100||a.start[1]<0||a.start[1]>100)return{ok:false,err:'start 必须 0—100 百分比'};
+  if(a.end[0]<0||a.end[0]>100||a.end[1]<0||a.end[1]>100)return{ok:false,err:'end 必须 0—100 百分比'};
+  if(a.durationMs!=null||a.gapAfterMs!=null||a.seed!=null)
+    return{ok:false,err:'绘制时长、抬笔间隔与随机种子由程序计算，Agent 不得覆盖'};
+  return{ok:true,v:{tool:a.tool,region:a.region,order:a.order||1,start:a.start,end:a.end,
+    color:DRAW_COLORS[a.style?.colorId||'ink'],stroke:STROKE_W[a.style?.strokeWidthId||'normal']}};
+}
+
+function estimateDuration(a){
+  if(a.tool==='rough-notation')return 1200;
+  if(a.tool==='rough-line')return 800;
+  if(a.tool==='rough-arrow')return 900;
+  return 1000;
+}
+
+function validate(){
+  const txt=document.getElementById('input').value.trim();
+  const el=document.getElementById('result');
+  let a;
+  try{a=JSON.parse(txt);}catch(e){el.className='result err';el.textContent='✗ JSON 解析失败: '+e.message;return;}
+  const r=validateAction(a);
+  if(!r.ok){el.className='result err';el.textContent='✗ FAIL: '+r.err;return;}
+  el.className='result ok';
+  el.textContent='✓ PASS  validateBoardToolAction →\n'+JSON.stringify(r.v,null,2);
+}
+
+let queuePlans=[];
+function enqueueAll(){
+  const txt=document.getElementById('input').value.trim();
+  let arr;
+  try{arr=JSON.parse(txt);}catch(e){document.getElementById('result').className='result err';
+    document.getElementById('result').textContent='✗ JSON 解析失败: '+e.message;return;}
+  if(!Array.isArray(arr)){el.className='result err';el.textContent='✗ 需要数组形式 actionSpec';return;}
+  queuePlans=[];
+  const sorted=[...arr].sort((a,b)=>(a.order||1)-(b.order||1));
+  let cursor=0;
+  sorted.forEach((a,i)=>{
+    const r=validateAction(a);
+    if(!r.ok)return;
+    const dur=estimateDuration(a);
+    queuePlans.push({order:a.order||i+1,tool:a.tool,action:a.action,region:a.region,
+      startMs:cursor,durMs:dur,gapMs:MIN_GAP_MS,endMs:cursor+dur});
+    cursor=cursor+dur+MIN_GAP_MS;
+  });
+  renderQueue();
+}
+
+function renderQueue(){
+  const q=document.getElementById('queue');
+  q.innerHTML='';
+  if(!queuePlans.length){q.innerHTML='<div style="color:var(--muted);font-size:12px;padding:10px">队列为空。先校验并入队。</div>';}
+  queuePlans.forEach(p=>{
+    const d=document.createElement('div');d.className='row';
+    d.innerHTML=`<span class="order">${p.order}</span><span class="name">${p.tool}${p.action?' / '+p.action:''}${p.region?' / '+p.region:''}</span><span class="dur">${p.startMs}→${p.endMs}ms (${p.durMs}ms)</span><span class="gap">+${p.gapMs}ms 抬笔</span>`;
+    q.appendChild(d);
+  });
+  // 时间线
+  const tl=document.getElementById('timeline');
+  const ax=document.getElementById('axis');
+  tl.innerHTML='';ax.innerHTML='';
+  const total=queuePlans.length?queuePlans[queuePlans.length-1].endMs+MIN_GAP_MS:1000;
+  const wPct=ms=>(ms/total*100);
+  queuePlans.forEach(p=>{
+    const b=document.createElement('div');
+    b.className='bar '+(p.tool==='rough-notation'?'notation':p.tool==='rough-line'?'line':'arrow');
+    b.style.left=wPct(p.startMs)+'%';
+    b.style.width=wPct(p.durMs)+'%';
+    b.textContent=`${p.order}·${p.tool.split('-')[1]}`;
+    tl.appendChild(b);
+    // gap bar
+    const g=document.createElement('div');
+    g.className='bar gap';
+    g.style.left=wPct(p.endMs)+'%';
+    g.style.width=wPct(p.gapMs)+'%';
+    g.textContent='↑';
+    tl.appendChild(g);
+  });
+  // 刻度
+  for(let s=0;s<=total;s+=Math.max(500,Math.round(total/8))){
+    const t=document.createElement('div');t.className='tick';t.style.left=wPct(s)+'%';t.textContent=s+'ms';
+    ax.appendChild(t);
+  }
+}
+
+const PRESETS=[
+  {name:'合法 underline', s:JSON.stringify({tool:'rough-notation',action:'underline',
+    target:{region:'question',exactText:'长方形',occurrence:1},order:1},null,2)},
+  {name:'合法 highlight', s:JSON.stringify({tool:'rough-notation',action:'highlight',
+    target:{region:'analysis',exactText:'9 × 20.4',occurrence:1},order:2},null,2)},
+  {name:'合法 rough-line', s:JSON.stringify({tool:'rough-line',region:'analysis',order:3,
+    start:[10,45],end:[50,45],style:{colorId:'red',strokeWidthId:'emphasis'}},null,2)},
+  {name:'合法 rough-arrow', s:JSON.stringify({tool:'rough-arrow',region:'solution',order:4,
+    start:[10,40],end:[40,60],style:{colorId:'ink',strokeWidthId:'normal'}},null,2)},
+  {name:'错误: 自造工具', s:JSON.stringify({tool:'circle',region:'analysis',start:[10,10],end:[50,50]},null,2)},
+  {name:'错误: 改颜色', s:JSON.stringify({tool:'rough-notation',action:'underline',
+    target:{region:'question',exactText:'test'},options:{colorId:'blue'},order:1},null,2)},
+  {name:'错误: Agent 填时长', s:JSON.stringify({tool:'rough-line',region:'analysis',
+    start:[10,45],end:[50,45],durationMs:2000},null,2)},
+  {name:'错误: 坐标越界', s:JSON.stringify({tool:'rough-line',region:'analysis',
+    start:[150,45],end:[50,45]},null,2)},
+  {name:'综合: 多动作入队', s:JSON.stringify([
+    {tool:'rough-notation',action:'underline',target:{region:'question',exactText:'长方形',occurrence:1},order:1},
+    {tool:'rough-line',region:'analysis',start:[10,45],end:[50,45],order:2,style:{colorId:'red'}},
+    {tool:'rough-arrow',region:'solution',start:[20,40],end:[50,60],order:3}
+  ],null,2)}
+];
+const presetsEl=document.getElementById('presets');
+PRESETS.forEach(p=>{
+  const b=document.createElement('button');b.textContent=p.name;
+  b.onclick=()=>{document.getElementById('input').value=p.s;validate();};
+  presetsEl.appendChild(b);
+});
+
+document.getElementById('input').value=PRESETS[0].s;
+validate();
+renderQueue();
+</script>
+</body>
+</html>

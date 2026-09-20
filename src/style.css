@@ -1,0 +1,661 @@
+:root {
+  color-scheme: light;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* 甲方画布锚（严格冻结，不可更改） */
+  --canvas-design-w: 1726;
+  --canvas-design-h: 980;
+  --canvas-aspect: 1.7612;
+
+  /*
+   * 治愈可爱·手账小账本风格色彩系统
+   */
+  --ink-deep: #163b3d;
+  --ink: #31595a;
+  --muted: #708786;
+
+  --positive: #16856f;
+  --positive-strong: #116b5b;
+  --positive-pale: #dff4ea;
+
+  --brand: #16856f;
+  --brand-soft: #dff4ea;
+
+  --danger: #d95f5f;
+  --danger-pale: #ffe7e1;
+
+  --warning: #9a6a18;
+  --warning-pale: #fff2c7;
+
+  --sun: #f6c95f;
+  --sun-pale: #fff2c7;
+
+  --blue: #5c88b8;
+  --blue-pale: #e8f1fa;
+
+  --paper: #f8f5ed;
+  --surface: #fffdf7;
+  --surface-soft: #edf7f0;
+  --surface-raised: #fffaf0;
+
+  --line: #d7ded5;
+  --line-strong: #b9cdc5;
+
+  /* 阴影与圆角：温润自然可爱手账微浮感 */
+  --shadow: 0 1px 0 rgba(22, 59, 61, 0.04), 0 8px 24px rgba(22, 59, 61, 0.055);
+  --shadow-soft: 0 4px 14px rgba(22, 59, 61, 0.065);
+  --card-radius: 18px;
+  --control-radius: 12px;
+
+  /* 页面参数 */
+  --page-max-width: min(1560px, 95vw);
+  --page-padding-x: 28px;
+  --page-padding-y: 20px;
+  --header-height: 56px;
+  --header-padding-x: 28px;
+  --card-shadow: var(--shadow);
+  --card-shadow-hover: 0 12px 28px rgba(22, 59, 61, 0.08);
+  --main-gap: 20px;
+  --board-preview-max: 100%;
+
+  /* 兼容既有全局变量别名映射 */
+  --color-primary: var(--positive);
+  --color-primary-hover: var(--positive-strong);
+  --color-primary-light: var(--positive-pale);
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-soft);
+  --color-border: var(--line);
+  --color-border-subtle: #edf1eb;
+  --color-text-main: var(--ink-deep);
+  --color-text-body: var(--ink);
+  --color-text-muted: var(--muted);
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-width: 320px;
+  color: var(--ink-deep);
+  background:
+    radial-gradient(circle at 92% 6%, #dff4ea, transparent 34%),
+    radial-gradient(circle at 8% 92%, #fff2c7, transparent 28%),
+    linear-gradient(145deg, #f8f5ed, #edf7f0);
+  background-attachment: fixed;
+}
+
+button, input, textarea { font: inherit; }
+
+#app { min-height: 100vh; }
+
+.qh-page {
+  min-height: 100vh;
+  background: transparent;
+}
+
+.qh-page-header.ant-layout-header,
+.qh-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-height);
+  line-height: var(--header-height);
+  padding: 0 var(--header-padding-x);
+  background: color-mix(in srgb, #fffdf7 90%, transparent);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 2px 10px rgba(22, 59, 61, 0.03);
+}
+
+.qh-page-content {
+  width: 100%;
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  padding: var(--page-padding-y) var(--page-padding-x) 32px;
+}
+
+.qh-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.qh-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--ink-deep);
+  letter-spacing: -0.02em;
+}
+
+.qh-brand-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--ink-deep);
+  color: #fffdf7;
+  font-size: 16px;
+  box-shadow: 0 2px 6px rgba(22, 59, 61, 0.2);
+}
+
+.qh-step-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--positive-strong);
+  background: var(--positive-pale);
+  border: 1px solid var(--line-strong);
+  padding: 3px 12px;
+  border-radius: 9999px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.qh-header-subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.qh-back-btn {
+  color: var(--muted);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--control-radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  transition: all 0.16s ease;
+}
+
+.qh-back-btn:hover {
+  color: var(--ink-deep);
+  background: var(--brand-soft);
+  border-color: var(--brand);
+  transform: scale(1.04);
+}
+
+.qh-surface-card.ant-card {
+  border-radius: var(--card-radius);
+  border: 1px solid var(--line);
+  box-shadow: var(--card-shadow);
+  background: color-mix(in srgb, var(--surface) 97%, transparent);
+  transition: box-shadow 0.24s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.24s ease, transform 0.24s ease;
+}
+
+.qh-surface-card.ant-card:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--card-shadow-hover);
+}
+
+.qh-surface-card.ant-card .ant-card-head {
+  min-height: 52px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--line);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--ink-deep);
+}
+
+.qh-surface-card.ant-card .ant-card-body {
+  padding: 18px 20px;
+}
+
+/* 治愈系按钮精细化设计 */
+.ant-btn {
+  border-radius: var(--control-radius);
+  font-size: 13px;
+  font-weight: 600;
+  border-color: var(--line);
+  color: var(--ink);
+  background: var(--surface);
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.ant-btn:hover:not(:disabled) {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: var(--surface-soft);
+}
+
+.ant-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.ant-btn-primary {
+  border-radius: var(--control-radius);
+  height: 36px;
+  padding: 0 18px;
+  font-weight: 600;
+  color: #ffffff !important;
+  background: var(--positive-strong) !important;
+  border-color: var(--positive-strong) !important;
+  box-shadow: 0 2px 8px rgba(17, 107, 91, 0.22) !important;
+}
+
+.ant-btn-primary:hover:not(:disabled) {
+  background: var(--positive) !important;
+  border-color: var(--positive) !important;
+  box-shadow: 0 4px 14px rgba(17, 107, 91, 0.3) !important;
+  transform: translateY(-1px);
+}
+
+.ant-btn-primary:active:not(:disabled) {
+  transform: scale(0.97) !important;
+  background: #0d5447 !important;
+}
+
+.ant-btn-default {
+  border-radius: var(--control-radius);
+  height: 36px;
+  padding: 0 16px;
+  border-color: var(--line);
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.ant-btn-default:hover:not(:disabled) {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: var(--surface-soft);
+}
+
+/* 键盘焦点可见性 */
+.ant-btn-primary:focus-visible,
+.ant-btn-default:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--brand) 35%, transparent);
+  outline-offset: 2px;
+}
+
+.qh-handoff-steps {
+  margin: 4px 0 20px;
+}
+
+.qh-handoff-stats {
+  margin-bottom: 16px;
+}
+
+.qh-handoff-stats .ant-statistic {
+  min-height: 72px;
+  padding: 12px 14px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+}
+
+.qh-handoff-stats .ant-statistic-title {
+  margin-bottom: 4px;
+  color: var(--muted);
+}
+
+.qh-handoff-stats .ant-statistic-content {
+  color: var(--ink-deep);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* 减少动效偏好：前庭功能障碍用户，禁用上浮和过渡 */
+@media (prefers-reduced-motion: reduce) {
+  .ant-btn-primary,
+  .ant-btn-default {
+    transition: none;
+  }
+  .ant-btn-primary:hover,
+  .ant-btn-default:hover {
+    transform: none;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --page-max-width: 100%;
+    --board-preview-max: 100%;
+  }
+
+  .qh-page-header.ant-layout-header,
+  .qh-page-header {
+    height: auto;
+    min-height: var(--header-height);
+    padding: 8px 11px;
+    gap: 8px;
+    flex-wrap: wrap;
+    line-height: 1.4;
+  }
+
+  .qh-page-header .qh-brand {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .qh-page-header > .ant-space {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+}
+
+/* ===== 全局容器换行保护（排除板书画布） ===== */
+/* 防止长文本、长URL、公式、代码等溢出容器 */
+.ant-card-body,
+.ant-descriptions-item-content,
+.ant-descriptions-item-label,
+.ant-table-tbody > tr > td,
+.ant-table-thead > tr > th,
+.ant-typography,
+.ant-tag,
+.qh-surface-card,
+.qh-handoff-stats .ant-statistic,
+.qh-section-title {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* 描述列表：长内容强制换行，不撑宽容器 */
+.ant-descriptions-item-content {
+  min-width: 0;
+}
+
+/* 表格单元格：允许内容在列宽内换行 */
+.ant-table-cell {
+  min-width: 0;
+}
+
+/* 极简半透明浅浅滑动条规范：针对 iframe、全局容器与 Ant Design 表格 */
+html, body, #app, .ant-table-body, .ant-table-content, .ant-table-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.16) transparent;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+#app::-webkit-scrollbar,
+.ant-table-body::-webkit-scrollbar,
+.ant-table-content::-webkit-scrollbar,
+.ant-table-container::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track,
+#app::-webkit-scrollbar-track,
+.ant-table-body::-webkit-scrollbar-track,
+.ant-table-content::-webkit-scrollbar-track,
+.ant-table-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb,
+#app::-webkit-scrollbar-thumb,
+.ant-table-body::-webkit-scrollbar-thumb,
+.ant-table-content::-webkit-scrollbar-thumb,
+.ant-table-container::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.16);
+  border-radius: 999px;
+}
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover,
+#app::-webkit-scrollbar-thumb:hover,
+.ant-table-body::-webkit-scrollbar-thumb:hover,
+.ant-table-content::-webkit-scrollbar-thumb:hover,
+.ant-table-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.32);
+}
+
+/* =========================================================
+   治愈系手账 "biu" 软软小气泡交互与提示条动效
+   ========================================================= */
+
+/* 1. 按钮点击软萌缩放弹性反馈 */
+button:active,
+.ant-btn:active,
+.btn-cute-action:active,
+.btn-cute-query-knowledge:active,
+.btn-cute-confirm-next:active,
+.knowledge-paper-slip:active {
+  transform: scale(0.92) !important;
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+/* 2. 点击爆开的马卡龙微气泡粒子 */
+.biu-soap-bubble {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: inset 1.5px 1.5px 3px rgba(255, 255, 255, 0.9), 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-width: 1.5px;
+  border-style: solid;
+  animation: biuSoapFloat 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes biuSoapFloat {
+  0% {
+    transform: translate(0, 0) scale(0.35);
+    opacity: 0.95;
+  }
+  60% {
+    opacity: 1;
+    transform: translate(var(--dx), var(--dy)) scale(1.15);
+  }
+  100% {
+    transform: translate(calc(var(--dx) * 1.3), calc(var(--dy) * 1.3 - 12px)) scale(1.35);
+    opacity: 0;
+  }
+}
+
+/* 3. 点击爆开的小文字胶囊气泡 (biu~ ✨) */
+.biu-popup-pill {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  background: color-mix(in srgb, #163b3d 92%, transparent);
+  color: #fffdf7;
+  font-size: 11.5px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 14px rgba(22, 59, 61, 0.22);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  white-space: nowrap;
+  animation: biuPillFloat 0.72s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes biuPillFloat {
+  0% {
+    transform: translate(-50%, 0) scale(0.6);
+    opacity: 0;
+  }
+  25% {
+    transform: translate(-50%, -18px) scale(1.12);
+    opacity: 1;
+  }
+  65% {
+    transform: translate(-50%, -30px) scale(1);
+    opacity: 0.95;
+  }
+  100% {
+    transform: translate(-50%, -46px) scale(0.9);
+    opacity: 0;
+  }
+}
+
+/* 4. 全局 Ant Design 弹窗提示条（Message Toast）软糯气泡重塑 */
+.ant-message {
+  top: 74px !important;
+  z-index: 99999 !important;
+}
+
+.ant-message-notice {
+  padding: 6px 0 !important;
+  text-align: center !important;
+}
+
+.ant-message-notice-content {
+  display: inline-flex !important;
+  align-items: center !important;
+  background: #fffdf7 !important;
+  border: 1.5px solid var(--line-strong, #b9cdc5) !important;
+  border-radius: 9999px !important;
+  padding: 9px 22px !important;
+  box-shadow: 0 10px 30px rgba(22, 59, 61, 0.12), 0 3px 10px rgba(22, 133, 111, 0.08) !important;
+  animation: biuMessagePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both !important;
+  position: relative !important;
+  overflow: visible !important;
+}
+
+/* 提示条顶部的柔光气泡高光感 */
+.ant-message-notice-content::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 14px;
+  right: 14px;
+  height: 45%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0) 100%);
+  border-radius: 9999px;
+  pointer-events: none;
+}
+
+@keyframes biuMessagePop {
+  0% {
+    transform: translateY(-16px) scale(0.85);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(4px) scale(1.04);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.ant-message-custom-content {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: var(--ink-deep, #163b3d) !important;
+}
+
+.ant-message-custom-content .anticon {
+  font-size: 16px !important;
+  animation: biuIconBounce 0.5s ease-out !important;
+}
+
+@keyframes biuIconBounce {
+  0% { transform: scale(0.4) rotate(-15deg); }
+  60% { transform: scale(1.25) rotate(5deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* 状态色温和定制：手账马卡龙软质感 */
+.ant-message-success .ant-message-notice-content,
+.ant-message-notice:has(.ant-message-success) .ant-message-notice-content {
+  background: linear-gradient(135deg, #fffdf7 0%, #f0fdf4 100%) !important;
+  border-color: #a7f3d0 !important;
+}
+.ant-message-success .anticon {
+  color: #16856f !important;
+}
+
+.ant-message-warning .ant-message-notice-content,
+.ant-message-notice:has(.ant-message-warning) .ant-message-notice-content {
+  background: linear-gradient(135deg, #fffdf7 0%, #fffbeb 100%) !important;
+  border-color: #fde68a !important;
+}
+.ant-message-warning .anticon {
+  color: #d97706 !important;
+}
+
+.ant-message-info .ant-message-notice-content,
+.ant-message-notice:has(.ant-message-info) .ant-message-notice-content {
+  background: linear-gradient(135deg, #fffdf7 0%, #f0f9ff 100%) !important;
+  border-color: #bae6fd !important;
+}
+.ant-message-info .anticon {
+  color: #38bdf8 !important;
+}
+
+.ant-message-error .ant-message-notice-content,
+.ant-message-notice:has(.ant-message-error) .ant-message-notice-content {
+  background: linear-gradient(135deg, #fffdf7 0%, #fff1f2 100%) !important;
+  border-color: #fecdd3 !important;
+}
+.ant-message-error .anticon {
+  color: #f43f5e !important;
+}
+
+/* 5. Tooltip 与 Popover 软软小气泡化 */
+.ant-tooltip-inner {
+  border-radius: 9999px !important;
+  padding: 6px 14px !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  background: var(--ink-deep, #163b3d) !important;
+  color: #fffdf7 !important;
+  box-shadow: 0 6px 18px rgba(22, 59, 61, 0.22) !important;
+}
+
+.ant-popover-inner {
+  border-radius: 16px !important;
+  background: #fffdf7 !important;
+  border: 1.5px solid var(--line, #d7ded5) !important;
+  box-shadow: 0 10px 30px rgba(22, 59, 61, 0.12) !important;
+  padding: 14px 16px !important;
+}
+
+/* 6. Alert 提示条棉花糖化 */
+.ant-alert {
+  border-radius: 14px !important;
+  border-width: 1.5px !important;
+  box-shadow: 0 2px 8px rgba(22, 59, 61, 0.04) !important;
+}
+.ant-alert-info {
+  background: #f0f9ff !important;
+  border-color: #bae6fd !important;
+}
+.ant-alert-success {
+  background: #f0fdf4 !important;
+  border-color: #bbf7d0 !important;
+}
+.ant-alert-warning {
+  background: #fffbeb !important;
+  border-color: #fae69e !important;
+}
+.ant-alert-error {
+  background: #fff0f3 !important;
+  border-color: #fed7e2 !important;
+}
+
+/* 7. Modal 弹窗软萌大圆角与柔和阴影 */
+.ant-modal-content {
+  border-radius: 22px !important;
+  background: #fffdf7 !important;
+  border: 1.5px solid var(--line, #d7ded5) !important;
+  box-shadow: 0 16px 48px rgba(22, 59, 61, 0.16) !important;
+  animation: biuModalSpring 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both !important;
+}
+
+@keyframes biuModalSpring {
+  0% { transform: scale(0.92); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}

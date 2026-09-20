@@ -1,0 +1,51 @@
+{
+  "name": "hand-action-control",
+  "version": "1.0.0",
+  "archetype": "workflow",
+  "description": "板书手部动作互斥调度与一维单手时间线技巧蒸馏。teacher-hand-exclusive 互斥，3 个注册工具白名单，时长由程序算，Agent 不得填秒数。",
+  "created": "2026-09-19",
+  "updated": "2026-09-19",
+  "sources": [
+    "src/board-tools/handActionScheduler.js",
+    "src/board-tools/boardToolCatalog.js",
+    "src/board-tools/roughNotationTool.js",
+    "src/board-tools/roughDrawingTool.js",
+    "src/agent-b-v2/timing.js"
+  ],
+  "distillation_contract": "Distill [手部动作互斥调度与一维单手时间线] as a [workflow] pack so it can help with [Agent B 写 actionSpec / 渲染层动作调度 / Check Agent 校验工具合法性], using [src/board-tools/handActionScheduler.js + boardToolCatalog.js + roughNotationTool.js + roughDrawingTool.js + timing.js], while respecting [teacher-hand-exclusive 互斥 / 只用注册工具白名单 / 时长由程序算 Agent 不得填秒数 / 抬笔间隔硬下限].",
+  "core_sections": [
+    "互斥模型（teacher-hand-exclusive）",
+    "工具白名单（3 个注册工具）",
+    "rough-notation（划重点）",
+    "rough-line / rough-arrow（画几何）",
+    "一维单手时间线",
+    "actionSpec 输出规范",
+    "反模式与失败模式"
+  ],
+  "key_rules": [
+    "互斥模式: teacher-hand-exclusive, 任意时刻只一笔",
+    "L4 用户透明层不进互斥队列",
+    "工具白名单: rough-notation(underline/highlight) / rough-line / rough-arrow",
+    "Agent 不得自造工具名, 不在白名单 → 校验失败",
+    "Agent 不得填 durationMs / estimatedDurationMs / gapAfterMs / seed",
+    "时长由程序按汉字宽度 400ms/字自动算 (rough-notation)",
+    "时长由程序按几何长度 180px/s 自动算 (rough-line/rough-arrow), 最短 600ms",
+    "抬笔间隔硬下限 MIN_HAND_LIFT_GAP_MS = 600ms",
+    "下划线颜色锁定 red #d64545, 高亮颜色锁定 yellow #f8e58c",
+    "笔宽 normal=2 / emphasis=3",
+    "坐标百分比 0—100 原点左上, 不得越界",
+    "rough 图形只能画在 question/analysis/solution/summary 区域内",
+    "箭头由程序自动生成, Agent 只给 start/end",
+    "cancelAll() 用 generation += 1 让所有在途任务抛 '已取消'",
+    "enqueueAll 按 order 升序排列后逐个 enqueue",
+    "单 Row 时间线: 口播+板书+动作取最大, 跨 Row 加 ROW_GAP_MS=1500ms",
+    "板书起手延迟: min(2000, max(1000, speechDurationMs * 0.2)), 可被 row.board.startDelay 覆盖"
+  ],
+  "confidence": "high",
+  "boundaries": [
+    "本 skill 只覆盖动作调度与白名单, 不覆盖口播语速/标点停顿 (见 speech-board-timing)",
+    "不覆盖布局坐标 (见 board-zone-layout)",
+    "不覆盖字体加载 (见 handwriting-font-policy)",
+    "不覆盖教学方法/四环教学法/人设风格"
+  ]
+}
