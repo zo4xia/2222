@@ -1436,6 +1436,16 @@ function isRefineFieldEqual(original, refined) {
         size="middle"
         style="width:100%"
       >
+        <!-- ponytail: 交接状态进度条独立放在交接台卡片之外（用户要求） -->
+        <div class="handoff-progress-strip">
+          <span class="handoff-summary-label">交接状态</span>
+          <a-steps
+            class="qh-handoff-steps"
+            size="small"
+            :items="handoffFlowSteps"
+          />
+        </div>
+
         <a-card
           class="qh-surface-card handoff-workbench-card"
           size="small"
@@ -1478,15 +1488,6 @@ function isRefineFieldEqual(original, refined) {
             <span class="handoff-stat-tag">标准真画布 1726×980</span>
           </div>
 
-          <!-- ponytail: 交接状态进度条挪到表外上方（一打开就有“在执行”感） -->
-          <div class="handoff-progress-strip">
-            <span class="handoff-summary-label">交接状态</span>
-            <a-steps
-              class="qh-handoff-steps"
-              size="small"
-              :items="handoffFlowSteps"
-            />
-          </div>
 
           <div v-show="handoffDetailsExpanded" class="handoff-details-collapsible" style="margin-top: 14px; border-top: 1px solid #f1f5f9; padding-top: 12px;">
           <!-- ponytail: 三大板块改 a-tabs 切换（消除横向滑动条 + 卡片高度不齐的分合感） -->
