@@ -20,3 +20,4 @@ dev-smoke.log
 .codebuddy/
 .codegraph/
 .vscode/
+.env
