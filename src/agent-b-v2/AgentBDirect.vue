@@ -33,6 +33,7 @@ import {
 } from '@ant-design/icons-vue'
 import QhPageHeader from '../components/QhPageHeader.vue'
 import ProcessLoadingModal from '../components/ProcessLoadingModal.vue'
+import RealBoardPreview from '../components/RealBoardPreview.vue'
 import { getAgentBoardToolCatalog } from '../board-tools/boardToolCatalog.js'
 import { BOARD_MARK_COLORS } from '../board-tools/roughNotationTool.js'
 import { ROUGH_DRAWING_COLORS } from '../board-tools/roughDrawingTool.js'
@@ -387,6 +388,12 @@ const totalEstimatedStats = computed(() => {
 const totalActionCount = computed(() => {
   if (!rows.value.length) return 0
   return rows.value.reduce((acc, r) => acc + (Array.isArray(r.actionSpec) ? r.actionSpec.length : 0), 0)
+})
+
+// ponytail: 合并所有行的 actionSpec 给画布预览播放
+const allActionSpec = computed(() => {
+  if (!rows.value.length) return []
+  return rows.value.flatMap(r => Array.isArray(r.actionSpec) ? r.actionSpec : [])
 })
 
 // 纯前端本地数学算式口播兜底秒级转换（双保险核心）
@@ -2450,6 +2457,43 @@ function isRefineFieldEqual(original, refined) {
           </a-table>
         </div>
       </a-card>
+
+          <!-- ponytail: B 页画布预览区 — 生成后直接看板书+动作渲染 -->
+          <a-card
+            v-if="rows.length"
+            class="qh-surface-card studio-canvas-preview-card"
+            :bordered="false"
+            size="small"
+          >
+            <template #title>
+              <div class="canvas-preview-title">
+                <span class="canvas-preview-badge">🎨</span>
+                <span class="canvas-preview-text">画布预览 · 板书与动作实时渲染</span>
+                <a-tag color="blue" size="small" style="margin-left: 8px;">1726×980 · 四区坐标</a-tag>
+              </div>
+            </template>
+            <template #extra>
+              <a-button size="small" @click="openHanddrawPlayer" title="打开全屏演播单页">
+                <template #icon><VideoCameraOutlined /></template>
+                全屏演播
+              </a-button>
+            </template>
+            <RealBoardPreview
+              :canvas-image-url="'/canvas.png'"
+              :problem-text="handoff?.problemText || ''"
+              :board-plan="handoff?.boardPlan || null"
+              :topic-layout="null"
+              :show-grid="false"
+              :show-all-labels="true"
+              :show-zone-guides="true"
+              :interactive="false"
+              :source-image-url="handoff?.screenshotUrl || ''"
+              :keep-original="false"
+              :action-spec="allActionSpec"
+              :board-rows="rows"
+              :auto-play="true"
+            />
+          </a-card>
 
         <a-card
           v-if="toolsOpen"
@@ -4710,6 +4754,24 @@ function isRefineFieldEqual(original, refined) {
 .handoff-progress-strip .qh-handoff-steps {
   flex: 1;
   min-width: 0;
+}
+
+/* ponytail: 画布预览卡片 */
+.studio-canvas-preview-card {
+  margin-top: 14px;
+}
+.canvas-preview-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.canvas-preview-badge {
+  font-size: 18px;
+}
+.canvas-preview-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
 }
 
 /* ponytail: 三大板块改 a-tabs（消除横向滑动条 + 卡内滚动条，不再分合感） */
