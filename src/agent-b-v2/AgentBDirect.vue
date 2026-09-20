@@ -34,6 +34,8 @@ import {
 import QhPageHeader from '../components/QhPageHeader.vue'
 import ProcessLoadingModal from '../components/ProcessLoadingModal.vue'
 import { getAgentBoardToolCatalog } from '../board-tools/boardToolCatalog.js'
+import { BOARD_MARK_COLORS } from '../board-tools/roughNotationTool.js'
+import { ROUGH_DRAWING_COLORS } from '../board-tools/roughDrawingTool.js'
 import { saveLiveBoardPreview } from '../board-preview/liveBoardPreview.js'
 import { generateAgentBV2Rows } from './service.js'
 import { applyAgentBV2Timeline, computeRowGroupTimeline, countCharacters, estimateSpeechDurationMs, AGENT_B_V2_SPEECH_RATE } from './timing.js'
@@ -1487,14 +1489,10 @@ function isRefineFieldEqual(original, refined) {
           </div>
 
           <div v-show="handoffDetailsExpanded" class="handoff-details-collapsible" style="margin-top: 14px; border-top: 1px solid #f1f5f9; padding-top: 12px;">
-          <!-- ponytail: 三大卡片分区（配比+参数 / 元数据 / 题目分析+知识点），滑动式降疲劳 -->
-          <a-row :gutter="[12, 12]" class="handoff-tri-cards">
-            <!-- 卡片1: 配比提示 + 参数信息 -->
-            <a-col :xs="24" :md="12" :lg="8">
-              <a-card class="qh-surface-card handoff-block-card" :bordered="false" size="small">
-                <template #title>
-                  <div class="qh-section-title brown">📊 配比提示 + 参数信息</div>
-                </template>
+          <!-- ponytail: 三大板块改 a-tabs 切换（消除横向滑动条 + 卡片高度不齐的分合感） -->
+          <a-card class="qh-surface-card handoff-block-card" :bordered="false" size="small">
+            <a-tabs type="card" size="small" class="handoff-tri-tabs">
+              <a-tab-pane key="ratio" tab="📊 配比提示 + 参数信息">
                 <div v-if="handoff?.stageRatioSuggestion || handoff?.['环节配比占比']" class="stage-ratio-suggestion">
                   <a-descriptions
                     bordered
@@ -1597,15 +1595,9 @@ function isRefineFieldEqual(original, refined) {
                     </div>
                   </a-descriptions-item>
                 </a-descriptions>
-              </a-card>
-            </a-col>
+              </a-tab-pane>
 
-            <!-- 卡片2: 交接元数据 -->
-            <a-col :xs="24" :md="12" :lg="8">
-              <a-card class="qh-surface-card handoff-block-card" :bordered="false" size="small">
-                <template #title>
-                  <div class="qh-section-title brown">📦 交接元数据</div>
-                </template>
+              <a-tab-pane key="meta" tab="📦 交接元数据">
                 <a-descriptions
                   bordered
                   size="small"
@@ -1656,18 +1648,9 @@ function isRefineFieldEqual(original, refined) {
                     </div>
                   </a-descriptions-item>
                 </a-descriptions>
-              </a-card>
-            </a-col>
+              </a-tab-pane>
 
-            <!-- 卡片3: 题目分析 + 知识点 -->
-            <a-col :xs="24" :md="24" :lg="8">
-              <a-card class="qh-surface-card handoff-block-card" :bordered="false" size="small">
-                <template #title>
-                  <div class="qh-section-title brown">
-                    💡 题目分析 + 知识点
-                    <a-tag v-if="refineAppliedAt" color="green" style="margin-left: 6px;">已应用修缮</a-tag>
-                  </div>
-                </template>
+              <a-tab-pane key="kg" tab="💡 题目分析 + 知识点">
                 <a-alert
                   v-if="refineAppliedAt"
                   type="success"
@@ -1768,9 +1751,9 @@ function isRefineFieldEqual(original, refined) {
                     {{ item.knowledgePoint || '未命名知识点' }}
                   </a-tag>
                 </div>
-              </a-card>
-            </a-col>
-          </a-row>
+              </a-tab-pane>
+            </a-tabs>
+          </a-card>
           </div>
         </a-card>
 
@@ -4686,19 +4669,20 @@ function isRefineFieldEqual(original, refined) {
   50%      { opacity: 0.4; transform: scale(0.8); }
 }
 
-/* ponytail: 三大卡片滑动式（避免过长卡片疲劳） */
-.handoff-tri-cards {
-  overflow-x: auto;
-  padding-bottom: 6px;
-  scrollbar-width: thin;
+/* ponytail: 三大板块改 a-tabs（消除横向滑动条 + 卡内滚动条，不再分合感） */
+.handoff-tri-tabs :deep(.ant-tabs-nav) {
+  margin-bottom: 12px;
 }
-.handoff-tri-cards > .ant-col {
-  min-width: 320px;
+.handoff-tri-tabs :deep(.ant-tabs-tab) {
+  font-size: 13px;
+  font-weight: 600;
+  color: #92400e;
+}
+.handoff-tri-tabs :deep(.ant-tabs-tab-active) {
+  color: #b45309;
 }
 .handoff-block-card {
-  height: 100%;
-  max-height: 70vh;
-  overflow-y: auto;
+  margin-bottom: 14px;
 }
 
 /* ponytail: 步骤徽章 (1/2/3/4 引导用户先按什么再干什么) */
@@ -5097,4 +5081,4 @@ function isRefineFieldEqual(original, refined) {
   border-left: 3px solid #52c41a;
 }
 </style>
-                                                                                                                                                                                                                                                                                                           
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
