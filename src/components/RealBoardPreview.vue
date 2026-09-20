@@ -78,6 +78,8 @@ function normalizeActionSpecItem(item) {
 
 // ponytail: parseBoardContent 归并到 contract.js#normalizeBoard 唯一真源
 import { normalizeBoard } from '../agent-b-v2/contract.js'
+// ponytail: 板书文字渲染前过 superFilter 10 步清洗
+import { normalizeBoardLine } from '../utils/superFilter.js'
 function parseBoardContent(board) {
   return { content: normalizeBoard(board).content }
 }
@@ -100,12 +102,19 @@ function regionStyle(region) {
   }
 }
 
+// ponytail: 板书文字渲染前过 superFilter 10 步清洗 (×→x, ÷→/, \frac, \sqrt, LaTeX→Unicode, $删除等)
 const boardTextRows = computed(() => (props.boardRows || [])
   .map((row, index) => {
     const board = parseBoardContent(row?.board)
     if (!board.content.trim()) return null
+    // 每行板书内容过 superFilter
+    const filteredContent = board.content.split('\n')
+      .map(line => normalizeBoardLine(line))
+      .filter(line => line.length)
+      .join('\n')
+    if (!filteredContent.trim()) return null
     const region = resolveBoardRegion(row)
-    return { id: `${region}-${index}`, region, content: board.content }
+    return { id: `${region}-${index}`, region, content: filteredContent }
   })
   .filter(Boolean))
 
