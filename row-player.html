@@ -1188,6 +1188,10 @@ async function loadFromUrlOrDefault(){
           if (json.projectCode) DATA.projectCode = json.projectCode;
           if (json.problemText) DATA.problemText = json.problemText;
           if (json.boardPlan) DATA.boardPlan = json.boardPlan;
+          if (json.screenshotUrl) DATA.screenshotUrl = json.screenshotUrl;
+          // 题目图：与 normData 同源优先级，补上 localStorage 路径漏传的图片
+          const img = pick(json, ['screenshotDataUrl','screenshotUrl','sourceImageUrl','problemImage']);
+          if (img) { DATA.problemImage = img; setProblemImage(img); }
           DATA.rows = rows;
           load(DATA);
           console.info('[row-player] 已从 localStorage 加载:', '(' + rows.length + ' 行)');
@@ -1212,6 +1216,9 @@ async function loadFromUrlOrDefault(){
     if (json.problemText) DATA.problemText = json.problemText;
     if (json.boardPlan) DATA.boardPlan = json.boardPlan;
     if (json.screenshotUrl) DATA.screenshotUrl = json.screenshotUrl;
+    // 题目图：与 normData 同源优先级，URL 参数路径也补上 setProblemImage
+    const img = pick(json, ['screenshotDataUrl','screenshotUrl','sourceImageUrl','problemImage']);
+    if (img) { DATA.problemImage = img; setProblemImage(img); }
     DATA.rows = rows;
     load(DATA);
     console.info('[row-player] 已从 URL 参数加载:', url, '(' + rows.length + ' 行)');
