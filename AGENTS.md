@@ -127,6 +127,16 @@ Before project work starts:
 
 @RTK.md
 
+## Base44 Dev Environment
+
+- The app runs via `docker-compose.base44.yml` (single `web` service, `node:22-slim`, bind-mounted source at `/app`).
+- Dev command: `npm run dev` → Vite dev server on port 3000, `host: 0.0.0.0`, `allowedHosts: true` (already in `vite.config.js`).
+- Single-origin: Vite serves both frontend and API. All API routes are Vite middleware plugins defined in `server/*.js` and wired in `vite.config.js`. No separate backend process, no database.
+- AI provider credentials (apiKey/endpoint/model) are entered by the user at runtime through the frontend "Agent 配置" panel — they are NOT env vars and NOT required to boot.
+- `FISH_AUDIO_API_KEY` is optional (built-in default key exists). `UPSTREAM_HOSTS` and `CORS_ORIGINS` are optional whitelists; empty = allow all / no CORS headers.
+- Health check: `GET /api/health` returns `{ ok: true }`.
+- Known non-critical: handwriting font CDN `fontsapi.zeoseven.com/490/main/result.css` is unreachable in the sandbox; the app gracefully falls back to system KaiTi.
+
 ## Notes
 
 - 跨环境工具避坑 **Why:** Windows、严格云端 Node、Git 精确暂存和工具批次的默认行为会制造假失败或漏跑验证；必须依据真实退出码与文件状态定位。 **How to apply:** - ESM 配置路径：不使用 `_…

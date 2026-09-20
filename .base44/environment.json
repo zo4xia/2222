@@ -1,0 +1,13 @@
+{
+  "previewPort": 3000,
+  "healthPath": "/api/health",
+  "startCommand": "docker compose -f docker-compose.base44.yml up -d",
+  "secrets": [
+    {
+      "name": "FISH_AUDIO_API_KEY",
+      "description": "Optional Fish Audio TTS API key. The app has a built-in default key; provide your own to override it. Get one at https://docs.fish.audio/developer-guide/getting-started/quickstart",
+      "requiredAtBoot": false,
+      "generatedForDevelopment": false
+    }
+  ]
+}
