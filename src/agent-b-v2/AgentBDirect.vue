@@ -1819,148 +1819,99 @@ function isRefineFieldEqual(original, refined) {
 
           <template #extra>
             <div class="studio-actions-container">
-              <!-- ponytail: 步骤引导 — 步骤①先生成 → ②校验 → ③演播 → ④导出 -->
+              <!-- ponytail: 精简为 5 个必须按钮, 删掉 yagni/dead 的 -->
 
-              <!-- 步骤① 生成五字段（必先做） -->
-              <div class="action-btn-group group-generate">
-                <a-button
-                  type="primary"
-                  class="btn-main-generate btn-step-1"
-                  :loading="state === 'generating'"
-                  title="Shift+点击强制刷新缓存。第一步：先点这里生成五字段执行表"
-                  @click="(e) => generateRows(e.shiftKey)"
-                >
-                  <template #icon>
-                    <ThunderboltOutlined />
-                  </template>
-                  <span class="step-badge">1</span>
-                  {{ rows.length ? '重新生成五字段' : '生成 Agent B 五字段' }}
+              <!-- ① 生成五字段 -->
+              <a-button
+                type="primary"
+                class="btn-main-generate"
+                :loading="state === 'generating'"
+                title="Shift+点击强制刷新缓存"
+                @click="(e) => generateRows(e.shiftKey)"
+              >
+                <template #icon><ThunderboltOutlined /></template>
+                {{ rows.length ? '重新生成' : '生成五字段' }}
+              </a-button>
+
+              <!-- ② ASR 优化 -->
+              <a-button
+                type="primary"
+                class="btn-asr-fallback"
+                :disabled="!rows.length || state === 'generating'"
+                title="纯前端本地数学算式语音优化（分数/未知数/幂运算/括号混合）"
+                @click="runInstantMathAsrPolish"
+              >
+                <template #icon><SafetyCertificateOutlined /></template>
+                ASR 优化
+              </a-button>
+
+              <!-- ③ Check Agent -->
+              <a-button
+                :disabled="!rows.length || state === 'generating'"
+                :loading="checkState === 'checking'"
+                class="btn-check-agent"
+                title="调用 Check Agent 对口播与板书做语义与节奏润色"
+                @click="checkRows('standard')"
+              >
+                <template #icon><CheckCircleOutlined /></template>
+                Check Agent
+              </a-button>
+
+              <!-- ④ 教学微课演播（含生成板书html播放录制页面） -->
+              <a-button
+                type="primary"
+                class="btn-open-handdraw-player"
+                :disabled="!rows.length"
+                style="background: #2563eb; font-weight: 600;"
+                title="在统一演播单页中播放音画微课、录制导出视频、交付物展示"
+                @click="openHanddrawPlayer"
+              >
+                <template #icon><VideoCameraOutlined /></template>
+                🎬 演播录制
+              </a-button>
+
+              <!-- ⑤ 导出下拉（口播稿 / 画布分镜总表 / 下游API参数说明 / 完整规格JSON） -->
+              <a-dropdown :disabled="!rows.length">
+                <template #overlay>
+                  <a-menu>
+                    <a-menu-item key="speech" @click="exportSpeech">
+                      <DownloadOutlined /> 口播稿件 MD（纯语音用）
+                    </a-menu-item>
+                    <a-menu-item key="storyboard" @click="exportStoryboard">
+                      <DownloadOutlined /> 画布分镜总表 MD（导入剪辑器用）
+                    </a-menu-item>
+                    <a-menu-item key="api-spec" @click="openApiSpecDrawer">
+                      <BookOutlined /> 下游 API 参数说明（给第三方用）
+                    </a-menu-item>
+                    <a-menu-divider />
+                    <a-menu-item key="json" @click="downloadDeliverableJson">
+                      <DownloadOutlined /> 完整规格 JSON（板书+时序状态树）
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+                <a-button :disabled="!rows.length" class="btn-export-dropdown">
+                  <template #icon><DownloadOutlined /></template>
+                  导出
                 </a-button>
-              </div>
+              </a-dropdown>
 
-              <!-- 步骤② ASR 兜底与 Check Agent 校验 -->
-              <div class="action-btn-group group-asr">
-                <a-button
-                  type="primary"
-                  class="btn-asr-fallback btn-step-2"
-                  :disabled="!rows.length || state === 'generating'"
-                  title="纯前端本地数学算式语音兜底秒级转换（可选）。第二步前可先做语音兜底"
-                  @click="runInstantMathAsrPolish"
-                >
-                  <template #icon>
-                    <SafetyCertificateOutlined />
-                  </template>
-                  ASR 兜底转换
-                </a-button>
+              <!-- 配置组 -->
+              <a-button
+                class="btn-settings"
+                title="配置 Agent B API 密钥"
+                @click="apiConfigOpen = true"
+              >
+                <template #icon><KeyOutlined /></template>
+              </a-button>
 
-                <a-button
-                  :disabled="!rows.length || state === 'generating'"
-                  :loading="checkState === 'checking'"
-                  class="btn-check-agent btn-step-2"
-                  title="第二步：调用 Check Agent 对生成的口播与板书做语义与节奏润色"
-                  @click="checkRows('standard')"
-                >
-                  <template #icon>
-                    <CheckCircleOutlined />
-                  </template>
-                  <span class="step-badge">2</span>
-                  Check Agent 校验
-                </a-button>
-              </div>
-
-              <!-- 步骤③ 演播与交付 -->
-              <div class="action-btn-group group-deliverable">
-                <a-button
-                  type="primary"
-                  class="btn-open-handdraw-player btn-step-3"
-                  :disabled="!rows.length"
-                  style="background: #2563eb; font-weight: 600;"
-                  title="第三步：在统一演播单页中播放音画微课、录制导出视频、关键词分行激活与交付物展示"
-                  @click="openHanddrawPlayer"
-                >
-                  <template #icon>
-                    <VideoCameraOutlined />
-                  </template>
-                  <span class="step-badge">3</span>
-                  🎬 教学微课演播
-                </a-button>
-
-                <a-button
-                  class="btn-generate-deliverable"
-                  :disabled="!rows.length || state === 'generating'"
-                  :loading="deliverableGenerating"
-                  title="固化生成或更新最终教学视频素材参数单页与 JSON（写入 public/deliverable/ 永久存档）"
-                  @click="generateDeliverablePage"
-                >
-                  <template #icon>
-                    <FileDoneOutlined />
-                  </template>
-                  {{ deliverableResult ? '固化归档单页与 JSON' : '生成交付单页' }}
-                </a-button>
-              </div>
-
-              <!-- 步骤④ 导出与下游协议 -->
-              <div class="action-btn-group group-export">
-                <a-button
-                  class="btn-api-spec btn-step-4"
-                  title="第四步配套：查看供下游小 Agent（课件制作、画布播放）直接消费的标准 API 协议与时序互斥规则"
-                  @click="openApiSpecDrawer"
-                >
-                  <template #icon>
-                    <BookOutlined />
-                  </template>
-                  下游 Agent 规范
-                </a-button>
-
-                <a-dropdown :disabled="!rows.length">
-                  <template #overlay>
-                    <a-menu>
-                      <a-menu-item key="json" @click="downloadDeliverableJson">
-                        <DownloadOutlined /> 导出完整规格 JSON (板书与时序状态树)
-                      </a-menu-item>
-                      <a-menu-divider />
-                      <a-menu-item key="speech" @click="exportSpeech">
-                        <DownloadOutlined /> 一键导出口播稿 MD (纯语音)
-                      </a-menu-item>
-                      <a-menu-item key="elements" @click="exportElements">
-                        <DownloadOutlined /> 导出完整要素表 MD (五字段全量)
-                      </a-menu-item>
-                      <a-menu-item key="storyboard" @click="exportStoryboard">
-                        <DownloadOutlined /> 导出时序分镜表 MD (时序排版)
-                      </a-menu-item>
-                    </a-menu>
-                  </template>
-                  <a-button :disabled="!rows.length" class="btn-export-dropdown btn-step-4">
-                    <template #icon>
-                      <DownloadOutlined />
-                    </template>
-                    <span class="step-badge">4</span>
-                    导出成果物
-                  </a-button>
-                </a-dropdown>
-              </div>
-
-              <!-- 配置组（API 配置 + 风格切换下拉，不查看提示词内容） -->
-              <div class="action-btn-group group-config">
-                <a-button
-                  class="btn-settings"
-                  title="配置 Agent B API 密钥（支持多个密钥用英文逗号,隔开轮询）"
-                  @click="apiConfigOpen = true"
-                >
-                  <template #icon>
-                    <KeyOutlined />
-                  </template>
-                  API 配置
-                </a-button>
-
-                <a-select
-                  v-model:value="selectedSkillId"
-                  class="skill-style-select"
-                  style="width: 160px;"
-                  placeholder="切换讲课风格"
-                  :options="skillOptions"
-                  @change="(val) => onSkillChange(val)"
-                />
+              <a-select
+                v-model:value="selectedSkillId"
+                class="skill-style-select"
+                style="width: 160px;"
+                placeholder="切换讲课风格"
+                :options="skillOptions"
+                @change="(val) => onSkillChange(val)"
+              />
               </div>
             </div>
           </template>
