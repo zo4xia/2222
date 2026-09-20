@@ -91,7 +91,7 @@ const GENERATING_STEPS = [
 ]
 const generatingStepIndex = ref(0)
 let generatingTimer = null
-const handoffDetailsExpanded = ref(false)
+const handoffDetailsExpanded = ref(true)
 
 function startGeneratingTimer() {
   generatingStepIndex.value = 0
@@ -1462,12 +1462,12 @@ function isRefineFieldEqual(original, refined) {
               <a-tooltip title="可以点击这里，对问题进行优化校准哦" placement="bottom">
                 <a-button
                   type="primary"
-                  size="small"
+                  size="large"
                   class="btn-refine-confirm"
                   :loading="refineLoading"
                   @click="refineKnowledge"
                 >
-                  <span class="refine-btn-dot">●</span>
+                  <span class="refine-pulse-dot"></span>
                   优化确认
                 </a-button>
               </a-tooltip>
@@ -1498,7 +1498,7 @@ function isRefineFieldEqual(original, refined) {
                   <a-descriptions
                     bordered
                     size="small"
-                    :column="1"
+                    :column="{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }"
                     class="handoff-descriptions"
                   >
                     <a-descriptions-item label="题型分类">
@@ -1526,7 +1526,7 @@ function isRefineFieldEqual(original, refined) {
                 <a-descriptions
                   bordered
                   size="small"
-                  :column="1"
+                  :column="{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }"
                   class="handoff-descriptions"
                   style="margin-top: 10px;"
                 >
@@ -1554,7 +1554,7 @@ function isRefineFieldEqual(original, refined) {
                       <span class="qh-field-key">suggestedLayout</span>
                     </div>
                   </a-descriptions-item>
-                  <a-descriptions-item label="画布参数">
+                  <a-descriptions-item label="画布参数" :span="2">
                     <div v-if="handoff?.canvasParams" class="canvas-params-desc-box">
                       <div class="canvas-params-chips-wrap">
                         <span class="canvas-param-chip">
@@ -1578,7 +1578,7 @@ function isRefineFieldEqual(original, refined) {
                     </div>
                     <span v-else class="param-empty-text">未携带画布参数</span>
                   </a-descriptions-item>
-                  <a-descriptions-item label="四区参数">
+                  <a-descriptions-item label="四区参数" :span="2">
                     <div class="field-val-box wrap-box">
                       <div class="field-val-main">
                         <div class="zone-tags-grid">
@@ -1602,7 +1602,7 @@ function isRefineFieldEqual(original, refined) {
                 <a-descriptions
                   bordered
                   size="small"
-                  :column="1"
+                  :column="{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }"
                   class="handoff-descriptions"
                 >
                   <a-descriptions-item label="交接来源">
@@ -1662,7 +1662,7 @@ function isRefineFieldEqual(original, refined) {
                 <a-descriptions
                   bordered
                   size="small"
-                  :column="1"
+                  :column="{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }"
                   :class="['handoff-descriptions', { 'refine-applied-fields': refineAppliedAt }]"
                 >
                   <a-descriptions-item label="知识分析">
@@ -1671,7 +1671,7 @@ function isRefineFieldEqual(original, refined) {
                       <span class="qh-field-key">knowledgeAnalysis</span>
                     </div>
                   </a-descriptions-item>
-                  <a-descriptions-item label="知识关联点">
+                  <a-descriptions-item label="知识关联点" :span="2">
                     <div class="field-val-box wrap-box">
                       <div class="field-val-main">
                         <a-space wrap size="small">
@@ -1692,6 +1692,7 @@ function isRefineFieldEqual(original, refined) {
                   <a-descriptions-item
                     v-if="knowledgeAnalysis?.teachingFocus"
                     label="教学重点"
+                    :span="2"
                   >
                     <div class="field-val-box">
                       <span class="field-val-main font-medium">{{ knowledgeAnalysis.teachingFocus }}</span>
@@ -1701,6 +1702,7 @@ function isRefineFieldEqual(original, refined) {
                   <a-descriptions-item
                     v-if="keyFormulaList.length"
                     label="关键公式"
+                    :span="2"
                   >
                     <div class="field-val-box wrap-box">
                       <div class="field-val-main">
@@ -1721,6 +1723,7 @@ function isRefineFieldEqual(original, refined) {
                   <a-descriptions-item
                     v-if="uncertainItems.length"
                     label="待确认项"
+                    :span="2"
                   >
                     <div class="field-val-box wrap-box">
                       <div class="field-val-main">
@@ -1735,6 +1738,26 @@ function isRefineFieldEqual(original, refined) {
                         </a-space>
                       </div>
                       <span class="qh-field-key">uncertainItems</span>
+                    </div>
+                  </a-descriptions-item>
+                  <a-descriptions-item
+                    v-if="handoff?.commonMistakes?.length"
+                    label="易错点"
+                    :span="2"
+                  >
+                    <div class="field-val-box wrap-box">
+                      <div class="field-val-main">
+                        <a-space wrap size="small">
+                          <a-tag
+                            v-for="(mistake, mi) in handoff.commonMistakes"
+                            :key="mi"
+                            color="red"
+                          >
+                            {{ typeof mistake === 'string' ? mistake : (mistake.point || mistake.title || JSON.stringify(mistake)) }}
+                          </a-tag>
+                        </a-space>
+                      </div>
+                      <span class="qh-field-key">commonMistakes</span>
                     </div>
                   </a-descriptions-item>
                 </a-descriptions>
@@ -4545,14 +4568,46 @@ function isRefineFieldEqual(original, refined) {
 }
 
 .btn-refine-confirm {
-  border-radius: 6px !important;
-  font-weight: 500 !important;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.18) !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  padding: 6px 18px !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25) !important;
   transition: all 0.2s ease !important;
+  position: relative;
 }
 .btn-refine-confirm:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25) !important;
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
+}
+
+/* ponytail: 优化确认按钮呼吸小红点 — 比旧 refine-btn-dot 更醒目 */
+.refine-pulse-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: #ef4444;
+  border-radius: 50%;
+  margin-right: 8px;
+  position: relative;
+  animation: refine-pulse 1.5s ease-in-out infinite;
+}
+.refine-pulse-dot::after {
+  content: '';
+  position: absolute;
+  top: -4px; left: -4px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 2px solid #ef4444;
+  animation: refine-pulse-ring 1.5s ease-out infinite;
+}
+@keyframes refine-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.7; transform: scale(0.85); }
+}
+@keyframes refine-pulse-ring {
+  0%   { opacity: 0.6; transform: scale(0.8); }
+  100% { opacity: 0;   transform: scale(1.8); }
 }
 
 .handoff-summary-bar {
@@ -4654,22 +4709,6 @@ function isRefineFieldEqual(original, refined) {
   min-width: 0;
 }
 
-/* ponytail: 优化确认按钮引导红点（小气泡提示） */
-.refine-btn-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  background: #fbbf24;
-  border-radius: 50%;
-  margin-right: 6px;
-  animation: refine-dot-blink 1.4s ease-in-out infinite;
-  box-shadow: 0 0 4px rgba(251, 191, 36, 0.8);
-}
-@keyframes refine-dot-blink {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%      { opacity: 0.4; transform: scale(0.8); }
-}
-
 /* ponytail: 三大板块改 a-tabs（消除横向滑动条 + 卡内滚动条，不再分合感） */
 .handoff-tri-tabs :deep(.ant-tabs-nav) {
   margin-bottom: 12px;
@@ -4678,6 +4717,23 @@ function isRefineFieldEqual(original, refined) {
   font-size: 13px;
   font-weight: 600;
   color: #92400e;
+  position: relative;
+}
+/* ponytail: 三个 tab 头呼吸小红点 — 让用户注意到可切换 */
+.handoff-tri-tabs :deep(.ant-tabs-tab)::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  background: #ef4444;
+  border-radius: 50%;
+  margin-right: 7px;
+  animation: tab-dot-breathe 2s ease-in-out infinite;
+  box-shadow: 0 0 4px rgba(239, 68, 68, 0.5);
+}
+@keyframes tab-dot-breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.7); }
 }
 .handoff-tri-tabs :deep(.ant-tabs-tab-active) {
   color: #b45309;
@@ -5082,4 +5138,4 @@ function isRefineFieldEqual(original, refined) {
   border-left: 3px solid #52c41a;
 }
 </style>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
