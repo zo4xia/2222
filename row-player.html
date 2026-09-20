@@ -1175,7 +1175,29 @@ document.getElementById('btnRec').onclick=toggleRec;
 async function loadFromUrlOrDefault(){
   const params = new URLSearchParams(location.search);
   const url = params.get('deliverable') || params.get('data') || params.get('rows');
-  if (!url) { load(DATA); return; }
+  if (!url) {
+    // 尝试从 localStorage 读取 (B 页 openHanddrawPlayer 用 localStorage 传数据)
+    try {
+      const lsData = localStorage.getItem('agent-b-deliverable');
+      if (lsData) {
+        const json = JSON.parse(lsData);
+        let rows = Array.isArray(json.rows) ? json.rows
+                 : (json.deliverable && Array.isArray(json.deliverable.rows)) ? json.deliverable.rows
+                 : null;
+        if (rows && rows.length) {
+          if (json.projectCode) DATA.projectCode = json.projectCode;
+          if (json.problemText) DATA.problemText = json.problemText;
+          if (json.boardPlan) DATA.boardPlan = json.boardPlan;
+          DATA.rows = rows;
+          load(DATA);
+          console.info('[row-player] 已从 localStorage 加载:', '(' + rows.length + ' 行)');
+          return;
+        }
+      }
+    } catch(e) { console.warn('[row-player] localStorage 读取失败', e); }
+    load(DATA);
+    return;
+  }
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);

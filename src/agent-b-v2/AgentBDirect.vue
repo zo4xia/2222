@@ -33,7 +33,6 @@ import {
 } from '@ant-design/icons-vue'
 import QhPageHeader from '../components/QhPageHeader.vue'
 import ProcessLoadingModal from '../components/ProcessLoadingModal.vue'
-import RealBoardPreview from '../components/RealBoardPreview.vue'
 import { getAgentBoardToolCatalog } from '../board-tools/boardToolCatalog.js'
 import { BOARD_MARK_COLORS } from '../board-tools/roughNotationTool.js'
 import { ROUGH_DRAWING_COLORS } from '../board-tools/roughDrawingTool.js'
@@ -398,11 +397,6 @@ const totalActionCount = computed(() => {
 })
 
 // ponytail: 合并所有行的 actionSpec 给画布预览播放
-const allActionSpec = computed(() => {
-  if (!rows.value.length) return []
-  return rows.value.flatMap(r => Array.isArray(r.actionSpec) ? r.actionSpec : [])
-})
-
 // 纯前端本地数学算式口播兜底秒级转换（双保险核心）
 function runInstantMathAsrPolish() {
   if (!rows.value.length) {
@@ -1312,13 +1306,11 @@ function openDeliverablePage() {
 
 function openHanddrawPlayer() {
   const payload = serializeCurrentDeliverableState()
-  // ponytail: 改开 /row-player.html (根目录真播放器 133KB)
-  // 用 Blob URL 传数据 (row-player 已支持 ?deliverable= URL 参数加载, Task 12 已修)
-  const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' })
-  const blobUrl = URL.createObjectURL(blob)
-  window.open(`/row-player.html?deliverable=${encodeURIComponent(blobUrl)}`, '_blank')
-  // 30 秒后释放 Blob URL (row-player 已加载完)
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 30000)
+  window._LATEST_AGENT_B_RESULT = payload
+  try {
+    localStorage.setItem('agent-b-deliverable', JSON.stringify(payload))
+  } catch {}
+  window.open('/row-player.html', '_blank')
 }
 
 function downloadDeliverableJson() {
@@ -1880,7 +1872,19 @@ function isRefineFieldEqual(original, refined) {
                 🎬 演播录制
               </a-button>
 
-              <!-- ⑤ 导出下拉（口播稿 / 画布分镜总表 / 下游API参数说明 / 完整规格JSON） -->
+              <!-- ⑤ 生成交付单页 (固化 HTML + JSON 归档) -->
+              <a-button
+                class="btn-generate-deliverable"
+                :disabled="!rows.length || state === 'generating'"
+                :loading="deliverableGenerating"
+                title="固化生成或更新最终教学视频素材参数单页与 JSON（写入 public/deliverable/ 永久存档）"
+                @click="generateDeliverablePage"
+              >
+                <template #icon><FileDoneOutlined /></template>
+                {{ deliverableResult ? '固化归档' : '生成交付单页' }}
+              </a-button>
+
+              <!-- ⑥ 导出下拉（口播稿 / 画布分镜总表 / 下游API参数说明 / 完整规格JSON） -->
               <a-dropdown :disabled="!rows.length">
                 <template #overlay>
                   <a-menu>
@@ -2418,44 +2422,6 @@ function isRefineFieldEqual(original, refined) {
           </a-table>
         </div>
       </a-card>
-
-          <!-- ponytail: B 页画布预览区 — 生成后直接看板书+动作渲染 -->
-          <a-card
-            v-if="rows.length"
-            class="qh-surface-card studio-canvas-preview-card"
-            :bordered="false"
-            size="small"
-          >
-            <template #title>
-              <div class="canvas-preview-title">
-                <span class="canvas-preview-badge">🎨</span>
-                <span class="canvas-preview-text">画布预览 · 板书与动作实时渲染</span>
-                <a-tag color="blue" size="small" style="margin-left: 8px;">1726×980 · 四区坐标</a-tag>
-              </div>
-            </template>
-            <template #extra>
-              <a-button size="small" @click="openHanddrawPlayer" title="打开全屏演播单页">
-                <template #icon><VideoCameraOutlined /></template>
-                全屏演播
-              </a-button>
-            </template>
-            <RealBoardPreview
-              :canvas-image-url="'/canvas.png'"
-              :problem-text="handoff?.problemText || ''"
-              :board-plan="handoff?.boardPlan || null"
-              :topic-layout="null"
-              :show-grid="false"
-              :show-all-labels="true"
-              :show-zone-guides="true"
-              :interactive="false"
-              :source-image-url="handoff?.screenshotUrl || ''"
-              :keep-original="false"
-              :action-spec="allActionSpec"
-              :board-rows="rows"
-              :auto-play="true"
-            />
-          </a-card>
-
         <a-card
           v-if="toolsOpen"
           title="可用工具说明"
@@ -4718,22 +4684,6 @@ function isRefineFieldEqual(original, refined) {
 }
 
 /* ponytail: 画布预览卡片 */
-.studio-canvas-preview-card {
-  margin-top: 14px;
-}
-.canvas-preview-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.canvas-preview-badge {
-  font-size: 18px;
-}
-.canvas-preview-text {
-  font-size: 14px;
-  font-weight: 700;
-  color: #1e293b;
-}
 
 /* ponytail: 三大板块改 a-tabs（消除横向滑动条 + 卡内滚动条，不再分合感） */
 .handoff-tri-tabs :deep(.ant-tabs-nav) {
@@ -5164,4 +5114,4 @@ function isRefineFieldEqual(original, refined) {
   border-left: 3px solid #52c41a;
 }
 </style>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
