@@ -1167,7 +1167,38 @@ function toggleRec(){
   document.getElementById('btnRec').textContent='■ 停止并下载';
 }
 document.getElementById('btnRec').onclick=toggleRec;
-load(DATA);
+/* ---- ponytail: URL query 参数加载 ----
+   支持 ?deliverable=/path/to/rows.json 或 ?data=... 两种 key
+   fetch 远程 JSON 替换 DATA 再 load; 失败降级用内置 DATA 示例
+   例: /row-player.html?deliverable=/deliverable/current.json
+*/
+async function loadFromUrlOrDefault(){
+  const params = new URLSearchParams(location.search);
+  const url = params.get('deliverable') || params.get('data') || params.get('rows');
+  if (!url) { load(DATA); return; }
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    // 兼容两种 schema: {rows:[...]} 直接放, 或 {deliverable:{rows:[...]}} 双层嵌套
+    let rows = Array.isArray(json.rows) ? json.rows
+             : (json.deliverable && Array.isArray(json.deliverable.rows)) ? json.deliverable.rows
+             : null;
+    if (!rows || !rows.length) throw new Error('rows 为空或缺失');
+    // 同步替换 DATA 关键字段后 load (保留 schema/boardPlan 等元信息)
+    if (json.projectCode) DATA.projectCode = json.projectCode;
+    if (json.problemText) DATA.problemText = json.problemText;
+    if (json.boardPlan) DATA.boardPlan = json.boardPlan;
+    if (json.screenshotUrl) DATA.screenshotUrl = json.screenshotUrl;
+    DATA.rows = rows;
+    load(DATA);
+    console.info('[row-player] 已从 URL 参数加载:', url, '(' + rows.length + ' 行)');
+  } catch (e) {
+    console.warn('[row-player] URL 参数加载失败, 降级用内置示例:', e.message, 'url=' + url);
+    load(DATA);
+  }
+}
+loadFromUrlOrDefault();
 /* ---- 字段归一：外面 JSON 再乱，只捞我们绑定的这几个槽，其余全丢 ---- */
 function pick(o,names){ for(const n of names) if(o&&o[n]!=null&&o[n]!=='') return o[n]; return null; }
 /* 音频地址白名单：只认真实可加载的地址，挡掉"音频暂未生成"这类占位字面量，
