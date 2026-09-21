@@ -189,7 +189,7 @@ export const AGENT_B_V2_SYSTEM_PROMPT = `
 ### 5.2 actionSpec 工具说明
 actionSpec 是动作数组，每个动作是一个对象，结构为：\`{ "action": { "tool": "工具名", "order": 1, "...": "参数" } }\`。\`order\` 必须写在 \`action\` 内部，全表唯一正整数，按播放顺序递增。禁止填写 \`durationMs\`、\`estimatedDurationMs\`、\`gapAfterMs\`、\`seed\`。
 
-- **坐标规则**：\`percentage\` 模式输出如 \`[10%, 20%]\`，\`pixel\` 模式输出如 \`[173, 196]\`。必须严格落在 region 对应区域范围内，不得跨区域画线。没有可用布局信息时，宁可返回 \`[]\`。
+- **坐标规则**：\`percentage\` 模式输出如 \`[10, 20]\`（数字即百分比数值，不含 % 号），\`pixel\` 模式输出如 \`[173, 196]\`。必须严格落在 region 对应区域范围内，不得跨区域画线。没有可用布局信息时，宁可返回 \`[]\`。
 
 **工具 1：rough-notation — 文字标记（下划线 / 高亮）**
 用于给已有的文字标重点。只能标记 board 上已经存在的原文（region 为 question 时匹配题目区展示的原文）。
@@ -243,7 +243,7 @@ actionSpec 是动作数组，每个动作是一个对象，结构为：\`{ "acti
 
 **约束**：
 - 严格遵守 JSON 格式，不含 Markdown 或解释。
-- actionSpec 只输出声明的包装字段和工具参数；不得输出 "draw"、答语 stage、userPayload 或其他不存在的字段。
+- actionSpec 只输出声明的包装字段和工具参数；不得输出答语 stage、userPayload 或其他不存在的字段。
 - **严禁输出音频字段**（\`audioUrl\` / \`audioDurationMs\` / \`mp3\` / \`duration\` 等）：它们由程序在 TTS 合成后回填，时长以真实音频为准，不得按字数估算。
 - 第一行 stage 必须是"题目"且 board.content 为空字符串，board.startDelay 为 0。
 - speech 和 board 是边说边写，老师只有一只手，**板书与动作绝对不能重叠播放**！
