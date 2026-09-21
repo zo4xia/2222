@@ -208,7 +208,9 @@ actionSpec 是动作数组，每个动作是一个对象，结构为：\`{ "acti
   }
 }
 \`\`\`
-- action: \`underline\`（下划线，固定红色） / \`highlight\`（高亮，固定浅黄色）；不得传 \`options.colorId\`。
+- action: \`underline\`（下划线，固定红色 #d64545） / \`highlight\`（高亮，固定浅黄色 #f8e58c） / \`circle\`（圈出关键词，固定红色 #d64545）；不得传 \`options.colorId\`。
+  - underline 和 circle 是核心兜底动作（truth/territory-C 契约），underline 用于划重点词，circle 用于圈关键数字或条件。
+  - highlight 用于整段文字底色高亮。
 
 **工具 2：rough-line — 画直线**
 \`\`\`json

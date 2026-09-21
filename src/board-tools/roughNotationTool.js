@@ -13,8 +13,6 @@ export const MARK_DURATION_PER_HAN_WIDTH_MS = 400
 export const BOARD_MARK_COLORS = Object.freeze({
   red: '#d64545',
   yellow: '#f8e58c',
-  blue: '#3b82f6',
-  ink: '#1f2937',
 })
 
 const TYPE_DESCRIPTIONS = Object.freeze({
