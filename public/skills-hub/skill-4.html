@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>speech-board-timing · 口播板书节奏示例</title>
+<style>
+  :root{--bg:#0f172a;--surface:#1e293b;--surface-2:#334155;--ink:#f1f5f9;--muted:#94a3b8;
+        --brand:#22d3ee;--warn:#fbbf24;--ok:#4ade80;--err:#f87171;--line:#334155}
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;background:var(--bg);color:var(--ink);
+       font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;line-height:1.6}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+  .panel h2{font-size:14px;margin:0 0 10px;color:var(--brand)}
+  label{display:block;color:var(--muted);font-size:12px;margin:8px 0 4px}
+  textarea,input{width:100%;background:#0b1220;color:var(--ink);
+                 border:1px solid var(--line);border-radius:6px;padding:8px;
+                 font-family:"JetBrains Mono","Consolas",monospace;font-size:12px}
+  textarea{height:80px;resize:vertical}
+  input{height:34px}
+  button{background:var(--brand);color:#0b1220;border:0;border-radius:6px;
+         padding:8px 14px;font-weight:600;cursor:pointer;margin-top:10px}
+  button:hover{filter:brightness(1.1)}
+  .table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px}
+  .table th,.table td{border:1px solid var(--line);padding:6px 8px;text-align:left}
+  .table th{background:var(--surface-2);color:var(--muted);font-weight:600}
+  .table td.v{font-family:"JetBrains Mono","Consolas",monospace;color:var(--ok)}
+  .timeline{position:relative;height:120px;background:#0b1220;border-radius:6px;
+            margin-top:10px;overflow:hidden}
+  .row-bar{position:absolute;height:34px;border-radius:4px;
+           display:flex;align-items:center;justify-content:center;
+           font-size:10px;color:#fff;font-weight:600;overflow:hidden}
+  .speech-bar{background:#16a34a;color:#fff}
+  .board-bar{background:#2563eb;color:#fff}
+  .action-bar{background:#ea580c;color:#fff}
+  .gap-bar{background:#475569;color:#94a3b8}
+  .row-label{position:absolute;left:4px;font-size:11px;color:var(--ink);
+             font-weight:600;text-shadow:0 0 4px #000}
+  .axis{position:relative;height:18px;margin-top:4px;font-size:10px;color:var(--muted)}
+  .tick{position:absolute;top:0;border-left:1px solid var(--line);padding-left:2px}
+  .checks{margin-top:10px}
+  .check{padding:6px 10px;border-radius:6px;font-size:12px;margin:4px 0;
+         font-family:monospace}
+  .check.ok{background:rgba(74,222,128,.12);color:var(--ok)}
+  .check.err{background:rgba(248,113,113,.12);color:var(--err)}
+  .note{color:var(--muted);font-size:11px;margin-top:8px;line-height:1.5}
+</style>
+</head>
+<body>
+<h1>speech-board-timing · 口播板书节奏</h1>
+<p class="sub">160 cpm 语速 + 标点停顿（。700 / ，500 / ……1000ms）· 板书 400ms/字 + 360—440 抖动 · 抬笔 600ms · Row 间 1500ms</p>
+
+<div class="grid">
+  <div class="panel">
+    <h2>Row 输入</h2>
+    <label>stage（中文）</label>
+    <input id="stage" value="解答">
+    <label>speech（口播）</label>
+    <textarea id="speech">接下来我们列式计算。平行四边形面积公式是底乘以高，也就是 9 乘以 20.4，算得面积为 183.6 平方厘米。</textarea>
+    <label>board.content（板书，一行一个用 \n 分隔）</label>
+    <textarea id="board">S = 底 × 高
+  = 9 × 20.4
+  = 183.6 (cm²)</textarea>
+    <label>board.startDelay（秒，可空）</label>
+    <input id="startDelay" placeholder="留空用自适应 speechDuration*0.2">
+    <button onclick="calc()">▶ 计算单 Row 时间线</button>
+    <button onclick="appendRow()" style="background:var(--surface-2);color:var(--ink);margin-left:6px">+ 加入多 Row</button>
+    <button onclick="resetRows()" style="background:var(--surface-2);color:var(--ink);margin-left:6px">清空</button>
+    <h2 style="margin-top:16px">口播发音校验</h2>
+    <div class="checks" id="checks"></div>
+  </div>
+  <div class="panel">
+    <h2>单 Row 计算结果</h2>
+    <table class="table" id="single-table"></table>
+    <h2 style="margin-top:14px">多 Row 全局时间线</h2>
+    <div class="timeline" id="timeline"></div>
+    <div class="axis" id="axis"></div>
+    <p class="note">绿=口播 / 蓝=板书 / 橙=动作 / 灰=抬笔间隔 / Row 间 1500ms 停顿</p>
+  </div>
+</div>
+
+<script>
+// ─── 语速与节奏（与 src/agent-b-v2/timing.js 对齐） ──────
+const RATE=160;          // 160 cpm
+const ROW_GAP=1500;
+const HAND_LIFT=600;
+const BASE_CHAR_MS=400;  // 板书 400ms/字
+const PUNCT={'.':700,'。':700,',':500,'，':500,'…':1000};
+
+function countChars(s){
+  return [...String(s||'').replace(/\s+/g,'')
+    .replace(/[。，、；：？！""''（）《》【】……—.,!?;:'"()[\]<>~`@#$%^&*_+=|\\/]/g,'')].length;
+}
+function countPunct(s){
+  const t=String(s||'');let p=0;
+  p+=(t.match(/。/g)||[]).length*700;
+  p+=(t.match(/，/g)||[]).length*500;
+  p+=(t.match(/…+/g)||[]).length*1000;
+  return p;
+}
+function calcBoardMs(content){
+  // 去 LaTeX 控制符后逐字累加，每字 360—440 抖动
+  const clean=String(content||'').replace(/\\(begin|end)\{[^}]+\}/g,'')
+    .replace(/\\(frac|times|div|aligned)/g,' ').replace(/\s+/g,'');
+  const n=Math.max(1,[...clean].length);
+  let d=0;
+  for(let i=0;i<n;i++){
+    const jitter=((i*17)%7-3)*10;
+    d+=Math.max(320,BASE_CHAR_MS+jitter);
+  }
+  return d;
+}
+function estimateActionMs(tool){
+  if(tool==='rough-notation')return 1200;
+  if(tool==='rough-line')return 800;
+  if(tool==='rough-arrow')return 900;
+  return 1000;
+}
+
+function computeRow(row){
+  const speech=String(row.speech||'').trim();
+  const chars=countChars(speech);
+  const punct=countPunct(speech);
+  const speechMs=chars>0?Math.max(1200,Math.round(chars*60000/RATE)+punct):1500;
+
+  const boardContent=String(row.board||'').trim();
+  const hasBoard=Boolean(boardContent);
+  let boardStartMs=0,boardMs=0,boardEndMs=0;
+  if(hasBoard){
+    if(typeof row.startDelay==='number'&&row.startDelay>0){
+      boardStartMs=Math.round(row.startDelay*1000);
+    } else {
+      boardStartMs=Math.min(2000,Math.max(1000,Math.round(speechMs*0.2)));
+    }
+    boardMs=calcBoardMs(boardContent);
+    boardEndMs=boardStartMs+boardMs;
+  }
+
+  const actions=Array.isArray(row.actionSpec)?row.actionSpec:[];
+  let cursor=hasBoard?boardEndMs+HAND_LIFT:500;
+  const tl=[];
+  actions.forEach((a,i)=>{
+    const d=estimateActionMs(a.tool);
+    tl.push({i,tool:a.tool,startMs:cursor,durMs:d,endMs:cursor+d});
+    cursor=cursor+d+HAND_LIFT;
+  });
+  const handEnd=actions.length?cursor-HAND_LIFT:boardEndMs;
+  return {stage:row.stage,speechMs,chars,punct,boardStartMs,boardMs,boardEndMs,
+    actions:tl,handEndMs:handEnd,rowTotal:Math.max(speechMs,handEnd)};
+}
+
+// ─── 发音校验 ─────────────
+function checkSpeech(s){
+  const t=String(s||'');const out=[];
+  if(/\d+\s*[\/⁄]\s*\d+/.test(t))out.push({ok:false,msg:'口播中的分数不得使用斜杠，必须写成"分母分之分子"'});
+  if(/(?:[零〇一二两三四五六七八九十百千万亿]+分之|分之[零〇...]+)|/.test(t.replace(/\s/g,''))&&/[一二三四五六七八九十百千万]+分之/.test(t))
+    out.push({ok:false,msg:'口播分数的分子、分母必须使用阿拉伯数字'});
+  if(/\\(?:d?frac|sqrt|text)|\$/.test(t))out.push({ok:false,msg:'口播不得包含 KaTeX 命令或 $ 定界符'});
+  if(/[xX×]/.test(t))out.push({ok:false,msg:'口播不得保留 x、X、×；未知数写"艾克斯"，乘号写"乘以"'});
+  if(t.includes('+'))out.push({ok:false,msg:'口播中的 + 必须写成"加"'});
+  if(/\d+\.\d+/.test(t))out.push({ok:false,msg:'口播小数不得保留小数点符号，例如 3.14 必须写成"3点一四"'});
+  if(!out.length)out.push({ok:true,msg:'✓ 口播发音合规'});
+  return out;
+}
+
+let rows=[];
+function calc(){
+  const stage=document.getElementById('stage').value;
+  const speech=document.getElementById('speech').value;
+  const board=document.getElementById('board').value;
+  const sd=document.getElementById('startDelay').value;
+  const row={stage,speech,board,startDelay:sd?+sd:undefined,actionSpec:[]};
+  const r=computeRow(row);
+  // 单 row 表
+  const t=document.getElementById('single-table');
+  t.innerHTML='';
+  [['stage',r.stage],['口播字数',r.chars+' 字'],['标点停顿',r.punct+' ms'],
+   ['口播时长',r.speechMs+' ms'],['板书起手延迟',r.boardStartMs+' ms'],
+   ['板书书写时长',r.boardMs+' ms'],['板书结束',r.boardEndMs+' ms'],
+   ['手部总耗时',r.handEndMs+' ms'],['Row 总时长',r.rowTotal+' ms']
+  ].forEach(([k,v])=>{const tr=document.createElement('tr');
+    tr.innerHTML='<th>'+k+'</th><td class="v">'+v+'</td>';t.appendChild(tr);});
+  // 校验
+  const checks=document.getElementById('checks');
+  checks.innerHTML='';
+  checkSpeech(speech).forEach(c=>{
+    const d=document.createElement('div');
+    d.className='check '+(c.ok?'ok':'err');
+    d.textContent=(c.ok?'✓ ':'✗ ')+c.msg;
+    checks.appendChild(d);
+  });
+}
+
+function appendRow(){
+  const stage=document.getElementById('stage').value;
+  const speech=document.getElementById('speech').value;
+  const board=document.getElementById('board').value;
+  const sd=document.getElementById('startDelay').value;
+  rows.push({stage,speech,board,startDelay:sd?+sd:undefined,actionSpec:[]});
+  renderRows();
+}
+function resetRows(){rows=[];renderRows();}
+
+function renderRows(){
+  const tl=document.getElementById('timeline');
+  const ax=document.getElementById('axis');
+  tl.innerHTML='';ax.innerHTML='';
+  if(!rows.length){tl.innerHTML='<div style="color:var(--muted);font-size:12px;padding:10px">点"+ 加入多 Row"逐行加入时间线</div>';return;}
+  let cursor=0;
+  const items=[];
+  rows.forEach((r,i)=>{
+    const tr=computeRow(r);
+    items.push({row:i,stage:r.stage,start:cursor,compute:tr});
+    cursor=cursor+tr.rowTotal+ROW_GAP;
+  });
+  const total=cursor-ROW_GAP;
+  const wPct=ms=>(ms/total*100);
+  items.forEach((it,idx)=>{
+    const top=8+idx*40;
+    // stage label
+    const lab=document.createElement('div');lab.className='row-label';
+    lab.style.top=top+'px';lab.textContent=it.stage;tl.appendChild(lab);
+    // speech bar
+    const sb=document.createElement('div');sb.className='row-bar speech-bar';
+    sb.style.top=top+'px';sb.style.left=wPct(it.start)+'%';
+    sb.style.width=wPct(it.compute.speechMs)+'%';
+    sb.textContent='口播 '+it.compute.speechMs+'ms';
+    tl.appendChild(sb);
+    // board bar
+    if(it.compute.boardMs){
+      const bb=document.createElement('div');bb.className='row-bar board-bar';
+      bb.style.top=(top+12)+'px';bb.style.left=wPct(it.start+it.compute.boardStartMs)+'%';
+      bb.style.width=wPct(it.compute.boardMs)+'%';
+      bb.textContent='板书 '+it.compute.boardMs+'ms';
+      tl.appendChild(bb);
+    }
+    // gap bar (row 间)
+    if(idx<items.length-1){
+      const gb=document.createElement('div');gb.className='row-bar gap-bar';
+      gb.style.top=top+'px';gb.style.left=wPct(it.start+it.compute.rowTotal)+'%';
+      gb.style.width=wPct(ROW_GAP)+'%';gb.textContent='↑'+ROW_GAP;
+      tl.appendChild(gb);
+    }
+  });
+  for(let s=0;s<=total;s+=Math.max(1000,Math.round(total/10))){
+    const t=document.createElement('div');t.className='tick';
+    t.style.left=wPct(s)+'%';t.textContent=(s/1000).toFixed(1)+'s';ax.appendChild(t);
+  }
+}
+
+calc();
+renderRows();
+</script>
+</body>
+</html>

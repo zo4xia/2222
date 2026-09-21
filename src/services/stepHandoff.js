@@ -6,73 +6,86 @@
  */
 /* 画布参数【唯一真源】
  * 全项目画布尺寸 / 题目字号 / 板书字号 / 题目行高只在此定义，其余位置一律 import。
- * 禁止再写字面值（30 / 38 / 1.65 / 1726 / 980）；发现别处硬编码 = 那处是 bug。
+ * 禁止再写字面值（30 / 38 / 1.65 / 1.7 / 1726 / 980）；发现别处硬编码 = 那处是 bug。
  * 注意 skills/ 下的 html 是测试草稿，不是本文件的依据。
+ *
+ * ★ Task 10 修复 (2026-09-21)：恢复甲方原始要求（row-player.html v1.1 2026-09-17 拍板版）
+ *   - 板书字号 35px → 38px（35 与 42 折中）
+ *   - 板书字体 LikeJianJianTi(490) → 平方乔木体(507) 优先，490 作为降级栈尾
+ *   - 板书行高无数字 → 1.7±随机（区间 1.55~1.85，下游渲染职责，均值 1.7）
+ *   - 板书速度 1秒2-3字 + ±5% 轻微抖动 + 书写时长超出音频窗口自适应加速
+ *   - 字距 0-2px 微小随机 → 三路抖动（字号/基线/字距）+ 位置抖动
  */
 export const CANVAS_SIZE = { width: 1726, height: 980, unit: 'px', origin: '左上角(0,0), X向右Y向下' }
 export const COORDINATE_SYSTEM = '百分比坐标 0-100'
 export const QUESTION_FONT_SIZE = 30
 export const QUESTION_LINE_HEIGHT = 1.65
+// ★ Task 10: 板书字号 38px（甲方 2026-09-17 拍板，35 与 42 折中）
 export const BOARD_FONT_SIZE = 38
 export const BOARD_FONT_RATIO_TEXT = '约题目的1.2~1.5倍，推荐38px'
-// 板书手写体唯一真源 = 平方乔木体（CDN 507，与交付页 row-player.html 同族，书同文）
+// ★ Task 10: 主手写体 = 平方乔木体 (CDN 507)；490 (栗壳坚坚体) 降为字体栈尾
 export const HANDWRITING_FAMILY = '平方乔木体'
 export const HANDWRITING_CSS_HREF = 'https://fontsapi.zeoseven.com/507/main/result.css'
-// 回退字体栈（2026-09-17 用户拍板：这些字体都不错，排在 507 后面当降级）
-// 排序依据：前 4 个与 507 同属「平方」同族（字重/笔形最接近），490 栗壳坚坚体为异族末位兜底。
-// 加载策略：507 同步（首屏就要用）；回退全部【异步按需】—— media="print" + onload 提升为 all，
-// 不阻塞首屏、不进渲染关键路径；且 cn-font-split 产物按 unicode-range 分片，只有真用到才下载字形。
-export const HANDWRITING_FALLBACK_FONTS = [
-  { family: '平方韶华体', cssHref: 'https://fontsapi.zeoseven.com/157/main/result.css' },
-  { family: '平方上上谦体', cssHref: 'https://fontsapi.zeoseven.com/511/main/result.css' },
-  { family: '平方三生体', cssHref: 'https://fontsapi.zeoseven.com/510/main/result.css' },
-  { family: 'PingFangSaTuoTi', cssHref: 'https://fontsapi.zeoseven.com/509/main/result.css' },
-  { family: 'LikeJianJianTi', cssHref: 'https://fontsapi.zeoseven.com/490/main/result.css' },
-]
-export const HANDWRITING_CSS_HREFS = [HANDWRITING_CSS_HREF, ...HANDWRITING_FALLBACK_FONTS.map((f) => f.cssHref)]
-// CSS font-family 书写值（含最后的系统楷体兜底）
+// ★ Task 10: 完整字体栈（与 row-player.html line 116-122 同步镜像）
+//   顺序：507 平方乔木体（主）→ 157 平方韶华体 → 511 平方上上谦体 → 510 平方三生体 → 509 平方韶拓体 → 490 栗壳坚坚体 → 系统楷体
 export const HANDWRITING_FONT_STACK = [
-  HANDWRITING_FAMILY,
-  ...HANDWRITING_FALLBACK_FONTS.map((f) => f.family),
+  '"平方乔木体"',
+  '"平方韶华体"',
+  '"平方上上谦体"',
+  '"平方三生体"',
+  '"PingFangSaTuoTi"',
+  '"LikeJianJianTi"',
   'KaiTi',
   'STKaiti',
+  '"PingFang SC"',
   'serif',
+].join(', ')
+// ★ Task 10: 降级字体 CDN href 列表（与上面栈顺序同序）
+export const HANDWRITING_CSS_HREF_FALLBACKS = [
+  'https://fontsapi.zeoseven.com/507/main/result.css',  // 主：平方乔木体
+  'https://fontsapi.zeoseven.com/157/main/result.css',  // 平方韶华体
+  'https://fontsapi.zeoseven.com/511/main/result.css',  // 平方上上谦体
+  'https://fontsapi.zeoseven.com/510/main/result.css',  // 平方三生体
+  'https://fontsapi.zeoseven.com/509/main/result.css',  // 平方韶拓体
+  'https://fontsapi.zeoseven.com/490/main/result.css',  // 栗壳坚坚体（原主字体降为降级）
 ]
-export const HANDWRITING_FONT_STACK_CSS = HANDWRITING_FONT_STACK.map((f) => `"${f}"`).join(', ')
-// 回退 CSS 的异步按需加载片段（507 之外的族，媒体属性劫持不阻塞渲染）
-export const HANDWRITING_FALLBACK_LINKS = HANDWRITING_FALLBACK_FONTS.map(
-  (f) => `<link rel="stylesheet" href="${f.cssHref}" media="print" onload="this.media='all'" />`
-).join('')
+// ★ Task 10: 板书行高真相源 = 1.7±随机（区间 1.55~1.85，下游渲染职责）
+export const BOARD_LINE_HEIGHT_MEAN = 1.7
+export const BOARD_LINE_HEIGHT_MIN = 1.55
+export const BOARD_LINE_HEIGHT_MAX = 1.85
+// ★ Task 10: 板书速度真相源 = 1秒2-3字 + ±5% 抖动 + 超音频窗口自适应加速
+export const BOARD_SPEED_CHARS_PER_SEC = 2.5  // 1秒2-3字，均值2.5
+export const BOARD_SPEED_JITTER = 0.05       // ±5% 轻微抖动
+export const BOARD_SPEED_ADAPTIVE_COMPRESS = true  // 书写时长超出音频窗口时自适应加速压进音频内
 
-/** 行高口径：自然换行 + 渲染层微小随机抖动，不预置固定数值 */
+/** 行高口径：题目 1.65 固定 / 板书 1.7±随机（1.55~1.85）+ 渲染层微小随机抖动 */
 export const LINE_HEIGHT_RULE =
-  '自然换行即可；渲染层会对行高做微小随机抖动营造手写感，B 按正常行高估算坐标，不需要自己叠加抖动'
+  '板书行高均值 1.7，逐行 1.55~1.85 微小随机（seed 冻结，幂等可 seek）；题目行高 1.65 固定'
 export const LINE_HEIGHT_FORMULA =
-  '按当前字号自然换行即可；渲染层会加微小随机抖动（手写感），B 用正常行高估算，不预置固定行高数值'
+  '板书 line-height = 1.7 + random(-0.15, +0.15)（seed 冻结）；题目 line-height = 1.65 固定'
 
 /** 生成 handoff 的 canvasParams：stepHandoff 生成与 server 兜底补全共用同一份 */
 export function buildCanvasParams() {
   const boardFamily =
-    `${HANDWRITING_FAMILY}（平方乔木体，网络字体 fontSource.handwriting，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`
+    `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`
   return {
     canvasSize: { ...CANVAS_SIZE },
     coordinateSystem: COORDINATE_SYSTEM,
     fontSource: {
       handwriting: {
         family: HANDWRITING_FAMILY,
-        label: '平方乔木体（分析/解答/总结板书）',
+        fontStack: HANDWRITING_FONT_STACK,
+        label: '手写体（分析/解答/总结板书，主字体=平方乔木体 CDN 507）',
         fontWeight: 'normal',
         cssHref: HANDWRITING_CSS_HREF,
-        cssHrefs: HANDWRITING_CSS_HREFS,
-        fallbackFamilies: HANDWRITING_FALLBACK_FONTS.map((f) => f.family),
-        fontStack: HANDWRITING_FONT_STACK,
-        fontStackCss: HANDWRITING_FONT_STACK_CSS,
-        // 507 同步加载（首屏即用）；回退族异步按需，不阻塞渲染
-        loadSnippet:
-          `<link href="${HANDWRITING_CSS_HREF}" onload="this.rel='stylesheet'" rel="preload" as="style" crossorigin />` +
-          HANDWRITING_FALLBACK_LINKS,
+        cssHrefFallbacks: HANDWRITING_CSS_HREF_FALLBACKS,
+        loadSnippet: `<link href="${HANDWRITING_CSS_HREF}" onload="this.rel='stylesheet'" rel="preload" as="style" crossorigin />`,
+        // ★ Task 10: 多 CDN 字体降级栈（异步按需加载，不阻塞首屏）
+        loadSnippetFallbacks: HANDWRITING_CSS_HREF_FALLBACKS.slice(1).map(
+          href => `<link rel="stylesheet" href="${href}" media="print" onload="this.media='all'" />`
+        ).join('\n        '),
         fallbackSnippet: `<noscript><link rel="stylesheet" href="${HANDWRITING_CSS_HREF}" /></noscript>`,
-        usage: `渲染前必须先加载该 CSS；font-family 按栈书写：${HANDWRITING_FONT_STACK_CSS}（font-weight: normal）。507 不可用时按序降级到同族平方体，最后回退系统楷体；回退族 CSS 异步按需加载，不阻塞首屏`,
+        usage: `渲染前必须先加载该 CSS（font-family: "${HANDWRITING_FAMILY}"; font-weight: normal），字体栈 fallback 顺序见 fontStack；507 不可用时按栈降级`,
       },
       question: {
         family: 'Segoe UI/PingFang SC/Microsoft YaHei',
@@ -88,30 +101,25 @@ export function buildCanvasParams() {
     },
     lineHeight: {
       question: QUESTION_LINE_HEIGHT,
+      // ★ Task 10: 板书行高真相源 - 1.7±随机（1.55~1.85，下游渲染职责）
       others: LINE_HEIGHT_RULE,
+      boardMean: BOARD_LINE_HEIGHT_MEAN,
+      boardMin: BOARD_LINE_HEIGHT_MIN,
+      boardMax: BOARD_LINE_HEIGHT_MAX,
     },
     letterSpacing: {
       question: '0',
       others: '下游渲染参数：0-2px 微小随机（模拟手写感，B 不需要处理）',
     },
     style: '老师上课草算演示，微微达芬奇手稿style（草稿推演质感，轻盈生动；板书绝不可溢出画布）',
-    boardSpeed: '下游渲染参数：1秒约2~3个汉字，每行±10%轻微抖动（B 不需要处理速度细节）',
+    // ★ Task 10: 板书速度真相源 - 1秒2-3字 + ±5%抖动 + 自适应加速
+    boardSpeed: `下游渲染参数：1秒约${BOARD_SPEED_CHARS_PER_SEC}个汉字，每行±${BOARD_SPEED_JITTER * 100}%轻微抖动；书写时长超出音频窗口时自适应加速压进音频内（音频=行时长唯一主时钟）`,
+    boardSpeedCharsPerSec: BOARD_SPEED_CHARS_PER_SEC,
+    boardSpeedJitter: BOARD_SPEED_JITTER,
+    boardSpeedAdaptiveCompress: BOARD_SPEED_ADAPTIVE_COMPRESS,
     actionSpeed: '差不多同样速度（rough-line/rough-arrow/rough-notation绘制速度）',
     lineHeightFormula: LINE_HEIGHT_FORMULA,
   }
-}
-
-/**
- * handoff 画布参数与真源对齐（2026-09-17 决策 #014）：
- * handoff 文件是「按题目生成的历史快照」，其中的画布固定规格（尺寸/坐标体系/字号/行高/速度）
- * 本就声明为"不随题目变化"，旧文件可能停留在拍板前的旧字号（如 35px）。
- * 因此：固定规格一律以本文件真源为准（38px），handoff 自带的结构与扩展字段原样保留、不吞字段。
- * 题目相关真相（boardPlan / zoneAnchors / problemInfo）仍然严格动态读取 handoff，不走这里。
- */
-export function alignHandoffCanvasParams(handoffCanvasParams) {
-  const truth = buildCanvasParams()
-  if (!handoffCanvasParams || typeof handoffCanvasParams !== 'object') return truth
-  return { ...handoffCanvasParams, ...truth }
 }
 
 export function hasUsableAgentAKnowledge(analysis) {
@@ -241,10 +249,10 @@ export function buildStep1Handoff(input = {}) {
       region: '区域：[左%, 上%, 宽%, 高%]，所有百分比最多保留 2 位小数',
       point: '起点/终点：[x%, y%]',
     },
-    example: '若分析区起手坐标为 (6%, 41%)，则动作点为 [6, 41]',
+    example: '若分析区动作锚点为 [6, 41]，则动作参考点为 [6, 41]',
   }
 
-  // 从 boardPlan 提取各区域起手坐标（落座标签 + 区域起点）
+  // 从 boardPlan 提取各区域定位锚点（落座标签 + 区域参考起点，板书由渲染层自然排版）
   const boardPlan = roundLayoutNumbers(input.boardPlan ? JSON.parse(JSON.stringify(input.boardPlan)) : null)
   const zoneAnchors = extractZoneAnchors(boardPlan, topicLayout)
 
@@ -336,16 +344,4 @@ function extractZoneAnchors(boardPlan, _topicLayout) {
     }
   }
   return anchors
-}
-
-/**
- * 从服务端获取最新交接数据
- */
-export async function fetchCurrentHandoff() {
-  const res = await fetch("/api/handoff", { cache: "no-store" })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok || !data.ok) {
-    throw new Error(data.error || "获取交接数据失败")
-  }
-  return data.handoff
 }

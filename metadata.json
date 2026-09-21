@@ -1,0 +1,8 @@
+{
+  "name": "小学数学讲解视频生成工作台",
+  "description": "基于大模型的小学数学题识别、分步口播与板书动作生成的教学视频工作台",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

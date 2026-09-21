@@ -1,0 +1,43 @@
+{
+  "name": "board-zone-layout",
+  "version": "1.0.0",
+  "archetype": "workflow",
+  "description": "画布四区板书布局与坐标控制技巧蒸馏。固定画布 1726×980px，四区百分比坐标，竖版/横版自适应，越界容错，达芬奇手稿毛料感。",
+  "created": "2026-09-19",
+  "updated": "2026-09-19",
+  "sources": [
+    "src/utils/boardLayout.js",
+    "src/utils/canvasCoords.js",
+    "src/services/boardMathPolicy.js"
+  ],
+  "distillation_contract": "Distill [四区板书布局与坐标控制] as a [workflow] pack so it can help with [Agent B 规划板书落点 / 画布渲染层排版 / Check Agent 校验越界], using [src/utils/boardLayout.js + src/utils/canvasCoords.js + src/services/boardMathPolicy.js], while respecting [handoff JSON 唯一真相源 / 区域坐标仅为参考 / 内容多时可越界只要不出画布 / 不严重叠字].",
+  "core_sections": [
+    "绝对物理基准（1726×980）",
+    "四区参考布局",
+    "三种布局模式（portrait / portrait-left-image / landscape-top-image）",
+    "越界容错（硬约束不出画布 / 软约束不严重叠字）",
+    "坐标换算工具函数",
+    "与 handoff JSON 的对接"
+  ],
+  "key_rules": [
+    "画布尺寸 1726×980px 是绝对物理基准，比例 1726:980",
+    "坐标 0—100 百分比，原点左上，由 coordinateMode 决定输出 percentage/pixel",
+    "四区 question/analysis/solution/summary，实际坐标以 handoff.boardPlan 为真相源",
+    "安全区: 左 6 / 右 94 / 底 95",
+    "竖版无图: 左列 44% (题+分析) + 右列 40% (解答+总结)",
+    "竖版有竖图: 左半图 + 右半三区纵排 (每区 29.47%)",
+    "横版有横图: 图贴顶宽 88% + 下方三列各 26.67%",
+    "硬约束: 板书不得溢出 1726×980 画布",
+    "软约束: 区域坐标仅参考, 内容多时可按需越界到邻区",
+    "软约束: 不与其他板书严重叠字",
+    "文字不输出起手坐标, 由渲染层按自然段落排版",
+    "只有 actionSpec 需要 start/end 坐标",
+    "风格: 老师草算 + 达芬奇手稿毛料感, 绝不死板"
+  ],
+  "confidence": "high",
+  "boundaries": [
+    "本 skill 只覆盖布局与坐标, 不覆盖字体加载 (见 handwriting-font-policy)",
+    "不覆盖动作控制与时间线 (见 hand-action-control / speech-board-timing)",
+    "不覆盖教学方法/四环教学法/人设风格"
+  ]
+}

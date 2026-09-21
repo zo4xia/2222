@@ -1,5 +1,5 @@
 import { createServer } from 'node:http'
-import { createReadStream, existsSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { extname, join, normalize, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { handleAgentBV2Request } from './agentBV2Handler.js'
@@ -33,6 +33,28 @@ function withUrl(req, pathname, callback) {
 async function dispatchApi(req, res) {
   const pathname = new URL(req.url, 'http://localhost').pathname
   const knowledge = { knowledgeBase: AGENT_A_KNOWLEDGE_BASE }
+
+  if (pathname === '/api/health') {
+    return sendJson(req, res, 200, {
+      ok: true,
+      status: 'healthy',
+      service: 'qinghuabu-production-server',
+      uptime: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString(),
+    })
+  }
+  if (pathname === '/api/mock/problem') {
+    return sendJson(req, res, 200, {
+      ok: true,
+      data: {
+        problemText: '一块平行四边形菜地，底是 30 米，高是 15 米。如果每平方米种 6 棵白菜，这块菜地一共可以种多少棵白菜？',
+        problemType: '计算应用题',
+        suggestedGrade: '四年级',
+        boardFocus: '列式计算、四区排版、平行四边形面积公式',
+        relatedKnowledge: ['平行四边形的面积', '乘法运算应用'],
+      },
+    })
+  }
 
   if (pathname === '/api/recognition/problem') return handleRecognitionRequest(req, res, knowledge)
   if (pathname === '/api/agent-b-v2/generate') return handleAgentBV2Request(req, res)
@@ -87,20 +109,15 @@ function serveStatic(req, res) {
   const root = isPublicPath ? publicRoot : distRoot
   const relativePath = pathname
   let filePath = safeFile(root, relativePath)
-  let stat = filePath && existsSync(filePath) ? statSync(filePath) : null
-  if (!filePath || !stat || !stat.isFile()) {
-    if (root !== distRoot || pathname !== '/') return false
-    filePath = join(distRoot, 'index.html')
-    stat = existsSync(filePath) ? statSync(filePath) : null
-    if (!stat || !stat.isFile()) return false
+  if (!filePath || !existsSync(filePath) || !statSync(filePath).isFile()) {
+    if (root === distRoot && pathname === '/') filePath = join(distRoot, 'index.html')
+    else return false
   }
   res.statusCode = 200
   res.setHeader('Content-Type', contentType(filePath))
-  res.setHeader('Content-Length', stat.size)
   res.setHeader('Cache-Control', 'no-cache')
   if (req.method === 'HEAD') return res.end()
-  // P0-04：整文件 readFileSync 会把大交付页/音频整份打进内存（1h2g 下即 OOM 面），改流式直出
-  return createReadStream(filePath).pipe(res)
+  return res.end(readFileSync(filePath))
 }
 
 const server = createServer(async (req, res) => {

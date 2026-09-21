@@ -1,0 +1,54 @@
+{
+  "name": "field-char-escape-filter",
+  "version": "1.0.0",
+  "archetype": "workflow",
+  "description": "板书字段字符转义与规范化技巧蒸馏（车同轨·书同文超级过滤器）。模型输出经 JSON/LLM 转义后的损伤修复、HTML 实体解码、手写体缺字降级、LaTeX→Unicode、除号转 \\frac、$ 绝不字面落板、ESC 安全输出。",
+  "created": "2026-09-19",
+  "updated": "2026-09-19",
+  "sources": [
+    "public/lite-player.html (§5c normalizeBoardLine / §6 esc / §2 visualLen / §6 tokenizeLine/readBrace)",
+    "src/utils/superFilter.js (HANDWRITE_GLYPH_DEGRADATION 镜像源, 改那边必须同步)"
+  ],
+  "distillation_contract": "Distill [板书字段字符转义与规范化] as a [workflow] pack so it can help with [渲染层 textContent/innerHTML 安全输出 / Check Agent 校验字段是否过过滤器 / 字幕与板书落板前的统一清洗], using [public/lite-player.html §5c normalizeBoardLine + §6 esc + §2 visualLen + §6 tokenizeLine/readBrace], while respecting [LaTeX 转义损伤先修再规范化 / HTML 实体 &amp; 最后解 / $ 绝不字面落板 / 控制字符绝不字面落板 / 手写体缺字降级优先 / 除号一律 \frac / 输出 DOM 前 esc].",
+  "core_sections": [
+    "为什么需要 superFilter (模型输出两类损伤 + 手写体缺字)",
+    "过滤器流水线 (normalizeBoardLine 10 步)",
+    "四张关键表 (GLYPH2COMMON / LATEX2U / STRUCT_MATH / decodeHtmlEntities)",
+    "LaTeX 转义损伤修复 (repairCommonLatexEscapeDamage 三种损伤)",
+    "\\frac 视觉字数与排版 (visualLen + tokenizeLine + readBrace)",
+    "除号转 \\frac 硬规范",
+    "ESC (DOM 安全输出最后闸)",
+    "toBoardLines (数组/字符串/对象统一入口)",
+    "与现有 skill 的协同"
+  ],
+  "key_rules": [
+    "过滤器流水线 10 步, 顺序不能倒: \\n还原 → 控制字符退化 → HTML实体解码 → LaTeX损伤修复 → 删$\\left\\right → 缺字降级 → LaTeX→Unicode → x²³角标 → 除号转\\frac → 压行内空白",
+    "字面量 \\n 只在后面不跟字母时还原为换行, 否则把 \\neq \\not \\nabla 打断",
+    "控制字符 \\t \\b \\v \\f 统一退化为空格, 绝不字面落板",
+    "HTML 实体 &amp; 必须最后解, 否则 &amp;lt; 二次解成 <",
+    "LaTeX 损伤修复 3 种: \\u000c+rac→\\frac / 前缀非\\w\\的 rac→\\frac / frac→\\frac",
+    "$ 绝不字面落板, \\left \\right 绝不字面落板",
+    "手写体缺字降级 GLYPH2COMMON 先于 LATEX2U 跑",
+    "GLYPH2COMMON: ×→x ÷→/ ∴→因此 ∵→因为 −→-",
+    "LATEX2U: \\times→x \\sqrt{x}→√x \\pi→π \\to→→ \\angle→∠ \\pm→± \\perp→⊥ \\parallel→∥",
+    "顺序坑: ^\\circ 先于 \\circ / \\sqrt{x} 先于 \\sqrt",
+    "x^2→x² x^3→x³ (角标只吞^与数字, 不吞后续空格)",
+    "除号 a/b → \\frac{a}{b} (禁用 ÷ 与平铺斜杠)",
+    "压行内空白绝不碰 \\n (旧作 \\s+/g 含 \\n 把多行压成一行的坑)",
+    "visualLen(\\frac{3}{4}) = 3+4+1 = 8 (横线算 1, 不是字面 8 字符)",
+    "readBrace 支持嵌套花括号 (depth 计数)",
+    "STRUCT_MATH 检测结构数学 → 手写体写不了 → 公式图或原样写+告警 (不静默丢)",
+    "esc(s) = s.replace(/[&<>]/, &→&amp; <→&lt; >→&gt;), 只用于 innerHTML 字幕, canvas 不需要",
+    "toBoardLines 统一处理数组/字符串/对象三种形态, filter 掉空行",
+    "formFieldFilter 与 src/utils/superFilter.js 镜像, 改那边必须同步"
+  ],
+  "confidence": "high",
+  "boundaries": [
+    "本 skill 只覆盖字段字符转义与规范化, 不覆盖布局坐标 (见 board-zone-layout)",
+    "不覆盖字体加载 (见 handwriting-font-policy)",
+    "不覆盖动作控制 (见 hand-action-control)",
+    "不覆盖语速节奏 (见 speech-board-timing)",
+    "esc 只用于 DOM 字幕, canvas 板书不需要 HTML 转义",
+    "STRUCT_MATH 命中后当前降级为原样写+告警, 公式图能力暂无 KaTeX"
+  ]
+}

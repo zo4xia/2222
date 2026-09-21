@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -18,7 +18,7 @@
     解答   38px 手写体 黑色 行高1.7±随机
     总结   38px 手写体 黑色 行高1.7±随机
     行高随机区间 1.55~1.85（下游渲染职责，均值1.7）
-    板书速度 1秒2-3个汉字，每行±10%轻微抖动；书写时长超出音频窗口时自适应加速压进音频内（音频=行时长唯一主时钟）；rough 动作同速
+    板书速度 1秒2-3个汉字，每行±5%轻微抖动；书写时长超出音频窗口时自适应加速压进音频内（音频=行时长唯一主时钟）；rough 动作同速
   素材真相源（2026-09-13 内嵌 base64，单文件离线）：
     底图 canvas-bg-1726x980.png（PNG→WebP 8KB）：浅蓝贴纸边框，板面区透明挖空，垫 #fbfaf6 纸白
     板书安全区（量自透明区）：left 1.80% top 3.37% right 98.15% bottom 96.33%
@@ -106,21 +106,6 @@
   .note{font-size:12px;color:var(--muted);line-height:1.75;margin-top:12px;
         border-left:3px solid var(--line);padding-left:10px}
   .warn{color:#b45309}.ok{color:#15803d}
-  /* 头部引导 + 控制栏分组 + 倍速（2026-09-17 体验改造） */
-  .player-head{margin:0 0 10px}
-  .player-head h1{margin:0 0 4px;display:flex;align-items:center;gap:10px}
-  .player-head .pcode{font-size:12px;font-weight:500;color:var(--muted);
-        padding:1px 8px;background:var(--surface);border:1px solid var(--line);border-radius:999px}
-  .guide{font-size:12.5px;color:var(--muted);margin:0;line-height:1.7}
-  .guide b{color:var(--ink-2);font-weight:600}
-  .bar-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
-  .bar-divider{width:1px;align-self:stretch;background:var(--line);margin:0 2px}
-  .rate-box{display:flex;align-items:center;gap:6px;padding-left:4px}
-  .rate-label{font-size:12px;color:var(--muted);white-space:nowrap}
-  .rate-box input[type=range]{flex:0 0 110px;min-width:80px;width:110px}
-  .rate-val{font-variant-numeric:tabular-nums;font-size:12.5px;font-weight:700;
-        color:var(--ink-2);min-width:46px;text-align:right}
-  .sub-cap{font-size:12px;font-weight:600;color:var(--muted);margin:10px 0 4px}
   @media (max-width:640px){
     body{padding:10px}
     .bar{padding:8px;gap:6px}
@@ -138,29 +123,14 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="player-head">
-    <h1>仿人板书微课<span class="pcode" id="pcode"></span></h1>
-    <p class="guide">怎么看：① 点 <b>▶ 播放</b> 看完整板书讲解 → ② 想边看边讲开 <b>✍ 批注</b> → ③ 满意后 <b>● 录制</b> 存成视频；进度条可拖动跳转，<b>倍速</b>同时加快板书与语音，双击倍速滑杆恢复 1×。</p>
-  </div>
   <div class="stage"><canvas id="board" width="1726" height="980"></canvas><canvas id="ink" width="1726" height="980"></canvas></div>
   <div class="bar">
-    <div class="bar-group">
-      <button id="btnPlay" data-step="1">▶ 播放</button>
-      <input type="range" id="seek" min="0" max="1000" value="0">
-      <span class="t" id="time">0.00 / 0.00 s</span>
-    </div>
-    <div class="rate-box" title="倍速 0.5×~3×：同时加速板书书写与语音">
-      <span class="rate-label">倍速</span>
-      <input type="range" id="rate" min="0.5" max="3" step="0.05" value="1">
-      <span class="rate-val" id="rateVal">1.00×</span>
-    </div>
-    <div class="bar-divider"></div>
-    <div class="bar-group">
-      <button id="btnInk" data-step="2">✍ 批注</button>
-      <button id="btnRec" data-step="3">● 录制</button>
-    </div>
+    <button id="btnPlay" data-step="1">▶ 播放</button>
+    <button id="btnInk" data-step="2">✍ 批注</button>
+    <button id="btnRec" data-step="3">● 录制</button>
+    <input type="range" id="seek" min="0" max="1000" value="0">
+    <span class="t" id="time">0.00 / 0.00 s</span>
   </div>
-  <div class="sub-cap">字幕（跟随讲解逐字出现）</div>
   <div id="sub"></div>
   <details class="cfg"><summary>⚙ 配置映射 · 填关键参数 / 一键导入 JSON（第 4、5 步：换题或对接时用，日常播放看上面 1→2→3）</summary>
     <div class="cfg-body">
@@ -221,10 +191,8 @@ const SAFE={"left":1.80,"top":3.37,"right":98.15,"bottom":96.33};
 
 /* ============ 1. 数据：协议第 8 章示例（可替换为载入的 deliverable.json） ============ */
 /* ============ 1. 数据：对外字段空表 —— 第三方/手工往 rows 里填即可，多的字段无视 ============
-   每行五字段（2026-09-17 契约定案）： stage | mp3(音频URL，无则"") | speech(口播稿,
-               **加粗**按序=boards[i]落笔锚点) | boards[{startDelay(秒兜底), content(板书,\n换行)}] | actionSpec[]
-   duration(秒) 可选：无真实音频时用于时长兜底。
-   单手串行：本 row 所有 boards 写完 → 才按 order 执行 actionSpec。
+   每行六字段： stage | mp3(音频URL，无则"") | duration(秒) | speech(口播稿) |
+               board{ startDelay(秒), startCoord, content(板书,\n换行) } | actionSpec[]
    填法随便：手粘 / API / 表格导入都行。
    符号从简（手写体缺字，用常见字符凑）：乘=x  平方=小字2  除=写分数\frac{a}{b}（不写÷）  因为/因此=写中文  三角形=写中文"三角形"，不用符号
 ==================================================================================== */
@@ -343,6 +311,36 @@ function resolveBoardCoord(row,bp,stage){
   if(zn&&isFinite(+zn.x)&&isFinite(+zn.y))return {x:+zn.x+2,y:+zn.y+4,pct:true};
   return {x:COORD_FALLBACK.x,y:COORD_FALLBACK.y,pct:true};
 }
+
+// 动作分档时长（镜像 src/agent-b-v2/timing.js estimateActionDuration；离线单文件自带一份，改档两边同改）
+function actionDurationMs(a){
+  const inner=(a&&a.action)||a||{}, tool=inner.tool||'', sub=inner.action||'';
+  if(tool==='rough-notation'){
+    if(sub==='circle'||sub==='box')return 1500;
+    if(sub==='highlight')return 1400;
+    if(sub==='bracket')return 1300;
+    if(sub==='strike-through'||sub==='crossed-off')return 1100;
+    return 1200;
+  }
+  if(tool==='rough-line')return 1000;
+  if(tool==='rough-arrow')return 1200;
+  return 1200;
+}
+// 有音频但动作排不下：只压动作间抬笔间隔把动作收进音频窗口（首动作起点不动、不重叠、不延长音频行）
+function compactActionsIntoWindow(plan,dur){
+  const acts=plan.filter(k=>k.type==='action');
+  if(acts.length<2)return;
+  const last=acts[acts.length-1];
+  if((last.startOffsetMs||0)+(last.durationMs||0)<=dur)return;
+  const firstStart=acts[0].startOffsetMs||0;
+  const total=acts.reduce((s,k)=>s+(k.durationMs||0),0);
+  const n=acts.length-1;
+  const rawGap=Math.floor((dur-firstStart-total)/n);
+  const gap=Math.max(200,Math.min(HAND_LIFT_MS,rawGap));
+  let c=firstStart;
+  acts.forEach(k=>{k.startOffsetMs=c;k.endOffsetMs=c+(k.durationMs||0);c=k.endOffsetMs+gap;});
+}
+
 function compile(data){
   const bp=data.boardPlan||{};
   const W=(bp.canvas&&bp.canvas.w)||1726, H=(bp.canvas&&bp.canvas.h)||980;
@@ -350,74 +348,59 @@ function compile(data){
   const tagAnchor=resolveTagAnchor(bp);   // 装载即定死：render(0) 起标签就在导出物给的位置上
   let acc=0;
   const rows=(data.rows||[]).map((r,i)=>{
-    // audioDurationMs 是真实音频时长唯一主时钟；duration 仅为旧协议的秒单位兼容字段
+    // 音频铁律（2026-09-18 夏夏）：本 row 当前时间唯一权威=真实音频播放时间。
+    // audioDurationMs=试听探测到的真实时长（唯一主时钟）；duration 仅旧协议秒单位兼容；
+    // 二者都缺（未试听/未生成/参数缺失）才用 160cpm 估算，纯为无声虚拟时钟演示流畅。
     const measuredAudioMs=Number(r.audioDurationMs);
     const hasMeasuredAudio=Number.isFinite(measuredAudioMs)&&measuredAudioMs>0;
+    const audioRow=!!(typeof r.mp3==='string'&&isAudioSrc(r.mp3));  // normRow 已把 audioUrl 归入 mp3 白名单
+    const estSpeechMs=Math.max(1000,Math.round((r.speech||'').replace(/\s/g,'').length*60/160*1000));
     let dur=hasMeasuredAudio
           ? Math.round(measuredAudioMs)
-          : (typeof r.duration==='number'&&r.duration>0
-            ? r.duration*1000
-            : Math.max(1000,Math.round((r.speech||'').replace(/\s/g,'').length*60/160*1000)));
+          : (typeof r.duration==='number'&&r.duration>0 ? r.duration*1000 : estSpeechMs);
     const plan=[];
-    // 字幕/口播：**加粗** 是板书触发锚点，TTS/字幕一律剔除符号只读纯文字
-    const rawSpeech=r.speech||'';
-    plan.push({type:'speech',startOffsetMs:0,durationMs:dur,text:rawSpeech.replace(/\*\*([^*\n]+)\*\*/g,'$1')});
-    /* 契约定案（2026-09-17）：row 五字段 {stage,mp3,speech,boards:[{startDelay,content}],actionSpec}
-       speech 内 **加粗** 按序映射 boards[i] 触发落笔；
-       单手串行铁律 = 本 row 所有 boards 依次写完 → 抬笔 → 才按 order 串行执行 actionSpec */
-    const rawBoards=(Array.isArray(r.boards)&&r.boards.length)?r.boards:(r.board!=null?[r.board]:[]);
-    const boards=rawBoards.map(function(b){return (b&&typeof b==='object')?b:{content:String(b==null?'':b),startDelay:0};});
-    const anchors=[];{const re=/\*\*([^*\n]+)\*\*/g;let m;while((m=re.exec(rawSpeech))!==null)anchors.push(m.index);}
-    const anchorMs=function(bi){
-      if(!anchors.length)return null;
-      const a=anchors[Math.min(bi,anchors.length-1)]||0;
-      return Math.round(dur*Math.min(0.95,a/Math.max(1,rawSpeech.length)));
-    };
-    const trailingMs=600+(r.actionSpec||[]).length*1200;   // 行尾抬笔 + 动作（动作全部排在板书写完之后）
-    const baseCoord=boards.length?resolveBoardCoord({board:{startCoord:boards[0].startCoord}},bp,r.stage):null;
-    let cursor=0, prevEndMs=0, stackedLines=0;
-    boards.forEach(function(b,bi){
-      const blines=b.content?boardLineCount(b.content):[];
-      if(!blines.length)return;
-      // 触发优先级：speech 加粗锚点 > 旧 triggerKeyword（历史兼容）> startDelay 兜底
-      let trigger=anchorMs(bi);
-      if(trigger==null&&typeof b.triggerKeyword==='string'&&b.triggerKeyword.trim()){
-        const kw=rawSpeech.indexOf(b.triggerKeyword.trim());
-        if(kw>=0)trigger=Math.round(dur*Math.min(0.95,kw/Math.max(1,rawSpeech.length)));
-      }
-      if(trigger==null)trigger=Math.max(0,Number(b.startDelay)||0)*1000;
-      // 串行铁律：本块起手绝不早于上一块写完 + 抬笔
-      const sd=Math.max(trigger||0,prevEndMs>0?prevEndMs+600:0);
-      // 用户拍板 2026-09-17：书写时长超出音频窗口时自适应加速，压进音频时长内（音频=行时长唯一主时钟）
-      const charCount=Math.max(1,blines.reduce((a,l)=>a+(isRuleLine(l)?2:visualLen(l)),0));   // 横线行快写（用户拍板）
+    plan.push({type:'speech',startOffsetMs:0,durationMs:dur,text:r.speech||''});
+    let cursor=0;
+    const acts=Array.isArray(r.actionSpec)?r.actionSpec.filter(Boolean):[];
+    const bContent = (r.board && r.board.content) || (Array.isArray(r.boards) && r.boards.map(function(x){ return (x&&typeof x==='object')?(x.content??x.text??''):String(x??''); }).filter(Boolean).join('\n')) || '';
+    const lines=bContent?boardLineCount(bContent):[];
+    if(lines.length){
+      const keyword=typeof (r.board?.triggerKeyword ?? r.boards?.[0]?.triggerKeyword)==='string'?(r.board?.triggerKeyword ?? r.boards?.[0]?.triggerKeyword).trim():'';
+      const sd=keyword?0:Math.max(0,Number(r.board?.startDelay ?? r.boards?.[0]?.startDelay)||0)*1000;
+      // 书写时长超出窗口自适应加速压进窗口；动作按分档定量（镜像 timing.estimateActionDuration）
+      const charCount=Math.max(1,lines.reduce((a,l)=>a+(isRuleLine(l)?2:visualLen(l)),0));   // 横线行快写（用户拍板）
+      const actionTotal=acts.reduce((s,a)=>s+actionDurationMs(a),0);
+      const trailingMs=HAND_LIFT_MS+actionTotal+HAND_LIFT_MS*Math.max(0,acts.length-1); // 行尾抬笔+动作+间隔
       let bw=charCount*BASE_CHAR_MS;
       const avail=dur-sd-trailingMs;
       if(avail>0&&bw>avail)bw=Math.max(300,Math.min(bw,avail));
-      // 多块板书纵向堆叠：后续块起点 = 区锚点下移前面块已写行数（38px×1.7 行高 ≈ 6.6%/行）
-      let coord=baseCoord;
-      if(bi>0&&coord){
-        coord=coord.pct?{x:coord.x,y:coord.y+stackedLines*6.6+2,pct:true}
-                       :{x:coord.x,y:coord.y+stackedLines*66,pct:false};
-      }
-      plan.push({type:'board',startOffsetMs:sd,durationMs:bw,index:bi,
-                 content:b.content,coord:coord});
-      prevEndMs=sd+bw;
-      stackedLines+=blines.length;
-    });
-    // 动作：本 row 所有板书写完并抬笔后才串行执行（契约定案，不再插入板书前/行间缝隙）
-    cursor=(prevEndMs>0?prevEndMs+600:Math.min(1200,Math.max(600,Math.round(dur*0.12))));
-    (r.actionSpec||[]).forEach(a=>{
-      plan.push({type:'action',startOffsetMs:cursor,durationMs:1200,action:a});
-      cursor+=1200;
+      plan.push({type:'board',startOffsetMs:sd,durationMs:bw,
+                 content:bContent,coord:resolveBoardCoord(r,bp,r.stage),
+                 ...(keyword?{triggerKeyword:keyword}:{})});
+      cursor=sd+bw+HAND_LIFT_MS;
+    }
+    acts.forEach((a,ai)=>{
+      if(!lines.length&&ai===0)cursor=Math.min(1200,Math.max(600,Math.round(dur*0.12))); // 纯动作行（题目行）首动作前置
+      const adur=actionDurationMs(a);
+      plan.push({type:'action',startOffsetMs:cursor,durationMs:adur,action:a});
+      cursor+=adur+HAND_LIFT_MS;
     });
     const maxEnd=plan.reduce((m,t)=>Math.max(m,(t.startOffsetMs||0)+(t.durationMs||0)),0);
-    if(maxEnd>dur)dur=maxEnd;
+    if(audioRow||hasMeasuredAudio){
+      // 有音频：行时钟锁音频时长，板书/动作绝不拉长行、绝不截断音频；动作排不下只压抬笔间隔
+      if(hasMeasuredAudio)dur=Math.round(measuredAudioMs);
+      compactActionsIntoWindow(plan,dur);
+    }else if(maxEnd>dur){
+      dur=maxEnd;   // 无音频虚拟时钟：完整呈现板书+动作，估算行可被手工作业拉长
+    }
     const startMs=acc;
-    const o={i:i,row:r,startMs:startMs,durMs:dur,plan:plan};
-    acc+=dur+GAP;
+    const gapAfter=(audioRow||hasMeasuredAudio)?0:GAP;  // 音频 onended 自然紧接（无凭空静音）；仅无声演示行留停顿
+    const o={i:i,row:r,startMs:startMs,durMs:dur,plan:plan,gapAfterMs:gapAfter,audioRow:audioRow};
+    acc+=dur+gapAfter;
     return o;
   });
-  return {W:W,H:H,rows:rows,total:Math.max(1,acc-GAP),data:data,tagAnchor:tagAnchor};
+  const lastGap=rows.length?rows[rows.length-1].gapAfterMs:GAP;
+  return {W:W,H:H,rows:rows,total:Math.max(1,acc-lastGap),data:data,tagAnchor:tagAnchor};
 }
 
 /* ============ 4. rough 手绘（纯 Canvas，无外部依赖） ============ */
@@ -708,10 +691,15 @@ function decodeHtmlEntities(t){
 function toBoardLines(v){
   if(Array.isArray(v)){
     return v.map(function(x){return (x&&typeof x==='object')?(x.content??x.text??''):(x??'');})
-            .map(normalizeBoardLine).filter(function(l){return l.length;});
+            .flatMap(function(x){return normalizeBoardLine(x).split('\n');})
+            .map(function(l){return l.replace(/\s+$/,'');})
+            .filter(function(l){return l.trim().length;});
   }
   if(v&&typeof v==='object')return toBoardLines(v.content??v.text??'');
-  return String(v==null?'':v).split('\n').map(normalizeBoardLine).filter(function(l){return l.length;});
+  return String(v==null?'':v).split('\n')
+        .flatMap(function(l){return normalizeBoardLine(l).split('\n');})
+        .map(function(l){return l.replace(/\s+$/,'');})
+        .filter(function(l){return l.trim().length;});
 }
 function normalizeBoardLine(s){
   let t=String(s==null?'':s);
@@ -721,16 +709,26 @@ function normalizeBoardLine(s){
   t=t.replace(/[\t\u0008\u000B\u000C]+/g,' ');      // 控制字符损伤：统一退化为空格，绝不字面落板
   t=decodeHtmlEntities(t);
   t=repairCommonLatexEscapeDamage(t);
+  // LaTeX 环境与定界符剥壳：\begin{aligned}/\end{aligned}、\\ 换行、& 对齐符、\(\) \[\]
+  // 防止意外混入的 TeX 宏包破坏手写排版，统一剥壳为自然手写行
+  t=t.replace(/\\(?:begin|end)\s*\{[^}]*\}/g,'');
+  t=t.replace(/\\\\/g,'\n');
+  t=t.replace(/\\\(|\\\)/g,'');
+  t=t.replace(/\\\[|\\\]/g,'');
+  t=t.replace(/(^|\n)\s*&\s*(?==)/gm,'$1');
+  t=t.replace(/\s*&\s*(?==)/g,'');
   t=t.replace(/\$+/g,'');                     // 安全网：$ 绝不字面落板
   t=t.replace(/\\left\b|\\right\b/g,'');
   for(let i=0;i<GLYPH2COMMON.length;i++)t=t.replace(GLYPH2COMMON[i][0],GLYPH2COMMON[i][1]); // 缺字降级先跑
   for(let i=0;i<LATEX2U.length;i++)t=t.replace(LATEX2U[i][0],LATEX2U[i][1]);
   // 常见字符转换：x^2 -> x², x^3 -> x³
   t=t.replace(/(\w|\))\^2\b/g,'$1²').replace(/(\w|\))\^3\b/g,'$1³');
-  // 除号一律写上下分数 \frac{分子}{分母}：禁用 ÷（手写体缺字）与 a/b 平铺斜杠
-  t=t.replace(/(^|[^\w./\\{])([A-Za-z]|\d+)\s*\/\s*([A-Za-z]|\d+)(?=$|[^\w./])/g,'$1\\frac{$2}{$3}');
-  t=t.replace(/[\t ]+/g,' ').trim();          // 只压行内空白；\n 由调用方保留
-  return t;
+  // 纯整数除法才转换为上下分数，严禁误伤含小数点的数字（如 183.6 / 9 不得被拆坏）或单位
+  t=t.replace(/(^|[^\w.])(?<!\.)(\d+)\s*\/\s*(\d+)(?!\.)(?=$|[^\w.])/g,'$1\\frac{$2}{$3}');
+  // 保护竖式和对齐的前导空格（保留 lead 供 rough 横线对齐），只压缩内部多余空格，去掉行末空格
+  const lead=(t.match(/^\s*/)||[''])[0];
+  const rest=t.slice(lead.length).replace(/[\t ]+/g,' ').replace(/\s+$/,'');
+  return lead + rest;
 }
 
 /* ============ 6. 渲染核心 ============ */
@@ -1042,33 +1040,32 @@ function drawTimeline(t){
 }
 
 /* ============ 7. 时钟：每行自带 mp3，串行自动连播；无音频走虚拟时钟 ============ */
-let rowIdx=0,rowAnchor=0,rowT0=0,rowHasAudio=false,rate=1;
-function now(){ return rowAnchor+(rowHasAudio?audioEl.currentTime*1000:(performance.now()-rowT0)*rate); }
-/* 倍速：音频行走 playbackRate（currentTime 随之加速，板书自动同步）；
-   无声虚拟时钟行按 rate 折算，换速时先把已走时长按旧速折回、再重排零点，画面不跳变 */
-function applyAudioRate(){ try{ audioEl.defaultPlaybackRate=rate; audioEl.playbackRate=rate; }catch(_e){} }
-function setRate(r){
-  r=Math.max(0.5,Math.min(3,Number(r)||1));
-  if(!rowHasAudio){
-    const elapsed=Math.max(0,now()-rowAnchor);
-    rate=r;
-    rowT0=performance.now()-elapsed/rate;
-  }else rate=r;
-  applyAudioRate();
-  document.getElementById('rateVal').textContent=rate.toFixed(2)+'×';
-  document.getElementById('rate').value=String(rate);
+let rowIdx=0,rowAnchor=0,rowT0=0,rowHasAudio=false;
+function now(){ return rowAnchor+(rowHasAudio?audioEl.currentTime*1000:(performance.now()-rowT0)); }
+// 有音频源但交付物缺 audioDurationMs（未探测）时，元数据到达后用真实时长重排全轴；不重载 src、不打断、不截断
+function reflowWithRealDuration(i,realMs){
+  if(!C||!(realMs>0))return;
+  const cur=C.rows[i]; if(!cur)return;
+  if(Math.abs(cur.durMs-realMs)<=150)return;
+  const keepAudioTime=rowHasAudio?audioEl.currentTime:0;
+  if(cur.row)cur.row.audioDurationMs=Math.round(realMs);
+  C=compile(C.data);
+  const nr=C.rows[i]; if(!nr)return;
+  rowIdx=i; rowAnchor=nr.startMs; rowT0=performance.now()-keepAudioTime*1000;
+  render(Math.min(now(),C.total));
 }
 function startRow(i){
   if(!C)return;
   rowIdx=i; const r=C.rows[i];
   rowAnchor=r.startMs; rowT0=performance.now();
   const mp3=r.row.mp3||'';
-  if(mp3){ rowHasAudio=true; audioEl.src=mp3; audioEl.currentTime=0; applyAudioRate(); audioEl.play().catch(function(){}); }
+  if(mp3){ rowHasAudio=true; audioEl.src=mp3; audioEl.currentTime=0; audioEl.play().catch(function(){}); }
   else rowHasAudio=false;
 }
 function loop(ts){
   if(!playing){rafId=0;return;}
   const r=C.rows[rowIdx];
+  // 行切换：有音频只认 onended（完整播完，绝不截断）；无音频才用虚拟时钟按 durMs 推进
   if(r&&!rowHasAudio&&now()>=rowAnchor+r.durMs){
     if(rowIdx<C.rows.length-1)startRow(rowIdx+1);
     else{ render(C.total); pause(); return; }
@@ -1092,13 +1089,20 @@ function pause(){
   document.getElementById('btnPlay').textContent='▶ 播放';
   if(rowHasAudio)audioEl.pause();
 }
-audioEl.onended=()=>{ if(playing&&rowIdx<C.rows.length-1)startRow(rowIdx+1); };
+// 元数据到达：用真实音频时长校正（仅当交付物没带准 audioDurationMs 时触发一次）
+audioEl.onloadedmetadata=()=>{ try{ reflowWithRealDuration(rowIdx,(audioEl.duration||0)*1000); }catch(e){} };
+// 音频完整播完才切下一行（行间 GAP=0 自然紧接）；末行播完收尾，试听绝不截断
+audioEl.onended=()=>{
+  if(!playing)return;
+  if(rowIdx<C.rows.length-1)startRow(rowIdx+1);
+  else { render(C.total); pause(); }
+};
 /* 音频加载/解码失败兜底：立刻降级为无声时钟继续走，绝不卡死在首行 */
 audioEl.onerror=()=>{
   if(!C)return;
   const r=C.rows[rowIdx];
   rowHasAudio=false; audioEl.removeAttribute('src');
-  if(r&&r.durMs<=0){ r.durMs=r.row.audioDurationMs>0?r.row.audioDurationMs:2000; }
+  if(r&&!(r.durMs>0))r.durMs=2000;
   rowT0=performance.now();
   if(playing&&!rafId)rafId=requestAnimationFrame(loop);
 };
@@ -1107,8 +1111,6 @@ audioEl.onerror=()=>{
 function load(data){
   C=compile(data);
   T=0; rowIdx=0; rowAnchor=0; rowT0=performance.now(); rowHasAudio=false;
-  const pcode=document.getElementById('pcode');
-  if(pcode)pcode.textContent=DATA.projectCode||'';
   render(0);
 }
 document.getElementById('btnPlay').onclick=()=>{playing?pause():play();};
@@ -1119,13 +1121,11 @@ function seekTo(v){
   const ri=i<0?C.rows.length-1:i;
   const r=C.rows[ri];
   rowIdx=ri; rowAnchor=r.startMs; rowT0=performance.now()-(v-r.startMs);
-  if(r.row.mp3){ rowHasAudio=true; audioEl.src=r.row.mp3; audioEl.currentTime=Math.max(0,(v-r.startMs)/1000); applyAudioRate(); }
+  if(r.row.mp3){ rowHasAudio=true; audioEl.src=r.row.mp3; audioEl.currentTime=Math.max(0,(v-r.startMs)/1000); }
   else rowHasAudio=false;
   T=v; render(v);
 }
 document.getElementById('seek').oninput=e=>seekTo(C.total*(+e.target.value)/1000);
-document.getElementById('rate').oninput=e=>setRate(+e.target.value);
-document.getElementById('rate').ondblclick=()=>setRate(1);
 /* ---- 顶层透明批注层：播放不挡，画笔可在上面随手画（录屏自动带进去） ---- */
 const ink=document.getElementById('ink'), ix=ink.getContext('2d');
 let inkOn=false, inking=false, lastPt=null;
@@ -1183,7 +1183,99 @@ function toggleRec(){
   document.getElementById('btnRec').textContent='■ 停止并下载';
 }
 document.getElementById('btnRec').onclick=toggleRec;
-load(DATA);
+/* ---- ponytail: URL query 参数加载 ----
+   支持 ?deliverable=/path/to/rows.json 或 ?data=... 两种 key
+   fetch 远程 JSON 替换 DATA 再 load; 失败降级用内置 DATA 示例
+   例: /row-player.html?deliverable=/deliverable/current.json
+   ★ Task 17 修正 (2026-09-21): 只走 URL query 通道, 不再读 localStorage
+     (上游 openHanddrawPlayer 已经直接传 ?deliverable=/api/deliverable/current.json)
+*/
+async function loadFromUrlOrDefault(){
+  const params = new URLSearchParams(location.search);
+  const url = params.get('deliverable') || params.get('data') || params.get('rows');
+  if (!url) {
+    // 双保险：优先检查 localStorage 是否有工作区最新导出的产物
+    try {
+      const lsData = localStorage.getItem('agent-b-deliverable');
+      if (lsData) {
+        const json = JSON.parse(lsData);
+        let rows = Array.isArray(json.rows) ? json.rows
+                 : (json.deliverable && Array.isArray(json.deliverable.rows)) ? json.deliverable.rows
+                 : null;
+        if (rows && rows.length) {
+          const meta = json.deliverable && typeof json.deliverable === 'object' ? json.deliverable : json;
+          const nd = normData({ ...meta, rows });
+          if (nd.projectCode) DATA.projectCode = nd.projectCode;
+          if (nd.problemText) DATA.problemText = nd.problemText;
+          if (nd.boardPlan) DATA.boardPlan = nd.boardPlan;
+          if (nd.problemImage) { DATA.problemImage = nd.problemImage; setProblemImage(nd.problemImage); }
+          DATA.rows = nd.rows;
+          const inCodeEl = document.getElementById('inCode');
+          const inProblemEl = document.getElementById('inProblem');
+          if (inCodeEl) inCodeEl.value = DATA.projectCode || '';
+          if (inProblemEl) inProblemEl.value = DATA.problemText || '';
+          load(DATA);
+          console.info('[row-player] 已从 localStorage 加载最新产物 (' + nd.rows.length + ' 行)');
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('[row-player] 读取 localStorage 异常', e);
+    }
+    load(DATA);
+    return;
+  }
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    let rows = Array.isArray(json.rows) ? json.rows
+             : (json.deliverable && Array.isArray(json.deliverable.rows)) ? json.deliverable.rows
+             : null;
+    if (!rows || !rows.length) throw new Error('rows 为空或缺失');
+    const meta = json.deliverable && typeof json.deliverable === 'object' ? json.deliverable : json;
+    const nd = normData({ ...meta, rows });
+    if (nd.projectCode) DATA.projectCode = nd.projectCode;
+    if (nd.problemText) DATA.problemText = nd.problemText;
+    if (nd.boardPlan) DATA.boardPlan = nd.boardPlan;
+    if (nd.problemImage) { DATA.problemImage = nd.problemImage; setProblemImage(nd.problemImage); }
+    DATA.rows = nd.rows;
+    const inCodeEl = document.getElementById('inCode');
+    const inProblemEl = document.getElementById('inProblem');
+    if (inCodeEl) inCodeEl.value = DATA.projectCode || '';
+    if (inProblemEl) inProblemEl.value = DATA.problemText || '';
+    load(DATA);
+    console.info('[row-player] 已从 URL 参数加载:', url, '(' + nd.rows.length + ' 行)');
+  } catch (e) {
+    console.warn('[row-player] URL 参数加载失败, 降级尝试 localStorage:', e.message, 'url=' + url);
+    try {
+      const lsData = localStorage.getItem('agent-b-deliverable');
+      if (lsData) {
+        const json = JSON.parse(lsData);
+        let rows = Array.isArray(json.rows) ? json.rows
+                 : (json.deliverable && Array.isArray(json.deliverable.rows)) ? json.deliverable.rows
+                 : null;
+        if (rows && rows.length) {
+          const meta = json.deliverable && typeof json.deliverable === 'object' ? json.deliverable : json;
+          const nd = normData({ ...meta, rows });
+          if (nd.projectCode) DATA.projectCode = nd.projectCode;
+          if (nd.problemText) DATA.problemText = nd.problemText;
+          if (nd.boardPlan) DATA.boardPlan = nd.boardPlan;
+          if (nd.problemImage) { DATA.problemImage = nd.problemImage; setProblemImage(nd.problemImage); }
+          DATA.rows = nd.rows;
+          const inCodeEl = document.getElementById('inCode');
+          const inProblemEl = document.getElementById('inProblem');
+          if (inCodeEl) inCodeEl.value = DATA.projectCode || '';
+          if (inProblemEl) inProblemEl.value = DATA.problemText || '';
+          load(DATA);
+          return;
+        }
+      }
+    } catch (_) {}
+    load(DATA);
+  }
+}
+loadFromUrlOrDefault();
 /* ---- 字段归一：外面 JSON 再乱，只捞我们绑定的这几个槽，其余全丢 ---- */
 function pick(o,names){ for(const n of names) if(o&&o[n]!=null&&o[n]!=='') return o[n]; return null; }
 /* 音频地址白名单：只认真实可加载的地址，挡掉"音频暂未生成"这类占位字面量，
@@ -1194,37 +1286,57 @@ function isAudioSrc(v){
   return s!=='' && /(^data:audio\/|^blob:|^https?:\/\/|^\.{0,2}\/|\.(mp3|wav|m4a|aac|ogg|webm|mpeg)(\?|#|$))/i.test(s);
 }
 function normRow(r){
-  // 契约定案（2026-09-17）：row 五字段 {stage,mp3,speech,boards:[{startDelay,content}],actionSpec}
-  // boards 数组优先；旧 board 单对象 / 字符串 / 数组（一行一个）统一兼容归一为 boards 数组
-  const rawBoards=(Array.isArray(r&&r.boards)&&r.boards.length)
-    ? r.boards
-    : ((r&&r.board!==undefined&&r.board!==null)?[r.board]:[]);
-  const boards=rawBoards.map(function(b){
-    if(b&&typeof b==='object'){
-      const rawContent=pick(b,['content','boardText','text']);
-      const content=Array.isArray(rawContent)
-        ? rawContent.map(function(x){return (x&&typeof x==='object')?(x.content??x.text??''):String(x??'');}).join('\n')
-        : (rawContent||'');
-      const coord=pick(b,['startCoord','coord']);
-      const kw=pick(b,['triggerKeyword','keyword']);
-      return {
-        content: content||'',
-        startDelay: pick(b,['startDelay'])??0,
-        ...(coord?{startCoord:coord}:{}),
-        ...(kw?{triggerKeyword:kw}:{}),
-      };
-    }
-    return {content:String(b??''), startDelay:0};
-  });
+  const b=(r&&typeof r.board==='object'&&r.board)||{};
+  // 车同轨·书同文：兼容 boards 数组（多板书片段/单行一个/上游 Agent B 输出格式）
+  const rawBoards = Array.isArray(r?.boards) ? r.boards
+                  : Array.isArray(b?.boards) ? b.boards
+                  : Array.isArray(r?.board) ? r.board
+                  : null;
+  let rawContent = pick(b,['content','boardText','text']);
+  if (!rawContent && rawBoards) {
+    rawContent = rawBoards.map(function(x){
+      return (x && typeof x === 'object') ? (x.content ?? x.text ?? '') : String(x ?? '');
+    }).filter(function(s){ return s && s.length; }).join('\n');
+  }
+  if (!rawContent) {
+    rawContent = pick(r,['content','boardContent','board']);
+  }
+  const content = Array.isArray(rawContent)
+    ? rawContent.map(function(x){return (x&&typeof x==='object')?(x.content??x.text??''):String(x??'');}).join('\n')
+    : (rawContent || '');
   const rawMp3=pick(r,['mp3','audio','audioUrl','voice']);
   const audioMs=Number(pick(r,['audioDurationMs']));
+  const rawCoord = pick(b,['startCoord','coord'])
+    ?? (rawBoards && rawBoards[0] && (rawBoards[0].startCoord || rawBoards[0].coord))
+    ?? pick(r,['startCoord','coord']);
+  const startDelay = pick(b,['startDelay'])
+    ?? (rawBoards && rawBoards[0] && typeof rawBoards[0].startDelay === 'number' ? rawBoards[0].startDelay : null)
+    ?? pick(r,['startDelay'])
+    ?? 0;
+  const triggerKeyword = pick(b,['triggerKeyword','keyword'])
+    ?? (rawBoards && rawBoards[0] && (rawBoards[0].triggerKeyword || rawBoards[0].keyword))
+    ?? pick(r,['triggerKeyword','keyword']);
+
   return {
     stage: pick(r,['stage','role','section','step'])||'解答',
     mp3: isAudioSrc(rawMp3)?rawMp3.trim():'',
     audioDurationMs: audioMs>0?audioMs:null,
     duration: pick(r,['duration','durationSec']) ?? (audioMs>0?audioMs/1000:null) ?? (typeof r.estimatedDurationMs==='number'?r.estimatedDurationMs/1000:null) ?? 0,
     speech: pick(r,['speech','narration','text','口播'])||'',
-    boards,
+    board:{
+      content: content||'',
+      ...(rawCoord?{startCoord:rawCoord}:{}),
+      ...(triggerKeyword
+        ? { triggerKeyword: triggerKeyword }
+        : { startDelay: Number(startDelay)||0 })
+    },
+    boards: rawBoards || [{
+      content: content||'',
+      ...(rawCoord?{startCoord:rawCoord}:{}),
+      ...(triggerKeyword
+        ? { triggerKeyword: triggerKeyword }
+        : { startDelay: Number(startDelay)||0 })
+    }],
     actionSpec: pick(r,['actionSpec','actions'])||[]
   };
 }

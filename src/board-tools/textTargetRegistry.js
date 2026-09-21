@@ -1,5 +1,8 @@
 const VALID_REGIONS = Object.freeze(['question', 'analysis', 'solution', 'summary'])
 
+// ponytail: FNV-1a 唯一真源已抽到 stableHash.js
+import { stableHashBase36 } from './stableHash.js'
+
 function requireElement(element, message) {
   if (typeof HTMLElement === 'undefined' || !(element instanceof HTMLElement)) {
     throw new Error(message)
@@ -8,12 +11,7 @@ function requireElement(element, message) {
 }
 
 function hashText(value) {
-  let hash = 2166136261
-  for (const char of value) {
-    hash ^= char.codePointAt(0)
-    hash = Math.imul(hash, 16777619)
-  }
-  return (hash >>> 0).toString(36)
+  return stableHashBase36(value)
 }
 
 function findTextMatch(root, exactText, occurrence) {

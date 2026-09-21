@@ -46,22 +46,15 @@ function writeCache(key, value) {
   }
 }
 
+// ponytail: JSON 解析唯一真源已抽到 src/lib/parseLLMJson.js
+import { parseLLMJson } from '../src/lib/parseLLMJson.js'
+
 function parseJsonCandidate(text) {
+  const parsed = parseLLMJson(text)
+  if (parsed) return parsed
+  // 降级：完全解析不出 JSON 时，把整段文本当 problemText 返回（避免上层整段抛错）
   const candidate = String(text || '').replace(/^```(?:json)?\s*/i, '').replace(/```$/i, '').trim()
-  try {
-    return JSON.parse(candidate)
-  } catch {
-    const start = candidate.indexOf('{')
-    const end = candidate.lastIndexOf('}')
-    if (start >= 0 && end > start) {
-      try {
-        return JSON.parse(candidate.slice(start, end + 1))
-      } catch (error) {
-        console.warn('[v0] JSON 候选解析失败:', error)
-      }
-    }
-    return { problemText: candidate }
-  }
+  return { problemText: candidate }
 }
 
 export async function handleRecognitionRequest(req, res, knowledge = {}) {

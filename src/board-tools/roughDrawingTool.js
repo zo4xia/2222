@@ -124,14 +124,12 @@ function toDesignPixels(action) {
   return { ...action, start: toPoint(action.start), end: toPoint(action.end) }
 }
 
+// ponytail: FNV-1a 唯一真源已抽到 stableHash.js
+import { stableHashInt } from './stableHash.js'
+
 function stableSeed(action) {
   const source = JSON.stringify(action)
-  let hash = 2166136261
-  for (const char of source) {
-    hash ^= char.codePointAt(0)
-    hash = Math.imul(hash, 16777619)
-  }
-  return ((hash >>> 0) % 2147483646) + 1
+  return (stableHashInt(source) % 2147483646) + 1
 }
 
 function requireSvgElement(element, message) {
@@ -234,6 +232,7 @@ export function validateRoughDrawingAction(action) {
   }
 }
 
+/** @orphan [零外部调用校验函数] */
 export function validateRoughDrawingRegion(action, bounds) {
   const result = validateRoughDrawingAction(action)
   if (!result.ok) return result

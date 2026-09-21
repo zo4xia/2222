@@ -1,0 +1,44 @@
+{
+  "name": "handwriting-font-policy",
+  "version": "1.0.0",
+  "archetype": "workflow",
+  "description": "板书手写字体加载与层级锁定技巧蒸馏。基于 ZeoSeven FontsAPI 的 remote-css 字体嵌入，L3 板书层独占手写体，题目层永久禁用印刷体。",
+  "created": "2026-09-19",
+  "updated": "2026-09-19",
+  "sources": [
+    "src/board-tools/boardTypography.js",
+    "src/board-tools/boardTypography.css",
+    "https://fonts.zeoseven.com/items/490/"
+  ],
+  "distillation_contract": "Distill [板书手写字体加载与层级锁定] as a [workflow] pack so it can help with [Agent B 字体选择策略 / 渲染层字体加载 / Check Agent 校验层级越权], using [src/board-tools/boardTypography.js + src/board-tools/boardTypography.css + https://fonts.zeoseven.com/items/490/], while respecting [L3 板书层独占手写体 / 题目层永久印刷体 / 教育与培训用途允许商用 / 字体不可改名再分发].",
+  "core_sections": [
+    "字体清单（5 种, 含栗壳坚坚体 id=490）",
+    "层级锁定（L1 题目永久印刷体 / L3 板书层手写体）",
+    "字体加载策略（双保险懒加载 + crossOrigin）",
+    "字体偏好持久化（localStorage）",
+    "Agent B 字体选择策略",
+    "本地 TTF @font-face 写法"
+  ],
+  "key_rules": [
+    "5 种手写体: qiaomu-local / pingfang-shaohua(157) / like-jianjianti(490) / pingfang-shangshangqian(511) / pingfang-sansheng(510)",
+    "栗壳坚坚体 LikeJianJianTi 教育与培训用途允许商用",
+    "层级锁定: L1 题目层=印刷体(永久禁止改) / L3 板书层=手写体(5选1) / L4 不进队列",
+    "手写体只允许 analysis/solution/summary 三区, question 永久禁用",
+    "加载双保险: <link rel=stylesheet crossOrigin=anonymous> + document.fonts.load(16px family)",
+    "fallback 链必须保留 KaiTi/STKaiti/cursive",
+    "link.id 去重, link.sheet 判定跳过 await",
+    "本地 TTF 用 font-display: swap 避免首屏闪白",
+    "字体偏好存 localStorage 'qinghuabu.boardTypography.v1' = { fontId }",
+    "默认字体 qiaomu-local (本地 TTF, 零网络)",
+    "Agent B 不得改 question 区字体/文字/字号",
+    "Agent B 不得自造字体名, 只能从 HANDWRITING_FONTS 选",
+    "字体保留名不得改 (栗壳坚坚体授权条款)",
+    "crossOrigin=anonymous 是 canvas 截图导出的关键"
+  ],
+  "confidence": "high",
+  "boundaries": [
+    "本 skill 只覆盖字体加载与层级锁定, 不覆盖布局坐标 (见 board-zone-layout)",
+    "不覆盖动作控制与时间线 (见 hand-action-control / speech-board-timing)",
+    "字体选择由用户态决定, handoff JSON 不传字体字段"
+  ]
+}

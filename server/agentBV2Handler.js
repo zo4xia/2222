@@ -17,66 +17,21 @@ import {
 } from './http.js'
 
 // ---------- 软降级：尽量从模型输出中提取可用的 rows ----------
+// ponytail: 唯一真源已抽到 src/lib/parseLLMJson.js
+import { parseLLMJson } from '../src/lib/parseLLMJson.js'
+
 function parseJsonObjectLoose(text) {
-  const source = String(text || '').trim()
-  const fenced = source.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim()
-  const candidate = fenced || source
-  try { return JSON.parse(candidate) } catch { /* fall through */ }
-  const start = candidate.indexOf('{')
-  const end = candidate.lastIndexOf('}')
-  if (start < 0 || end <= start) return null
-  try { return JSON.parse(candidate.slice(start, end + 1)) } catch { return null }
-}
-
-function extractClosedRows(text) {
-  const source = String(text || '').replace(/^\s*```(?:json)?\s*/i, '')
-  const rowsStart = source.search(/"rows"\s*:\s*\[/i)
-  if (rowsStart < 0) return []
-  const arrayStart = source.indexOf('[', rowsStart)
-  const rows = []
-  let objectStart = -1
-  let depth = 0
-  let inString = false
-  let escaped = false
-
-  for (let index = arrayStart + 1; index < source.length; index += 1) {
-    const char = source[index]
-    if (inString) {
-      if (escaped) escaped = false
-      else if (char === '\\') escaped = true
-      else if (char === '"') inString = false
-      continue
-    }
-    if (char === '"') {
-      inString = true
-      continue
-    }
-    if (char === '{') {
-      if (depth === 0) objectStart = index
-      depth += 1
-    } else if (char === '}') {
-      depth -= 1
-      if (depth === 0 && objectStart >= 0) {
-        try {
-          const row = JSON.parse(source.slice(objectStart, index + 1))
-          if (row && typeof row === 'object' && !Array.isArray(row)) rows.push(row)
-        } catch { /* ignore the malformed row and keep earlier complete rows */ }
-        objectStart = -1
-      }
-    }
-    if (depth < 0) break
-  }
-  return rows
+  return parseLLMJson(text)
 }
 
 function tryExtractFallbackRows(text) {
   const parsed = parseJsonObjectLoose(text)
-  const rows = Array.isArray(parsed?.rows) ? parsed.rows : extractClosedRows(text)
-  if (!rows.length) return null
+  if (!parsed || typeof parsed !== 'object') return null
+  if (!Array.isArray(parsed.rows) || !parsed.rows.length) return null
 
   // 用 contract 的归一化函数提取能用的行
   // 非法 stage 会被兜底修正，非法 actionSpec 会被过滤掉
-  const normalized = normalizeAgentBV2BoardCells(rows)
+  const normalized = normalizeAgentBV2BoardCells(parsed.rows)
   return normalized.length ? normalized : null
 }
 
@@ -201,7 +156,7 @@ export async function handleAgentBV2Request(req, res) {
     ]
     // coordinateMode 只约束 actionSpec 的绘图坐标，板书文字由渲染层排版。
     if (body.canvasParams?.coordinateMode) {
-      userContent.push({ type: 'text', text: `【动作坐标格式】\ncoordinateMode: ${body.canvasParams.coordinateMode}\n说明：仅 actionSpec 的 start/end 坐标按此模式输出；boards 数组每项只输出 startDelay（数字秒，触发兜底）与 content。percentage = 百分比 0-100，pixel = 像素。` })
+      userContent.push({ type: 'text', text: `【动作坐标格式】\ncoordinateMode: ${body.canvasParams.coordinateMode}\n说明：仅 actionSpec 的 start/end 坐标按此模式输出；board 只输出 content（以及兼容的 startDelay）。percentage = 百分比 0-100，pixel = 像素。` })
     }
 
     // 明确告知本次画布舞台配置与视觉参考（canvasParams, boardPlan, zoneAnchors, screenshotUrl）
@@ -276,60 +231,21 @@ export async function handleAgentBV2Request(req, res) {
       })
     }
 
-    // 格式不对不直接报错结束：把本次的具体错误回灌给模型，让它自己修缮后重出一次。
-    // 唯一真相源：话术按 parsed.code / 截断信号对症生成，不能对所有错误都发 stage 同义词那一句。
-    // 截断判定看括号是否真的没闭合（带引号转义），不能只看结尾字符 —— Markdown fence 结尾会被误判
-    function looksTruncated(text) {
-      const s = String(text || '').trim()
-      if (!s) return false
-      let depth = 0
-      let inStr = false
-      let esc = false
-      for (let i = 0; i < s.length; i += 1) {
-        const c = s[i]
-        if (inStr) {
-          if (esc) esc = false
-          else if (c === '\\') esc = true
-          else if (c === '"') inStr = false
-          continue
-        }
-        if (c === '"') inStr = true
-        else if (c === '{' || c === '[') depth += 1
-        else if (c === '}' || c === ']') depth -= 1
-      }
-      return depth > 0
-    }
-    function buildRepairHint(failed, badText, finishReason) {
-      const code = String(failed?.code || '')
-      const reason = String(failed?.error || '').trim()
-      const truncated = finishReason === 'length' || looksTruncated(badText)
-      const lines = [`【上一次输出未通过格式校验】${reason || '返回内容无法解析为合规 JSON'}。`]
-      if (code === 'INVALID_STAGE') {
-        lines.push('请只使用"题目""分析""解答""总结"四种 stage 值，禁止"思路""讲解""过程""步骤""方法""计算""答案"等同义词。')
-      } else if (truncated) {
-        lines.push('上一次输出在 JSON 闭合前就被截断了：请压缩口播与板书长度（可减行、缩短每行），确保输出是一个完整闭合的 JSON 对象。')
-      } else {
-        lines.push('请直接输出一个完整的 JSON 对象（不要 Markdown 代码 fence、不要前后解释文字），顶层必须是 {"rows":[...]}，每行含 stage / mp3（固定空字符串""） / speech（用**加粗**标记boards触发锚点） / boards（数组，每项含 startDelay 与 content） / actionSpec 五个字段。')
-      }
-      lines.push('请基于上面的错误重新输出完整表格，不要只输出被指出错误的那几行。')
-      const tail = String(badText || '').trim().slice(-600)
-      if (tail) lines.push(`【上一次输出的结尾片段，供你定位问题】\n${tail}`)
-      return lines.join('\n')
-    }
-
-    const MAX_RETRIES = 1
+    const MAX_RETRIES = 2
     let parsed = null
     let lastText = ''
     let lastData = null
-    let lastFinishReason = ''
-    let attemptsUsed = 0
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      // 静默重试：不把解析错误抛给用户，带上错误反馈让模型自己修正重出
       const currentUserContent = attempt === 0
         ? userContent
         : [
             ...userContent,
-            { type: 'text', text: buildRepairHint(parsed, lastText, lastFinishReason) },
+            {
+              type: 'text',
+              text: `【上一次输出解析失败，请修正后重新输出完整结果】错误：${parsed.error}。硬性要求：顶层必须是 JSON 对象 {"rows":[...]}；每行必须含 stage/speech/board/actionSpec 五字段；stage 仅限"题目""分析""解答""总结"四种值，禁止使用"思路""讲解""过程""步骤""方法""计算""答案"等同义词。`,
+            },
           ]
 
       const { response, data } = isAnthropic
@@ -368,8 +284,6 @@ export async function handleAgentBV2Request(req, res) {
         ? getChatMessageText(data)
         : getChatMessageText(data?.choices?.[0]?.message)
       lastData = data
-      lastFinishReason = String((isAnthropic ? data?.stop_reason : data?.choices?.[0]?.finish_reason) || '')
-      attemptsUsed = attempt + 1
       parsed = parseAgentBV2Response(lastText, {
         problemType: handoff?.problemType,
         allowSynonyms: attempt === MAX_RETRIES,
@@ -379,9 +293,8 @@ export async function handleAgentBV2Request(req, res) {
       })
 
       if (parsed.ok) break
-      // 合同解析失败统一重试一次；网络、鉴权等上游错误在前面直接返回。
-      if (attempt >= MAX_RETRIES) break
-      console.warn(`[Agent B] 第 ${attempt + 1} 次输出未通过合同校验（${parsed.code || 'CONTRACT_INVALID'}）：${parsed.error}；已回灌错误要求模型修缮后重出`)
+      // 所有解析失败（JSON 格式错、缺 rows、非法 stage 等）都带错误反馈静默重试
+      console.warn(`[Agent B] 第 ${attempt + 1} 次输出解析失败(${parsed.code || 'CONTRACT_INVALID'})，${attempt < MAX_RETRIES ? '带错误反馈重试' : '进入软降级提取'}`)
     }
 
     if (!parsed.ok) {
@@ -428,7 +341,7 @@ export async function handleAgentBV2Request(req, res) {
         error: parsed.error,
         finishReason: lastData?.stop_reason || lastData?.choices?.[0]?.finish_reason || '',
         usage: lastData?.usage || null,
-        diagnostic: { rawTextHead: lastText.slice(0, 500), retried: attemptsUsed > 1, attempts: attemptsUsed, finishReason: lastFinishReason },
+        diagnostic: { rawTextHead: lastText.slice(0, 500), retried: parsed.code === 'INVALID_STAGE' },
       })
     }
     // 写入实体文件存档（B 生成结果的唯一真相源）

@@ -2,14 +2,12 @@
 import { CANVAS_W as DESIGN_W, CANVAS_H as DESIGN_H } from './canvasCoords.js'
 // 题目字号唯一真源：src/services/stepHandoff.js
 import { QUESTION_FONT_SIZE, BOARD_FONT_SIZE } from '../services/stepHandoff.js'
-// 车同轨、书同文：画布板书行排版前统一过全局唯一超级过滤器（一行一个 + 错误转义清洗）
-import { superCleanBoardField } from './superFilter.js'
 export { DESIGN_W, DESIGN_H }
 
-export const BOARD_SAFE_X_PCT = 6
-export const BOARD_RIGHT_LIMIT_PCT = 94
-export const BOARD_BOTTOM_LIMIT_PCT = 95
-export const BOARD_HORIZONTAL_GAP_PCT = 4
+const BOARD_SAFE_X_PCT = 6
+const BOARD_RIGHT_LIMIT_PCT = 94
+const BOARD_BOTTOM_LIMIT_PCT = 95
+const BOARD_HORIZONTAL_GAP_PCT = 4
 
 const SECTION_GAP_PCT = 2
 const LABEL_HEIGHT_PCT = (44 / DESIGN_H) * 100
@@ -46,9 +44,9 @@ export function pctBox(style = {}) {
 }
 
 /**
- * 板书行落点排版：区域即起点，纵向按自然行高累加（夏夏 2026-09-15 拍板：取消人为行间距）。
+ * 板书行落点排版：区域即起点，纵向按自然行高累加（取消人为强制行距，依靠字体自然高度排版）。
  * 业务规则：
- *   - 起点 = 区域左上角，不额外指定"起手坐标"；
+ *   - 起点 = 区域左上角，模型不输出"起手坐标"，由渲染层自然排版；
  *   - 允许超出本区（内容多时向下延展），但禁止超出画布底边 BOARD_BOTTOM_LIMIT_PCT；
  *   - 游标单调递增 → 天然不重叠，不需要额外避让算法。
  * @params {Array<{stage: string, board?: {content?: string}}>} rows
@@ -72,14 +70,11 @@ export function layoutBoardRows(rows, { fontSizePx = BOARD_FONT_SIZE } = {}) {
     const box = BOARD_LAYOUT[zone] || BOARD_LAYOUT.solution
     if (cursor[zone] == null) cursor[zone] = box.y
 
-    // 车同轨·书同文：一行一个（数组 / 换行序列统一），并清掉错误转义与多余换行
-    const boardLines = superCleanBoardField(
-      row?.board?.content ?? (Array.isArray(row?.board) ? row.board : (typeof row?.board === 'string' ? row.board : '')),
-    ).lines
+    const content = String(row?.board?.content ?? '')
     const zoneWidthPx = (box.w / 100) * DESIGN_W
     // 显式 \n 与超宽自动换行都要占位，否则多行内容会被压成一行
     let lineCount = 0
-    for (const rawLine of boardLines) {
+    for (const rawLine of content.split('\n')) {
       if (!rawLine.trim()) {
         lineCount += 1
         continue

@@ -7,29 +7,17 @@ export const ROUGH_NOTATION_TOOL_ID = 'rough-notation'
 export const ROUGH_NOTATION_ENABLED_ACTIONS = Object.freeze([
   'underline',
   'highlight',
-  'box',
-  'circle',
-  'bracket',
-  'strike-through',
-  'crossed-off',
 ])
 export const MARK_DURATION_PER_HAN_WIDTH_MS = 400
 
 export const BOARD_MARK_COLORS = Object.freeze({
   red: '#d64545',
   yellow: '#f8e58c',
-  blue: '#3b82f6',
-  ink: '#1f2937',
 })
 
 const TYPE_DESCRIPTIONS = Object.freeze({
   underline: '在已存在的关键词或数字下方画手绘下划线',
   highlight: '在已存在的关键词或数字上画荧光高亮',
-  box: '在关键词或公式外侧画手绘矩形框',
-  circle: '在关键词或数字外侧画手绘椭圆圈出',
-  bracket: '在文本旁侧画大括号/中括号',
-  'strike-through': '在错误项上画删除横线',
-  'crossed-off': '在错误项上画叉叉',
 })
 
 function requireElement(element) {
@@ -48,7 +36,7 @@ function normalizeOptions(action, options = {}) {
   if (!ROUGH_NOTATION_ENABLED_ACTIONS.includes(action)) {
     throw new Error(`当前未开放的 RoughNotation 动作: ${action || '空'}`)
   }
-  const colorId = options.colorId || (action === 'highlight' ? 'yellow' : 'red')
+  const colorId = action === 'highlight' ? 'yellow' : 'red'
   return {
     type: action,
     animate: true,
@@ -69,6 +57,7 @@ function targetRects(element, multiline) {
   return [element.getBoundingClientRect()]
 }
 
+/** @orphan [零外部调用估算函数] */
 export function estimateMarkDurationMs(element, { multiline = false } = {}) {
   const target = requireElement(element)
   const rects = targetRects(target, multiline)

@@ -29,53 +29,29 @@ import {
 } from './http.js'
 
 // ---------- JSON 解析 ----------
-function parseJsonObject(text) {
-  const source = String(text || '').trim()
-  const fenced = source.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim()
-  const candidate = fenced || source
-  try { return JSON.parse(candidate) } catch { /* fall through */ }
-  const start = candidate.indexOf('{')
-  const end = candidate.lastIndexOf('}')
-  if (start < 0 || end <= start) return null
-  try { return JSON.parse(candidate.slice(start, end + 1)) } catch { return null }
-}
+// ponytail: 唯一真源已抽到 src/lib/parseLLMJson.js
+import { parseLLMJson } from '../src/lib/parseLLMJson.js'
 
-// ---------- boards / actionSpec 规范化（借用 B 的合同，2026-09-17 五字段契约） ----------
-import { normalizeBoardsField, normalizeAgentBV2ActionSpec } from '../src/agent-b-v2/contract.js'
+// ---------- board / actionSpec 规范化（借用 B 的合同） ----------
+import { normalizeBoard, normalizeAgentBV2ActionSpec } from '../src/agent-b-v2/contract.js'
 
 function valuesMatch(left, right) {
   return JSON.stringify(left) === JSON.stringify(right)
 }
 
-function formatBoardsItem(item) {
-  if (item && typeof item === 'object' && ('startDelay' in item || 'content' in item)) {
-    const delayStr = Number.isFinite(Number(item.startDelay)) ? `+${Number(item.startDelay).toFixed(1)}s` : '+0.0s'
-    return `落笔兜底 ${delayStr} · 内容: ${item.content || '（无）'}`
-  }
-  return typeof item === 'string' ? item : JSON.stringify(item ?? '')
-}
-
-function formatBoardsDelay(boards) {
-  return (Array.isArray(boards) ? boards : [])
-    .map((b) => `+${Number(b?.startDelay || 0).toFixed(1)}s`)
-    .join(' / ') || '[]'
-}
-
 function formatChangeValue(value) {
-  if (Array.isArray(value)) {
-    return value.length ? value.map(formatBoardsItem).join(' ｜ ') : '[]'
-  }
   if (value && typeof value === 'object' && ('startDelay' in value || 'content' in value)) {
-    return formatBoardsItem(value)
+    const delayStr = Number.isFinite(Number(value.startDelay)) ? `+${Number(value.startDelay).toFixed(1)}s` : '+0.0s'
+    return `落笔起手 ${delayStr} · 内容: ${value.content || '（无）'}`
   }
   return typeof value === 'string' ? value : JSON.stringify(value ?? '')
 }
 
 // ---------- 解析 Check Agent 返回 ----------
-const ALLOWED_FIELDS = new Set(['speech', 'boards', 'board_timing', 'actionSpec', 'answer_error', 'common_mistake'])
+const ALLOWED_FIELDS = new Set(['speech', 'board', 'board_timing', 'actionSpec', 'answer_error', 'common_mistake'])
 
 function parseCheckResponse(text, originalRows) {
-  const parsed = parseJsonObject(text)
+  const parsed = parseLLMJson(text)
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     return { ok: false, error: '返回内容不是 JSON 对象' }
   }
@@ -97,26 +73,16 @@ function parseCheckResponse(text, originalRows) {
     origIdx++
   }
 
-  // 契约定案（2026-09-17）：row 五字段 {stage, mp3, speech, boards, actionSpec}
-  // boards 数组优先；旧 board 单对象/字符串兼容归一；mp3/音频信息原样透传
-  const rows = parsed.rows.map((row, index) => ({
-    ...originalRows[index],
-    stage: row?.stage || originalRows[index]?.stage || '',
-    mp3: typeof row?.mp3 === 'string' ? row.mp3 : (originalRows[index]?.mp3 ?? ''),
-    speech: typeof row?.speech === 'string' ? row.speech : (originalRows[index]?.speech || ''),
-    boards: (row?.boards !== undefined || row?.board !== undefined)
-      ? normalizeBoardsField(row.boards, row.board)
-      : normalizeBoardsField(originalRows[index]?.boards, originalRows[index]?.board),
+  const rows = parsed.rows.map((row) => ({
+    stage: row?.stage || '',
+    speech: typeof row?.speech === 'string' ? row.speech : '',
+    board: row?.board !== undefined && row?.board !== null
+      ? normalizeBoard(row.board)
+      : '',
     actionSpec: Array.isArray(row?.actionSpec)
       ? normalizeAgentBV2ActionSpec(row.actionSpec)
-      : (originalRows[index]?.actionSpec || []),
-    ...(typeof row?.audioUrl === 'string' && row.audioUrl ? { audioUrl: row.audioUrl } : {}),
-    ...(Number.isFinite(Number(row?.audioDurationMs)) && Number(row.audioDurationMs) > 0
-      ? { audioDurationMs: Math.round(Number(row.audioDurationMs)) }
-      : {}),
+      : [],
   }))
-  // 旧 board 字段已被 boards 归一取代，避免同一行残留两份板书
-  rows.forEach((row) => { delete row.board })
 
   // 生成 changes 报告
   const reportedChanges = (Array.isArray(parsed.changes) ? parsed.changes : [])
@@ -142,34 +108,30 @@ function parseCheckResponse(text, originalRows) {
   const reportedKeys = new Set(
     reportedChanges
       .filter(c => c.row !== null && c.field !== 'answer_error')
-      .map(c => `${c.row}:${c.field === 'board_timing' ? 'boards' : c.field}`)
+      .map(c => `${c.row}:${c.field === 'board_timing' ? 'board' : c.field}`)
   )
   const minLen = Math.min(originalRows.length, rows.length)
   for (let i = 0; i < minLen; i++) {
     const orig = originalRows[i]
     const chk = rows[i]
-    for (const field of ['speech', 'boards', 'actionSpec']) {
+    for (const field of ['speech', 'board', 'actionSpec']) {
       const key = `${i + 1}:${field}`
       if (reportedKeys.has(key)) continue // 模型已经报告过了，跳过
-      const origVal = field === 'boards'
-        ? normalizeBoardsField(orig?.boards, orig?.board)
-        : orig?.[field]
+      const origVal = orig?.[field]
       const chkVal = chk?.[field]
       if (!valuesMatch(origVal, chkVal)) {
-        // 仅 startDelay 兜底变化、板书内容不变 → 归并为 board_timing 时机校准
-        const isOnlyTiming = field === 'boards' &&
-          Array.isArray(origVal) && Array.isArray(chkVal) &&
-          origVal.length === chkVal.length &&
-          origVal.every((b, bi) => (b?.content || '') === (chkVal[bi]?.content || '')) &&
-          origVal.some((b, bi) => (b?.startDelay ?? 0) !== (chkVal[bi]?.startDelay ?? 0))
+        const isOnlyTiming = field === 'board' &&
+          origVal?.content === chkVal?.content &&
+          origVal?.startDelay !== chkVal?.startDelay
+
 
         changes.push({
           row: i + 1,
           field: isOnlyTiming ? 'board_timing' : field,
-          before: isOnlyTiming ? formatBoardsDelay(origVal) : formatChangeValue(origVal),
-          after: isOnlyTiming ? formatBoardsDelay(chkVal) : formatChangeValue(chkVal),
+          before: isOnlyTiming ? `+${Number(origVal?.startDelay || 0).toFixed(1)}s` : formatChangeValue(origVal),
+          after: isOnlyTiming ? `+${Number(chkVal?.startDelay || 0).toFixed(1)}s` : formatChangeValue(chkVal),
           reason: isOnlyTiming
-            ? '校准板书时机：startDelay 兜底延迟调整（触发真源仍为 speech 加粗锚点）'
+            ? `校准板书时机：落笔起手延迟调整为 +${Number(chkVal?.startDelay || 0).toFixed(1)}s`
             : '内容优化（模型未标注原因）',
         })
       }
@@ -297,7 +259,7 @@ export async function handleCheckAgentRequest(req, res) {
       },
       {
         type: 'text',
-        text: `【当前 B 生成结果五字段】\n${JSON.stringify(originalRows, null, 2)}`,
+        text: `【当前 B 生成结果四字段】\n${JSON.stringify(originalRows, null, 2)}`,
       },
     ]
 
@@ -364,13 +326,22 @@ export async function handleCheckAgentRequest(req, res) {
       })
     }
 
-    // 模型成功返回后保持其原始修正；本地规则只用于模型失败时的明确回退，避免二次改写。
+    // 大模型成功返回后，再经由本地 ASR 规则引擎进行二次保障与兜底清洗
+    const finalDoubleCheck = polishRowsASR(parsed.value.rows)
+    // 合并 changes
+    const combinedChanges = [...parsed.value.changes]
+    finalDoubleCheck.changes.forEach((extra) => {
+      const exists = combinedChanges.some((c) => c.row === extra.row && c.field === extra.field)
+      if (!exists) {
+        combinedChanges.push(extra)
+      }
+    })
+
     return sendJson(req, res, 200, {
       ok: true,
-      checkStatus: 'model_checked',
       model: credentials.model,
-      rows: parsed.value.rows,
-      changes: parsed.value.changes,
+      rows: finalDoubleCheck.rows,
+      changes: combinedChanges,
       usage: data?.usage || null,
     })
   } catch (error) {

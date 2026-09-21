@@ -5,11 +5,8 @@ import BoardContentLayer from './BoardContentLayer.vue'
 import {
   CANVAS_W as DESIGN_W,
   CANVAS_H as DESIGN_H,
-  TABLE_REF_W,
-  TABLE_REF_H,
 } from '../utils/canvasCoords'
-import { BOARD_FONT_SIZE } from '../services/stepHandoff.js'
-import { parseBoardField } from '../lib/speechMarkdown.js'
+import { BOARD_FONT_SIZE, QUESTION_FONT_SIZE, HANDWRITING_FONT_STACK } from '../services/stepHandoff.js'
 import { createBoardToolRuntime } from '../board-tools/boardToolCatalog.js'
 
 const props = defineProps({
@@ -31,6 +28,33 @@ const props = defineProps({
   boardRows: { type: Array, default: () => [] },
   /** 是否自动播放 actionSpec，默认 true */
   autoPlay: { type: Boolean, default: true },
+  /**
+   * ★ Task 9 修复: 画布舞台参数 (canvasParams)
+   *  真相源: handoff.canvasParams (Agent A 给) → AgentBDirect/Step1Entry 透传
+   *  含 canvasSize / fontSize.question.px / fontSize.analysis.px / lineHeight 等
+   *  若不传则 fallback 到 stepHandoff.js 的 BOARD_FONT_SIZE / QUESTION_FONT_SIZE 常量
+   */
+  canvasParams: { type: Object, default: null },
+})
+
+// ★ Task 9: 从 canvasParams 提取真实字号 (没传则 fallback 常量)
+const questionFontSize = computed(() => {
+  const px = Number(props.canvasParams?.fontSize?.question?.px)
+  return px > 0 ? px : QUESTION_FONT_SIZE
+})
+const boardFontSize = computed(() => {
+  // analysis / solution / summary 都用同一个 BOARD_FONT_SIZE
+  const px = Number(props.canvasParams?.fontSize?.analysis?.px)
+  return px > 0 ? px : BOARD_FONT_SIZE
+})
+// ★ Task 9: 画布尺寸 (没传则 fallback 1726×980 常量)
+const canvasWidth = computed(() => {
+  const w = Number(props.canvasParams?.canvasSize?.width)
+  return w > 0 ? w : DESIGN_W
+})
+const canvasHeight = computed(() => {
+  const h = Number(props.canvasParams?.canvasSize?.height)
+  return h > 0 ? h : DESIGN_H
 })
 
 const emit = defineEmits(['pick-coord', 'topic-measured', 'update:topic-layout', 'layout-change', 'update:problem-text'])
@@ -40,9 +64,7 @@ const roughSvgRef = ref(null)
 let runtime = null
 
 function resolveCanvas() {
-  // rough 工具契约：需要 HTMLElement 容器（内部 querySelector 找 overlay svg）
-  // 返回 div.board 容器；roughSvgRef 是 SVGElement，直接传会被工具守卫拒绝导致绘制静默失效
-  return boardRef.value
+  return roughSvgRef.value
 }
 
 function resolveRegion(region) {
@@ -81,9 +103,12 @@ function normalizeActionSpecItem(item) {
   return item
 }
 
-// 板书纯文本提取复用唯一真源（speechMarkdown.parseBoardField），不另造第二套解析
+// ponytail: parseBoardContent 归并到 contract.js#normalizeBoard 唯一真源
+import { normalizeBoard } from '../agent-b-v2/contract.js'
+// ponytail: 板书文字渲染前过 superFilter 10 步清洗
+import { normalizeBoardLine } from '../utils/superFilter.js'
 function parseBoardContent(board) {
-  return { content: parseBoardField(board).content }
+  return { content: normalizeBoard(board).content }
 }
 
 function resolveBoardRegion(row) {
@@ -104,12 +129,19 @@ function regionStyle(region) {
   }
 }
 
+// ponytail: 板书文字渲染前过 superFilter 10 步清洗 (×→x, ÷→/, \frac, \sqrt, LaTeX→Unicode, $删除等)
 const boardTextRows = computed(() => (props.boardRows || [])
   .map((row, index) => {
     const board = parseBoardContent(row?.board)
     if (!board.content.trim()) return null
+    // 每行板书内容过 superFilter
+    const filteredContent = board.content.split('\n')
+      .map(line => normalizeBoardLine(line))
+      .filter(line => line.length)
+      .join('\n')
+    if (!filteredContent.trim()) return null
     const region = resolveBoardRegion(row)
-    return { id: `${region}-${index}`, region, content: board.content }
+    return { id: `${region}-${index}`, region, content: filteredContent }
   })
   .filter(Boolean))
 
@@ -152,8 +184,6 @@ function onMove(e) {
     yPct: yPct.toFixed(1),
     px,
     py,
-    refX: Math.round((px / DESIGN_W) * TABLE_REF_W),
-    refY: Math.round((py / DESIGN_H) * TABLE_REF_H),
   }
 }
 function onLeave() {
@@ -190,6 +220,7 @@ function onClick() {
         :show-zone-guides="showZoneGuides"
         :source-image-url="sourceImageUrl"
         :keep-original="keepOriginal"
+        :canvas-params="canvasParams"
         @topic-measured="emit('topic-measured', $event)"
         @update:topic-layout="emit('update:topic-layout', $event)"
         @layout-change="emit('layout-change', $event)"
@@ -219,7 +250,7 @@ function onClick() {
             v-for="item in boardTextRows.filter((entry) => entry.region === region)"
             :key="item.id"
             class="board-text-anchor"
-            :style="{ fontSize: `${BOARD_FONT_SIZE}px` }"
+            :style="{ fontSize: `${boardFontSize}px` }"
           >{{ item.content }}</span>
         </div>
         <div
@@ -234,8 +265,7 @@ function onClick() {
       <div class="board-layer board-layer-l4" data-board-layer="L4" aria-hidden="true" />
 
       <div v-if="hover" class="hover-readout">
-        画布({{ hover.px }},{{ hover.py }})px / ({{ hover.xPct }},{{ hover.yPct }})%
-        · 表约({{ hover.refX }},{{ hover.refY }})
+        画布: ({{ hover.px }}, {{ hover.py }})px · ({{ hover.xPct }}%, {{ hover.yPct }}%)
         <span class="hint">点击复制</span>
       </div>
     </div>
@@ -251,9 +281,10 @@ function onClick() {
   aspect-ratio: 1726 / 980;
   margin: 0 auto;
   overflow: hidden;
-  border: 1px solid #9ccfd9;
-  background: transparent;
-  box-shadow: 0 10px 28px rgba(24, 40, 42, 0.12);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
   user-select: none;
 }
 .board.interactive { cursor: crosshair; }
@@ -279,7 +310,8 @@ function onClick() {
   margin: 0 0 18px;
   white-space: pre-wrap;
   line-height: 1.5;
-  font-family: "平方乔木体", "KaiTi", "STKaiti", cursive;
+  /* ★ Task 10: 字体栈与 stepHandoff.HANDWRITING_FONT_STACK 同序（507 主 → 490 降级 → 系统楷体） */
+  font-family: "平方乔木体", "平方韶华体", "平方上上谦体", "平方三生体", "PingFangSaTuoTi", "LikeJianJianTi", KaiTi, STKaiti, "PingFang SC", serif;
   font-weight: normal;
   letter-spacing: 0;
   transform: translateZ(0);

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Skills 沉淀 · 7 个可交互示例</title>
+<style>
+  :root{--bg:#0f172a;--surface:#1e293b;--surface-2:#334155;--ink:#f1f5f9;--muted:#94a3b8;
+        --brand:#22d3ee;--warn:#fbbf24;--ok:#4ade80;--err:#f87171;--line:#334155}
+  *{box-sizing:border-box}
+  body{margin:0;padding:32px 24px;background:var(--bg);color:var(--ink);
+       font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;line-height:1.6;
+       min-height:100vh}
+  .wrap{max-width:1100px;margin:0 auto}
+  h1{font-size:24px;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:24px}
+  .group{margin-bottom:24px}
+  .group-title{font-size:14px;color:var(--brand);font-weight:600;margin-bottom:10px;
+               padding-bottom:6px;border-bottom:1px solid var(--line)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;
+        padding:14px;cursor:pointer;transition:border-color .18s,transform .18s;
+        text-decoration:none;color:inherit;display:block}
+  .card:hover{border-color:var(--brand);transform:translateY(-2px)}
+  .card .n{font-size:11px;color:var(--warn);font-weight:600;margin-bottom:4px}
+  .card .name{font-size:16px;font-weight:600;margin-bottom:6px}
+  .card .desc{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:8px}
+  .card .constraint{font-size:11px;color:var(--ok);background:rgba(74,222,128,.08);
+                   padding:4px 8px;border-radius:4px;display:inline-block}
+  .footer{color:var(--muted);font-size:12px;margin-top:24px;padding-top:16px;
+          border-top:1px solid var(--line);text-align:center}
+  .back{display:inline-block;margin-bottom:16px;color:var(--brand);
+        text-decoration:none;font-size:13px}
+  .back:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← 返回主工作台</a>
+  <h1>Skills 沉淀 · 7 个可交互示例</h1>
+  <p class="sub">前 5 个上游产出端（Agent B 写 deliverable JSON 的硬约束）· 后 2 个下游渲染端与浏览器侧观察。点卡片进交互 demo。</p>
+
+  <div class="group">
+    <div class="group-title">上游产出端 · Agent B 写 deliverable JSON 的硬约束</div>
+    <div class="grid">
+      <a class="card" href="skill-1.html">
+        <div class="n">SKILL 1</div>
+        <div class="name">board-zone-layout</div>
+        <div class="desc">画布 1726×980 四区布局与坐标控制，三种布局模式切换，越界容错可视化。</div>
+        <span class="constraint">不出画布=硬约束 / 越界邻区=软约束</span>
+      </a>
+      <a class="card" href="skill-2.html">
+        <div class="n">SKILL 2</div>
+        <div class="name">handwriting-font-policy</div>
+        <div class="desc">5 种手写体切换（含栗壳坚坚体 id=490），L1 印刷体 / L3 手写体层级锁定。</div>
+        <span class="constraint">L3 独占手写体 / ZeoSeven CSS + crossOrigin</span>
+      </a>
+      <a class="card" href="skill-3.html">
+        <div class="n">SKILL 3</div>
+        <div class="name">hand-action-control</div>
+        <div class="desc">3 工具白名单校验（rough-notation/line/arrow），teacher-hand 互斥队列时间线。</div>
+        <span class="constraint">时长程序算 / Agent 不得填</span>
+      </a>
+      <a class="card" href="skill-4.html">
+        <div class="n">SKILL 4</div>
+        <div class="name">speech-board-timing</div>
+        <div class="desc">160 cpm 语速 + 标点停顿 + 板书 400ms/字抖动，Row 时间线计算，口播发音硬规范。</div>
+        <span class="constraint">B 不输出时间 / 发音硬规范</span>
+      </a>
+      <a class="card" href="skill-5.html">
+        <div class="n">SKILL 5</div>
+        <div class="name">field-char-escape-filter</div>
+        <div class="desc">车同轨·书同文 superFilter 10 步流水线可视化，LaTeX 损伤修复 / HTML 实体解码 / 除号转 \frac。</div>
+        <span class="constraint">&amp; 最后解 / $ 绝不字面落板</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="group">
+    <div class="group-title">下游渲染端与浏览器侧 · 落地上游约束</div>
+    <div class="grid">
+      <a class="card" href="skill-6.html">
+        <div class="n">SKILL 6</div>
+        <div class="name">board-lecture-player</div>
+        <div class="desc">三条非协商修订校验（真实音频/零 keyword/board v3.0 零坐标），浏览器内联跑 validate_contract。</div>
+        <span class="constraint">真实音频 = 唯一时长真相源</span>
+      </a>
+      <a class="card" href="skill-7.html">
+        <div class="n">SKILL 7</div>
+        <div class="name">blingbling小眼睛</div>
+        <div class="desc">DOM-first 轻量观察子技能，三种页面（表单/文档/列表）观察，输出 compact JSON。</div>
+        <span class="constraint">DOM-first 不是 screenshot-first</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="group">
+    <div class="group-title">标准化模板 · 全局唯一规范</div>
+    <div class="grid">
+      <a class="card" href="integration-guide.html">
+        <div class="n">SPEC</div>
+        <div class="name">页面导入示范</div>
+        <div class="desc">下游 Agent / 第三方消费 handoff / deliverable 的最简集成代码 + 全局唯一字段规范。</div>
+        <span class="constraint">handoff.schema.json / deliverable.schema.json / row-player 嵌入</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="footer">
+    7 个 skill 形成上下游闭环 · 上游 5 skill 写约束 · 下游 board-lecture-player 落地 · blingbling小眼睛 浏览器侧观察 · 标准化模板全局唯一规范
+  </div>
+</div>
+</body>
+</html>

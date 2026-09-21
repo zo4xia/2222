@@ -18,7 +18,6 @@ import {
   SafetyCertificateOutlined,
   FieldTimeOutlined,
   EyeOutlined,
-  LoadingOutlined,
   ReloadOutlined,
   FileDoneOutlined,
   HolderOutlined,
@@ -39,9 +38,9 @@ import { BOARD_MARK_COLORS } from '../board-tools/roughNotationTool.js'
 import { ROUGH_DRAWING_COLORS } from '../board-tools/roughDrawingTool.js'
 import { saveLiveBoardPreview } from '../board-preview/liveBoardPreview.js'
 import { generateAgentBV2Rows } from './service.js'
-import { applyAgentBV2Timeline, computeRowGroupTimeline } from './timing.js'
+import { applyAgentBV2Timeline, computeRowGroupTimeline, countCharacters, estimateSpeechDurationMs, AGENT_B_V2_SPEECH_RATE } from './timing.js'
 import { listSkills, DEFAULT_SKILL_ID } from './skills/index.js'
-import { checkAgentRows, applyCheckResult, revertCheckResult } from '../check-agent/service.js'
+import { checkAgentRows, applyCheckResult } from '../check-agent/service.js'
 import { batchPolishRowsMathAsr } from '../lib/mathAsrConverter.js'
 import {
   agentBApiConfig,
@@ -50,14 +49,28 @@ import {
   parseApiKeys as parseAgentBApiKeys,
 } from '../lib/agentBApiConfig.js'
 import { userApiConfig } from '../lib/userApiConfig.js'
-import { exportElementsMarkdown, exportSpeechMarkdown, exportStoryboardMarkdown, parseBoardField } from '../lib/speechMarkdown.js'
-// 车同轨、书同文：错误转义与多余换行统一过全局唯一超级过滤器
-import { cleanTextEscapes } from '../utils/superFilter.js'
+import { exportElementsMarkdown, exportSpeechMarkdown, exportStoryboardMarkdown } from '../lib/speechMarkdown.js'
 import VisualTimeline from '../components/VisualTimeline.vue'
+// ★ Task 19: 表格当前页面加预览小窗 (RealBoardPreview)
+import RealBoardPreview from '../components/RealBoardPreview.vue'
 import { showGlobalLoading, hideGlobalLoading } from '../services/globalLoading.js'
 // 画布参数唯一真源：src/services/stepHandoff.js
-import { QUESTION_FONT_SIZE, QUESTION_LINE_HEIGHT, CANVAS_SIZE } from '../services/stepHandoff.js'
-import { serializeDeliverableState } from './serializeDeliverableState.js'
+// ★ Task 10: 引入完整常量避免硬编码字号/字体/行高
+import {
+  QUESTION_FONT_SIZE,
+  QUESTION_LINE_HEIGHT,
+  BOARD_FONT_SIZE,
+  BOARD_FONT_RATIO_TEXT,
+  HANDWRITING_FAMILY,
+  CANVAS_SIZE,
+  LINE_HEIGHT_RULE,
+  BOARD_SPEED_CHARS_PER_SEC,
+  BOARD_SPEED_JITTER,
+  buildCanvasParams,
+} from '../services/stepHandoff.js'
+// ponytail: 拆分 composables (从 AgentBDirect.vue 抽出纯逻辑)
+import { useBCache } from './composables/useBCache.js'
+import { useApiSpecDrawer } from './composables/useApiSpecDrawer.js'
 
 const props = defineProps({
   initialHandoff: { type: Object, required: true },
@@ -77,20 +90,9 @@ function safeDeepClone(val, fallback = {}) {
 
 const localHandoff = ref(safeDeepClone(props.initialHandoff))
 const handoff = computed(() => localHandoff.value)
-let generationRunId = 0
-// props 变化时同步更新 localHandoff，并使旧生成结果失效。
+// props 变化时同步更新 localHandoff（父组件重新传入 handoff 时）
 watch(() => props.initialHandoff, (val) => {
-  if (!val) return
-  generationRunId += 1
-  localHandoff.value = safeDeepClone(val)
-  rows.value = []
-  generatedModel.value = ''
-  invalidateCheck()
-  errorText.value = ''
-  if (state.value === 'generating') {
-    stopGeneratingTimer()
-    state.value = 'idle'
-  }
+  if (val) localHandoff.value = safeDeepClone(val)
 }, { deep: true })
 
 // 智能教研优雅思考步骤（分散等待时长，直观感知深度创作进程）
@@ -103,6 +105,7 @@ const GENERATING_STEPS = [
 ]
 const generatingStepIndex = ref(0)
 let generatingTimer = null
+const handoffDetailsExpanded = ref(true)
 
 function startGeneratingTimer() {
   generatingStepIndex.value = 0
@@ -156,6 +159,12 @@ const refineResult = ref(null)
 const refineAppliedAt = ref('')
 const skillList = listSkills()
 const selectedSkillId = ref(DEFAULT_SKILL_ID)
+// ponytail: a-select 风格切换下拉的 options (替代旧"提示词"按钮, 不查看提示词内容)
+const skillOptions = skillList.map(s => ({ value: s.id, label: s.name || s.id }))
+function onSkillChange(val) {
+  selectedSkillId.value = val
+  message.success(`已切换讲课风格：${skillList.find(s => s.id === val)?.name || val}`)
+}
 const promptEditOpen = ref(false)
 const apiConfigOpen = ref(false)
 const cleanupLoading = ref(false)
@@ -246,21 +255,6 @@ const toolReferenceRows = toolCatalog.tools.flatMap((tool) => {
   }]
 })
 
-const stageAccentColors = {
-  '题目': '#1677ff',
-  '分析': '#fa8c16',
-  '解答': '#52c41a',
-  '总结': '#722ed1',
-}
-
-// stage 标签颜色（antd 内置色名，自动生成浅底色+深文字）
-const stageTagColors = {
-  '题目': 'blue',
-  '分析': 'orange',
-  '解答': 'green',
-  '总结': 'purple',
-}
-
 // 画布参数配置（导出时跟着要素表一起导出）
 const canvasParams = ref({
   coordinateMode: 'percentage',
@@ -275,34 +269,27 @@ const canvasParams = ref({
 const editingBoardIndex = ref(-1)
 
 // 解析 board 字段，兼容历史坐标前缀和当前对象格式。
+// ponytail: parseBoard 归并到 contract.js#normalizeBoard 唯一真源
+// 保留 parseBoard 名字兼容模板 6 处调用，内部委托 normalizeBoard
+// 差异: null startDelay（无显式值时） vs normalizeBoard 的 0，模板里 v-if/.value 都按 falsy 处理
+import { normalizeBoard } from './contract.js'
 function parseBoard(board) {
-  // 纯文本 content 提取复用唯一真源（speechMarkdown.parseBoardField），此处只叠加 startDelay 容错
-  const { content } = parseBoardField(board)
-  const pickStr = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null)
-  const startCoord = typeof board === 'object' && board ? pickStr(board.startCoord) : null
-  const triggerKeyword = typeof board === 'object' && board ? pickStr(board.triggerKeyword) : null
-  if (board == null || typeof board === 'string') return { content, startDelay: null, startCoord, triggerKeyword }
-  if (typeof board === 'object') {
-    let startDelay = null
-    if (typeof board.startDelay === 'number' && Number.isFinite(board.startDelay)) {
-      startDelay = board.startDelay
-    } else if (typeof board.startDelay === 'string') {
-      const m = board.startDelay.match(/[\d.]+/)
-      if (m) {
-        const val = parseFloat(m[0])
-        if (Number.isFinite(val)) startDelay = val
-      }
-    }
-    // startCoord / triggerKeyword 可选透传（2026-09-17 拍板降为可选）：有则下游优先采用，无则回退区左上角
-    return { startDelay, content, startCoord, triggerKeyword }
-  }
-  return { content, startDelay: null, startCoord, triggerKeyword }
+  const n = normalizeBoard(board)
+  // 把 0 还原为 null 以保持原模板显示语义（避免 +0s）
+  return { content: n.content, startDelay: n.startDelay || null }
 }
 
+// ponytail: 板书列渲染 — 先过 superFilter 清洗, 再用 KaTeX 渲染, v-html 前转义
+import { normalizeBoardLine } from '../utils/superFilter.js'
 function renderBoardContent(board) {
   const { content } = parseBoard(board)
   if (!content) return ''
-  let result = cleanTextEscapes(content)
+  // 每行先过 superFilter 10 步清洗 (×→x, ÷→/, $删除, LaTeX→Unicode 等)
+  let result = content.split('\n')
+    .map(line => normalizeBoardLine(line))
+    .filter(line => line.length)
+    .join('\n')
+  if (!result) return ''
   // 处理 $$...$$（display mode）
   result = result.replace(/\$\$([\s\S]+?)\$\$/g, (match, expr) => {
     try {
@@ -324,7 +311,7 @@ function renderBoardContent(board) {
   return result
 }
 
-// 列空间合理分配与自由折叠模式（夏夏专属：支持按需折叠每列，超大留白，杜绝劣质滑动条）
+// 列空间合理分配与自由折叠模式（支持按需折叠每列，超大留白，杜绝劣质滑动条）
 const layoutPreset = ref('standard') // 'standard' | 'speech_focus' | 'board_focus' | 'custom'
 const collapsedCols = ref({
   speech: false,
@@ -332,21 +319,15 @@ const collapsedCols = ref({
   actionSpec: false,
 })
 
+// ponytail: 4 分支 if/else 改表驱动（shrink -5 行）
+const LAYOUT_PRESETS = {
+  standard:     { speech: false, board: false, actionSpec: false },
+  speech_focus: { speech: false, board: true,  actionSpec: true  },
+  board_focus:  { speech: true,  board: false, actionSpec: false },
+}
 function setLayoutPreset(preset) {
   layoutPreset.value = preset
-  if (preset === 'standard') {
-    collapsedCols.value.speech = false
-    collapsedCols.value.board = false
-    collapsedCols.value.actionSpec = false
-  } else if (preset === 'speech_focus') {
-    collapsedCols.value.speech = false
-    collapsedCols.value.board = true
-    collapsedCols.value.actionSpec = true
-  } else if (preset === 'board_focus') {
-    collapsedCols.value.speech = true
-    collapsedCols.value.board = false
-    collapsedCols.value.actionSpec = false
-  }
+  Object.assign(collapsedCols.value, LAYOUT_PRESETS[preset] || {})
 }
 
 function toggleColumn(colKey) {
@@ -399,11 +380,10 @@ const columns = computed(() => {
   ]
 })
 
-// 计算单行字数与预估时长
+// ponytail: 唯一字数+时长真源来自 timing.js (countCharacters 剥标点 + estimateSpeechDurationMs 含 1500ms 下限 + 标点停顿)
 function getRowEstimatedSeconds(speech) {
-  const charCount = String(speech || '').replace(/\s+/g, '').length
-  const speed = canvasParams.value?.speechSpeed || 160
-  const sec = Math.max(1, Math.round((charCount / speed) * 60))
+  const charCount = countCharacters(speech)
+  const sec = Math.max(1, Math.round(estimateSpeechDurationMs(speech, { speed: canvasParams.value?.speechSpeed || AGENT_B_V2_SPEECH_RATE }) / 1000))
   return { charCount, seconds: sec }
 }
 
@@ -411,53 +391,18 @@ function getRowEstimatedSeconds(speech) {
 const totalEstimatedStats = computed(() => {
   if (!rows.value.length) return { charCount: 0, text: '0秒', seconds: 0 }
   let totalChars = 0
+  let totalSpeechMs = 0
   rows.value.forEach((r) => {
-    totalChars += String(r.speech || '').replace(/\s+/g, '').length
+    totalChars += countCharacters(r.speech)
+    totalSpeechMs += estimateSpeechDurationMs(r.speech, { speed: canvasParams.value?.speechSpeed || AGENT_B_V2_SPEECH_RATE })
   })
-  const speed = canvasParams.value?.speechSpeed || 160
-  const totalSpeechSec = Math.round((totalChars / speed) * 60)
-  const totalGapSec = Math.round(((rows.value.length - 1) * (canvasParams.value?.rowGapMs || 1500)) / 1000)
-  const totalSec = totalSpeechSec + totalGapSec
+  const totalGapMs = (rows.value.length - 1) * (canvasParams.value?.rowGapMs || 1500)
+  const totalSec = Math.round((totalSpeechMs + totalGapMs) / 1000)
   const m = Math.floor(totalSec / 60)
   const s = totalSec % 60
   const timeStr = `${m > 0 ? `${m}分` : ''}${s}秒`
   return { charCount: totalChars, text: timeStr, seconds: totalSec }
 })
-
-/* 单行运行时长（用户红线 §3.5）：有真实音频 → 自然播放时间；无音频 → 返回 0。
-   禁止静默把估算当真实返回（=误导，已删「无音频→160 字/分」估算段）。无音频走弹窗演示态。 */
-function getRowRuntimeMs(row) {
-  const realMs = Number(row?.audioDurationMs) || 0
-  return realMs > 0 ? realMs : 0
-}
-
-// 全表时长（用户红线 §3.5）：�����累加有真实音频的行；无音频行不计入总时长（避免估算当真实=误导），仅计数 estimatedRows 用于弹窗演示态
-const totalRuntimeStats = computed(() => {
-  if (!rows.value.length) return { text: '0秒', seconds: 0, audioRows: 0, estimatedRows: 0 }
-  const gapMs = canvasParams.value?.rowGapMs || 1500
-  let totalMs = 0
-  let audioRows = 0
-  let estimatedRows = 0
-  rows.value.forEach((r) => {
-    const realMs = Number(r?.audioDurationMs) || 0
-    if (realMs > 0) { audioRows += 1; totalMs += realMs }
-    else estimatedRows += 1
-  })
-  totalMs += Math.max(0, audioRows - 1) * gapMs
-  const totalSec = Math.round(totalMs / 1000)
-  const m = Math.floor(totalSec / 60)
-  const s = totalSec % 60
-  return { text: `${m > 0 ? `${m}分` : ''}${s}秒`, seconds: totalSec, audioRows, estimatedRows }
-})
-
-// 顶部时长标签（用户红线 §3.5）：只展示真实音频时长；没有音频就明确标注不计时
-  const runtimeLabel = computed(() => {
-  const { audioRows, estimatedRows } = totalRuntimeStats.value
-  if (!audioRows && !estimatedRows) return '尚无音频时长'
-  if (!estimatedRows) return '已录音实际用时'
-  if (!audioRows) return '等待音频，不计时'
-  return '部分录音实际用时'
-  })
 
 // 计算全表板书动作规范总数
 const totalActionCount = computed(() => {
@@ -465,7 +410,55 @@ const totalActionCount = computed(() => {
   return rows.value.reduce((acc, r) => acc + (Array.isArray(r.actionSpec) ? r.actionSpec.length : 0), 0)
 })
 
-// 纯前端本地数学算式口播兜底秒级转换（夏夏双保险核心）
+// ★ Task 19: 合并所有行的 actionSpec 给预览小窗 RealBoardPreview 播放
+// 给 RealBoardPreview 的 actionSpec 是扁平数组, 每项含 row 索引 + 原 action
+const allActionSpec = computed(() => {
+  if (!rows.value.length) return []
+  const out = []
+  rows.value.forEach((r, rowIndex) => {
+    if (!Array.isArray(r.actionSpec)) return
+    r.actionSpec.forEach((spec) => {
+      // 兼容 {action:{...}} 和 {...} 两种结构
+      const a = spec?.action && typeof spec.action === 'object' ? spec.action : spec
+      if (a) out.push({ ...a, rowIndex })
+    })
+  })
+  return out
+})
+
+// ★ Task 19: 预览小窗用的 canvasParams (从 handoff.canvasParams 或 buildCanvasParams() 兜底)
+// 复用 Task 10 的真源 (板书 38px / 平方乔木体 / 行高 1.7±随机)
+const canvasParamsForPreview = computed(() => {
+  return handoff.value?.canvasParams || null
+})
+
+// ★ Task 19: 全屏打开 board-preview.html
+function openFullscreenPreview() {
+  // 先把当前 rows 数据写到 localStorage (BoardPreviewApp 兜底读)
+  try {
+    saveLiveBoardPreview({
+      problemText: handoff.value?.problemText || '',
+      topicLayout: handoff.value?.topicLayout || null,
+      boardPlan: handoff.value?.boardPlan || handoff.value?.zoneAnchors || null,
+      sourceImageUrl: handoff.value?.sourceImageUrl || handoff.value?.screenshotUrl || '',
+      keepOriginal: Boolean(handoff.value?.keepOriginal),
+      rows: safeDeepClone(rows.value),
+      projectCode: deliverableResult.value?.projectCode || handoff.value?.projectCode || '',
+      canvasParams: handoff.value?.canvasParams || null,
+      meta: {
+        canvasParams: handoff.value?.canvasParams || null,
+        model: generatedModel.value || agentBApiConfig.model || '',
+        generatedAt: new Date().toLocaleString('zh-CN', { hour12: false }),
+      },
+    })
+  } catch (e) {
+    console.warn('[preview] saveLiveBoardPreview 失败:', e)
+  }
+  window.open('/board-preview.html', '_blank')
+}
+
+// ponytail: 合并所有行的 actionSpec 给画布预览播放
+// 纯前端本地数学算式口播兜底秒级转换（双保险核心）
 function runInstantMathAsrPolish() {
   if (!rows.value.length) {
     message.warning('请先生成五字段执行表后再进行 ASR 兜底转换')
@@ -528,7 +521,7 @@ const suggestedLayoutLabel = computed(() => ({
   left_right: '左右布局',
   top_bottom: '上下布局',
 }[handoff.value?.suggestedLayout?.layout] || handoff.value?.suggestedLayout?.layout || '无'))
-
+const confirmedAtLabel = computed(() => formatDisplayTime(handoff.value?.confirmedAt))
 const zoneParameterRows = computed(() => {
   const anchors = handoff.value?.zoneAnchors || {}
   const labels = { question: '题目区', analysis: '分析区', solution: '解答区', summary: '总结区' }
@@ -547,7 +540,7 @@ const handoffFlowSteps = computed(() => [
     status: relatedKnowledge.value.length ? 'finish' : 'wait',
     description: relatedKnowledge.value.length ? `${relatedKnowledge.value.length} 条可选参考` : '可选，按题目判断',
   },
-  { title: '组装输入', status: handoff.value?.problemText && handoff.value?.boardPlan ? 'finish' : 'wait', description: '题目、图片、布局、工具' },
+  { title: '组装输入', status: 'finish', description: '题目、图片、布局、工具' },
   {
     title: '待发送生成',
     status: state.value === 'generating' ? 'process' : rows.value.length ? 'finish' : 'wait',
@@ -559,6 +552,10 @@ const handoffFlowSteps = computed(() => [
   },
 ])
 
+function formatDisplayTime(value) {
+  const date = value ? new Date(value) : new Date()
+  return Number.isNaN(date.valueOf()) ? String(value || '') : date.toLocaleString('zh-CN', { hour12: false })
+}
 
 function displayValue(value) {
   return typeof value === 'string' ? value : JSON.stringify(value)
@@ -593,20 +590,6 @@ function updateBoardContent(index, content) {
   }
 }
 
-// 编辑 board.startDelay 落笔时机
-function updateBoardStartDelay(index, startDelay) {
-  invalidateCheck()
-  const current = parseBoard(rows.value[index]?.board)
-  const val = Number(parseFloat(startDelay) || 0)
-  rows.value[index] = {
-    ...rows.value[index],
-    board: {
-      ...current,
-      startDelay: Math.max(0, Number(val.toFixed(1))),
-    },
-  }
-}
-
 // 视觉时间轴事件：点击某 Row 组定位并高亮表格对应行
 function onSelectRowFromTimeline(index) {
   editingBoardIndex.value = index
@@ -614,6 +597,13 @@ function onSelectRowFromTimeline(index) {
   if (allRows && allRows[index]) {
     allRows[index].scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
+}
+
+// ★ 时序全景时间轴块的试听按钮回调：复用 playAudioUrl 统一管理音频实例
+//  payload: { index, url }
+function onPlayAudioFromTimeline({ index, url } = {}) {
+  if (typeof index !== 'number' || !url) return
+  playAudioUrl(url, index)
 }
 
 // ========= 口播语音 TTS 控制（Fish Audio 接口）=========
@@ -654,28 +644,11 @@ function readAudioDuration(url) {
   })
 }
 
-function getCurrentRowAudioUrl(index, record) {
-  return record?.audioUrl || rowAudioCache.value[index] || null
-}
-
-function getCurrentExportRows() {
-  return rows.value.map((row, index) => {
-    const audioUrl = getCurrentRowAudioUrl(index, row)
-    return audioUrl && row.audioUrl !== audioUrl
-      ? { ...row, audioUrl }
-      : row
-  })
-}
-
 async function recordAudioMetadata(index, record, url) {
   const durationMs = await readAudioDuration(url)
   if (durationMs) {
-    const currentRows = rows.value.map((row, rowIndex) => (
-      rowIndex === index
-        ? { ...row, audioUrl: getCurrentRowAudioUrl(index, row) || url, audioDurationMs: durationMs }
-        : row
-    ))
-    rows.value = applyAgentBV2Timeline(currentRows)
+    record.audioDurationMs = durationMs
+    rows.value = applyAgentBV2Timeline(rows.value)
   }
 }
 
@@ -690,6 +663,11 @@ async function playAudioUrl(url, index) {
   if (typeof window === 'undefined' || !window.Audio) return
   const audio = new window.Audio(url)
   audio.preload = 'auto'
+  // 关键修复：开头吞字根因 = 浏览器在 canplay 时缓冲不够就开始播，前几十毫秒还在解码。
+  // 三个对策：
+  //  (a) 用 canplaythrough 替代 canplay，等"足够播完整条"再开始
+  //  (b) play 前 audio.currentTime = 0 强制回到最开头（防止上次残留进度）
+  //  (c) play 前再 await 一个 120ms 的预热 tick，让解码管线充满
   activeAudio = audio
   playingAudioIndex.value = index
 
@@ -697,6 +675,8 @@ async function playAudioUrl(url, index) {
     if (playingAudioIndex.value === index) {
       playingAudioIndex.value = null
       activeAudio = null
+      // ★ 试听完立刻把缓存回填到表单（防止后续被误判"没 mp3 地址 / 没自然音频时长"）
+      backfillAudioToRow(index, url)
     }
   })
   audio.addEventListener('error', () => {
@@ -710,24 +690,66 @@ async function playAudioUrl(url, index) {
   try {
     // 只由原生 ended 事件结束本次试听，不使用预估时长或定时器切换。
     await new Promise((resolve, reject) => {
-      const onCanPlay = () => {
-        audio.removeEventListener('canplay', onCanPlay)
+      const onCanPlayThrough = () => {
+        audio.removeEventListener('canplaythrough', onCanPlayThrough)
         audio.removeEventListener('error', onLoadError)
         resolve()
       }
       const onLoadError = (event) => {
-        audio.removeEventListener('canplay', onCanPlay)
+        audio.removeEventListener('canplaythrough', onCanPlayThrough)
         audio.removeEventListener('error', onLoadError)
         reject(event)
       }
-      audio.addEventListener('canplay', onCanPlay, { once: true })
+      // canplaythrough = 浏览器认为已缓冲足够连续播完整条；比 canplay 更稳，几乎不会吞开头
+      audio.addEventListener('canplaythrough', onCanPlayThrough, { once: true })
       audio.addEventListener('error', onLoadError, { once: true })
       audio.load()
     })
+    // 强制回 0，避免某些浏览器复用 element 时残留 currentTime > 0
+    try { audio.currentTime = 0 } catch (_) {}
+    // 120ms 预热 tick：让音频解码管线充满，避免首帧被截
+    await new Promise((r) => setTimeout(r, 120))
     await audio.play()
   } catch (err) {
     console.warn('播放被浏览器安全策略阻止或中断:', err)
     playingAudioIndex.value = null
+  }
+}
+
+// ★ 试听完立刻回填表单：把缓存的 audioUrl + 真实时长落到 record + rowAudioCache，
+//   防止后续被误判"没 mp3 地址 / 没自然音频时长"。即使 record.audioUrl 已存在也补一遍双保险。
+async function backfillAudioToRow(index, url) {
+  if (typeof index !== 'number' || !url) return
+  const record = rows.value?.[index]
+  if (!record) return
+  let changed = false
+  // 1. 双保险回填 audioUrl
+  if (!record.audioUrl) {
+    record.audioUrl = url
+    changed = true
+  }
+  // 2. rowAudioCache 同步
+  if (rowAudioCache.value[index] !== url) {
+    rowAudioCache.value[index] = url
+    changed = true
+  }
+  // 3. 没真实时长就立刻读一次（loadedmetadata）落上 audioDurationMs
+  if (!record.audioDurationMs || record.audioDurationMs <= 0) {
+    try {
+      const dur = await readAudioDuration(url)
+      if (dur && dur > 0) {
+        record.audioDurationMs = dur
+        changed = true
+      }
+    } catch (_) {}
+  }
+  if (changed) {
+    rows.value = applyAgentBV2Timeline(rows.value)
+    // 轻量 toast 提示（不打扰）
+    message.success({ content: `第 ${index + 1} 行音频已回填 (mp3 地址 + 自然时长)`, duration: 1.6 })
+  } else {
+    // 即使 changed=false，也悄悄确认一次时长，确保 rowAudioCache 一定有
+    rowAudioCache.value[index] = url
   }
 }
 
@@ -763,8 +785,7 @@ async function handlePlayOrSynthesizeSpeech(index, record) {
     }
     record.audioUrl = data.audioUrl
     rowAudioCache.value[index] = data.audioUrl
-    rows.value[index] = { ...rows.value[index], audioUrl: data.audioUrl }
-    await recordAudioMetadata(index, rows.value[index], data.audioUrl)
+    await recordAudioMetadata(index, record, data.audioUrl)
     message.success(`第 ${index + 1} 步口播语音生成成功`)
     playAudioUrl(data.audioUrl, index)
   } catch (err) {
@@ -803,8 +824,7 @@ async function handleRegenerateSpeech(index, record) {
     }
     record.audioUrl = data.audioUrl
     rowAudioCache.value[index] = data.audioUrl
-    rows.value[index] = { ...rows.value[index], audioUrl: data.audioUrl }
-    await recordAudioMetadata(index, rows.value[index], data.audioUrl)
+    await recordAudioMetadata(index, record, data.audioUrl)
     message.success(`第 ${index + 1} 步口播语音已重新生成`)
     playAudioUrl(data.audioUrl, index)
   } catch (err) {
@@ -872,21 +892,6 @@ function copyAudioUrl(url) {
   } else {
     message.info(`下载URL: ${fullUrl}`)
   }
-}
-
-// 视觉时间轴事件：调整某 Row 组���书���画起手 +n 秒延时
-function onUpdateStartDelayFromTimeline({ index, startDelay }) {
-  invalidateCheck()
-  const current = parseBoard(rows.value[index]?.board)
-  rows.value[index] = {
-    ...rows.value[index],
-    board: {
-      ...current,
-      startDelay: Number(startDelay.toFixed(1)),
-    },
-  }
-  rows.value = applyAgentBV2Timeline(rows.value)
-  message.success(`已调整第 ${index + 1} 组板书落笔起手为 +${startDelay.toFixed(1)}s ╰(๑◕ ▿ ◕๑)╯`)
 }
 
 function insertRowAfter(index) {
@@ -973,17 +978,17 @@ function onRowDrop(event, index) {
     return
   }
 
-  let targetIndex = index
-  if (dropPosition.value === 'after' && sourceIndex < index) {
-    targetIndex = index
-  } else if (dropPosition.value === 'before' && sourceIndex > index) {
-    targetIndex = index
-  } else if (dropPosition.value === 'after' && sourceIndex > index) {
-    targetIndex = index + 1
-  } else if (dropPosition.value === 'before' && sourceIndex < index) {
-    targetIndex = index - 1
-  }
-  targetIndex = Math.max(0, Math.min(rows.value.length - 1, targetIndex))
+  // ponytail: 4 分支 if/else 改三元链（shrink -7 行）
+  // after+source<index 或 before+source>index → target = index
+  // after+source>index → target = index+1
+  // before+source<index → target = index-1
+  // dropPos==''（无明确位） → target = index
+  const isAfter = dropPosition.value === 'after'
+  const isBefore = dropPosition.value === 'before'
+  const targetIndex = Math.max(0, Math.min(rows.value.length - 1,
+    (isAfter && sourceIndex > index) ? index + 1 :
+    (isBefore && sourceIndex < index) ? index - 1 : index
+  ))
 
   if (sourceIndex !== targetIndex) {
     moveRow(sourceIndex, targetIndex)
@@ -1062,84 +1067,18 @@ function actionContent(entry) {
 }
 
 // B 生成缓存：localStorage，24小时过期，Shift+点击强制刷新
-const B_CACHE_PREFIX = 'b-gen:'
-const B_CACHE_TTL = 24 * 60 * 60 * 1000
-
-function stableCacheDigest(value) {
-  const source = JSON.stringify(value) || ''
-  let hash = 2166136261
-  for (let index = 0; index < source.length; index += 1) {
-    hash ^= source.charCodeAt(index)
-    hash = Math.imul(hash, 16777619)
-  }
-  return (hash >>> 0).toString(36)
-}
-
-function bCacheKey(snapshot = {}) {
-  return B_CACHE_PREFIX + stableCacheDigest({
-    handoff: snapshot.handoff || handoff.value || {},
-    skillId: snapshot.skillId ?? selectedSkillId.value,
-    systemPrompt: snapshot.systemPrompt ?? customSystemPrompt.value,
-    canvasParams: snapshot.canvasParams || canvasParams.value,
-    endpoint: snapshot.endpoint || agentBApiConfig.endpoint,
-    model: snapshot.model || agentBApiConfig.model,
-  })
-}
-
-function bCacheGet(snapshot) {
-  const key = bCacheKey(snapshot)
-  try {
-    const raw = localStorage.getItem(key)
-    if (!raw) return null
-    const data = JSON.parse(raw)
-    if (!Array.isArray(data.rows) || !data.rows.length || typeof data.timestamp !== 'number' || !Number.isFinite(data.timestamp)) {
-      localStorage.removeItem(key)
-      return null
-    }
-    if (Date.now() - data.timestamp > B_CACHE_TTL) {
-      localStorage.removeItem(key)
-      return null
-    }
-    return data
-  } catch { return null }
-}
-
-function bCacheSet(rows, model, snapshot) {
-  const key = bCacheKey(snapshot)
-  try {
-    localStorage.setItem(key, JSON.stringify({ rows, model, timestamp: Date.now() }))
-  } catch {
-    // 存储超限防御：主动清理旧的 b-gen 缓存条目后再写入
-    try {
-      const keysToRemove = []
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i)
-        if (k && k.startsWith(B_CACHE_PREFIX)) keysToRemove.push(k)
-      }
-      keysToRemove.forEach(k => localStorage.removeItem(k))
-      localStorage.setItem(key, JSON.stringify({ rows, model, timestamp: Date.now() }))
-    } catch {
-      /* 依然无法写入则静默降级，不中断主流程 */
-    }
-  }
-}
+// ponytail: 抽到 composables/useBCache.js，传 getter 避免循环依赖
+const { bCacheKey, bCacheGet, bCacheSet } = useBCache({
+  getHandoff: () => handoff.value,
+  getSelectedSkillId: () => selectedSkillId.value,
+  getCustomSystemPrompt: () => customSystemPrompt.value,
+})
 
 async function generateRows(force = false) {
   if (state.value === 'generating') return
-  const runId = ++generationRunId
-  const snapshot = {
-    handoff: safeDeepClone(handoff.value),
-    systemPrompt: customSystemPrompt.value,
-    skillId: selectedSkillId.value,
-    canvasParams: { ...canvasParams.value },
-    endpoint: agentBApiConfig.endpoint,
-    model: agentBApiConfig.model,
-  }
   if (!force) {
-    const cached = bCacheGet(snapshot)
+    const cached = bCacheGet()
     if (cached) {
-      invalidateCheck()
-      errorText.value = ''
       rows.value = cached.rows
       generatedModel.value = cached.model
       state.value = 'ready'
@@ -1153,25 +1092,28 @@ async function generateRows(force = false) {
   startGeneratingTimer()
   try {
     // B 生成只请求剧本；不加载板书字体或发起字体网络请求。
-    const result = await generateAgentBV2Rows(snapshot)
-    if (runId !== generationRunId) return
+    const result = await generateAgentBV2Rows({
+      handoff: handoff.value,
+      systemPrompt: customSystemPrompt.value,
+      skillId: selectedSkillId.value,
+      rowGapMs: canvasParams.value.rowGapMs,
+      canvasParams: { ...canvasParams.value },
+    })
     rows.value = result.rows
     generatedModel.value = result.model
     state.value = 'ready'
-    bCacheSet(result.rows, result.model, snapshot)
+    bCacheSet(result.rows, result.model)
     message.success(`已生成 ${rows.value.length} 行五字段执行表`)
-  } catch (error) { 
-    if (runId !== generationRunId) return
-    const detail = error?.message || String(error)
-    if (error?.retryable) {
-      state.value = rows.value.length ? 'ready' : 'idle'
-      errorText.value = `Agent B 这次返回格式不完整，当前内容未改变。可以点击“${rows.value.length ? '重新生成五字段' : '生成 Agent B 五字段'}”再试一次。`
-      message.warning(errorText.value)
-    } else {
-      state.value = 'error'
-      errorText.value = detail
-      message.error(detail)
+    // 歧义弹窗：检测到弃用字段时提示用户（v2.0 startCoord / triggerAt / durationMs 等）
+    if (Array.isArray(result.deprecationWarnings) && result.deprecationWarnings.length) {
+      result.deprecationWarnings.forEach(w => message.warning(w, 5))
     }
+  } catch (error) {
+    state.value = 'error'
+    errorText.value = error?.message || String(error)
+    // ponytail: 静默软提示 — 不直接弹 message.error，改为 console.warn + 可展开的 errorText 条
+    // 用户看到的是红色状态条(errorText ref 已绑定到模板上的 a-alert)，不是突兀的弹出框
+    console.warn('[Agent B 生成失败]', errorText.value)
   } finally {
     stopGeneratingTimer()
   }
@@ -1206,7 +1148,8 @@ async function checkRows(mode = 'standard') {
     if (runId !== checkRunId) return
     checkState.value = 'error'
     errorText.value = error?.message || String(error)
-    message.error(errorText.value)
+    // ponytail: 静默软提示 — 不直接弹
+    console.warn('[Check Agent 失败]', errorText.value)
   }
 }
 
@@ -1237,62 +1180,31 @@ function discardCheckChanges() {
   checkFailedFallback.value = false
 }
 
-// 还原到 Check 之前的原始版本
-async function revertCheck() {
-  try {
-    const result = await revertCheckResult()
-    rows.value = result.rows || []
-    checkState.value = 'idle'
-    message.success('已还原到 Check 之前的版本')
-  } catch (error) {
-    message.error(error?.message || '还原失败')
-  }
-}
-
-/* 规范说明参数 meta（下载物唯一真相源）：全部从 handoff 文件动态读取 + B 页面 UI 设置。
-   完整要素表与分镜表共用这一份，禁止各自拼一套。 */
-function buildExplainParamsMeta() {
-  return {
-    handoffCanvasParams: handoff.value?.canvasParams || null,
-    handoffBoardPlan: handoff.value?.boardPlan || null,
-    handoffZoneAnchors: handoff.value?.zoneAnchors || null,
-    problemInfo: buildProblemInfoSnapshot(),
-    screenshotUrl: handoff.value?.screenshotUrl || '',
-  }
-}
-
-// 题目全量信息与环节配比（从 handoff 动态读取，交付物 problemInfo 与 MD 说明段落同源）
-function buildProblemInfoSnapshot() {
-  const h = handoff.value || {}
-  return {
-    screenshotUrl: h.screenshotUrl || '',
-    problemType: h.problemType || '',
-    boardFocus: h.boardFocus || '',
-    imageKind: h.imageKind || '',
-    gradeLevel: h.suggestedGrade || '',
-    relatedKnowledge: Array.isArray(h.relatedKnowledge) ? safeDeepClone(h.relatedKnowledge) : [],
-    knowledgeAnalysis: h.knowledgeAnalysis ? safeDeepClone(h.knowledgeAnalysis) : null,
-    essence: h.essence || '',
-    stageRatio: h.stageRatioSuggestion || h.环节配比占比 || null,
-    zoneAnchors: h.zoneAnchors ? safeDeepClone(h.zoneAnchors) : null,
-  }
-}
-
 function exportElements() {
   if (!rows.value.length) return
-  exportElementsMarkdown(getCurrentExportRows(), {
+  const ratioData = handoff.value?.stageRatioSuggestion || handoff.value?.['环节配比占比'] || null
+  exportElementsMarkdown(rows.value, {
     problemText: handoff.value?.problemText || '',
     model: generatedModel.value || agentBApiConfig.model || '',
     generatedAt: new Date().toLocaleString('zh-CN', { hour12: false }),
     canvasParams: JSON.parse(JSON.stringify(canvasParams.value)),
-    ...buildExplainParamsMeta(),
+    handoffCanvasParams: handoff.value?.canvasParams || null,
+    handoffBoardPlan: handoff.value?.boardPlan || null,
+    screenshotUrl: handoff.value?.screenshotUrl || '',
+    problemType: handoff.value?.problemType || '',
+    relatedKnowledge: relatedKnowledge.value || [],
+    teachingFocus: knowledgeAnalysis.value?.teachingFocus || '',
+    keyFormulaList: keyFormulaList.value || [],
+    zoneAnchors: handoff.value?.zoneAnchors || null,
+    stageRatioSuggestion: ratioData,
+    stageRatios: ratioData?.suggestedRatio || null,
   })
   message.success('完整要素表 MD 已导出')
 }
 
 function exportSpeech() {
   if (!rows.value.length) return
-  exportSpeechMarkdown(getCurrentExportRows(), {
+  exportSpeechMarkdown(rows.value, {
     problemText: handoff.value?.problemText || '',
     model: generatedModel.value || agentBApiConfig.model || '',
     generatedAt: new Date().toLocaleString('zh-CN', { hour12: false }),
@@ -1303,90 +1215,200 @@ function exportSpeech() {
 
 function exportStoryboard() {
   if (!rows.value.length) return
-  exportStoryboardMarkdown(getCurrentExportRows(), {
+  const ratioData = handoff.value?.stageRatioSuggestion || handoff.value?.['环节配比占比'] || null
+  exportStoryboardMarkdown(rows.value, {
     problemText: handoff.value?.problemText || '',
     model: generatedModel.value || agentBApiConfig.model || '',
     generatedAt: new Date().toLocaleString('zh-CN', { hour12: false }),
     canvasParams: JSON.parse(JSON.stringify(canvasParams.value)),
-    ...buildExplainParamsMeta(),
+    handoffCanvasParams: handoff.value?.canvasParams || null,
+    handoffBoardPlan: handoff.value?.boardPlan || null,
+    screenshotUrl: handoff.value?.screenshotUrl || '',
+    problemType: handoff.value?.problemType || '',
+    relatedKnowledge: relatedKnowledge.value || [],
+    teachingFocus: knowledgeAnalysis.value?.teachingFocus || '',
+    keyFormulaList: keyFormulaList.value || [],
+    zoneAnchors: handoff.value?.zoneAnchors || null,
+    stageRatioSuggestion: ratioData,
+    stageRatios: ratioData?.suggestedRatio || null,
   })
   message.success('分镜表 MD 已导出')
 }
 
 // 严格从当前应用运行时的响应式状态树实时序列化最新板书与时序数据（绝不读取 HTML 源码，绝不使用旧缓存）
 function serializeCurrentDeliverableState() {
-  return serializeDeliverableState({
-    rows: getCurrentExportRows(),
-    projectCode: deliverableResult.value?.projectCode || handoff.value?.projectCode || `deliverable-${Date.now()}`,
+  const code = deliverableResult.value?.projectCode || handoff.value?.projectCode || `deliverable-${Date.now()}`
+  const hcp = handoff.value?.canvasParams || buildCanvasParams()
+  const fallbackBoardPlan = {
+    question: { x: 6, y: 13.32, w: 40.32, h: '' },
+    analysis: { x: 6, y: 40.62, w: 44, h: 54.38 },
+    solution: { x: 54, y: 14, w: 40, h: 44 },
+    summary: { x: 54, y: 69.5, w: 40, h: 22 },
+  }
+  const hbp = handoff.value?.boardPlan || handoff.value?.zoneAnchors || fallbackBoardPlan
+  const ratioData = handoff.value?.stageRatioSuggestion || handoff.value?.['环节配比占比'] || null
+  const suggestedRatio = ratioData?.suggestedRatio || {
+    analysis: '35%',
+    solution: '40%',
+    summary: '15%',
+    introAndClosing: '10%',
+  }
+
+  // 逐行深层清洗并计算单手互斥执行计划（动作定量 1-2 秒作为标点停顿，绝不与板书重叠）
+  const cleanRows = (rows.value || []).map((r, idx) => {
+    const parsedBoard = parseBoard(r.board)
+    // ★ 用户硬约束: board 字段与 actionSpec 映射必须自带 stage，让 deliverable JSON 自描述
+    //  - row.stage 仍然存在（行级 stage）
+    //  - board.stage = 行级 stage（板书自描述，下游消费板书时不必反查 row）
+    //  - 每个 actionSpec[i].stage = 行级 stage（动作映射自描述，下游消费动作时不必反查 row）
+    //  这样即使 row 顺序变化或下游只取局部字段，board 与 actionSpec 仍然知道属于哪个 stage
+    const rowStage = r.stage || (idx === 0 ? '题目' : '分析')
+    const normalizedRow = {
+      // ponytail: duration 统一为秒 (row-player 合同是秒, 不是毫秒)
+      duration: Number(r.audioDurationMs) > 0
+        ? Math.round(Number(r.audioDurationMs) / 1000 * 10) / 10  // ms → 秒, 保留1位小数
+        : (Number(r.duration) || 0),
+      durationLabel: Number(r.audioDurationMs) > 0 ? '真实音频时长' : '预估',
+      stage: rowStage,
+      speech: r.speech != null ? String(r.speech) : '',
+      audioUrl: r.audioUrl || '音频暂未生成',
+      audioDurationMs: Number(r.audioDurationMs) > 0 ? Math.round(Number(r.audioDurationMs)) : null,
+      board: {
+        // ★ 必须带 stage：板书字段自描述属于哪个 stage (题目/分析/解答/总结)
+        stage: rowStage,
+        content: parsedBoard.content || '',
+        startDelay: typeof parsedBoard.startDelay === 'number' && !isNaN(parsedBoard.startDelay)
+          ? parsedBoard.startDelay
+          : 0,
+      },
+      // ★ 必须带 stage：actionSpec 映射里每个 action 自带 stage (与 row.stage 一致)
+      //  - 原有 region 字段保留不动（是 B 给的英文 zone 名 question/analysis/solution/summary）
+      //  - 新增 stage 字段为中文 stage 名 (题目/分析/解答/总结)，便于下游双重校验
+      //  - 如果某条 actionSpec 已自带 stage 就尊重它（罕见，但允许跨 stage 动作）
+      //  - safeDeepClone 先克隆, 再加 stage, 避免污染 Vue 响应式 state
+      actionSpec: Array.isArray(r.actionSpec)
+        ? safeDeepClone(r.actionSpec).map(a => {
+            if (!a || typeof a !== 'object') return a
+            // 容错: actionSpec 项可能是 { action: {...} } 或直接 {...}
+            // 优先给外层加 stage
+            if (!a.stage) a.stage = rowStage
+            // 若内层 action 子对象也没 stage, 顺便补上 (双保险)
+            if (a.action && typeof a.action === 'object' && !a.action.stage) {
+              a.action.stage = rowStage
+            }
+            return a
+          })
+        : [],
+    }
+    const computed = computeRowGroupTimeline(normalizedRow)
+    return {
+      ...normalizedRow,
+      estimatedDurationMs: computed.rowTotalDurationMs,
+      exclusiveExecutionPlan: computed.exclusiveExecutionPlan,
+      timingPolicy: 'speech-full-board-action-mutually-exclusive',
+    }
+  })
+
+  return {
+    $schema: '/deliverable/deliverable.schema.json',
+    apiSpecVersion: '2.0.0',
+    apiDocUrl: '/deliverable/DELIVERABLE_API_SPEC.md',
+    specificationSummary: '每个 row 为一组原子单元；语音全程；板书与动作二者绝对互斥；动作时长定量 1~2 秒作为标点停顿。供下游课件制作与画布 Agent 直接消费。',
+    projectCode: code,
     problemText: handoff.value?.problemText || '',
     sourceImageUrl: handoff.value?.sourceImageDataUrl || handoff.value?.sourceImageUrl || '',
     keepOriginal: Boolean(handoff.value?.keepOriginal),
-    topicLayout: handoff.value?.topicLayout || null,
-    boardPlan: handoff.value?.boardPlan || null,
     screenshotUrl: handoff.value?.screenshotUrl || '',
-    // 下载物唯一真相源：handoff 画布参数（动态读取）+ B 页面 UI 设置 + 题目全量信息，根节点完整注入
-    handoffCanvasParams: handoff.value?.canvasParams || null,
-    uiSettings: { ...canvasParams.value },
-    problemInfo: buildProblemInfoSnapshot(),
-    problemType: handoff.value?.problemType || '小学数学题',
-    boardFocus: handoff.value?.boardFocus || '图文结合',
-    gradeLevel: handoff.value?.gradeLevel || '小学阶段',
-    knowledgeTitle: handoff.value?.selectedKnowledge?.title || handoff.value?.knowledge || '核心知识点',
-    canvasSize: { width: CANVAS_SIZE.width, height: CANVAS_SIZE.height },
-    totalDuration: totalRuntimeStats.value?.seconds || 0,
-    totalDurationText: totalRuntimeStats.value?.text || '0秒',
-    charCount: totalEstimatedStats.value?.charCount || 0,
-    actionCount: totalActionCount.value || 0,
-    checkApplied: checkState.value === 'ready' || checkChanges.value.length > 0,
-    changeCount: checkChanges.value.length,
-    parseBoard,
-    safeDeepClone,
-    computeRowGroupTimeline,
-  })
-}
-
-// 下游 Agent API 规格抽屉状态与方法
-const apiSpecDrawerOpen = ref(false)
-const apiSpecMarkdown = ref('')
-const loadingApiSpec = ref(false)
-
-async function openApiSpecDrawer() {
-  apiSpecDrawerOpen.value = true
-  if (!apiSpecMarkdown.value) {
-    loadingApiSpec.value = true
-    try {
-      const res = await fetch('/api/deliverable/api-spec')
-      const data = await res.json()
-      if (data?.ok && data?.markdown) {
-        apiSpecMarkdown.value = data.markdown
-      } else {
-        const docRes = await fetch('/deliverable/DELIVERABLE_API_SPEC.md')
-        apiSpecMarkdown.value = await docRes.text()
-      }
-    } catch {
-      apiSpecMarkdown.value = '# 教学课件与音画微课交付物 API 规范 (v2.0)\n\n每个 row 为一组原子单元；语音全程；板书与动作二者绝对互斥；动作时长定量 1~2 秒作为标点停顿。供下游课件与画布 Agent 消费。'
-    } finally {
-      loadingApiSpec.value = false
-    }
+    topicLayout: handoff.value?.topicLayout || null,
+    // handoff 画布参数（唯一真相源）
+    canvasParams: {
+      source: 'handoff (Agent A 根据题目实时判断，为唯一真相源)',
+      canvasWidth: CANVAS_SIZE.width,
+      canvasHeight: CANVAS_SIZE.height,
+      coordinateSystem: '百分比坐标 0-100',
+      fontSize: {
+        question: { px: QUESTION_FONT_SIZE, family: `微软雅黑（印刷体，${QUESTION_FONT_SIZE}px）`, color: '黑色' },
+        // ★ Task 10: 字号 35 → 38 (甲方 2026-09-17 拍板); 字体 LikeJianJianTi → 平方乔木体 (CDN 507)
+        analysis: { px: BOARD_FONT_SIZE, family: `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`, color: '红色' },
+        solution: { px: BOARD_FONT_SIZE, family: `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`, color: '黑色' },
+        summary: { px: BOARD_FONT_SIZE, family: `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`, color: '黑色' },
+      },
+      lineHeight: {
+        question: QUESTION_LINE_HEIGHT,
+        // ★ Task 10: 板书行高 1.7±随机（区间 1.55~1.85，下游渲染职责）
+        others: LINE_HEIGHT_RULE,
+      },
+      // ★ Task 10: 板书速度 1秒2-3字 + ±5% 抖动 + 自适应加速
+      boardSpeed: `下游渲染参数：1秒约${BOARD_SPEED_CHARS_PER_SEC}个汉字，每行±${BOARD_SPEED_JITTER * 100}%轻微抖动；书写时长超出音频窗口时自适应加速压进音频内（音频=行时长唯一主时钟）`,
+      actionSpeed: '差不多同样速度（rough-line/rough-arrow/rough-notation绘制速度）',
+      ...hcp,
+    },
+    // handoff 四区布局（真相源）+ Label 坐标（row-player 标签贴纸位置真源）
+    boardPlan: {
+      canvas: { w: 1726, h: 980 },
+      topicLabel: hbp.topicLabel || { x: 5.7, y: 6.6, w: 7.1 },
+      question: { x: hbp.question?.x ?? 6, y: hbp.question?.y ?? 13.32, w: hbp.question?.w ?? 40.32, h: hbp.question?.h ?? '' },
+      analysisLabel: hbp.analysisLabel || { x: 5.7, y: 34.5, w: 7.2 },
+      analysis: { x: hbp.analysis?.x ?? 6, y: hbp.analysis?.y ?? 40.62, w: hbp.analysis?.w ?? 44, h: hbp.analysis?.h ?? 54.38 },
+      solutionLabel: hbp.solutionLabel || { x: 53.7, y: 6.6, w: 7.4 },
+      solution: { x: hbp.solution?.x ?? 54, y: hbp.solution?.y ?? 14, w: hbp.solution?.w ?? 40, h: hbp.solution?.h ?? 44 },
+      summaryLabel: hbp.summaryLabel || { x: 53.7, y: 62.0, w: 7.2 },
+      summary: { x: hbp.summary?.x ?? 54, y: hbp.summary?.y ?? 69.5, w: hbp.summary?.w ?? 40, h: hbp.summary?.h ?? 22 },
+      image: hbp.image || null,
+    },
+    // UI 可调参数（B 页面设置）
+    uiSettings: {
+      coordinateMode: '百分比',
+      questionFontSize: '30px',
+      questionFontFamily: '"Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+      audioSpeedPolicy: '（若有音频url的，以音频自然播放时间为时间，一组一组自然播放即可，如果没有音频url信息的，用填充演示数据占位，）速度计算 160字/分',
+    },
+    // 题目信息与环节配比
+    problemInfo: {
+      screenshotUrl: handoff.value?.screenshotUrl || '',
+      problemType: handoff.value?.problemType || '小学数学题',
+      relatedKnowledge: relatedKnowledge.value || [],
+      teachingFocus: knowledgeAnalysis.value?.teachingFocus || '',
+      keyFormulaList: keyFormulaList.value || [],
+      zoneAnchors: handoff.value?.zoneAnchors || {
+        question: { x: 6, y: 13.32, w: 40.32 },
+        analysis: { x: 6, y: 40.62, w: 44, h: 54.38 },
+        solution: { x: 54, y: 14, w: 40, h: 44 },
+        summary: { x: 54, y: 69.5, w: 40, h: 22 },
+      },
+      stageRatios: {
+        analysis: suggestedRatio.analysis || '35%',
+        solution: suggestedRatio.solution || '40%',
+        summary: suggestedRatio.summary || '15%',
+        introAndClosing: suggestedRatio.introAndClosing || '10%',
+      },
+      stageRatioSuggestion: ratioData,
+    },
+    meta: {
+      problemType: handoff.value?.problemType || '小学数学题',
+      boardFocus: handoff.value?.boardFocus || '图文结合',
+      gradeLevel: handoff.value?.gradeLevel || '小学阶段',
+      knowledgeTitle: handoff.value?.selectedKnowledge?.title || handoff.value?.knowledge || '核心知识点',
+      canvasSize: { width: CANVAS_SIZE.width, height: CANVAS_SIZE.height },
+    },
+    stats: {
+      totalDuration: totalEstimatedStats.value?.seconds || 0,
+      totalDurationText: totalEstimatedStats.value?.text || '0秒',
+      stepCount: cleanRows.length,
+      charCount: totalEstimatedStats.value?.charCount || 0,
+      actionCount: totalActionCount.value || 0,
+    },
+    checkInfo: {
+      checkApplied: checkState.value === 'ready' || checkChanges.value.length > 0,
+      changeCount: checkChanges.value.length,
+    },
+    rows: cleanRows,
   }
 }
 
-function copyApiSpecPrompt() {
-  const promptText = `【下游 Agent 消费指南】：
-你是一名负责将教学交付物 JSON 制作成课件 PPT / 画布动画的下游 Agent。
-核心消费规则：
-1. 每个 row 是一组独立的原子播放单元。
-2. speech 语音贯穿全程。
-3. 板书（board）与动作（actionSpec）在时间上绝对互斥（同一时刻单手操作，不得重叠）。
-4. 动作时长严格定量在 1~2 秒内，作为口播句子中的标点停顿。
-5. 请直接消费每个 row 中的 exclusiveExecutionPlan 数组，按 startOffsetMs 依次触发。
-完整接口规范详见系统内置文档 /deliverable/DELIVERABLE_API_SPEC.md。`
-  navigator.clipboard.writeText(promptText).then(() => {
-    message.success('已复制下游 Agent 消费提示词！')
-  }).catch(() => {
-    message.info('请手动复制提示词')
-  })
-}
+// 下游 Agent API 规格抽屉状态与方法
+// ponytail: 抽到 composables/useApiSpecDrawer.js，传 message 避免组件耦合
+const { apiSpecDrawerOpen, apiSpecMarkdown, loadingApiSpec, openApiSpecDrawer, copyApiSpecPrompt } = useApiSpecDrawer({ message })
 
 // 固化生成最终交付产物单页：写入 public/deliverable/ 永久文件，刷新不丢失
 async function generateDeliverablePage() {
@@ -1408,6 +1430,9 @@ async function generateDeliverablePage() {
     if (data.ok) {
       deliverableResult.value = data
       // 同步本地预览缓存作为双重保险
+      // ★ Task 9 修复: 必须把 canvasParams 与 meta 一起写入 localStorage,
+      //  否则 BoardPreviewApp 打开时 RealBoardPreview 拿不到 canvasParams
+      //  (字号/字体/行高/画布尺寸全部丢失, 预览画布降级为静态常量)
       saveLiveBoardPreview({
         problemText: payload.problemText,
         topicLayout: payload.topicLayout,
@@ -1416,9 +1441,21 @@ async function generateDeliverablePage() {
         keepOriginal: payload.keepOriginal,
         rows: payload.rows,
         projectCode: data.projectCode,
-        // 补 stats/meta：否则 board-preview 走 localStorage 回退时 stats 恒默认，顶部会显示写死的「约2分半」
-        stats: payload.stats,
-        meta: payload.meta,
+        // ★ 必须带 canvasParams: 真相源 = handoff.canvasParams 或 buildCanvasParams()
+        canvasParams: payload.canvasParams || handoff.value?.canvasParams || null,
+        // ★ 必须带 meta: BoardPreviewApp.applyDeliverablePayload 从 payload.meta 读 canvasParams/model 等
+        meta: {
+          canvasParams: payload.canvasParams || handoff.value?.canvasParams || null,
+          model: generatedModel.value || agentBApiConfig.model || '',
+          generatedAt: new Date().toLocaleString('zh-CN', { hour12: false }),
+          handoffCanvasParams: handoff.value?.canvasParams || null,
+          handoffBoardPlan: handoff.value?.boardPlan || null,
+          problemType: handoff.value?.problemType || '',
+          stageRatioSuggestion: handoff.value?.stageRatioSuggestion || handoff.value?.['环节配比占比'] || null,
+        },
+        // ★ 同时带 screenshotUrl 与 problemText 等下游消费字段
+        screenshotUrl: payload.screenshotUrl || handoff.value?.screenshotUrl || '',
+        problemType: handoff.value?.problemType || '',
       })
       deliverableModalOpen.value = true
       message.success('教学视频素材产物单页已成功生成并归档！')
@@ -1432,51 +1469,63 @@ async function generateDeliverablePage() {
   }
 }
 
-function openHanddrawPlayer() {
-  // 唯一播放终局：打开刚固化归档的自包含单页（row-player 模板 + 注入 JSON）
-  // handdraw-player.html 已删除，localStorage/_LATEST_AGENT_B_RESULT 无任何消费方，一并移除死写
-  const url = deliverableResult.value?.url || '/deliverable/current.html'
-  window.open(url, '_blank')
+function openDeliverablePage() {
+  if (deliverableResult.value?.url) {
+    window.open(deliverableResult.value.url, '_blank')
+    return
+  }
+  openHanddrawPlayer()
 }
 
-function triggerDownload(blob, filename) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+async function openHanddrawPlayer() {
+  const payload = serializeCurrentDeliverableState()
+  window._LATEST_AGENT_B_RESULT = payload
+
+  // 1. 同步写入 localStorage，作为离线/无网络/直开双保险
+  try {
+    localStorage.setItem('agent-b-deliverable', JSON.stringify(payload))
+  } catch (e) {
+    console.warn('[openHanddrawPlayer] localStorage 写入失败', e)
+  }
+
+  // 2. 自动异步向后端同步当前产物，确保 public/deliverable/current.json 与 current.html 保持最新
+  try {
+    fetch('/api/deliverable', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(err => console.warn('[openHanddrawPlayer] 后端自动归档轻微异常:', err))
+  } catch (e) {
+    console.warn('[openHanddrawPlayer] 后端请求失败', e)
+  }
+
+  // 3. 打开 row-player.html 页面，传入 ?deliverable=/api/deliverable
+  window.open('/row-player.html?deliverable=/api/deliverable', '_blank')
 }
 
-async function downloadDeliverableJson() {
+function downloadDeliverableJson() {
   if (!rows.value.length) {
     message.warning('当前无板书数据，请先生成或添加板书后再导出 JSON')
     return
   }
-  // 盲测出口统一：已归档则下载与交付页同源、同清洗（车同轨板书 / specAnnotation / board.lines）的归档 JSON；
-  // 只有未归档时才退回运行时快照，并明确提示两者差异，杜绝"同一个交付物两个 JSON 版本"。
-  const archived = deliverableResult.value
-  if (archived?.filename) {
-    try {
-      const res = await fetch(`/deliverable/${archived.filename}`)
-      if (res.ok) {
-        const text = await res.text()
-        triggerDownload(new Blob([text], { type: 'application/json;charset=utf-8' }), archived.filename)
-        message.success(`已下载归档版 JSON（与交付单页同源同清洗）：${archived.filename}`)
-        return
-      }
-    } catch {
-      // 归档拉取失败（如服务重启丢失静态文件）则回退运行时快照
-    }
-  }
-  // 未归档回退：严格从当前应用运行时的响应式状态树（state tree）实时序列化
+  // 1. 严格从当前应用运行时的响应式状态树（state tree）实时序列化，绝不从已归档的旧快照中读取，更绝不发起网络请求获取 HTML
   const deliverableData = serializeCurrentDeliverableState()
   const code = deliverableData.projectCode || 'deliverable'
+
+  // 2. 序列化为规范格式化 JSON 字符串
   const jsonContent = JSON.stringify(deliverableData, null, 2)
-  triggerDownload(new Blob([jsonContent], { type: 'application/json;charset=utf-8' }), `deliverable-${code}.json`)
-  message.warning('当前未固化归档：下载的是运行时快照（板书未过统一清洗），正式交付请先生成交付单页')
+
+  // 3. 严格使用客户端原生 Blob 触发下载，指定纯净 application/json;charset=utf-8，确保 100% 纯正实体 JSON
+  const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `deliverable-${code}.json`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+  message.success(`已成功从当前状态树导出并下载配套 JSON：deliverable-${code}.json`)
 }
 
 // 知识点修缮：手动触发，调 POST /api/knowledge/refine，成功后弹结果弹窗，用户点应用才更新
@@ -1513,12 +1562,7 @@ async function applyRefine() {
   // refineResult 被 Vue ref 代理，handoff 对象带 ReactiveEffect 循环引用
   // 必须 toRaw + 安全深拷贝脱壳后再赋值，杜绝潜在的不可序列化对象抛错
   const appliedHandoff = safeDeepClone(refineResult.value.handoff)
-  generationRunId += 1
   localHandoff.value = appliedHandoff
-  rows.value = []
-  generatedModel.value = ''
-  invalidateCheck()
-  errorText.value = ''
   // 修缮接口已原地更新当前 handoff；再次读取确认页面与动态文件完全一致。
   try {
     const response = await fetch('/api/handoff', { cache: 'no-store' })
@@ -1560,7 +1604,6 @@ function isRefineFieldEqual(original, refined) {
     <QhPageHeader
       step-label="第 2 步 · Agent B"
       subtitle="题目信息 → 五字段"
-      :current-step="2"
       show-back
       @back="emit('back-to-step1')"
     >
@@ -1595,6 +1638,16 @@ function isRefineFieldEqual(original, refined) {
         size="middle"
         style="width:100%"
       >
+        <!-- ponytail: 交接状态进度条独立放在交接台卡片之外（用户要求） -->
+        <div class="handoff-progress-strip">
+          <span class="handoff-summary-label">交接状态</span>
+          <a-steps
+            class="qh-handoff-steps"
+            size="small"
+            :items="handoffFlowSteps"
+          />
+        </div>
+
         <a-card
           class="qh-surface-card handoff-workbench-card"
           size="small"
@@ -1602,383 +1655,343 @@ function isRefineFieldEqual(original, refined) {
           <template #title>
             <div class="handoff-card-title">
               <span class="handoff-title-badge">📋</span>
-              <span class="handoff-title-text">Agent B 输入交接台</span>
+              <span class="handoff-title-text">输入交接台</span>
               <span class="handoff-title-sub">已同步 Agent A 识别与四区排版参数</span>
             </div>
           </template>
           <template #extra>
-            <a-button
-              type="primary"
-              size="small"
-              class="btn-refine-confirm"
-              :loading="refineLoading"
-              @click="refineKnowledge"
-            >
-              优化确认
-            </a-button>
+            <a-space size="small">
+              <a-tooltip title="可以点击这里，对问题进行优化校准哦" placement="bottom">
+                <a-button
+                  type="primary"
+                  size="large"
+                  class="btn-refine-confirm"
+                  :loading="refineLoading"
+                  @click="refineKnowledge"
+                >
+                  <span class="refine-pulse-dot"></span>
+                  优化确认
+                </a-button>
+              </a-tooltip>
+              <a-button
+                size="small"
+                @click="handoffDetailsExpanded = !handoffDetailsExpanded"
+              >
+                {{ handoffDetailsExpanded ? '收起交接参数 ▲' : '展开参数明细 ▼' }}
+              </a-button>
+            </a-space>
           </template>
-          <div class="handoff-summary-bar">
-            <span class="handoff-summary-label">交接状态</span>
-            <a-steps
-              class="qh-handoff-steps"
-              size="small"
-              :items="handoffFlowSteps"
-            />
-          </div>
-          <div class="handoff-stats-chips">
+
+          <div class="handoff-stats-chips" style="margin-bottom: 0;">
             <span class="handoff-stat-tag">题目 1 道</span>
             <span class="handoff-stat-tag">画布分区 {{ handoff?.boardPlan ? 4 : 0 }} 个</span>
             <span class="handoff-stat-tag">知识参考 {{ relatedKnowledge.length }} 条</span>
-            <span class="handoff-stat-tag">工具能力 {{ toolCatalog.tools.length }} 项</span>
+            <span class="handoff-stat-tag">建议年级 {{ handoff?.suggestedGrade || '未判断' }}</span>
+            <span class="handoff-stat-tag">标准真画布 1726×980</span>
           </div>
 
-          <div class="qh-page-guide">
-            本页怎么用：核对下方交接信息 → 点右上角「<b>生成 Agent B 五字段</b>」→ 满意后点「<b>教学微课演播</b>」观看，或「<b>固化归档单页</b>」存档
-          </div>
-          <div class="qh-section-title">
-            题目信息
-          </div>
-          <a-descriptions
-            bordered
-            size="small"
-            :column="3"
-            class="handoff-descriptions"
-          >
-            <a-descriptions-item label="题目类型">
-              <div class="field-val-box">
-                <span class="field-val-main">{{ problemTypeLabel }}</span>
-                <span class="qh-field-key">problemType</span>
-              </div>
-            </a-descriptions-item>
-            <a-descriptions-item label="是否纯文本">
-              <div class="field-val-box">
-                <span class="field-val-main">{{ pureTextLabel }}</span>
-                <span class="qh-field-key">imageKind</span>
-              </div>
-            </a-descriptions-item>
-            <a-descriptions-item label="板书侧重">
-              <div class="field-val-box">
-                <span class="field-val-main">{{ boardFocusLabel }}</span>
-                <span class="qh-field-key">boardFocus</span>
-              </div>
-            </a-descriptions-item>
-            <a-descriptions-item label="建议年级">
-              <div class="field-val-box">
-                <span class="field-val-main">{{ handoff?.suggestedGrade || '未判断' }}</span>
-                <span class="qh-field-key">suggestedGrade</span>
-              </div>
-            </a-descriptions-item>
-            <a-descriptions-item label="建议布局">
-              <div class="field-val-box">
-                <span class="field-val-main">{{ suggestedLayoutLabel }}</span>
-                <span class="qh-field-key">suggestedLayout</span>
-              </div>
-            </a-descriptions-item>
-            <a-descriptions-item label="画布参数" :span="3">
-              <div v-if="handoff?.canvasParams" class="canvas-params-desc-box">
-                <div class="canvas-params-chips-wrap">
-                  <span class="canvas-param-chip">
-                    <span class="chip-k">尺寸</span>
-                    <span class="chip-v">{{ handoff.canvasParams.canvasSize.width }}×{{ handoff.canvasParams.canvasSize.height }}px</span>
-                  </span>
-                  <span class="canvas-param-chip">
-                    <span class="chip-k">题目字号</span>
-                    <span class="chip-v">{{ handoff.canvasParams.fontSize.question.px }}px</span>
-                  </span>
-                  <span class="canvas-param-chip">
-                    <span class="chip-k">正文字号</span>
-                    <span class="chip-v">{{ handoff.canvasParams.fontSize.analysis.px }}px</span>
-                  </span>
-                  <span class="canvas-param-chip">
-                    <span class="chip-k">行高</span>
-                    <span class="chip-v">题{{ handoff.canvasParams.lineHeight.question }} / 文{{ handoff.canvasParams.lineHeight.others }}</span>
-                  </span>
-                  <span class="canvas-param-chip">
-                    <span class="chip-k">板书速度</span>
-                    <span class="chip-v">{{ handoff.canvasParams.boardSpeed }}</span>
-                  </span>
-                  <span class="canvas-param-chip">
-                    <span class="chip-k">动作速度</span>
-                    <span class="chip-v">{{ handoff.canvasParams.actionSpeed }}</span>
-                  </span>
-                </div>
-                <span class="qh-field-key">canvasParams</span>
-              </div>
-              <span v-else class="param-empty-text">未携带��布参数</span>
-            </a-descriptions-item>
-          </a-descriptions>
 
-          <div class="qh-section-title knowledge-section-heading">
-            <span>知识点</span>
-            <a-tag v-if="refineAppliedAt" color="green">
-              已应用修缮 · handoff 已同步
-            </a-tag>
-          </div>
-          <a-alert
-            v-if="refineAppliedAt"
-            type="success"
-            show-icon
-            class="refine-applied-alert"
-            message="本次修缮已写入当前 handoff，页面数据已刷新。"
-          />
-          <a-descriptions
-            bordered
-            size="small"
-            :column="{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }"
-            :class="['handoff-descriptions', { 'refine-applied-fields': refineAppliedAt }]"
-          >
-            <a-descriptions-item label="知识分析">
-              <div class="field-val-box">
-                <span class="field-val-main">{{ coreKnowledge.length }} 个核心知识点 · {{ keyFormulaList.length }} 条公式</span>
-                <span class="qh-field-key">knowledgeAnalysis</span>
-              </div>
-            </a-descriptions-item>
-            <a-descriptions-item label="交接来源">
-              <div class="field-val-box">
-                <span class="field-val-main">{{ handoff?.agentPageName || 'Agent A' }} · {{ handoff?.agentCapability || '未声明能力' }} · v{{ handoff?.handoffVersion || 1 }}</span>
-                <span class="qh-field-key">agentMeta</span>
-              </div>
-            </a-descriptions-item>
-            <a-descriptions-item
-              label="知识关联点"
-              :span="2"
-            >
-              <div class="field-val-box wrap-box">
-                <div class="field-val-main">
-                  <a-space wrap size="small">
-                    <a-tag v-if="relatedKnowledge.length === 0" color="default">未优化</a-tag>
-                    <a-tag
-                      v-for="(item, idx) in relatedKnowledge"
-                      :key="typeof item === 'string' ? idx : (item['编号'] || item['知识点'])"
-                      color="blue"
-                      class="knowledge-point-tag"
-                    >
-                      {{ typeof item === 'string' ? item : (item['知识点'] || '未命名知识点') }}
-                    </a-tag>
-                  </a-space>
+          <div v-show="handoffDetailsExpanded" class="handoff-details-collapsible" style="margin-top: 14px; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+          <!-- ponytail: 三大板块改 a-tabs 切换（消除横向滑动条 + 卡片高度不齐的分合感） -->
+          <a-card class="qh-surface-card handoff-block-card" :bordered="false" size="small">
+            <a-tabs type="card" size="small" class="handoff-tri-tabs">
+              <a-tab-pane key="ratio" tab="📊 配比提示 + 参数信息">
+                <div v-if="handoff?.stageRatioSuggestion || handoff?.['环节配比占比']" class="stage-ratio-suggestion">
+                  <a-descriptions
+                    bordered
+                    size="small"
+                    :column="{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }"
+                    class="handoff-descriptions"
+                  >
+                    <a-descriptions-item label="题型分类">
+                      <div class="field-val-box">
+                        <div class="field-val-main">
+                          <a-tag color="purple">
+                            {{ (handoff.stageRatioSuggestion || handoff['环节配比占比']).cuCode }} · {{ (handoff.stageRatioSuggestion || handoff['环节配比占比']).type }}
+                          </a-tag>
+                          <a-tag v-if="(handoff.stageRatioSuggestion || handoff['环节配比占比']).confidence === 'high'" color="green">高置信</a-tag>
+                          <a-tag v-else-if="(handoff.stageRatioSuggestion || handoff['环节配比占比']).confidence === 'medium'" color="orange">中置信</a-tag>
+                        </div>
+                        <span class="qh-field-key">cuCode</span>
+                      </div>
+                    </a-descriptions-item>
+                    <a-descriptions-item label="环节配比占比">
+                      <div class="ratio-bars-wrap">
+                        <span class="ratio-pill analysis">分析 {{ (handoff.stageRatioSuggestion || handoff['环节配比占比']).suggestedRatio.analysis }}</span>
+                        <span class="ratio-pill solution">解答 {{ (handoff.stageRatioSuggestion || handoff['环节配比占比']).suggestedRatio.solution }}</span>
+                        <span class="ratio-pill summary">总结 {{ (handoff.stageRatioSuggestion || handoff['环节配比占比']).suggestedRatio.summary }}</span>
+                        <span class="ratio-pill intro">开收场 {{ (handoff.stageRatioSuggestion || handoff['环节配比占比']).suggestedRatio.introAndClosing }}</span>
+                      </div>
+                    </a-descriptions-item>
+                  </a-descriptions>
                 </div>
-                <span class="qh-field-key">relatedKnowledge</span>
-              </div>
-            </a-descriptions-item>
-            <a-descriptions-item
-              v-if="knowledgeAnalysis?.teachingFocus"
-              label="教学重点"
-              :span="2"
-            >
-              <div class="field-val-box">
-                <span class="field-val-main font-medium">{{ knowledgeAnalysis.teachingFocus }}</span>
-                <span class="qh-field-key">teachingFocus</span>
-              </div>
-            </a-descriptions-item>
-            <a-descriptions-item
-              v-if="keyFormulaList.length"
-              label="关键公式"
-              :span="2"
-            >
-              <div class="field-val-box wrap-box">
-                <div class="field-val-main">
-                  <a-space wrap size="small">
-                    <a-tag
-                      v-for="formula in keyFormulaList"
-                      :key="formula"
-                      color="cyan"
-                      class="formula-tag"
-                    >
-                      {{ formula }}
-                    </a-tag>
-                  </a-space>
-                </div>
-                <span class="qh-field-key">keyFormulaList</span>
-              </div>
-            </a-descriptions-item>
-            <a-descriptions-item
-              v-if="uncertainItems.length"
-              label="待确认项"
-              :span="2"
-            >
-              <div class="field-val-box wrap-box">
-                <div class="field-val-main">
-                  <a-space wrap size="small">
-                    <a-tag
-                      v-for="item in uncertainItems"
-                      :key="displayValue(item)"
-                      color="orange"
-                    >
-                      {{ displayValue(item) }}
-                    </a-tag>
-                  </a-space>
-                </div>
-                <span class="qh-field-key">uncertainItems</span>
-              </div>
-            </a-descriptions-item>
-            <a-descriptions-item
-              label="使用方式"
-              :span="2"
-            >
-              <span class="handoff-usage-note">
-                Agent A 只给软建议，不是门槛或强制清单；锚定题目与四区骨架后，由 Agent B 自主取舍、改写和补充。
-              </span>
-            </a-descriptions-item>
-          </a-descriptions>
-
-          <div class="qh-section-title">
-            布局参数
-          </div>
-          <a-descriptions
-            bordered
-            size="small"
-            :column="1"
-            class="handoff-descriptions"
-          >
-            <a-descriptions-item label="四区布局">
-              <div class="field-val-box">
-                <span class="field-val-main">
-                  <a-badge :status="handoff?.boardPlan ? 'success' : 'default'" :text="handoff?.boardPlan ? '已确认（标准四区网格）' : '未确认'" />
-                </span>
-                <span class="qh-field-key">boardPlan</span>
-              </div>
-            </a-descriptions-item>
-            <a-descriptions-item label="四区参数">
-              <div class="field-val-box wrap-box">
-                <div class="field-val-main">
-                  <div class="zone-tags-grid">
-                    <div
-                      v-for="zone in zoneParameterRows"
-                      :key="zone.key"
-                      class="zone-param-chip"
-                    >
-                      <span class="zone-chip-label">{{ zone.label }}</span>
-                      <span class="zone-chip-val">{{ zone.value }}</span>
+                <a-descriptions
+                  bordered
+                  size="small"
+                  :column="{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }"
+                  class="handoff-descriptions"
+                  style="margin-top: 10px;"
+                >
+                  <a-descriptions-item label="题目类型">
+                    <div class="field-val-box">
+                      <span class="field-val-main">{{ problemTypeLabel }}</span>
+                      <span class="qh-field-key">problemType</span>
                     </div>
-                  </div>
-                </div>
-                <span class="qh-field-key">zoneAnchors</span>
-              </div>
-            </a-descriptions-item>
-          </a-descriptions>
+                  </a-descriptions-item>
+                  <a-descriptions-item label="建议年级">
+                    <div class="field-val-box">
+                      <span class="field-val-main">{{ handoff?.suggestedGrade || '未判断' }}</span>
+                      <span class="qh-field-key">suggestedGrade</span>
+                    </div>
+                  </a-descriptions-item>
+                  <a-descriptions-item label="板书侧重">
+                    <div class="field-val-box">
+                      <span class="field-val-main">{{ boardFocusLabel }}</span>
+                      <span class="qh-field-key">boardFocus</span>
+                    </div>
+                  </a-descriptions-item>
+                  <a-descriptions-item label="建议布局">
+                    <div class="field-val-box">
+                      <span class="field-val-main">{{ suggestedLayoutLabel }}</span>
+                      <span class="qh-field-key">suggestedLayout</span>
+                    </div>
+                  </a-descriptions-item>
+                  <a-descriptions-item label="画布参数" :span="2">
+                    <div v-if="handoff?.canvasParams" class="canvas-params-desc-box">
+                      <div class="canvas-params-chips-wrap">
+                        <span class="canvas-param-chip">
+                          <span class="chip-k">尺寸</span>
+                          <span class="chip-v">{{ handoff.canvasParams.canvasSize.width }}×{{ handoff.canvasParams.canvasSize.height }}px</span>
+                        </span>
+                        <span class="canvas-param-chip">
+                          <span class="chip-k">题目字号</span>
+                          <span class="chip-v">{{ handoff.canvasParams.fontSize.question.px }}px</span>
+                        </span>
+                        <span class="canvas-param-chip">
+                          <span class="chip-k">正文字号</span>
+                          <span class="chip-v">{{ handoff.canvasParams.fontSize.analysis.px }}px</span>
+                        </span>
+                        <span class="canvas-param-chip">
+                          <span class="chip-k">行高</span>
+                          <span class="chip-v">题{{ handoff.canvasParams.lineHeight.question }} / 文{{ handoff.canvasParams.lineHeight.others }}</span>
+                        </span>
+                      </div>
+                      <span class="qh-field-key">canvasParams</span>
+                    </div>
+                    <span v-else class="param-empty-text">未携带画布参数</span>
+                  </a-descriptions-item>
+                  <a-descriptions-item label="四区参数" :span="2">
+                    <div class="field-val-box wrap-box">
+                      <div class="field-val-main">
+                        <div class="zone-tags-grid">
+                          <div
+                            v-for="zone in zoneParameterRows"
+                            :key="zone.key"
+                            class="zone-param-chip"
+                          >
+                            <span class="zone-chip-label">{{ zone.label }}</span>
+                            <span class="zone-chip-val">{{ zone.value }}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <span class="qh-field-key">zoneAnchors</span>
+                    </div>
+                  </a-descriptions-item>
+                </a-descriptions>
+              </a-tab-pane>
 
-          <div class="qh-section-title">
-            交接元数据
-          </div>
-          <a-descriptions
-            bordered
-            size="small"
-            :column="{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }"
-            class="handoff-descriptions"
-          >
-            <a-descriptions-item label="画布截图">
-              <div class="field-val-box">
-                <span v-if="handoff?.screenshotUrl" class="meta-path-val">
-                  {{ handoff.screenshotUrl }}
-                </span>
-                <span v-else class="param-empty-text">暂无截图</span>
-                <span class="qh-field-key">screenshotUrl</span>
-              </div>
-            </a-descriptions-item>
-            <a-descriptions-item label="知识库地址">
-              <div class="field-val-box">
-                <span class="meta-path-val">
-                  {{ handoff?.knowledgeBasePath || 'doc/knowledge-a.compact.json' }}
-                </span>
-                <span class="qh-field-key">knowledgeBasePath</span>
-              </div>
-            </a-descriptions-item>
-          </a-descriptions>
+              <a-tab-pane key="meta" tab="📦 交接元数据">
+                <a-descriptions
+                  bordered
+                  size="small"
+                  :column="{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }"
+                  class="handoff-descriptions"
+                >
+                  <a-descriptions-item label="交接来源">
+                    <div class="field-val-box">
+                      <span class="field-val-main">{{ handoff?.agentPageName || 'Agent A' }} · {{ handoff?.agentCapability || '未声明能力' }} · v{{ handoff?.handoffVersion || 1 }}</span>
+                      <span class="qh-field-key">agentMeta</span>
+                    </div>
+                  </a-descriptions-item>
+                  <a-descriptions-item label="交接时间">
+                    <div class="field-val-box">
+                      <span class="field-val-main">{{ confirmedAtLabel }}</span>
+                      <span class="qh-field-key">confirmedAt</span>
+                    </div>
+                  </a-descriptions-item>
+                  <a-descriptions-item label="是否纯文本">
+                    <div class="field-val-box">
+                      <span class="field-val-main">{{ pureTextLabel }}</span>
+                      <span class="qh-field-key">imageKind</span>
+                    </div>
+                  </a-descriptions-item>
+                  <a-descriptions-item label="画布截图">
+                    <div class="field-val-box">
+                      <span v-if="handoff?.screenshotUrl" class="meta-path-val">
+                        {{ handoff.screenshotUrl }}
+                      </span>
+                      <span v-else class="param-empty-text">暂无截图</span>
+                      <span class="qh-field-key">screenshotUrl</span>
+                    </div>
+                  </a-descriptions-item>
+                  <a-descriptions-item label="知识库地址">
+                    <div class="field-val-box">
+                      <span class="meta-path-val">
+                        {{ handoff?.knowledgeBasePath || 'doc/knowledge-a.compact.json' }}
+                      </span>
+                      <span class="qh-field-key">knowledgeBasePath</span>
+                    </div>
+                  </a-descriptions-item>
+                  <a-descriptions-item label="四区布局">
+                    <div class="field-val-box">
+                      <span class="field-val-main">
+                        <a-badge :status="handoff?.boardPlan ? 'success' : 'default'" :text="handoff?.boardPlan ? '已确认（标准四区网格）' : '未确认'" />
+                      </span>
+                      <span class="qh-field-key">boardPlan</span>
+                    </div>
+                  </a-descriptions-item>
+                </a-descriptions>
+              </a-tab-pane>
 
-          <!-- 题型配比建议（SK-06 绑定CU） -->
-          <div v-if="handoff?.stageRatioSuggestion || handoff?.['环节配比占比']" class="stage-ratio-suggestion">
-            <div class="qh-section-title">
-              题型配比建议
-            </div>
-            <a-descriptions
-              bordered
-              size="small"
-              :column="{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }"
-              class="handoff-descriptions"
-            >
-              <a-descriptions-item label="题型分类">
-                <div class="field-val-box">
-                  <div class="field-val-main">
-                    <a-tag color="purple">
-                      {{ (handoff.stageRatioSuggestion || handoff['环节配比占比']).cuCode }} · {{ (handoff.stageRatioSuggestion || handoff['环节配比占比']).type }} · {{ (handoff.stageRatioSuggestion || handoff['环节配比占比']).category }}
-                    </a-tag>
-                    <a-tag v-if="(handoff.stageRatioSuggestion || handoff['环节配比占比']).confidence === 'high'" color="green">高置信</a-tag>
-                    <a-tag v-else-if="(handoff.stageRatioSuggestion || handoff['环节配比占比']).confidence === 'medium'" color="orange">中置信</a-tag>
-                  </div>
-                  <span class="qh-field-key">cuCode</span>
+              <a-tab-pane key="kg" tab="💡 题目分析 + 知识点">
+                <a-alert
+                  v-if="refineAppliedAt"
+                  type="success"
+                  show-icon
+                  class="refine-applied-alert"
+                  :message="`本次修缮已写入当前 handoff（${new Date(refineAppliedAt).toLocaleTimeString()}）`"
+                />
+                <a-descriptions
+                  bordered
+                  size="small"
+                  :column="{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }"
+                  :class="['handoff-descriptions', { 'refine-applied-fields': refineAppliedAt }]"
+                >
+                  <a-descriptions-item label="知识分析">
+                    <div class="field-val-box">
+                      <span class="field-val-main">{{ coreKnowledge.length }} 个核心知识点 · {{ keyFormulaList.length }} 条公式</span>
+                      <span class="qh-field-key">knowledgeAnalysis</span>
+                    </div>
+                  </a-descriptions-item>
+                  <a-descriptions-item label="知识关联点" :span="2">
+                    <div class="field-val-box wrap-box">
+                      <div class="field-val-main">
+                        <a-space wrap size="small">
+                          <a-tag v-if="relatedKnowledge.length === 0" color="default">未优化</a-tag>
+                          <a-tag
+                            v-for="(item, idx) in relatedKnowledge"
+                            :key="typeof item === 'string' ? idx : (item['编号'] || item['知识点'])"
+                            color="blue"
+                            class="knowledge-point-tag"
+                          >
+                            {{ typeof item === 'string' ? item : (item['知识点'] || '未命名知识点') }}
+                          </a-tag>
+                        </a-space>
+                      </div>
+                      <span class="qh-field-key">relatedKnowledge</span>
+                    </div>
+                  </a-descriptions-item>
+                  <a-descriptions-item
+                    v-if="knowledgeAnalysis?.teachingFocus"
+                    label="教学重点"
+                    :span="2"
+                  >
+                    <div class="field-val-box">
+                      <span class="field-val-main font-medium">{{ knowledgeAnalysis.teachingFocus }}</span>
+                      <span class="qh-field-key">teachingFocus</span>
+                    </div>
+                  </a-descriptions-item>
+                  <a-descriptions-item
+                    v-if="keyFormulaList.length"
+                    label="关键公式"
+                    :span="2"
+                  >
+                    <div class="field-val-box wrap-box">
+                      <div class="field-val-main">
+                        <a-space wrap size="small">
+                          <a-tag
+                            v-for="formula in keyFormulaList"
+                            :key="formula"
+                            color="cyan"
+                            class="formula-tag"
+                          >
+                            {{ formula }}
+                          </a-tag>
+                        </a-space>
+                      </div>
+                      <span class="qh-field-key">keyFormulaList</span>
+                    </div>
+                  </a-descriptions-item>
+                  <a-descriptions-item
+                    v-if="uncertainItems.length"
+                    label="待确认项"
+                    :span="2"
+                  >
+                    <div class="field-val-box wrap-box">
+                      <div class="field-val-main">
+                        <a-space wrap size="small">
+                          <a-tag
+                            v-for="item in uncertainItems"
+                            :key="displayValue(item)"
+                            color="orange"
+                          >
+                            {{ displayValue(item) }}
+                          </a-tag>
+                        </a-space>
+                      </div>
+                      <span class="qh-field-key">uncertainItems</span>
+                    </div>
+                  </a-descriptions-item>
+                  <a-descriptions-item
+                    v-if="handoff?.commonMistakes?.length"
+                    label="易错点"
+                    :span="2"
+                  >
+                    <div class="field-val-box wrap-box">
+                      <div class="field-val-main">
+                        <a-space wrap size="small">
+                          <a-tag
+                            v-for="(mistake, mi) in handoff.commonMistakes"
+                            :key="mi"
+                            color="red"
+                          >
+                            {{ typeof mistake === 'string' ? mistake : (mistake.point || mistake.title || JSON.stringify(mistake)) }}
+                          </a-tag>
+                        </a-space>
+                      </div>
+                      <span class="qh-field-key">commonMistakes</span>
+                    </div>
+                  </a-descriptions-item>
+                </a-descriptions>
+                <div
+                  v-if="coreKnowledge.length"
+                  class="knowledge-chips"
+                >
+                  <a-tag
+                    v-for="item in coreKnowledge"
+                    :key="item.knowledgeId || item.knowledgePoint"
+                    color="blue"
+                    class="knowledge-chip"
+                    @click="selectedKnowledge = item"
+                  >
+                    {{ item.knowledgePoint || '未命名知识点' }}
+                  </a-tag>
                 </div>
-              </a-descriptions-item>
-              <a-descriptions-item label="对应知识点">
-                <div class="field-val-box">
-                  <span class="field-val-main text-secondary">{{ (handoff.stageRatioSuggestion || handoff['环节配比占比']).topicExamples }}</span>
-                  <span class="qh-field-key">topicExamples</span>
-                </div>
-              </a-descriptions-item>
-              <a-descriptions-item label="配比本质">
-                <div class="field-val-box">
-                  <span class="field-val-main">{{ (handoff.stageRatioSuggestion || handoff['环节配比占比']).essence }}</span>
-                  <span class="qh-field-key">essence</span>
-                </div>
-              </a-descriptions-item>
-              <a-descriptions-item label="环节配比占比">
-                <div class="ratio-bars-wrap">
-                  <span class="ratio-pill analysis">分析 {{ (handoff.stageRatioSuggestion || handoff['环节配比占比']).suggestedRatio.analysis }}</span>
-                  <span class="ratio-pill solution">解答 {{ (handoff.stageRatioSuggestion || handoff['环节配比占比']).suggestedRatio.solution }}</span>
-                  <span class="ratio-pill summary">总结 {{ (handoff.stageRatioSuggestion || handoff['环节配比占比']).suggestedRatio.summary }}</span>
-                  <span class="ratio-pill intro">开收场 {{ (handoff.stageRatioSuggestion || handoff['环节配比占比']).suggestedRatio.introAndClosing }}</span>
-                </div>
-              </a-descriptions-item>
-            </a-descriptions>
-          </div>
-
-          <div
-            v-if="coreKnowledge.length"
-            class="knowledge-chips"
-          >
-            <a-tag
-              v-for="item in coreKnowledge"
-              :key="item.knowledgeId || item.knowledgePoint"
-              color="blue"
-              class="knowledge-chip"
-              @click="selectedKnowledge = item"
-            >
-              {{ item.knowledgePoint || '未命名知识点' }}
-            </a-tag>
+              </a-tab-pane>
+            </a-tabs>
+          </a-card>
           </div>
         </a-card>
 
         <a-alert
           v-if="errorText"
-          :type="state === 'error' ? 'error' : 'warning'"
+          type="error"
           show-icon
           :message="errorText"
         />
 
 
-        <a-row :gutter="[16, 16]">
-          <a-col :span="24">
-            <a-card
-              class="qh-surface-card studio-problem-card"
-              :bordered="false"
-            >
-              <div class="problem-card-header">
-                <div class="problem-card-title-wrap">
-                  <span class="problem-card-badge">题</span>
-                  <span class="problem-card-title">已确认题目</span>
-                  <span class="problem-type-pill">{{ problemTypeLabel }}</span>
-                  <span v-if="handoff?.suggestedGrade" class="grade-pill">{{ handoff.suggestedGrade }}</span>
-                </div>
-                <div class="problem-card-extra">
-                  <span class="problem-char-stat">{{ (handoff?.problemText || '').length }} 字</span>
-                </div>
-              </div>
-              <div class="problem-text-content">
-                {{ handoff?.problemText || '暂无题目内容' }}
-              </div>
-            </a-card>
-          </a-col>
-        </a-row>
-
+        <!-- ponytail: 删已确认题目卡片（进入B页后不需重复展示，仅UI删除不动逻辑参数） -->
         <a-card class="qh-surface-card studio-workbench-card" :bordered="false">
           <template #title>
             <div class="workbench-title-box">
@@ -1991,200 +2004,129 @@ function isRefineFieldEqual(original, refined) {
               </div>
               <div v-if="rows.length" class="workbench-stat-pill">
                 <FieldTimeOutlined style="margin-right: 4px; color: #0284c7;" />
-                <span>总字数 {{ totalEstimatedStats.charCount }} 字 · {{ runtimeLabel }} {{ totalRuntimeStats.text }}</span>
+                <span>总字数 {{ totalEstimatedStats.charCount }} 字 · 预估用时 {{ totalEstimatedStats.text }}</span>
               </div>
             </div>
           </template>
 
           <template #extra>
             <div class="studio-actions-container">
-              <!-- 双保险 ASR 兜底与独立校验组 -->
-              <div class="action-btn-group group-asr">
-                <a-button
-                  type="primary"
-                  class="btn-asr-fallback"
-                  :disabled="!rows.length || state === 'generating'"
-                  title="纯前端本地数学算式语音兜底秒级转换：处理分数、未知数 x、幂运算与带括号混合运算，无需等待网络或模型"
-                  @click="runInstantMathAsrPolish"
-                >
-                  <template #icon>
-                    <SafetyCertificateOutlined />
-                  </template>
-                  ASR 兜底转换
-                </a-button>
+              <!-- ponytail: 精简为 5 个必须按钮, 删掉 yagni/dead 的 -->
 
-                <a-button
-                  :disabled="!rows.length || state === 'generating'"
-                  :loading="checkState === 'checking'"
-                  class="btn-check-agent"
-                  title="调用独立 Check Agent 进行语义与节奏深度润色"
-                  @click="checkRows('standard')"
-                >
-                  <template #icon>
-                    <CheckCircleOutlined />
-                  </template>
-                  Check Agent
-                </a-button>
+              <!-- ① 生成五字段 -->
+              <a-button
+                type="primary"
+                class="btn-main-generate"
+                :loading="state === 'generating'"
+                title="Shift+点击强制刷新缓存"
+                @click="(e) => generateRows(e.shiftKey)"
+              >
+                <template #icon><ThunderboltOutlined /></template>
+                {{ rows.length ? '重新生成' : '生成五字段' }}
+              </a-button>
 
-                <a-button
-                  :disabled="!rows.length"
-                  class="btn-revert"
-                  title="还原到 Check 之前的原始版本"
-                  @click="revertCheck"
-                >
-                  <template #icon>
-                    <RollbackOutlined />
-                  </template>
-                  还原
-                </a-button>
-              </div>
+              <!-- ② ASR 优化 -->
+              <a-button
+                type="primary"
+                class="btn-asr-fallback"
+                :disabled="!rows.length || state === 'generating'"
+                title="纯前端本地数学算式语音优化（分数/未知数/幂运算/括号混合）"
+                @click="runInstantMathAsrPolish"
+              >
+                <template #icon><SafetyCertificateOutlined /></template>
+                ASR 优化
+              </a-button>
 
-              <!-- 统一教学微课演播与交付物单页 -->
-              <div class="action-btn-group group-deliverable">
-                <a-button
-                  type="primary"
-                  class="btn-open-handdraw-player"
-                  :disabled="!rows.length"
-                  style="background: #2563eb; font-weight: 600;"
-                  title="在统一演播单页中播放音画微课、录制导出视频、关键词分行激活与交付物展示"
-                  @click="openHanddrawPlayer"
-                >
-                  <template #icon>
-                    <VideoCameraOutlined />
-                  </template>
-                  🎬 教学微课演播 (统一单页)
-                </a-button>
+              <!-- ③ Check Agent -->
+              <a-button
+                :disabled="!rows.length || state === 'generating'"
+                :loading="checkState === 'checking'"
+                class="btn-check-agent"
+                title="调用 Check Agent 对口播与板书做语义与节奏润色"
+                @click="checkRows('standard')"
+              >
+                <template #icon><CheckCircleOutlined /></template>
+                Check Agent
+              </a-button>
 
-                <a-button
-                  class="btn-generate-deliverable"
-                  :disabled="!rows.length || state === 'generating'"
-                  :loading="deliverableGenerating"
-                  title="固化生成或更新最终教学视频素材参数单页与 JSON（写入 public/deliverable/ 永久存档）"
-                  @click="generateDeliverablePage"
-                >
-                  <template #icon>
-                    <FileDoneOutlined />
-                  </template>
-                  {{ deliverableResult ? '固化归档单页与 JSON' : '生成交付单页' }}
-                </a-button>
-              </div>
+              <!-- ④ 教学微课演播（含生成板书html播放录制页面） -->
+              <a-button
+                type="primary"
+                class="btn-open-handdraw-player"
+                :disabled="!rows.length"
+                style="background: #2563eb; font-weight: 600;"
+                title="在统一演播单页中播放音画微课、录制导出视频、交付物展示"
+                @click="openHanddrawPlayer"
+              >
+                <template #icon><VideoCameraOutlined /></template>
+                🎬 演播录制
+              </a-button>
 
-              <!-- 导出数据组与下游协议 -->
-              <div class="action-btn-group group-export">
-                <a-button v-if="false"
-                  class="btn-api-spec"
-                  title="查看供下游小 Agent（课件制作、画布播放）直接消费的标准 API 协议与时序互斥规则"
-                  @click="openApiSpecDrawer"
-                >
-                  <template #icon>
-                    <BookOutlined />
-                  </template>
-                  下游 Agent 规范
-                </a-button>
+              <!-- ⑤ 生成交付单页 (固化 HTML + JSON 归档) -->
+              <a-button
+                class="btn-generate-deliverable"
+                :disabled="!rows.length || state === 'generating'"
+                :loading="deliverableGenerating"
+                title="固化生成或更新最终教学视频素材参数单页与 JSON（写入 public/deliverable/ 永久存档）"
+                @click="generateDeliverablePage"
+              >
+                <template #icon><FileDoneOutlined /></template>
+                {{ deliverableResult ? '固化归档' : '生成交付单页' }}
+              </a-button>
 
-                <a-dropdown :disabled="!rows.length">
-                  <template #overlay>
-                    <a-menu>
-                      <a-menu-item key="json" @click="downloadDeliverableJson">
-                        <DownloadOutlined /> 导出完整规格 JSON (板书与时序状态树)
-                      </a-menu-item>
-                      <a-menu-item v-if="false" key="api-spec" @click="openApiSpecDrawer">
-                        <BookOutlined /> 📘 课件/画布 Agent 协议规范 (API Spec)
-                      </a-menu-item>
-                      <a-menu-divider />
-                      <a-menu-item key="speech" @click="exportSpeech">
-                        <DownloadOutlined /> 一键导出口播稿 MD (纯语音)
-                      </a-menu-item>
-                      <a-menu-item key="elements" @click="exportElements">
-                        <DownloadOutlined /> 导出完整要素表 MD (五字段全量)
-                      </a-menu-item>
-                      <a-menu-item key="storyboard" @click="exportStoryboard">
-                        <DownloadOutlined /> 导出时序分镜表 MD (��序排版)
-                      </a-menu-item>
-                    </a-menu>
-                  </template>
-                  <a-button :disabled="!rows.length" class="btn-export-dropdown">
-                    <template #icon>
-                      <DownloadOutlined />
-                    </template>
-                    导出成果物
-                  </a-button>
-                </a-dropdown>
-              </div>
-
-              <!-- 提示词与核心生成组 -->
-              <div class="action-btn-group group-generate">
-                <a-button
-                  class="btn-settings"
-                  title="配置 Agent B API 密钥（支持多个密钥用英文逗号,隔开轮询）"
-                  @click="apiConfigOpen = true"
-                >
-                  <template #icon>
-                    <KeyOutlined />
-                  </template>
-                  API 配置
+              <!-- ⑥ 导出下拉（口播稿 / 画布分镜总表 / 下游API参数说明 / 完整规格JSON） -->
+              <a-dropdown :disabled="!rows.length">
+                <template #overlay>
+                  <a-menu>
+                    <a-menu-item key="speech" @click="exportSpeech">
+                      <DownloadOutlined /> 口播稿件 MD（纯语音用）
+                    </a-menu-item>
+                    <a-menu-item key="storyboard" @click="exportStoryboard">
+                      <DownloadOutlined /> 画布分镜总表 MD（导入剪辑器用）
+                    </a-menu-item>
+                    <a-menu-item key="api-spec" @click="openApiSpecDrawer">
+                      <BookOutlined /> 下游 API 参数说明（给第三方用）
+                    </a-menu-item>
+                    <a-menu-divider />
+                    <a-menu-item key="json" @click="downloadDeliverableJson">
+                      <DownloadOutlined /> 完整规格 JSON（板书+时序状态树）
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+                <a-button :disabled="!rows.length" class="btn-export-dropdown">
+                  <template #icon><DownloadOutlined /></template>
+                  导出
                 </a-button>
+              </a-dropdown>
 
-                <a-button
-                  class="btn-settings"
-                  title="编辑/切换提示词"
-                  @click="promptEditOpen = true"
-                >
-                  <template #icon>
-                    <SettingOutlined />
-                  </template>
-                  提示词
-                </a-button>
+              <!-- 配置组 -->
+              <a-button
+                class="btn-settings"
+                title="配置 Agent B API 密钥"
+                @click="apiConfigOpen = true"
+              >
+                <template #icon><KeyOutlined /></template>
+              </a-button>
 
-                <a-button
-                  type="primary"
-                  class="btn-main-generate"
-                  :loading="state === 'generating'"
-                  title="Shift+点击强制刷新缓存"
-                  @click="(e) => generateRows(e.shiftKey)"
-                >
-                  <template #icon>
-                    <ThunderboltOutlined />
-                  </template>
-                  {{ rows.length ? '重新生成五字段' : '生成 Agent B 五字段' }}
-                </a-button>
-              </div>
+              <a-select
+                v-model:value="selectedSkillId"
+                class="skill-style-select"
+                style="width: 160px;"
+                placeholder="切换讲课风格"
+                :options="skillOptions"
+                @change="(val) => onSkillChange(val)"
+              />
+
             </div>
           </template>
 
-          <!-- 演播室时序与节奏控制面板 -->
+          <!-- 演播室标准规范面板（时序与节奏由真实音频和系统底层基准自动驱动，不再暴露手动微调配置） -->
           <div class="studio-params-panel">
             <div class="params-panel-header">
-              <span class="params-panel-title">⏱️ 演播室时序与节奏</span>
-              <span class="params-panel-hint">控制口播基准语速与行停顿，画布规格与字号忠实继承自 Agent A</span>
+              <span class="params-panel-title">📐 演播室标准画布规格</span>
+              <span class="params-panel-hint">画布规格与字号忠实继承自 Agent A，时序与行停顿由系统及真实音频自适应驱动</span>
             </div>
             <div class="params-panel-controls">
-              <div class="param-control-item">
-                <span class="param-label">口播语速</span>
-                <a-input-number
-                  v-model:value="canvasParams.speechSpeed"
-                  size="small"
-                  :min="80"
-                  :max="300"
-                  :step="10"
-                  addon-after="字/分"
-                  style="width: 122px"
-                />
-              </div>
-
-              <div class="param-control-item">
-                <span class="param-label">Row 间隔停顿</span>
-                <a-input-number
-                  v-model:value="canvasParams.rowGapMs"
-                  size="small"
-                  :min="0"
-                  :max="3000"
-                  :step="100"
-                  addon-after="ms"
-                  style="width: 114px"
-                />
-              </div>
-
               <div class="param-control-item">
                 <span class="param-coord-pill">
                   📐 标准真画布 1726×980 (16:9) · 四区百分比坐标系
@@ -2221,15 +2163,46 @@ function isRefineFieldEqual(original, refined) {
           </div>
 
           <div v-else class="studio-table-container">
-            <!-- 视觉时间轴组件：映射每个 Row 组为独立区块，展示 MP3 时长与 +n 秒板书起手延时 -->
+            <!-- ★ Task 19: 预览小窗 - 放在表格当前页面顶部, 实时显示画布 + 题目 + 板书 + 动作 -->
+            <div class="studio-preview-mini" v-if="rows.length > 0">
+              <div class="studio-preview-mini-header">
+                <span class="preview-mini-title">🖼️ 实时预览小窗</span>
+                <span class="preview-mini-subtitle">画布 + 当前 rows 数据 + 动作 (Task 19)</span>
+                <button
+                  class="preview-mini-fullscreen-btn"
+                  title="全屏打开 board-preview.html"
+                  @click="openFullscreenPreview"
+                >⛶ 全屏</button>
+              </div>
+              <div class="studio-preview-mini-body">
+                <RealBoardPreview
+                  :problem-text="handoff?.problemText || ''"
+                  :board-plan="handoff?.boardPlan || handoff?.zoneAnchors || null"
+                  :topic-layout="handoff?.topicLayout || null"
+                  :source-image-url="handoff?.sourceImageUrl || handoff?.screenshotUrl || ''"
+                  :keep-original="Boolean(handoff?.keepOriginal)"
+                  :board-rows="rows"
+                  :action-spec="allActionSpec"
+                  :canvas-params="canvasParamsForPreview"
+                  :interactive="false"
+                  :auto-play="true"
+                  :show-all-labels="true"
+                  :show-grid="false"
+                  :show-zone-guides="false"
+                />
+              </div>
+            </div>
+
+            <!-- 视觉时间轴组件：映射每个 Row 组为独立区块，展示 MP3 时长与板书起手时机（由音频和系统语义自动驱动） -->
             <VisualTimeline
               :rows="rows"
               :active-index="editingBoardIndex"
+              :playing-index="playingAudioIndex === null ? -1 : playingAudioIndex"
               @select-row="onSelectRowFromTimeline"
-              @update-start-delay="onUpdateStartDelayFromTimeline"
+              @play-audio="onPlayAudioFromTimeline"
             />
 
-            <!-- 列空间预设工具条（每列折叠入口统一在表头，避免重复）-->
+            <!-- 列空间合理分配与自由折叠工具条 -->
             <div class="studio-col-layout-bar">
               <div class="col-layout-left">
                 <span class="col-layout-label">分列布局:</span>
@@ -2261,6 +2234,36 @@ function isRefineFieldEqual(original, refined) {
                 </div>
               </div>
 
+              <div class="col-layout-right">
+                <span class="col-layout-sublabel">每列折叠:</span>
+                <button
+                  type="button"
+                  :class="['col-toggle-chip', { collapsed: collapsedCols.speech }]"
+                  :title="collapsedCols.speech ? '点击展开口播列' : '点击折叠收起口播列'"
+                  @click="toggleColumn('speech')"
+                >
+                  <span :class="['chip-dot', { off: collapsedCols.speech }]"></span>
+                  🎙️ 口播稿 {{ collapsedCols.speech ? '(已折叠)' : '' }}
+                </button>
+                <button
+                  type="button"
+                  :class="['col-toggle-chip', { collapsed: collapsedCols.board }]"
+                  :title="collapsedCols.board ? '点击展开板书列' : '点击折叠收起板书列'"
+                  @click="toggleColumn('board')"
+                >
+                  <span :class="['chip-dot', { off: collapsedCols.board }]"></span>
+                  ✍️ 课堂板书 {{ collapsedCols.board ? '(已折叠)' : '' }}
+                </button>
+                <button
+                  type="button"
+                  :class="['col-toggle-chip', { collapsed: collapsedCols.actionSpec }]"
+                  :title="collapsedCols.actionSpec ? '点击展开动作列' : '点击折叠收起动作列'"
+                  @click="toggleColumn('actionSpec')"
+                >
+                  <span :class="['chip-dot', { off: collapsedCols.actionSpec }]"></span>
+                  ⚡ 板书动作 {{ collapsedCols.actionSpec ? '(已折叠)' : '' }}
+                </button>
+              </div>
             </div>
 
             <a-table
@@ -2282,7 +2285,7 @@ function isRefineFieldEqual(original, refined) {
                   :title="collapsedCols.speech ? '点击展开口播稿列' : '点击折叠收起口播稿列，为板书腾出超大视野'"
                   @click.stop="toggleColumn('speech')"
                 >
-                  {{ collapsedCols.speech ? '展开' : '折叠' }}
+                  {{ collapsedCols.speech ? '展开 ◀▶' : '折叠' }}
                 </button>
               </div>
               <div v-else-if="column.key === 'board'" class="col-header-flex">
@@ -2290,10 +2293,10 @@ function isRefineFieldEqual(original, refined) {
                 <button
                   type="button"
                   class="col-fold-trigger"
-                  :title="collapsedCols.board ? '点��展开课堂板书列' : '点击折叠收起课堂板书列，为口播腾出超大视野'"
+                  :title="collapsedCols.board ? '点击展开课堂板书列' : '点击折叠收起课堂板书列，为口播腾出超大视野'"
                   @click.stop="toggleColumn('board')"
                 >
-                  {{ collapsedCols.board ? '展开' : '折叠' }}
+                  {{ collapsedCols.board ? '展开 ◀▶' : '折叠' }}
                 </button>
               </div>
               <div v-else-if="column.key === 'actionSpec'" class="col-header-flex center">
@@ -2324,13 +2327,19 @@ function isRefineFieldEqual(original, refined) {
                     <HolderOutlined />
                   </div>
                   <span class="studio-row-badge">{{ index + 1 }}</span>
-                </div>
-                <div
-                  v-if="record.estimatedStartMs != null"
-                  class="row-timeline-pill"
-                  :title="`第 ${index + 1} 组：${(record.estimatedStartMs / 1000).toFixed(1)}s ~ ${(record.estimatedEndMs / 1000).toFixed(1)}s（耗时 ${(record.estimatedDurationMs / 1000).toFixed(1)}s）`"
-                >
-                  {{ (record.estimatedStartMs / 1000).toFixed(1) }}s-{{ (record.estimatedEndMs / 1000).toFixed(1) }}s
+                  <!-- ★ 行打勾图标：试听完/已生成音频时立刻出现绿色勾，视觉反馈"这行备好了" -->
+                  <span
+                    v-if="record.audioUrl || rowAudioCache[index]"
+                    class="row-audio-check"
+                    :title="`第 ${index + 1} 行已有音频 · 真实时长 ${record.audioDurationMs ? (Math.round(record.audioDurationMs / 100) / 10) + 's' : '读取中'}`"
+                  >
+                    <CheckCircleOutlined />
+                  </span>
+                  <span
+                    v-else
+                    class="row-audio-pending"
+                    title="本行尚未生成或试听过音频"
+                  >○</span>
                 </div>
               </div>
 
@@ -2375,13 +2384,13 @@ function isRefineFieldEqual(original, refined) {
                 </div>
                 <!-- 口播列展开态：舒展大卡片 -->
                 <div v-else class="speech-textarea-card">
-                <textarea
-                  :value="record.speech"
-                  rows="4"
-                  class="studio-speech-input"
-                  placeholder="请输入老师口播文案（支持自然标点停顿）..."
-                  @input="(event) => updateRow(index, 'speech', event.target.value)"
-                ></textarea>
+                  <a-textarea
+                    :value="record.speech"
+                    :auto-size="{ minRows: 2, maxRows: 8 }"
+                    class="studio-speech-input"
+                    placeholder="请输入老师口播文案（支持自然标点停顿）..."
+                    @change="(event) => updateRow(index, 'speech', event.target.value)"
+                  />
                   <div class="speech-stat-footer">
                     <div class="speech-stat-left">
                       <span class="speech-stat-chars">{{ getRowEstimatedSeconds(record.speech).charCount }} 字</span>
@@ -2506,28 +2515,13 @@ function isRefineFieldEqual(original, refined) {
                 </div>
 
                 <div v-else class="board-card-edit">
-                  <div class="board-edit-grid">
-                    <div>
-                      <div class="board-edit-label">落笔时机 (语音播放后延时):</div>
-                      <a-input-number
-                        :value="parseBoard(record.board).startDelay || 0"
-                        size="small"
-                        :min="0"
-                        :max="60"
-                        :step="0.1"
-                        addon-after="秒"
-                        style="width: 110px;"
-                        @change="(val) => updateBoardStartDelay(index, val)"
-                      />
-                    </div>
-                  </div>
-                  <div class="board-edit-label" style="margin-top: 6px;">板书内容 (支持 KaTeX):</div>
-                <textarea
-                  :value="parseBoard(record.board).content"
-                  rows="4"
-                  class="board-content-input"
-                  @input="(event) => updateBoardContent(index, event.target.value)"
-                ></textarea>
+                  <div class="board-edit-label">板书内容 (支持 KaTeX):</div>
+                  <a-textarea
+                    :value="parseBoard(record.board).content"
+                    :auto-size="{ minRows: 2, maxRows: 8 }"
+                    class="board-content-input"
+                    @change="(event) => updateBoardContent(index, event.target.value)"
+                  />
                   <div class="board-edit-actions">
                     <a-button size="small" type="primary" class="board-done-btn" @click="editingBoardIndex = -1">
                       完成
@@ -2663,7 +2657,6 @@ function isRefineFieldEqual(original, refined) {
           </a-table>
         </div>
       </a-card>
-
         <a-card
           v-if="toolsOpen"
           title="可用工具说明"
@@ -2733,7 +2726,7 @@ function isRefineFieldEqual(original, refined) {
                           font-size="14"
                           fill="#263238"
                           font-family="serif"
-                        >��亮的文字</text>
+                        >高亮的文字</text>
                       </svg>
                       <svg
                         v-else-if="item.key === 'rough-line'"
@@ -2938,21 +2931,7 @@ function isRefineFieldEqual(original, refined) {
                   第 {{ item.row || '?' }} 行
                 </a-tag>
                 <a-tag>{{ checkFieldLabels[item.field] || item.field }}</a-tag>
-                <a-tag
-                  v-if="item.unexplained"
-                  color="red"
-                >
-                  未标注原因
-                </a-tag>
-                <a-tag
-                  v-if="item.rolledBack"
-                  color="orange"
-                >
-                  已回滚
-                </a-tag>
-                <a-typography-text
-                  :type="item.unexplained ? 'danger' : 'secondary'"
-                >
+                <a-typography-text type="secondary">
                   {{ item.reason }}
                 </a-typography-text>
               </a-space>
@@ -3122,7 +3101,7 @@ function isRefineFieldEqual(original, refined) {
         讲解风格
       </a-divider>
       <a-typography-paragraph type="secondary" style="font-size: 12px;">
-        选择不同的讲解���格 Skill，决定老师的人设、讲解节奏和内容侧重。
+        选择不同的讲解风格 Skill，决定老师的人设、讲解节奏和内容侧重。
       </a-typography-paragraph>
       <a-select
         v-model:value="selectedSkillId"
@@ -3149,12 +3128,12 @@ function isRefineFieldEqual(original, refined) {
       <a-typography-paragraph type="secondary" style="font-size: 12px;">
         留空使用上方选中的 Skill 默认 Prompt；粘贴自定义 Prompt 后，点击生成即生效（优先级高于 Skill）。
       </a-typography-paragraph>
-              <textarea
-                v-model="customSystemPrompt"
-                rows="16"
-                placeholder="留空使用默认 System Prompt"
-                :disabled="state === 'generating'"
-              ></textarea>
+      <a-textarea
+        v-model:value="customSystemPrompt"
+        :rows="16"
+        placeholder="留空使用默认 System Prompt"
+        :disabled="state === 'generating'"
+      />
       <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
         <a-typography-text type="secondary" style="font-size: 12px;">
           {{ customSystemPrompt.length }} 字 · 当前使用：{{ currentSkillName }}
@@ -3240,7 +3219,7 @@ function isRefineFieldEqual(original, refined) {
         >
           <template #extra>
             <a-space size="middle" wrap>
-              <a-button type="primary" size="large" class="btn-modal-open-deliverable" @click="openHanddrawPlayer">
+              <a-button type="primary" size="large" class="btn-modal-open-deliverable" @click="openDeliverablePage">
                 <template #icon><EyeOutlined /></template>
                 立即打开 HTML 产物单页
               </a-button>
@@ -3510,93 +3489,6 @@ function isRefineFieldEqual(original, refined) {
   padding-right: 24px;
 }
 
-/* 题目卡片高雅微质感 */
-.studio-problem-card {
-  background: var(--qh-surface);
-  border-radius: var(--qh-radius-card);
-  border: 1px solid var(--qh-border);
-  box-shadow: var(--qh-shadow-card);
-  overflow: hidden;
-}
-
-.problem-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.problem-card-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.problem-card-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
-  background: var(--qh-brand);
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.problem-card-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.problem-type-pill {
-  font-size: 12px;
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 100px;
-  background: #eff6ff;
-  color: #2563eb;
-  border: 1px solid #dbeafe;
-}
-
-.grade-pill {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 100px;
-  background: #f8fafc;
-  color: #64748b;
-  border: 1px solid #e2e8f0;
-}
-
-.problem-char-stat {
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-.problem-text-content {
-  font-size: 14px;
-  line-height: 1.75;
-  color: var(--qh-ink-2);
-  background: var(--qh-surface-sunken);
-  padding: 12px 16px;
-  border-radius: 8px;
-  border: 1px solid var(--qh-border-soft);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-/* 主工作台卡片 */
-.studio-workbench-card {
-  border-radius: var(--qh-radius-card);
-  border: 1px solid var(--qh-border);
-  box-shadow: var(--qh-shadow-card);
-  background: var(--qh-surface);
-  margin-top: 4px;
-}
 
 .workbench-title-box {
   display: flex;
@@ -3614,138 +3506,144 @@ function isRefineFieldEqual(original, refined) {
 }
 
 .workbench-main-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: #0f172a;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink-deep, #163b3d);
   letter-spacing: -0.01em;
 }
 
 .workbench-tag {
   font-size: 11px;
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 6px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 9999px;
 }
 
 .tag-type {
-  background: #eff6ff;
-  color: #2563eb;
-  border: 1px solid #dbeafe;
+  background: var(--positive-pale, #dff4ea);
+  color: var(--positive-strong, #116b5b);
+  border: 1px solid var(--line-strong, #b9cdc5);
 }
 
 .tag-skill {
-  background: #faf5ff;
-  color: #7c3aed;
-  border: 1px solid #f3e8ff;
+  background: #fdf2f8;
+  color: #db2777;
+  border: 1px solid #fce7f3;
 }
 
 .tag-model {
-  background: #f0fdf4;
-  color: #16a34a;
-  border: 1px solid #dcfce7;
+  background: var(--sun-pale, #fff2c7);
+  color: var(--warning, #9a6a18);
+  border: 1px solid #fde68a;
 }
 
 .tag-rows {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
+  background: var(--surface-soft, #edf7f0);
+  color: var(--ink, #31595a);
+  border: 1px solid var(--line, #d7ded5);
 }
 
 .workbench-stat-pill {
   display: inline-flex;
   align-items: center;
   font-size: 12px;
-  font-weight: 500;
-  color: #0369a1;
-  background: #f0f9ff;
-  border: 1px solid #e0f2fe;
-  padding: 3px 10px;
-  border-radius: 100px;
+  font-weight: 600;
+  color: var(--positive-strong, #116b5b);
+  background: var(--positive-pale, #dff4ea);
+  border: 1px solid var(--line-strong, #b9cdc5);
+  padding: 3px 12px;
+  border-radius: 9999px;
 }
 
 /* 操作栏分组 */
 .studio-actions-container {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .action-btn-group {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: var(--qh-surface-sub);
-  padding: 3px 6px;
-  border-radius: 8px;
-  border: 1px solid var(--qh-border-soft);
+  gap: 8px;
 }
 
-/* 本地 ASR 兜底：墨黑实色，与主生成按钮（品牌蓝）区分层级，不用渐变 */
+/* ASR 兜底暖金按钮 */
 .btn-asr-fallback {
-  background: var(--qh-ink) !important;
-  border-color: var(--qh-ink) !important;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.12) !important;
-  font-weight: 500 !important;
-  color: #ffffff !important;
-  transition: all 0.2s ease !important;
+  background: var(--sun, #f6c95f) !important;
+  border-color: #eab308 !important;
+  box-shadow: 0 2px 6px rgba(234, 179, 8, 0.25) !important;
+  font-weight: 600 !important;
+  color: #5c4308 !important;
+  border-radius: var(--control-radius, 12px) !important;
+  transition: all 0.16s ease !important;
 }
 
 .btn-asr-fallback:hover:not(:disabled) {
-  background: #1d2939 !important;
-  border-color: #1d2939 !important;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.16) !important;
+  background: #eab308 !important;
+  border-color: #ca8a04 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 10px rgba(234, 179, 8, 0.3) !important;
 }
 
 .btn-check-agent {
-  border-color: #cbd5e1;
-  color: #334155;
-  transition: all 0.2s ease;
+  border-color: var(--line, #d7ded5);
+  color: var(--ink, #31595a);
+  background: var(--surface, #fffdf7);
+  border-radius: var(--control-radius, 12px);
+  transition: all 0.16s ease;
 }
 
 .btn-check-agent:hover:not(:disabled) {
-  border-color: #16a34a;
-  color: #16a34a;
-}
-
-.btn-revert {
-  border-color: #cbd5e1;
-  color: #64748b;
+  border-color: var(--brand, #16856f);
+  color: var(--positive-strong, #116b5b);
+  background: var(--positive-pale, #dff4ea);
+  transform: translateY(-1px);
 }
 
 .btn-export-dropdown {
-  border-color: #cbd5e1;
-  color: #334155;
+  border-color: var(--line, #d7ded5);
+  color: var(--ink, #31595a);
+  border-radius: var(--control-radius, 12px);
 }
 
 .btn-settings {
-  border-color: #cbd5e1;
-  color: #475569;
+  border-color: var(--line, #d7ded5);
+  color: var(--muted, #708786);
+  border-radius: var(--control-radius, 12px);
 }
 
-/* 主生成按钮 */
+.btn-settings:hover {
+  border-color: var(--brand, #16856f);
+  color: var(--ink-deep, #163b3d);
+  background: var(--surface-soft, #edf7f0);
+}
+
+/* 主生成按钮：可爱的治愈系深林翡翠绿 */
 .btn-main-generate {
-  background: var(--qh-brand) !important;
-  border-color: var(--qh-brand) !important;
-  font-weight: 600 !important;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.1) !important;
-  transition: all 0.2s ease !important;
+  background: var(--positive-strong, #116b5b) !important;
+  border: 1px solid var(--positive-strong, #116b5b) !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  border-radius: var(--control-radius, 12px) !important;
+  box-shadow: 0 4px 14px rgba(17, 107, 91, 0.28) !important;
+  transition: all 0.16s ease !important;
 }
 
 .btn-main-generate:hover:not(:disabled) {
-  background: #1a45bd !important;
-  border-color: #1a45bd !important;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 10px rgba(16, 24, 40, 0.14) !important;
+  background: var(--positive, #16856f) !important;
+  border-color: var(--positive, #16856f) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 18px rgba(17, 107, 91, 0.35) !important;
 }
 
 /* 画布与演播室参数面板 */
 .studio-params-panel {
-  background: var(--qh-surface-sub);
-  border: 1px solid var(--qh-border-soft);
-  border-radius: 8px;
-  padding: 10px 14px;
+  background: var(--surface-soft, #edf7f0);
+  border: 1px solid var(--line, #d7ded5);
+  border-radius: var(--control-radius, 12px);
+  padding: 10px 16px;
   margin-bottom: 14px;
 }
 
@@ -3759,12 +3657,12 @@ function isRefineFieldEqual(original, refined) {
 .params-panel-title {
   font-size: 12px;
   font-weight: 700;
-  color: #334155;
+  color: var(--ink-deep, #163b3d);
 }
 
 .params-panel-hint {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--muted, #708786);
 }
 
 .params-panel-controls {
@@ -3778,108 +3676,168 @@ function isRefineFieldEqual(original, refined) {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
   background: transparent;
   border: 1px solid transparent;
   transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .param-control-item:hover {
-  background: #ffffff;
-  border-color: #e2e8f0;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+  background: var(--surface, #fffdf7);
+  border-color: var(--line, #d7ded5);
+  box-shadow: 0 2px 8px rgba(22, 59, 61, 0.05);
   transform: translateY(-1px);
-}
-
-.param-control-item:hover .param-label {
-  color: #1e293b;
-}
-
-.param-label {
-  font-size: 11px;
-  color: #64748b;
-  font-weight: 500;
-  white-space: nowrap;
-  transition: color 0.2s ease;
 }
 
 .param-coord-pill {
   font-size: 11px;
-  color: #0284c7;
-  background: #e0f2fe;
+  color: var(--positive-strong, #116b5b);
+  background: var(--positive-pale, #dff4ea);
+  border: 1px solid var(--line-strong, #b9cdc5);
   padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 500;
+  border-radius: 9999px;
+  font-weight: 600;
 }
 
-/* 空状态 */
+/* 空状态：可爱手账治愈系 */
 .workbench-empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 20px;
+  padding: 52px 24px;
   text-align: center;
-  background: var(--qh-surface-sub);
-  border: 1px dashed var(--qh-border);
-  border-radius: var(--qh-radius-card);
-  margin: 12px 0;
+  background: var(--surface-soft, #edf7f0);
+  border: 2px dashed var(--line-strong, #b9cdc5);
+  border-radius: var(--card-radius, 18px);
+  margin: 14px 0;
 }
 
 .empty-icon-box {
-  font-size: 36px;
+  font-size: 40px;
   margin-bottom: 12px;
-  opacity: 0.85;
+  filter: drop-shadow(0 4px 8px rgba(22, 59, 61, 0.12));
 }
 
 .empty-text-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1e293b;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink-deep, #163b3d);
   margin-bottom: 6px;
 }
 
 .empty-text-sub {
-  font-size: 13px;
-  color: #64748b;
-  max-width: 460px;
-  line-height: 1.6;
-  margin-bottom: 18px;
+  font-size: 13.5px;
+  color: var(--muted, #708786);
+  max-width: 480px;
+  line-height: 1.65;
+  margin-bottom: 20px;
 }
 
 .btn-empty-generate {
-  height: 40px;
-  padding: 0 24px;
-  border-radius: var(--qh-radius-control);
-  font-weight: 600;
-  background: var(--qh-brand);
-  border: 1px solid var(--qh-brand);
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.1);
+  height: 42px;
+  padding: 0 28px;
+  border-radius: var(--control-radius, 12px);
+  font-weight: 700;
+  background: var(--positive-strong, #116b5b);
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 4px 14px rgba(17, 107, 91, 0.3);
+  transition: all 0.16s ease;
 }
 
-/* 列空间预设工具条 */
+.btn-empty-generate:hover {
+  background: var(--positive, #16856f);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(17, 107, 91, 0.38);
+}
+
+/* 列空间合理分配与自由折叠工具条 */
 .studio-col-layout-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px;
-  background: var(--qh-surface-sub);
-  border: 1px solid var(--qh-border-soft);
-  border-radius: 8px;
-  padding: 6px 12px;
-  margin-bottom: 10px;
+  background: var(--surface-soft, #edf7f0);
+  border: 1px solid var(--line, #d7ded5);
+  border-radius: var(--control-radius, 12px);
+  padding: 8px 14px;
+  margin-bottom: 12px;
 }
 
-.col-layout-left {
+/* ★ Task 19: 预览小窗样式 - 放在表格当前页面顶部, 实时显示画布 + 题目 + 板书 + 动作 */
+.studio-preview-mini {
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, #d7ded5);
+  border-radius: var(--control-radius, 12px);
+  margin-bottom: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
+}
+.studio-preview-mini-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+  color: #fff;
+  font-size: 13px;
+}
+.preview-mini-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+.preview-mini-subtitle {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 11px;
+  flex: 1;
+}
+.preview-mini-fullscreen-btn {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.preview-mini-fullscreen-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+.studio-preview-mini-body {
+  /* 画布 1726×980 ≈ 16:9, 用 aspect-ratio 锁定比例, 宽度自适应 */
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1726 / 980;
+  max-height: 380px;  /* 不超过 380px 高, 不挤掉表格空间 */
+  background: #fbfaf6;  /* 板面纸白色 */
+  overflow: hidden;
+}
+.studio-preview-mini-body :deep(.board-canvas) {
+  width: 100%;
+  height: 100%;
+}
+.studio-preview-mini-body :deep(.board-viewport) {
+  width: 100%;
+  height: 100%;
+}
+
+
+.col-layout-left,
+.col-layout-right {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.col-layout-label {
+.col-layout-label,
+.col-layout-sublabel {
   font-size: 11px;
   font-weight: 600;
   color: #64748b;
@@ -3889,7 +3847,7 @@ function isRefineFieldEqual(original, refined) {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  background: var(--qh-surface-sunken);
+  background: #edf2f7;
   padding: 2px;
   border-radius: 6px;
 }
@@ -3918,13 +3876,50 @@ function isRefineFieldEqual(original, refined) {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
-/* 表头折叠切换按钮：折叠列的唯一入口（工具条里的重复芯片已移除） */
+.col-toggle-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.col-toggle-chip:hover {
+  border-color: #3b82f6;
+  color: #2563eb;
+}
+
+.col-toggle-chip.collapsed {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+}
+
+.chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  transition: background 0.2s ease;
+}
+
+.chip-dot.off {
+  background: #cbd5e1;
+}
+
+/* 表头折叠切换按钮 */
 .col-header-flex {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  flex-wrap: wrap;
   width: 100%;
 }
 
@@ -3934,8 +3929,8 @@ function isRefineFieldEqual(original, refined) {
 
 .col-fold-trigger {
   border: none;
-  background: var(--qh-border-soft);
-  color: var(--qh-ink-2);
+  background: #e2e8f0;
+  color: #475569;
   font-size: 10px;
   padding: 1px 6px;
   border-radius: 4px;
@@ -3945,7 +3940,7 @@ function isRefineFieldEqual(original, refined) {
 }
 
 .col-fold-trigger:hover {
-  background: var(--qh-brand);
+  background: #2563eb;
   color: #ffffff;
 }
 
@@ -4019,11 +4014,6 @@ function isRefineFieldEqual(original, refined) {
   transform: scale(1.05);
 }
 
-.action-empty-dash {
-  color: #cbd5e1;
-  font-size: 13px;
-}
-
 /* 针对演播室表格滑动条的微质感轻量化设置 */
 .studio-table :deep(.ant-table-body),
 .studio-table :deep(.ant-table-content),
@@ -4058,19 +4048,20 @@ function isRefineFieldEqual(original, refined) {
   background: rgba(100, 116, 139, 0.32);
 }
 
-/* 五字段表格美化 */
+/* 五字段表格美化：治愈手账风格 */
 .studio-table {
-  border-radius: 8px;
+  border-radius: var(--card-radius, 18px);
   overflow: hidden;
+  border: 1px solid var(--line, #d7ded5);
 }
 
 .studio-table :deep(.ant-table-thead > tr > th) {
-  background: var(--qh-surface-sub);
-  color: var(--qh-ink-2);
-  font-size: 12px;
+  background: var(--surface-soft, #edf7f0);
+  color: var(--ink-deep, #163b3d);
+  font-size: 13px;
   font-weight: 700;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--qh-border);
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line, #d7ded5);
 }
 
 .studio-table :deep(.ant-table-tbody > tr) {
@@ -4079,40 +4070,40 @@ function isRefineFieldEqual(original, refined) {
 }
 
 .studio-table :deep(.ant-table-tbody > tr > td) {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--qh-border-soft);
+  padding: 14px 16px;
+  border-bottom: 1px solid #edf1eb;
   vertical-align: top;
-  background: var(--qh-surface);
+  background: var(--surface, #fffdf7);
   transition: background-color 0.24s cubic-bezier(0.4, 0, 0.2, 1),
               box-shadow 0.24s cubic-bezier(0.4, 0, 0.2, 1),
               border-color 0.24s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .studio-table :deep(.ant-table-tbody > tr:hover > td) {
-  background: var(--qh-surface-sub) !important;
-  border-bottom-color: var(--qh-brand-border);
+  background: #f4faf6 !important;
+  border-bottom-color: var(--line-strong, #b9cdc5);
 }
 
 .studio-table :deep(.ant-table-tbody > tr:hover > td:first-child) {
-  box-shadow: inset 3px 0 0 0 var(--qh-brand);
+  box-shadow: inset 4px 0 0 0 var(--positive, #16856f);
 }
 
 .studio-table :deep(.ant-table-tbody > tr:hover .studio-row-badge) {
-  background: var(--qh-brand-soft);
-  color: var(--qh-brand);
+  background: var(--positive-pale, #dff4ea);
+  color: var(--positive-strong, #116b5b);
   transform: scale(1.08);
-  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.12);
+  box-shadow: 0 2px 8px rgba(17, 107, 91, 0.2);
 }
 
 .studio-table :deep(.ant-table-tbody > tr:hover .speech-textarea-card) {
-  border-color: #cbd5e1;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+  border-color: var(--line-strong, #b9cdc5);
+  box-shadow: 0 2px 10px rgba(22, 59, 61, 0.06);
 }
 
 .studio-table :deep(.ant-table-tbody > tr:hover .board-card-view) {
-  border-color: #cbd5e1;
-  background: #ffffff;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+  border-color: var(--line-strong, #b9cdc5);
+  background: var(--surface, #fffdf7);
+  box-shadow: 0 2px 10px rgba(22, 59, 61, 0.06);
 }
 
 /* 序号徽章与拖拽手柄 */
@@ -4138,7 +4129,7 @@ function isRefineFieldEqual(original, refined) {
   width: 20px;
   height: 22px;
   border-radius: 4px;
-  color: #94a3b8;
+  color: var(--muted, #708786);
   cursor: grab;
   font-size: 13px;
   transition: all 0.15s ease;
@@ -4146,57 +4137,79 @@ function isRefineFieldEqual(original, refined) {
 }
 
 .row-drag-handle:hover {
-  color: #1677ff;
-  background: #eff6ff;
+  color: var(--positive, #16856f);
+  background: var(--positive-pale, #dff4ea);
 }
 
 .row-drag-handle:active {
   cursor: grabbing;
 }
 
-.row-timeline-pill {
-  font-size: 10px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  color: #0284c7;
-  background: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: 100px;
-  padding: 1px 6px;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
 /* 表格行拖拽交互样式 */
 .studio-table :deep(.table-row-dragging td) {
   opacity: 0.45 !important;
-  background-color: #f1f5f9 !important;
+  background-color: var(--surface-soft, #edf7f0) !important;
 }
 
 .studio-table :deep(.table-row-dragover-top td) {
-  border-top: 3px solid #1677ff !important;
-  background-color: #f0f7ff !important;
+  border-top: 3px solid var(--positive, #16856f) !important;
+  background-color: var(--positive-pale, #dff4ea) !important;
 }
 
 .studio-table :deep(.table-row-dragover-bottom td) {
-  border-bottom: 3px solid #1677ff !important;
-  background-color: #f0f7ff !important;
+  border-bottom: 3px solid var(--positive, #16856f) !important;
+  background-color: var(--positive-pale, #dff4ea) !important;
 }
 
 .studio-row-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  font-size: 11px;
-  font-weight: 700;
-  background: #f1f5f9;
-  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+  background: var(--surface-soft, #edf7f0);
+  color: var(--ink-deep, #163b3d);
+  border: 1px solid var(--line, #d7ded5);
   transition: all 0.24s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 教学环节胶囊 */
+/* ★ 行音频打勾图标（试听完/已生成音频时绿色勾显眼反馈） */
+.row-audio-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 14px;
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.12);
+  animation: row-audio-check-pop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+  margin-left: 2px;
+}
+
+.row-audio-pending {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
+  color: var(--muted, #94a3b8);
+  margin-left: 2px;
+  opacity: 0.55;
+}
+
+@keyframes row-audio-check-pop {
+  0%   { transform: scale(0.4); opacity: 0; }
+  60%  { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* 教学环节胶囊：治愈马卡龙色系 */
 .cell-stage-box {
   display: flex;
   justify-content: center;
@@ -4208,10 +4221,10 @@ function isRefineFieldEqual(original, refined) {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 10px;
-  border-radius: 100px;
+  padding: 4px 12px;
+  border-radius: 9999px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
@@ -4224,50 +4237,50 @@ function isRefineFieldEqual(original, refined) {
 }
 
 .stage-题目 {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
+  background: var(--blue-pale, #e8f1fa);
+  color: var(--blue, #5c88b8);
+  border: 1px solid #c7dcf1;
 }
 .stage-题目 .stage-capsule-dot {
-  background: #3b82f6;
+  background: var(--blue, #5c88b8);
 }
 
 .stage-分析 {
-  background: #fff7ed;
-  color: #c2410c;
-  border: 1px solid #fed7aa;
+  background: var(--sun-pale, #fff2c7);
+  color: var(--warning, #9a6a18);
+  border: 1px solid #fae69e;
 }
 .stage-分析 .stage-capsule-dot {
-  background: #f97316;
+  background: var(--sun, #f6c95f);
 }
 
 .stage-解答 {
-  background: #f0fdf4;
-  color: #15803d;
-  border: 1px solid #bbf7d0;
+  background: var(--positive-pale, #dff4ea);
+  color: var(--positive-strong, #116b5b);
+  border: 1px solid var(--line-strong, #b9cdc5);
 }
 .stage-解答 .stage-capsule-dot {
-  background: #22c55e;
+  background: var(--positive, #16856f);
 }
 
 .stage-总结 {
-  background: #faf5ff;
-  color: #7e22ce;
-  border: 1px solid #e9d5ff;
+  background: var(--danger-pale, #ffe7e1);
+  color: var(--danger, #d95f5f);
+  border: 1px solid #fecdd3;
 }
 .stage-总结 .stage-capsule-dot {
-  background: #a855f7;
+  background: var(--danger, #d95f5f);
 }
 
 .stage-capsule:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 4px 10px rgba(22, 59, 61, 0.08);
 }
 
 .stage-picker-title {
   font-size: 11px;
-  font-weight: 600;
-  color: #64748b;
+  font-weight: 700;
+  color: var(--ink-deep, #163b3d);
   margin-bottom: 4px;
   padding: 0 4px;
 }
@@ -4281,24 +4294,25 @@ function isRefineFieldEqual(original, refined) {
 /* 口播稿单元格 */
 .speech-textarea-card {
   position: relative;
-  background: #ffffff;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  background: var(--surface, #fffdf7);
+  border-radius: var(--control-radius, 12px);
+  border: 1px solid var(--line, #d7ded5);
   transition: all 0.2s ease;
 }
 
 .speech-textarea-card:focus-within {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  border-color: var(--brand, #16856f);
+  box-shadow: 0 0 0 3px rgba(22, 133, 111, 0.18);
 }
 
 .studio-speech-input {
   border: none !important;
   box-shadow: none !important;
-  padding: 8px 10px 4px !important;
-  font-size: 13px !important;
-  line-height: 1.65 !important;
-  color: #1e293b !important;
+  padding: 10px 12px 6px !important;
+  font-size: 13.5px !important;
+  line-height: 1.7 !important;
+  color: var(--ink-deep, #163b3d) !important;
+  background: transparent !important;
   resize: none !important;
 }
 
@@ -4470,21 +4484,20 @@ function isRefineFieldEqual(original, refined) {
 }
 
 .board-card-view {
-  background: #fbfcfe;
-  border: 1px dashed #cbd5e1;
-  border-radius: 8px;
-  padding: 8px 12px;
+  background: var(--surface, #fffdf7);
+  border: 1px solid var(--line, #d7ded5);
+  border-radius: var(--control-radius, 12px);
+  padding: 10px 14px;
   min-height: 52px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.18s ease;
   margin: 3px 0;
 }
 
 .board-card-view:hover {
-  background: #f8fafc;
-  border-color: #3b82f6;
-  border-style: solid;
-  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.08);
+  background: var(--surface-soft, #edf7f0);
+  border-color: var(--brand, #16856f);
+  box-shadow: 0 2px 8px rgba(22, 59, 61, 0.06);
 }
 
 .board-card-topbar {
@@ -4504,29 +4517,30 @@ function isRefineFieldEqual(original, refined) {
 .board-delay-tag {
   font-family: monospace;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   color: #7c3aed;
   background: #f3e8ff;
-  padding: 1px 6px;
-  border-radius: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  border: 1px solid #e9d5ff;
 }
 
 .board-edit-hint {
-  font-size: 10px;
-  color: #94a3b8;
+  font-size: 11px;
+  color: var(--muted, #708786);
   opacity: 0;
   transition: opacity 0.2s ease;
 }
 
 .board-card-view:hover .board-edit-hint {
   opacity: 1;
-  color: #3b82f6;
+  color: var(--positive, #16856f);
 }
 
 .board-math-render {
-  font-size: 13px;
+  font-size: 13.5px;
   line-height: 1.7;
-  color: #1e293b;
+  color: var(--ink-deep, #163b3d);
   white-space: pre-wrap;
   word-break: break-word;
   margin-top: 4px;
@@ -4534,30 +4548,23 @@ function isRefineFieldEqual(original, refined) {
 
 .board-empty-hint {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--muted, #708786);
   font-style: italic;
 }
 
 /* 板书编辑状态 */
 .board-card-edit {
-  background: #ffffff;
-  border: 1px solid #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
-  border-radius: 8px;
-  padding: 8px;
-}
-
-.board-edit-grid {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  margin-bottom: 4px;
+  background: var(--surface, #fffdf7);
+  border: 1px solid var(--brand, #16856f);
+  box-shadow: 0 0 0 3px rgba(22, 133, 111, 0.18);
+  border-radius: var(--control-radius, 12px);
+  padding: 10px;
 }
 
 .board-edit-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-deep, #163b3d);
   margin-bottom: 2px;
 }
 
@@ -4573,8 +4580,9 @@ function isRefineFieldEqual(original, refined) {
 
 .board-done-btn {
   font-size: 11px;
-  height: 24px;
-  padding: 0 10px;
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 6px;
 }
 
 /* 板书动作胶囊 */
@@ -4590,20 +4598,20 @@ function isRefineFieldEqual(original, refined) {
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  font-weight: 500;
-  padding: 3px 8px;
-  border-radius: 100px;
-  background: #f0f9ff;
-  color: #0284c7;
-  border: 1px solid #bae6fd;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  background: var(--surface-soft, #edf7f0);
+  color: var(--positive-strong, #116b5b);
+  border: 1px solid var(--line-strong, #b9cdc5);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.18s ease;
 }
 
 .action-badge-pill:hover {
-  background: #e0f2fe;
-  border-color: #7dd3fc;
-  transform: translateY(-1px);
+  background: var(--positive-pale, #dff4ea);
+  border-color: var(--positive, #16856f);
+  transform: translateY(-1px) scale(1.04);
 }
 
 .action-badge-icon {
@@ -4611,8 +4619,9 @@ function isRefineFieldEqual(original, refined) {
 }
 
 .action-empty-dash {
-  color: #cbd5e1;
+  color: var(--muted, #94a3b8);
   font-size: 12px;
+  font-weight: 600;
 }
 
 .action-popover-title {
@@ -4862,30 +4871,46 @@ function isRefineFieldEqual(original, refined) {
 }
 
 .btn-refine-confirm {
-  border-radius: 6px !important;
-  font-weight: 500 !important;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.18) !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  padding: 6px 18px !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25) !important;
   transition: all 0.2s ease !important;
+  position: relative;
 }
 .btn-refine-confirm:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25) !important;
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
 }
 
-.qh-page-guide {
-  margin: 2px 0 12px;
-  padding: 8px 12px;
-  font-size: 12.5px;
-  line-height: 1.7;
-  color: var(--qh-ink-2);
-  background: var(--qh-brand-soft);
-  border: 1px solid var(--qh-brand-border);
-  border-radius: var(--qh-radius-control);
+/* ponytail: 优化确认按钮呼吸小红点 — 比旧 refine-btn-dot 更醒目 */
+.refine-pulse-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: #ef4444;
+  border-radius: 50%;
+  margin-right: 8px;
+  position: relative;
+  animation: refine-pulse 1.5s ease-in-out infinite;
 }
-
-.qh-page-guide b {
-  color: var(--qh-brand);
-  font-weight: 600;
+.refine-pulse-dot::after {
+  content: '';
+  position: absolute;
+  top: -4px; left: -4px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 2px solid #ef4444;
+  animation: refine-pulse-ring 1.5s ease-out infinite;
+}
+@keyframes refine-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.7; transform: scale(0.85); }
+}
+@keyframes refine-pulse-ring {
+  0%   { opacity: 0.6; transform: scale(0.8); }
+  100% { opacity: 0;   transform: scale(1.8); }
 }
 
 .handoff-summary-bar {
@@ -4947,6 +4972,104 @@ function isRefineFieldEqual(original, refined) {
 
 .qh-section-title:first-of-type {
   margin-top: 2px;
+}
+
+/* ponytail: 表头棕色稍大字号（题目信息/知识点等），让人看出整体层次 */
+.qh-section-title.brown {
+  font-size: 16px;
+  font-weight: 700;
+  color: #92400e;
+}
+.qh-section-title.brown::before {
+  background: #b45309;
+  height: 16px;
+}
+
+/* ponytail: 交接状态进度条外置（表外上方, 一打开就有"在执行"感） */
+.handoff-progress-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: linear-gradient(90deg, #fff7ed 0%, #fef3c7 50%, #fff7ed 100%);
+  border: 1px solid #fde68a;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 4px rgba(180, 83, 9, 0.08);
+  animation: handoff-progress-pulse 3s ease-in-out infinite;
+}
+@keyframes handoff-progress-pulse {
+  0%, 100% { box-shadow: 0 1px 4px rgba(180, 83, 9, 0.08); }
+  50%      { box-shadow: 0 2px 10px rgba(180, 83, 9, 0.16); }
+}
+.handoff-progress-strip .handoff-summary-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #92400e;
+}
+.handoff-progress-strip .qh-handoff-steps {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ponytail: 画布预览卡片 */
+
+/* ponytail: 三大板块改 a-tabs（消除横向滑动条 + 卡内滚动条，不再分合感） */
+.handoff-tri-tabs :deep(.ant-tabs-nav) {
+  margin-bottom: 12px;
+}
+.handoff-tri-tabs :deep(.ant-tabs-tab) {
+  font-size: 13px;
+  font-weight: 600;
+  color: #92400e;
+  position: relative;
+}
+/* ponytail: 三个 tab 头呼吸小红点 — 让用户注意到可切换 */
+.handoff-tri-tabs :deep(.ant-tabs-tab)::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  background: #ef4444;
+  border-radius: 50%;
+  margin-right: 7px;
+  animation: tab-dot-breathe 2s ease-in-out infinite;
+  box-shadow: 0 0 4px rgba(239, 68, 68, 0.5);
+}
+@keyframes tab-dot-breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.7); }
+}
+.handoff-tri-tabs :deep(.ant-tabs-tab-active) {
+  color: #b45309;
+}
+.handoff-block-card {
+  margin-bottom: 14px;
+}
+
+/* ponytail: 步骤徽章 (1/2/3/4 引导用户先按什么再干什么) */
+.step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  color: #1d4ed8;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  margin-right: 4px;
+  border: 1.5px solid #1d4ed8;
+}
+.btn-step-1 .step-badge { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+.btn-step-2 .step-badge,
+.btn-step-3 .step-badge,
+.btn-step-4 .step-badge { background: #fff; color: #475569; border-color: #94a3b8; }
+
+/* ponytail: 风格切换下拉 (替代旧"提示词"按钮) */
+.skill-style-select :deep(.ant-select-selector) {
+  border-radius: 6px !important;
 }
 
 /* 参数表描述列表样式穿透与质感微调 */
@@ -5255,6 +5378,7 @@ function isRefineFieldEqual(original, refined) {
   box-shadow: none !important;
 }
 
+/* 极简轻量级播放器按钮 */
 /* 产物单页弹窗内容 */
 .deliverable-modal-body {
   padding: 8px 0;
@@ -5318,68 +5442,5 @@ function isRefineFieldEqual(original, refined) {
 .refine-applied-fields {
   border-left: 3px solid #52c41a;
 }
-/* 纸白工作台皮肤：沿用根目录灵感卡的编辑排版方向，减少默认组件的堆叠感 */
-.qh-page {
-  --qh-page-bg: #f4f2ec;
-  background: var(--qh-page-bg);
-}
-:deep(.qh-page-content) {
-  background: linear-gradient(180deg, #f4f2ec 0%, #faf9f6 28rem);
-}
-.handoff-workbench-card,
-.studio-problem-card,
-.studio-workbench-card {
-  border-color: #ded8ca !important;
-  border-radius: 10px !important;
-  box-shadow: 0 2px 10px rgba(55, 47, 38, 0.06) !important;
-}
-.handoff-workbench-card :deep(.ant-card-head),
-.studio-workbench-card :deep(.ant-card-head) {
-  background: #fffdf7;
-  border-bottom-color: #e9e3d7;
-}
-.handoff-card-title,
-.workbench-title-box {
-  min-height: 38px;
-}
-.handoff-title-text,
-.workbench-main-title {
-  color: #28231d;
-}
-.handoff-title-sub,
-.params-panel-hint {
-  color: #8a8175;
-}
-.qh-section-title {
-  color: #6f3f2f;
-  border-left-color: #b36a4c !important;
-}
-.studio-params-panel,
-.studio-col-layout-bar {
-  background: #fbfaf5;
-  border-color: #e2dbcd;
-}
-.problem-text-content {
-  background: #fffdf7;
-  border-color: #e8e0d2;
-  color: #3f382f;
-}
-.workbench-stat-pill {
-  color: #7b3f2e;
-  background: #fff7ed;
-  border-color: #f0d7c5;
-}
-:deep(.studio-table .ant-table-thead > tr > th) {
-  background: #f7f3eb;
-  color: #51483e;
-  border-bottom-color: #ded5c6;
-}
-:deep(.studio-table .ant-table-tbody > tr > td) {
-  border-bottom-color: #eee8dd;
-}
-@media (max-width: 800px) {
-  :deep(.qh-page-content) { padding-left: 12px; padding-right: 12px; }
-  .workbench-title-box { align-items: flex-start; flex-direction: column; }
-  .studio-actions-container { width: 100%; }
-}
 </style>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
