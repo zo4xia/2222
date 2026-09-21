@@ -27,6 +27,57 @@ const FORBIDDEN_LITERAL = [
   { re: /[\t\u0008\u000B\u000C]/, from: 'field-char-escape-filter §二②', msg: '控制字符 \\t \\b \\v \\f 绝不字面落板' },
 ]
 
+// ★ Task 13: LaTeX aligned 环境校验规则 (skill 5 + prompt.js §5.1 硬规则)
+// 校验 \begin{aligned}...\end{aligned} 闭合 + 行末双反斜杠 \\ 换行
+function checkAlignedLatex(content, path) {
+  const v = []
+  if (!content) return v
+  // 1. 闭合校验
+  const beginCount = (content.match(/\\begin\{aligned\}/g) || []).length
+  const endCount = (content.match(/\\end\{aligned\}/g) || []).length
+  if (beginCount !== endCount) {
+    v.push({
+      path: path,
+      from: 'prompt.js §5.1 + field-char-escape-filter §五',
+      msg: `aligned 闭合错误: \\begin{aligned} ${beginCount} 个 vs \\end{aligned} ${endCount} 个, 必须配对`
+    })
+  }
+  // 2. 行末双反斜杠校验 (关键: KaTeX 需要 \\ 换行, 单 \ 会失败)
+  // 找出所有 aligned 环境内容, 检查每行末尾 (除最后一行) 是否用 \\
+  const alignedBlocks = content.match(/\\begin\{aligned\}[^]*?\\end\{aligned\}/g) || []
+  alignedBlocks.forEach((block, idx) => {
+    // 提取 begin 和 end 之间的内容
+    const inner = block.replace(/\\begin\{aligned\}/, '').replace(/\\end\{aligned\}/, '')
+    // 按行拆分, 每行末尾 (忽略空白) 必须是 \\ (双反斜杠)
+    const lines = inner.split('\n').map(l => l.trimEnd()).filter(l => l.length > 0)
+    if (lines.length > 1) {
+      // 检查除最后一行外的每行末尾
+      for (let lineIdx = 0; lineIdx < lines.length - 1; lineIdx++) {
+        const line = lines[lineIdx]
+        // 行末是 \\ 才合法 (允许 & 后空格再 \\)
+        if (!/\\\\\s*$/.test(line)) {
+          // 进一步检查是不是只有单 \
+          if (/\\\s*$/.test(line) && !/\\\\\s*$/.test(line)) {
+            v.push({
+              path: path,
+              from: 'prompt.js §5.1 aligned 硬规则 (Task 13)',
+              msg: `aligned 第 ${lineIdx + 1} 行末尾用单反斜杠 \\, 必须用双反斜杠 \\\\ 换行 (KaTeX 解析要求)`
+            })
+          } else {
+            v.push({
+              path: path,
+              from: 'prompt.js §5.1 aligned 硬规则 (Task 13)',
+              msg: `aligned 第 ${lineIdx + 1} 行末尾缺少 \\\\ 换行符, 多行会挤成一行`
+            })
+          }
+          break  // 同一 block 只报一次, 避免噪声
+        }
+      }
+    }
+  })
+  return v
+}
+
 // ─── skill 4: speech-board-timing 口播发音硬规范 ─────────
 const SPEECH_RULES = [
   // 注: skill §五.1 原正则只匹配阿拉伯数字, 实际口播中文数字也常出现 (三/四), 扩展支持
@@ -78,6 +129,9 @@ export function checkSkillViolations(row, rowIdx = 0) {
     if (rule.re.test(boardContent)) v.push({ path: at + '.board.content', from: rule.from, msg: rule.msg })
   })
 
+  // ★ Task 13: LaTeX aligned 环境校验 (闭合 + 行末双反斜杠)
+  v.push(...checkAlignedLatex(boardContent, at + '.board.content'))
+
   // skill 3: 动作工具白名单 + Agent 不得填时长
   const specs = Array.isArray(row?.actionSpec) ? row.actionSpec : []
   specs.forEach((spec, i) => {
@@ -109,6 +163,30 @@ export function checkSkillViolations(row, rowIdx = 0) {
 
     // skill 1: 坐标越界
     v.push(...checkCoordBounds(action, sat))
+
+    // ★ Task 13: exactText 锚定校验 (rough-notation 必须有 target.exactText, 且必须在 board.content 或 problemText 里出现)
+    if (tool === 'rough-notation' && action.action === 'underline') {
+      const target = action.target || {}
+      const exactText = String(target.exactText || '').trim()
+      if (!exactText) {
+        v.push({
+          path: sat + '.target.exactText',
+          from: 'textTargetRegistry.js §锚定 + hand-action-control §三',
+          msg: 'rough-notation underline 必须提供 target.exactText (锚定原文)'
+        })
+      } else {
+        // exactText 必须能在本题的板书内容或题目原文里找到 (粗校验, 不算 occurrence)
+        // 注意: 这里只能粗校验, 实际锚定由渲染层 textTargetRegistry.findTextMatch 做
+        const searchable = boardContent + ' ' + String(row?.problemText || '')
+        if (exactText.length > 0 && !searchable.includes(exactText)) {
+          v.push({
+            path: sat + '.target.exactText',
+            from: 'textTargetRegistry.js §锚定 (Task 13)',
+            msg: `exactText "${exactText.slice(0, 20)}${exactText.length > 20 ? '...' : ''}" 在 board.content / problemText 里找不到匹配, 渲染层 findTextMatch 会失败, 动作不会执行`
+          })
+        }
+      }
+    }
   })
 
   // skill 2: L1 题目层 region 软提示 (题目区不该有手写体 board content)
