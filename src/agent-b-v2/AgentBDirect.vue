@@ -51,6 +51,8 @@ import {
 import { userApiConfig } from '../lib/userApiConfig.js'
 import { exportElementsMarkdown, exportSpeechMarkdown, exportStoryboardMarkdown } from '../lib/speechMarkdown.js'
 import VisualTimeline from '../components/VisualTimeline.vue'
+// ★ Task 19: 表格当前页面加预览小窗 (RealBoardPreview)
+import RealBoardPreview from '../components/RealBoardPreview.vue'
 import { showGlobalLoading, hideGlobalLoading } from '../services/globalLoading.js'
 // 画布参数唯一真源：src/services/stepHandoff.js
 // ★ Task 10: 引入完整常量避免硬编码字号/字体/行高
@@ -407,6 +409,53 @@ const totalActionCount = computed(() => {
   if (!rows.value.length) return 0
   return rows.value.reduce((acc, r) => acc + (Array.isArray(r.actionSpec) ? r.actionSpec.length : 0), 0)
 })
+
+// ★ Task 19: 合并所有行的 actionSpec 给预览小窗 RealBoardPreview 播放
+// 给 RealBoardPreview 的 actionSpec 是扁平数组, 每项含 row 索引 + 原 action
+const allActionSpec = computed(() => {
+  if (!rows.value.length) return []
+  const out = []
+  rows.value.forEach((r, rowIndex) => {
+    if (!Array.isArray(r.actionSpec)) return
+    r.actionSpec.forEach((spec) => {
+      // 兼容 {action:{...}} 和 {...} 两种结构
+      const a = spec?.action && typeof spec.action === 'object' ? spec.action : spec
+      if (a) out.push({ ...a, rowIndex })
+    })
+  })
+  return out
+})
+
+// ★ Task 19: 预览小窗用的 canvasParams (从 handoff.canvasParams 或 buildCanvasParams() 兜底)
+// 复用 Task 10 的真源 (板书 38px / 平方乔木体 / 行高 1.7±随机)
+const canvasParamsForPreview = computed(() => {
+  return handoff.value?.canvasParams || null
+})
+
+// ★ Task 19: 全屏打开 board-preview.html
+function openFullscreenPreview() {
+  // 先把当前 rows 数据写到 localStorage (BoardPreviewApp 兜底读)
+  try {
+    saveLiveBoardPreview({
+      problemText: handoff.value?.problemText || '',
+      topicLayout: handoff.value?.topicLayout || null,
+      boardPlan: handoff.value?.boardPlan || handoff.value?.zoneAnchors || null,
+      sourceImageUrl: handoff.value?.sourceImageUrl || handoff.value?.screenshotUrl || '',
+      keepOriginal: Boolean(handoff.value?.keepOriginal),
+      rows: safeDeepClone(rows.value),
+      projectCode: deliverableResult.value?.projectCode || handoff.value?.projectCode || '',
+      canvasParams: handoff.value?.canvasParams || null,
+      meta: {
+        canvasParams: handoff.value?.canvasParams || null,
+        model: generatedModel.value || agentBApiConfig.model || '',
+        generatedAt: new Date().toLocaleString('zh-CN', { hour12: false }),
+      },
+    })
+  } catch (e) {
+    console.warn('[preview] saveLiveBoardPreview 失败:', e)
+  }
+  window.open('/board-preview.html', '_blank')
+}
 
 // ponytail: 合并所有行的 actionSpec 给画布预览播放
 // 纯前端本地数学算式口播兜底秒级转换（双保险核心）
@@ -2097,6 +2146,36 @@ function isRefineFieldEqual(original, refined) {
           </div>
 
           <div v-else class="studio-table-container">
+            <!-- ★ Task 19: 预览小窗 - 放在表格当前页面顶部, 实时显示画布 + 题目 + 板书 + 动作 -->
+            <div class="studio-preview-mini" v-if="rows.length > 0">
+              <div class="studio-preview-mini-header">
+                <span class="preview-mini-title">🖼️ 实时预览小窗</span>
+                <span class="preview-mini-subtitle">画布 + 当前 rows 数据 + 动作 (Task 19)</span>
+                <button
+                  class="preview-mini-fullscreen-btn"
+                  title="全屏打开 board-preview.html"
+                  @click="openFullscreenPreview"
+                >⛶ 全屏</button>
+              </div>
+              <div class="studio-preview-mini-body">
+                <RealBoardPreview
+                  :problem-text="handoff?.problemText || ''"
+                  :board-plan="handoff?.boardPlan || handoff?.zoneAnchors || null"
+                  :topic-layout="handoff?.topicLayout || null"
+                  :source-image-url="handoff?.sourceImageUrl || handoff?.screenshotUrl || ''"
+                  :keep-original="Boolean(handoff?.keepOriginal)"
+                  :board-rows="rows"
+                  :action-spec="allActionSpec"
+                  :canvas-params="canvasParamsForPreview"
+                  :interactive="false"
+                  :auto-play="true"
+                  :show-all-labels="true"
+                  :show-grid="false"
+                  :show-zone-guides="false"
+                />
+              </div>
+            </div>
+
             <!-- 视觉时间轴组件：映射每个 Row 组为独立区块，展示 MP3 时长与板书起手时机（由音频和系统语义自动驱动） -->
             <VisualTimeline
               :rows="rows"
@@ -3670,6 +3749,67 @@ function isRefineFieldEqual(original, refined) {
   padding: 8px 14px;
   margin-bottom: 12px;
 }
+
+/* ★ Task 19: 预览小窗样式 - 放在表格当前页面顶部, 实时显示画布 + 题目 + 板书 + 动作 */
+.studio-preview-mini {
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, #d7ded5);
+  border-radius: var(--control-radius, 12px);
+  margin-bottom: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
+}
+.studio-preview-mini-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+  color: #fff;
+  font-size: 13px;
+}
+.preview-mini-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+.preview-mini-subtitle {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 11px;
+  flex: 1;
+}
+.preview-mini-fullscreen-btn {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.preview-mini-fullscreen-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+.studio-preview-mini-body {
+  /* 画布 1726×980 ≈ 16:9, 用 aspect-ratio 锁定比例, 宽度自适应 */
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1726 / 980;
+  max-height: 380px;  /* 不超过 380px 高, 不挤掉表格空间 */
+  background: #fbfaf6;  /* 板面纸白色 */
+  overflow: hidden;
+}
+.studio-preview-mini-body :deep(.board-canvas) {
+  width: 100%;
+  height: 100%;
+}
+.studio-preview-mini-body :deep(.board-viewport) {
+  width: 100%;
+  height: 100%;
+}
+
 
 .col-layout-left,
 .col-layout-right {
