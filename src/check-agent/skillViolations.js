@@ -56,54 +56,60 @@ function deepScanForKeys(node, target, path, hits) {
   }
 }
 
-// ★ Task 13: LaTeX aligned 环境校验规则 (skill 5 + prompt.js §5.1 硬规则)
-// 校验 \begin{aligned}...\end{aligned} 闭合 + 行末双反斜杠 \\ 换行
-function checkAlignedLatex(content, path) {
+// ★ Task 15: 符号从简校验 (与 row-player.html line 200 + superFilter.js HANDWRITE_GLYPH_DEGRADATION 对齐)
+// 能用常用 Unicode 符号写的, 就不要用 LaTeX
+// 旧作最值钱经验: 小学题"公式"绝大多数能转 Unicode 用手写字体直接写, 保住手写感
+// 只有真·结构数学 (\frac 多层上下标) 才用 LaTeX
+function checkSymbolSimplify(content, path) {
   const v = []
   if (!content) return v
-  // 1. 闭合校验
-  const beginCount = (content.match(/\\begin\{aligned\}/g) || []).length
-  const endCount = (content.match(/\\end\{aligned\}/g) || []).length
-  if (beginCount !== endCount) {
+  // ★ 该用 Unicode 但用了 LaTeX 的 (硬错, 破坏手写感)
+  const LATEX_TO_UNICODE = [
+    { re: /\\times\b/g, msg: '乘号应写 x (不用 \\times, 手写体用常见字符凑)' },
+    { re: /\\div\b/g, msg: '除号应写 ÷ 或直接写分数 \\frac (不用 \\div)' },
+    { re: /\\cdot\b/g, msg: '应写 · (不用 \\cdot)' },
+    { re: /\\circ\b/g, msg: '应写 ° (不用 \\circ)' },
+    { re: /\\angle\b/g, msg: '应写 ∠ (不用 \\angle)' },
+    { re: /\\pm\b/g, msg: '应写 ± (不用 \\pm)' },
+    { re: /\\perp\b/g, msg: '应写 ⊥ (不用 \\perp)' },
+    { re: /\\parallel\b/g, msg: '应写 ∥ (不用 \\parallel)' },
+    { re: /\\triangle\b/g, msg: '应写中文"三角形" (不用 \\triangle, 手写体用常见字符凑)' },
+    { re: /\\therefore\b/g, msg: '应写中文"因此" (不用 \\therefore)' },
+    { re: /\\because\b/g, msg: '应写中文"因为" (不用 \\because)' },
+    { re: /\\le(?:q)?\b/g, msg: '应写 ≤ (不用 \\le)' },
+    { re: /\\ge(?:q)?\b/g, msg: '应写 ≥ (不用 \\ge)' },
+    { re: /\\ne(?:q)?\b/g, msg: '应写 ≠ (不用 \\ne)' },
+    { re: /\\approx\b/g, msg: '应写 ≈ (不用 \\approx)' },
+    { re: /\\pi\b/g, msg: '应写 π (不用 \\pi)' },
+    { re: /\\infty\b/g, msg: '应写 ∞ (不用 \\infty)' },
+    { re: /\\rightarrow\b/g, msg: '应写 → (不用 \\rightarrow)' },
+    { re: /\\Rightarrow\b/g, msg: '应写 ⇒ (不用 \\Rightarrow)' },
+    { re: /\\to\b/g, msg: '应写 → (不用 \\to)' },
+    // ^2 ^3 应该用 ² ³ (但 ^ 后面跟其他内容仍允许, 如 ^{n} 上标 n)
+    { re: /\^\s*(?:\{\s*2\s*\}|2)(?!\d)/g, msg: '平方应写 ² (不用 ^2 或 ^{2})' },
+    { re: /\^\s*(?:\{\s*3\s*\}|3)(?!\d)/g, msg: '立方应写 ³ (不用 ^3 或 ^{3})' },
+  ]
+  LATEX_TO_UNICODE.forEach(rule => {
+    if (rule.re.test(content)) v.push({
+      path: path,
+      from: 'row-player.html line 200 符号从简 + superFilter.js GLYPH2COMMON (Task 15)',
+      msg: rule.msg
+    })
+  })
+  // ★ 真结构数学: 必须用 LaTeX (硬错, 手写体写不了)
+  // 分数必须 \frac{分子}{分母}, 禁止 7/15 平铺斜杠
+  // ★ 注意: 要先剥离 \frac{...}{...} 内容, 避免分子分母里的数字被误判为平铺斜杠
+  const noFracContent = content.replace(/\\frac\s*\{[^}]*\}\s*\{[^}]*\}/g, '')
+  if (/\d+\s*\/\s*\d+/.test(noFracContent) && !/\\frac\s*\{/.test(content)) {
     v.push({
       path: path,
-      from: 'prompt.js §5.1 + field-char-escape-filter §五',
-      msg: `aligned 闭合错误: \\begin{aligned} ${beginCount} 个 vs \\end{aligned} ${endCount} 个, 必须配对`
+      from: 'row-player.html line 200 符号从简 + prompt.js §5.1 (Task 15)',
+      msg: '分数必须用 \\frac{分子}{分母} (手写体写不了上下分数), 禁止 7/15 平铺斜杠'
     })
   }
-  // 2. 行末双反斜杠校验 (关键: KaTeX 需要 \\ 换行, 单 \ 会失败)
-  // 找出所有 aligned 环境内容, 检查每行末尾 (除最后一行) 是否用 \\
-  const alignedBlocks = content.match(/\\begin\{aligned\}[^]*?\\end\{aligned\}/g) || []
-  alignedBlocks.forEach((block, idx) => {
-    // 提取 begin 和 end 之间的内容
-    const inner = block.replace(/\\begin\{aligned\}/, '').replace(/\\end\{aligned\}/, '')
-    // 按行拆分, 每行末尾 (忽略空白) 必须是 \\ (双反斜杠)
-    const lines = inner.split('\n').map(l => l.trimEnd()).filter(l => l.length > 0)
-    if (lines.length > 1) {
-      // 检查除最后一行外的每行末尾
-      for (let lineIdx = 0; lineIdx < lines.length - 1; lineIdx++) {
-        const line = lines[lineIdx]
-        // 行末是 \\ 才合法 (允许 & 后空格再 \\)
-        if (!/\\\\\s*$/.test(line)) {
-          // 进一步检查是不是只有单 \
-          if (/\\\s*$/.test(line) && !/\\\\\s*$/.test(line)) {
-            v.push({
-              path: path,
-              from: 'prompt.js §5.1 aligned 硬规则 (Task 13)',
-              msg: `aligned 第 ${lineIdx + 1} 行末尾用单反斜杠 \\, 必须用双反斜杠 \\\\ 换行 (KaTeX 解析要求)`
-            })
-          } else {
-            v.push({
-              path: path,
-              from: 'prompt.js §5.1 aligned 硬规则 (Task 13)',
-              msg: `aligned 第 ${lineIdx + 1} 行末尾缺少 \\\\ 换行符, 多行会挤成一行`
-            })
-          }
-          break  // 同一 block 只报一次, 避免噪声
-        }
-      }
-    }
-  })
+  // ★ 注: ÷ 不惩罚 (row-player.html superFilter.js GLYPH2COMMON line 651 会自动把 ÷ 转 /, 不需要 Agent 改)
+  // 如果强行惩罚 ÷, 会误伤合法 PRESET 里 "面积 =（上底+下底）x 高 ÷ 2" 这种写法
+  // 渲染层 superFilter 会兜底转换, checkAgent 不重复校验
   return v
 }
 
@@ -159,8 +165,9 @@ export function checkSkillViolations(row, rowIdx = 0) {
     if (rule.re.test(boardContent)) v.push({ path: at + '.board.content', from: rule.from, msg: rule.msg })
   })
 
-  // ★ Task 13: LaTeX aligned 环境校验 (闭合 + 行末双反斜杠)
-  v.push(...checkAlignedLatex(boardContent, at + '.board.content'))
+  // ★ Task 15: 符号从简校验 (替换 Task 13 错误的 aligned 校验)
+  // 能用 Unicode 就不要用 LaTeX, 真结构数学才用 LaTeX
+  v.push(...checkSymbolSimplify(boardContent, at + '.board.content'))
 
   // ★ Task 14: 真实音频强制 (mp3/audioBase64 必须有, 与 skill-6 validate_contract 对齐)
   const hasAudio = Boolean(row?.mp3 || row?.audioBase64 || row?.audioUrl)
