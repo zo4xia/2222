@@ -1316,7 +1316,7 @@ function openHanddrawPlayer() {
   try {
     localStorage.setItem('agent-b-deliverable', JSON.stringify(payload))
   } catch {}
-  window.open('/row-player.html', '_blank')
+  window.open('/deliverable/row-player.html', '_blank')
 }
 
 function downloadDeliverableJson() {
