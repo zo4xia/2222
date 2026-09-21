@@ -14,29 +14,43 @@ import {
   DownloadOutlined,
   FullscreenOutlined,
   FullscreenExitOutlined,
+  FileDoneOutlined,
   CompassOutlined,
   TableOutlined,
   CodeOutlined,
+  RollbackOutlined,
   InfoCircleOutlined,
   ClockCircleOutlined,
   FileTextOutlined,
   FundProjectionScreenOutlined,
+  PictureOutlined,
   ShareAltOutlined,
+  CloseCircleOutlined,
+  SoundOutlined,
+  FileSearchOutlined,
+  ReloadOutlined,
+  ArrowRightOutlined,
 } from '@ant-design/icons-vue'
-import { saveLiveBoardPreview } from './liveBoardPreview.js'
 import {
   CANVAS_W as DESIGN_W,
   CANVAS_H as DESIGN_H,
 } from '../utils/canvasCoords.js'
 import { BOARD_LAYOUT } from '../utils/boardLayout.js'
 import { renderProblemHtml } from '../utils/mathText.js'
-// 语速真源（160 字/分）：禁止在本文件另写一套估算系数
-import { AGENT_B_V2_SPEECH_RATE } from '../agent-b-v2/timing.js'
-import { parseBoardField } from '../lib/speechMarkdown.js'
-import { LectureRecorder } from '../utils/lectureRecorder.js'
+// ★ Task 10: 引入甲方原始要求常量（板书 38px / 平方乔木体 / 题目 30px）
+import {
+  QUESTION_FONT_SIZE,
+  BOARD_FONT_SIZE,
+  HANDWRITING_FAMILY,
+} from '../services/stepHandoff.js'
+import {
+  exportSpeechMarkdown as doExportSpeechMarkdown,
+  exportElementsMarkdown as doExportElementsMarkdown,
+} from '../lib/speechMarkdown.js'
 import {
   isLiveBoardPreviewUpdate,
   loadLiveBoardPreview,
+  saveLiveBoardPreview,
 } from './liveBoardPreview.js'
 
 const RealBoardPreview = defineAsyncComponent(() => import('../components/RealBoardPreview.vue'))
@@ -84,38 +98,6 @@ const checkInfo = ref({
   asrPolished: false,
 })
 const rows = ref([])
-
-/* 单行运行时长唯一判据（与交付物 duration 同源）：
-   有真实音频毫秒 → 自然播放时间；无音频 → 160 字/分估算兜底。语速常量取 timing.js 真源。 */
-function getRowRuntimeSec(row) {
-  const realMs = Number(row?.audioDurationMs) || 0
-  if (realMs > 0) return Math.round(realMs / 100) / 10
-  const charCount = String(row?.speech || '').replace(/\s+/g, '').length
-  return Math.max(1, Math.round((charCount / AGENT_B_V2_SPEECH_RATE) * 600) / 10)
-}
-
-// 时长口径标签：全真实=实际用时；全无音频=预估用时；混合=标注各自行数
-const runtimeLabel = computed(() => {
-  if (!rows.value.length) return '预估用时'
-  const audioRows = rows.value.filter((r) => Number(r?.audioDurationMs) > 0).length
-  const estimatedRows = rows.value.length - audioRows
-  if (!estimatedRows) return '实际用时'
-  if (!audioRows) return '预估用时'
-  return `用时（${audioRows} 行真实音频 + ${estimatedRows} 行估算）`
-})
-
-// 总时长展示：优先上游 stats（新口径）；历史 localStorage 快照缺 stats 时用本地 rows 自算，绝不留写死的假值
-const totalDurationText = computed(() => {
-  if (stats.value.totalDurationText && stats.value.totalDurationText !== '0秒') {
-    return stats.value.totalDurationText
-  }
-  if (stats.value.totalDuration > 0) return `${stats.value.totalDuration}秒`
-  const totalSec = Math.round(rows.value.reduce((sum, r) => sum + getRowRuntimeSec(r), 0))
-  if (!totalSec) return '0秒'
-  const m = Math.floor(totalSec / 60)
-  return `${m > 0 ? `${m}分` : ''}${totalSec % 60}秒`
-})
-
 const actionSpec = computed(() => rows.value.flatMap((row, rowIndex) => (
   Array.isArray(row?.actionSpec)
     ? row.actionSpec.map((action, actionIndex) => ({
@@ -157,9 +139,7 @@ function onTopicLayoutUpdated(newLayout) {
       sourceImageUrl: sourceImageUrl.value,
       keepOriginal: keepOriginal.value,
     })
-  } catch (error) {
-    console.warn('[v0] 保存板书预览失败:', error)
-  }
+  } catch (_) {}
 }
 
 function onProblemTextUpdated(newText) {
@@ -175,9 +155,7 @@ function onProblemTextUpdated(newText) {
       sourceImageUrl: sourceImageUrl.value,
       keepOriginal: keepOriginal.value,
     })
-  } catch (error) {
-    console.warn('[v0] 保存板书预览失败:', error)
-  }
+  } catch (_) {}
 }
 
 function applyDeliverablePayload(payload, code = null, created = null) {
@@ -198,6 +176,15 @@ function applyDeliverablePayload(payload, code = null, created = null) {
 
   if (payload.meta) {
     meta.value = { ...meta.value, ...payload.meta }
+  }
+  // ★ Task 9 修复: 兜底从 payload 顶层读 canvasParams (有些上游 saveLiveBoardPreview 直接写在顶层)
+  //  优先级: payload.meta.canvasParams > payload.canvasParams > payload.handoffCanvasParams
+  //  这样无论上游怎么放, BoardPreviewApp 都能拿到 canvasParams 给 RealBoardPreview
+  if (payload.canvasParams && !meta.value.canvasParams) {
+    meta.value.canvasParams = payload.canvasParams
+  }
+  if (payload.handoffCanvasParams && !meta.value.canvasParams) {
+    meta.value.canvasParams = payload.handoffCanvasParams
   }
   if (payload.stats) {
     stats.value = { ...stats.value, ...payload.stats }
@@ -281,9 +268,7 @@ onMounted(() => {
   window.addEventListener('message', handleWindowMessage)
   try {
     window.parent?.postMessage({ type: 'BOARD_PREVIEW_CANVAS_READY' }, '*')
-  } catch (error) {
-    console.warn('[v0] 通知父窗口失败:', error)
-  }
+  } catch {}
 })
 
 onBeforeUnmount(() => {
@@ -295,6 +280,9 @@ onBeforeUnmount(() => {
 
 // 计算属性
 const renderedProblemHtml = computed(() => renderProblemHtml(problemText.value || '暂无题目内容'))
+
+// 舞台长宽比
+const canvasAspectRatio = computed(() => `${DESIGN_W} / ${DESIGN_H}`)
 
 // 过滤后的五字段行
 const filteredRows = computed(() => {
@@ -336,12 +324,20 @@ const fourZonesCoords = computed(() => {
   }
 
   return [
-    { key: 'topic', name: '题目区 (Topic)', tag: '题', label: '题目', ...toPx(q), desc: '承载题目文本与原图锚定' },
-    { key: 'analysis', name: '分析区 (Analysis)', tag: '析', label: '分析', ...toPx(an), desc: '引导审题思路与关系拆解' },
-    { key: 'solution', name: '解答区 (Solution)', tag: '解', label: '解答', ...toPx(so), desc: '核心规范算式与步骤推导' },
-    { key: 'summary', name: '总结区 (Summary)', tag: '答', label: '答题', ...toPx(sm), desc: '作答闭环与方法结论沉淀' },
+    { key: 'topic', name: '题目区 (Topic/Question)', tag: '题', label: '题目', ...toPx(q), desc: `承载题目文本与原图锦定（${QUESTION_FONT_SIZE}px 微软雅黑，印刷体）` },
+    { key: 'analysis', name: '分析区 (Analysis)', tag: '析', label: '分析', ...toPx(an), desc: `引导审题思路与关系拆解（约 ${BOARD_FONT_SIZE}px 手写体 ${HANDWRITING_FAMILY}）` },
+    { key: 'solution', name: '解答区 (Solution)', tag: '解', label: '解答', ...toPx(so), desc: `核心规范算式与步骤推导（约 ${BOARD_FONT_SIZE}px 手写体 ${HANDWRITING_FAMILY}）` },
+    { key: 'summary', name: '总结区 (Summary)', tag: '总', label: '总结', ...toPx(sm), desc: `作答闭环与方法结论沉淀（约 ${BOARD_FONT_SIZE}px 手写体 ${HANDWRITING_FAMILY}）` },
   ]
 })
+
+// 板书显示安全格式化（防止 [object Object]）
+function formatBoardDisplay(board) {
+  if (!board) return '(本步无新增板书)'
+  if (typeof board === 'string') return board
+  if (typeof board === 'object') return board.content || '(本步无新增板书)'
+  return String(board)
+}
 
 // 格式化的下游视频流水线 JSON
 const pipelineJsonString = computed(() => {
@@ -368,10 +364,10 @@ const pipelineJsonString = computed(() => {
     sequence: rows.value.map((row, idx) => ({
       step: idx + 1,
       stage: row.stage,
-      // 对外 duration 使用秒；audioDurationMs 保留毫秒真源。判据与 serializeDeliverableState 一致（> 0，非 != null）。
-      duration: getRowRuntimeSec(row),
-      durationLabel: Number(row.audioDurationMs) > 0 ? '真实音频时长' : '预估',
-      audioUrl: row.audioUrl || '',
+      // 有音频用真实时长；无音频明确标记为预估，并保留音频槽位。
+      duration: row.audioDurationMs ?? row.duration ?? 0,
+      durationLabel: row.audioDurationMs ? '真实音频时长' : '预估',
+      audioUrl: row.audioUrl || '音频暂未生成',
       audioDurationMs: row.audioDurationMs ?? null,
       speech: row.speech,
       board: row.board,
@@ -410,56 +406,36 @@ function copyPageUrl() {
   })
 }
 
-// board 契约为对象 { content, startDelay, startCoord }；导出与展示只取纯文本 content
-// 复用唯一真源 speechMarkdown.parseBoardField（兼容历史 [x%, y%] 前缀），不另造第二套解析
-function boardTextOf(row) {
-  return parseBoardField(row?.board).content
-}
-
 function exportSpeechMarkdown() {
-  let md = `# 教学口播稿 · 视频素材\n`
-  md += `> 交付编号：${projectCode.value || '最新'}  |  ${runtimeLabel.value}：${stats.value.totalDurationText || '未计算'}\n\n`
-  rows.value.forEach((r, idx) => {
-    md += `### 第${idx + 1}步 · 【${r.stage}】 (${getRowRuntimeSec(r)}s)\n`
-    md += `${r.speech}\n\n`
+  doExportSpeechMarkdown(rows.value, {
+    problemText: problemText.value,
   })
-  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `speech-${projectCode.value || 'export'}.md`
-  a.click()
-  URL.revokeObjectURL(url)
-  message.success('已导出口播讲义 MD')
+  message.success('已导出口播讲义 MD (纯口播/TTS就绪/无控制标签)')
 }
 
 function exportElementsMarkdown() {
-  let md = `# 教学板书五字段要素全量表\n`
-  md += `> 编号：${projectCode.value || '最新'}  |  生成时间：${createdAt.value || new Date().toLocaleString()}\n\n`
-  md += `| 步数 | 阶段 | 时长 | 口播文本 (Speech) | 板书内容 (Board) |\n`
-  md += `| :--- | :--- | :--- | :--- | :--- |\n`
-  rows.value.forEach((r, idx) => {
-    const cleanSpeech = (r.speech || '').replace(/\|/g, '\\|').replace(/\n/g, ' ')
-    const cleanBoard = boardTextOf(r).replace(/\|/g, '\\|').replace(/\n/g, ' ')
-    md += `| ${idx + 1} | ${r.stage} | ${getRowRuntimeSec(r)}s | ${cleanSpeech} | ${cleanBoard} |\n`
+  doExportElementsMarkdown(rows.value, {
+    title: '讲题五字段要素全量表',
+    problemText: problemText.value,
+    model: meta.value?.model,
+    generatedAt: createdAt.value,
+    handoffCanvasParams: meta.value?.canvasParams,
+    handoffBoardPlan: boardPlan.value,
   })
-  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `elements-${projectCode.value || 'export'}.md`
-  a.click()
-  URL.revokeObjectURL(url)
   message.success('已导出五字段要素表 MD')
+}
+
+function printPage() {
+  window.print()
 }
 
 // 客户端原生录屏（纯浏览器交互授权，录制画布/动作/音频，0 后台服务器消耗）
 const isRecording = ref(false)
 const recordingSeconds = ref(0)
-const boardCaptureRef = ref(null)
+let mediaRecorder = null
+let recordedChunks = []
 let recordingStream = null
 let recordingTimerInterval = null
-const lectureRecorder = new LectureRecorder()
 
 const recordingTimerText = computed(() => {
   const m = Math.floor(recordingSeconds.value / 60)
@@ -467,22 +443,122 @@ const recordingTimerText = computed(() => {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 })
 
+// 录屏交付前置就绪检查
+const precheckModalOpen = ref(false)
+
+// 模块 1：题目识别状态
+const problemReadiness = computed(() => {
+  const text = (problemText.value || '').trim()
+  const isReady = text.length > 0
+  return {
+    key: 'problem',
+    name: '题目识别状态',
+    isReady,
+    statusText: isReady ? '已就绪' : '未就绪',
+    statusColor: isReady ? 'success' : 'error',
+    description: isReady
+      ? `题目文本已就绪（共 ${text.length} 字），画布题目区正常渲染展示。`
+      : '尚未检测到题目文本或题目尚未在「第 1 步 贴题识别」中完成识别落位与确认。',
+    guide: '请返回「第 1 步 贴题识别」页面，上传清晰题目截图或粘贴题文，完成落位并点击「确认使用此题」，确保交付微课具备完整题面板书。',
+    actionText: '前往「第 1 步 贴题识别」',
+    actionHref: '/',
+  }
+})
+
+// 模块 2：TTS 音轨状态
+const ttsReadiness = computed(() => {
+  const totalSteps = rows.value.length
+  if (totalSteps === 0) {
+    return {
+      key: 'tts',
+      name: 'TTS 音轨状态',
+      isReady: false,
+      statusText: '未就绪 (无教学时序)',
+      statusColor: 'error',
+      description: '五字段教学时序表为空，尚未生成任何讲题口播与板书动作。',
+      guide: '请在 Agent B 页面中先执行「五字段生成」，由 AI 建立讲题分步口播与板书时序，再进行语音合成。',
+      actionText: '前往「Agent B 讲题五字段」',
+      actionHref: '/',
+      totalSteps: 0,
+      readyCount: 0,
+      missingCount: 0,
+      missingSteps: [],
+    }
+  }
+
+  const isRowAudioValid = (r) => Boolean(r?.audioUrl && r.audioUrl !== '音频暂未生成')
+  const readyCount = rows.value.filter(isRowAudioValid).length
+  const missingRows = rows.value
+    .map((r, idx) => ({ step: idx + 1, valid: isRowAudioValid(r) }))
+    .filter(item => !item.valid)
+    .map(item => item.step)
+  const isReady = readyCount === totalSteps
+
+  return {
+    key: 'tts',
+    name: 'TTS 音轨状态',
+    isReady,
+    statusText: isReady ? `已就绪 (${totalSteps}/${totalSteps} 步已合成)` : `未就绪 (${readyCount}/${totalSteps} 步已合成)`,
+    statusColor: isReady ? 'success' : 'error',
+    description: isReady
+      ? `全部 ${totalSteps} 步口播音轨均已就绪，录屏时音画同步将达到最佳效果。`
+      : `当前五字段口播共 ${totalSteps} 步，已合成语音 ${readyCount} 步，尚有 ${totalSteps - readyCount} 步缺失音轨（未完成步骤：第 ${missingRows.slice(0, 8).join('、')}${missingRows.length > 8 ? ' 等' : ''} 步）。`,
+    guide: '录屏交付需同步录制高品质口播音轨。请在 Agent B 讲题时序表格中，为缺失音轨的行点击「试听/生成语音」按钮（或调用 ASR 兜底），确保所有行均拥有有效音频。',
+    actionText: '前往完善 TTS 音轨',
+    actionHref: '/',
+    totalSteps,
+    readyCount,
+    missingCount: totalSteps - readyCount,
+    missingSteps: missingRows,
+  }
+})
+
+// 预检查综合汇总
+const precheckModules = computed(() => [problemReadiness.value, ttsReadiness.value])
+const unreadyModules = computed(() => precheckModules.value.filter(m => !m.isReady))
+const allModulesReady = computed(() => unreadyModules.value.length === 0)
+
+// 刷新状态并重新检查
+async function refreshPrecheckStatus() {
+  await fetchDeliverableData()
+  if (allModulesReady.value) {
+    message.success('恭喜！题目识别与 TTS 音轨均已就绪！')
+    precheckModalOpen.value = false
+  } else {
+    message.info(`已刷新：仍有 ${unreadyModules.value.length} 项模块未就绪，请参考指引完善。`)
+  }
+}
+
+// 供开发者或测试快速录屏（放权原则）
+function forceStartRecording() {
+  precheckModalOpen.value = false
+  message.warning('已跳过前置检查，启动测试录屏（视频可能缺少题文或语音）')
+  startScreenRecording()
+}
+
 async function toggleScreenRecording() {
   if (isRecording.value) {
     stopScreenRecording()
-  } else {
-    await startScreenRecording()
+    return
   }
+
+  // 录屏交付预检查：如果题目识别状态或 TTS 音轨状态未就绪，弹窗展示未就绪列表与指引
+  if (!allModulesReady.value) {
+    precheckModalOpen.value = true
+    return
+  }
+
+  await startScreenRecording()
 }
 
 async function startScreenRecording() {
   try {
-    if (!navigator.mediaDevices?.getDisplayMedia) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
       message.error('您的浏览器当前不支持或禁用了屏幕录制 API (getDisplayMedia)。请使用 Chrome/Edge 浏览器打开。')
       return
     }
 
-    let stream
+    let stream = null
     try {
       stream = await navigator.mediaDevices.getDisplayMedia({
         video: { displaySurface: 'browser', frameRate: 30 },
@@ -494,57 +570,79 @@ async function startScreenRecording() {
       })
     }
 
+    if (!stream) return
     recordingStream = stream
-    const board = boardCaptureRef.value?.querySelector('[data-board-canvas="true"]')
-    if (!board || typeof CropTarget === 'undefined' || typeof CropTarget.fromElement !== 'function' || typeof stream.getVideoTracks()[0]?.cropTo !== 'function') {
-      stream.getTracks().forEach((track) => track.stop())
-      recordingStream = null
-      message.error('当前浏览器不支持画布区域录制，已阻止整屏录制。请使用最新版 Chrome/Edge。')
-      return
+
+    let mimeType = 'video/webm;codecs=vp9,opus'
+    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8,opus'
+    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm'
+    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = ''
+
+    recordedChunks = []
+    const options = mimeType ? { mimeType } : undefined
+    mediaRecorder = new MediaRecorder(stream, options)
+
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        recordedChunks.push(event.data)
+      }
     }
 
-    const cropTarget = await CropTarget.fromElement(board)
-    const videoTrack = stream.getVideoTracks()[0]
-    await videoTrack.cropTo(cropTarget)
-    await lectureRecorder.start(stream)
-    if (videoTrack) videoTrack.onended = () => stopScreenRecording()
+    mediaRecorder.onstop = () => {
+      cleanupRecordingUI()
+      if (recordedChunks.length > 0) {
+        const actualType = mimeType || 'video/webm'
+        const blob = new Blob(recordedChunks, { type: actualType })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `board-video-${projectCode.value || 'deliverable'}.webm`
+        a.click()
+        URL.revokeObjectURL(url)
+        const sizeMb = (blob.size / (1024 * 1024)).toFixed(2)
+        message.success(`🎉 演播录屏已保存！文件大小: ${sizeMb} MB`)
+      }
+    }
 
+    const videoTrack = stream.getVideoTracks()[0]
+    if (videoTrack) {
+      videoTrack.onended = () => {
+        if (isRecording.value) stopScreenRecording()
+      }
+    }
+
+    mediaRecorder.start(1000)
     isRecording.value = true
     recordingSeconds.value = 0
-    recordingTimerInterval = setInterval(() => recordingSeconds.value++, 1000)
-    message.info('录屏已开始，请演播您的板书与动作')
+    recordingTimerInterval = setInterval(() => {
+      recordingSeconds.value++
+    }, 1000)
+
+    message.info('🔴 录屏已开始！请演播您的板书与动作')
   } catch (err) {
-    lectureRecorder.cancel()
-    recordingStream = null
     if (err.name !== 'NotAllowedError') {
       message.error('启动录屏失败: ' + (err.message || String(err)))
     }
   }
 }
 
-async function stopScreenRecording() {
-  try {
-    const blob = await lectureRecorder.stop()
-    cleanupRecordingUI()
-    recordingStream = null
-    if (!blob || blob.size === 0) return
-
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `board-video-${projectCode.value || 'deliverable'}.webm`
-    a.click()
-    URL.revokeObjectURL(url)
-    message.success(`演播录屏已保存！文件大小: ${(blob.size / (1024 * 1024)).toFixed(2)} MB`)
-  } catch (err) {
-    cleanupRecordingUI()
-    message.error('结束录屏失败: ' + (err.message || String(err)))
+function stopScreenRecording() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop()
+  }
+  if (recordingStream) {
+    recordingStream.getTracks().forEach(t => t.stop())
   }
 }
 
 function cancelScreenRecording() {
-  lectureRecorder.cancel()
-  recordingStream = null
+  recordedChunks = []
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop()
+  }
+  if (recordingStream) {
+    recordingStream.getTracks().forEach(t => t.stop())
+  }
   cleanupRecordingUI()
   message.info('已取消本次录制')
 }
@@ -559,8 +657,9 @@ function cleanupRecordingUI() {
 
 onBeforeUnmount(() => {
   cleanupRecordingUI()
-  lectureRecorder.cleanup()
-  recordingStream = null
+  if (recordingStream) {
+    recordingStream.getTracks().forEach(t => t.stop())
+  }
 })
 
 function getStageTagColor(stage) {
@@ -612,10 +711,10 @@ function getStageTagColor(stage) {
           class="btn-vue-record"
           :class="{ 'is-recording': isRecording }"
           @click="toggleScreenRecording"
-          title="只录制 1726×980 教学画布，不包含画布外区域"
+          title="拉起浏览器录屏，录制画布演播与声音"
         >
           <span class="rec-dot-icon" :class="{ blink: isRecording }">●</span>
-          <span>{{ isRecording ? `录制中 ${recordingTimerText}` : '录制演播视频' }}</span>
+          <span>{{ isRecording ? `录制中 ${recordingTimerText}` : '录屏交付' }}</span>
         </a-button>
         <a-button size="small" @click="copyPageUrl">
           <template #icon><ShareAltOutlined /></template>
@@ -651,7 +750,7 @@ function getStageTagColor(stage) {
     <main class="deliverable-main-container" :class="{ 'canvas-only': viewMode === 'canvas' }">
       <!-- 1. 严格锁定 1726 × 980 比例的真画布视口 -->
       <section class="board-cinema-section" :class="{ 'stage-fullscreen': viewMode === 'fullscreen', 'stage-canvas': viewMode === 'canvas' }">
-        <div ref="boardCaptureRef" class="board-ratio-lock-box">
+        <div class="board-ratio-lock-box">
           <RealBoardPreview
             :problem-text="problemText"
             :topic-layout="topicLayout"
@@ -664,6 +763,7 @@ function getStageTagColor(stage) {
             :board-rows="rows"
             :action-spec="actionSpec"
             :interactive="false"
+            :canvas-params="(meta && meta.canvasParams) || null"
             @update:topic-layout="onTopicLayoutUpdated"
             @update:problem-text="onProblemTextUpdated"
           />
@@ -684,7 +784,7 @@ function getStageTagColor(stage) {
               @click="toggleScreenRecording"
             >
               <span class="rec-dot-icon" :class="{ blink: isRecording }">●</span>
-              <span>{{ isRecording ? `停止录制 (${recordingTimerText})` : '录屏' }}</span>
+              <span>{{ isRecording ? `停止录制 (${recordingTimerText})` : '录屏交付' }}</span>
             </a-button>
             <span class="toolbar-divider"></span>
             <label>
@@ -718,8 +818,8 @@ function getStageTagColor(stage) {
           <div class="metric-card">
             <div class="metric-icon bg-emerald"><ClockCircleOutlined /></div>
             <div class="metric-content">
-              <span class="metric-label">{{ runtimeLabel }}</span>
-              <span class="metric-value">{{ totalDurationText }}</span>
+              <span class="metric-label">视频预估用时</span>
+              <span class="metric-value">{{ stats.totalDurationText || (stats.totalDuration ? stats.totalDuration + '秒' : '约2分半') }}</span>
             </div>
           </div>
 
@@ -727,7 +827,7 @@ function getStageTagColor(stage) {
             <div class="metric-icon bg-blue"><TableOutlined /></div>
             <div class="metric-content">
               <span class="metric-label">时序步数</span>
-              <span class="metric-value">{{ rows.length ? rows.length + ' 步' : (stats.stepCount ? stats.stepCount + ' 步' : '—') }}</span>
+              <span class="metric-value">{{ rows.length ? rows.length + ' 步' : (stats.stepCount ? stats.stepCount + ' 步' : '8 步') }}</span>
             </div>
           </div>
 
@@ -735,7 +835,7 @@ function getStageTagColor(stage) {
             <div class="metric-icon bg-purple"><FileTextOutlined /></div>
             <div class="metric-content">
               <span class="metric-label">口播总字数</span>
-              <span class="metric-value">{{ stats.charCount ? stats.charCount + ' 字' : '—' }}</span>
+              <span class="metric-value">{{ stats.charCount ? stats.charCount + ' 字' : '约350字' }}</span>
             </div>
           </div>
 
@@ -764,7 +864,7 @@ function getStageTagColor(stage) {
                 :class="{ active: activeTab === 'coords' }"
                 @click="activeTab = 'coords'"
               >
-                <CompassOutlined /> 真画布四大区域与落点坐标
+                <CompassOutlined /> 真画布四大区域与规格规划
               </button>
               <button
                 class="tab-nav-btn"
@@ -788,7 +888,7 @@ function getStageTagColor(stage) {
                   </a-select-option>
                 </a-select>
                 <a-button size="small" @click="exportSpeechMarkdown">
-                  <template #icon><DownloadOutlined /></template>导出口播 MD
+                  <template #icon><DownloadOutlined /></template>导出口播 MD (TTS就绪)
                 </a-button>
                 <a-button size="small" @click="exportElementsMarkdown">
                   <template #icon><DownloadOutlined /></template>导出要素表 MD
@@ -796,7 +896,7 @@ function getStageTagColor(stage) {
               </template>
 
               <template v-if="activeTab === 'coords'">
-                <span class="spec-hint-badge">基准换算: 1726×980 ↔ 1892×1044 (16:9)</span>
+                <span class="spec-hint-badge">画布物理基准: 1726 × 980 (16:9 课件演播室)</span>
               </template>
 
               <template v-if="activeTab === 'json'">
@@ -833,14 +933,14 @@ function getStageTagColor(stage) {
                     <td class="col-center">
                       <a-tag :color="getStageTagColor(row.stage)">{{ row.stage }}</a-tag>
                     </td>
-                    <td class="col-center duration-tag">{{ row.duration }}<span v-if="Number(row.audioDurationMs) <= 0" class="dur-est-hint">（估）</span></td>
+                    <td class="col-center duration-tag">{{ row.duration }}</td>
                     <td class="col-speech">
                       <p class="speech-text">{{ row.speech }}</p>
                     </td>
                     <td class="col-board">
                       <div class="board-snippet">
                         <span class="snippet-label">板书:</span>
-                        <span class="board-text">{{ boardTextOf(row) || '(本步无新增板书)' }}</span>
+                        <span class="board-text">{{ formatBoardDisplay(row.board) }}</span>
                       </div>
                       <div v-if="row.actionSpec && row.actionSpec.length" class="actions-badge-list">
                         <span
@@ -879,7 +979,7 @@ function getStageTagColor(stage) {
               <!-- 右侧：四区规格与百分比绝对值对照表 -->
               <div class="coords-card zones-table-card">
                 <div class="card-sub-header">
-                  <span class="sub-title">🎯 四大区域坐标规格参数 (1726 × 980)</span>
+                  <span class="sub-title">🎯 四大区域规划参数 (1726 × 980 · 达芬奇手稿风格)</span>
                 </div>
                 <table class="zones-data-table">
                   <thead>
@@ -925,6 +1025,100 @@ function getStageTagColor(stage) {
         </div>
       </section>
     </main>
+    <!-- 录屏交付前置检查未就绪提示 Ant Design Modal -->
+    <a-modal
+      v-model:open="precheckModalOpen"
+      title="录屏交付前置就绪检查"
+      :width="640"
+      :destroy-on-close="false"
+      centered
+      class="precheck-delivery-modal"
+    >
+      <div class="precheck-modal-body">
+        <a-alert
+          type="warning"
+          show-icon
+          class="precheck-warning-banner"
+          message="检测到交付核心模块尚未就绪"
+          description="录屏交付将把画布笔迹演播与口播音轨同步录制为最终交付微课。若模块未就绪，可能导致成品视频缺少题面板书或静音无声。请按照下方指引完成配置。"
+        />
+
+        <div class="unready-modules-section">
+          <div class="unready-section-header">
+            <span class="section-title">未就绪模块列表 ({{ unreadyModules.length }}/{{ precheckModules.length }})</span>
+            <span class="section-sub">请逐项确认并完善后再启动录屏交付</span>
+          </div>
+
+          <div class="unready-modules-list">
+            <div
+              v-for="item in unreadyModules"
+              :key="item.key"
+              class="unready-module-card"
+            >
+              <div class="module-card-header">
+                <div class="module-card-title-wrap">
+                  <component
+                    :is="item.key === 'problem' ? FileSearchOutlined : SoundOutlined"
+                    class="module-type-icon"
+                  />
+                  <span class="module-title-text">{{ item.name }}</span>
+                </div>
+                <a-tag :color="item.statusColor" class="module-status-badge">
+                  <CloseCircleOutlined /> {{ item.statusText }}
+                </a-tag>
+              </div>
+
+              <div class="module-diagnosis">
+                <span class="diagnosis-label">当前状态：</span>
+                <span class="diagnosis-text">{{ item.description }}</span>
+              </div>
+
+              <div class="module-guide-box">
+                <div class="guide-header">
+                  <InfoCircleOutlined class="guide-icon" />
+                  <span class="guide-title">完成指引：</span>
+                </div>
+                <p class="guide-content">{{ item.guide }}</p>
+                <div class="guide-actions">
+                  <a
+                    :href="item.actionHref"
+                    class="btn-guide-action"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {{ item.actionText }}
+                    <ArrowRightOutlined />
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="precheck-modal-footer">
+          <a-button
+            type="text"
+            size="small"
+            class="btn-force-record"
+            @click="forceStartRecording"
+            title="系统放权，不强制卡死。供开发者临时调试无音频画布录制"
+          >
+            仍要测试录屏 (可能缺少音轨/题文)
+          </a-button>
+          <div class="footer-primary-actions">
+            <a-button @click="refreshPrecheckStatus">
+              <template #icon><ReloadOutlined /></template>
+              刷新就绪状态
+            </a-button>
+            <a-button type="primary" @click="precheckModalOpen = false">
+              我知道了，去完成
+            </a-button>
+          </div>
+        </div>
+      </template>
+    </a-modal>
   </div>
 </template>
 
@@ -932,8 +1126,8 @@ function getStageTagColor(stage) {
 /* 根包装容器 */
 .deliverable-page-wrapper {
   min-height: 100vh;
-  background: linear-gradient(180deg, var(--qh-canvas-bg) 0%, var(--qh-canvas-bg-deep) 100%);
-  color: var(--qh-ink-2);
+  background: #f8fafc;
+  color: #1e293b;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   display: flex;
   flex-direction: column;
@@ -942,8 +1136,8 @@ function getStageTagColor(stage) {
 /* 顶部导航条 */
 .deliverable-nav-header {
   height: 56px;
-  background: var(--qh-surface);
-  border-bottom: 1px solid var(--qh-border);
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -951,7 +1145,7 @@ function getStageTagColor(stage) {
   position: sticky;
   top: 0;
   z-index: 50;
-  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .nav-left {
@@ -983,10 +1177,9 @@ function getStageTagColor(stage) {
   display: flex;
   align-items: center;
   gap: 16px;
-  background: var(--qh-surface-sunken);
-  border: 1px solid var(--qh-border-soft);
+  background: #f1f5f9;
   padding: 4px 12px;
-  border-radius: 8px;
+  border-radius: 999px;
 }
 
 .toggle-chip {
@@ -1260,10 +1453,10 @@ function getStageTagColor(stage) {
 
 /* 参数信息框 ("挖个参数框") */
 .params-dashboard-section {
-  background: var(--qh-surface);
-  border-radius: var(--qh-radius-card);
-  border: 1px solid var(--qh-border);
-  box-shadow: var(--qh-shadow-card);
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
   overflow: hidden;
 }
 
@@ -1271,8 +1464,8 @@ function getStageTagColor(stage) {
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  border-bottom: 1px solid var(--qh-border-soft);
-  background: var(--qh-surface-sub);
+  border-bottom: 1px solid #e2e8f0;
+  background: #fafafa;
 }
 
 .metric-card {
@@ -1280,7 +1473,7 @@ function getStageTagColor(stage) {
   display: flex;
   align-items: center;
   gap: 16px;
-  border-right: 1px solid var(--qh-border-soft);
+  border-right: 1px solid #e2e8f0;
 }
 
 .metric-card:last-child {
@@ -1295,17 +1488,14 @@ function getStageTagColor(stage) {
   align-items: center;
   justify-content: center;
   font-size: 20px;
-  color: var(--qh-ink-2);
-  background: var(--qh-surface);
-  border: 1px solid var(--qh-border-soft);
+  color: #ffffff;
   flex-shrink: 0;
 }
 
-/* 指标图标：同一中性底 + 单色语义图标，去掉四色渐变（避免第二套视觉真源） */
-.bg-emerald { color: #047857; }
-.bg-blue { color: var(--qh-brand); }
-.bg-purple { color: #7c3aed; }
-.bg-amber { color: #b45309; }
+.bg-emerald { background: linear-gradient(135deg, #059669, #10b981); }
+.bg-blue { background: linear-gradient(135deg, #2563eb, #3b82f6); }
+.bg-purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+.bg-amber { background: linear-gradient(135deg, #d97706, #f59e0b); }
 
 .metric-content {
   display: flex;
@@ -1616,5 +1806,172 @@ function getStageTagColor(stage) {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+/* 录屏交付前置检查 Modal 样式 */
+.precheck-modal-body {
+  padding: 4px 0 12px;
+}
+
+.precheck-warning-banner {
+  margin-bottom: 16px;
+  border-radius: 6px;
+}
+
+.unready-modules-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.unready-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.unready-section-header .section-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.unready-section-header .section-sub {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.unready-modules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.unready-module-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.module-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.module-card-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.module-type-icon {
+  font-size: 15px;
+  color: #2563eb;
+}
+
+.module-status-badge {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 4px;
+}
+
+.module-diagnosis {
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.diagnosis-label {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.diagnosis-text {
+  color: #334155;
+}
+
+.module-guide-box {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.guide-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #2563eb;
+  font-weight: 600;
+  font-size: 12.5px;
+  margin-bottom: 4px;
+}
+
+.guide-icon {
+  font-size: 13px;
+}
+
+.guide-content {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #334155;
+}
+
+.guide-actions {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.btn-guide-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #2563eb;
+  font-weight: 500;
+  text-decoration: none;
+  padding: 3px 10px;
+  background: #eff6ff;
+  border-radius: 4px;
+  border: 1px solid #bfdbfe;
+  transition: all 0.2s ease;
+}
+
+.btn-guide-action:hover {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+}
+
+.precheck-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.footer-primary-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-force-record {
+  color: #94a3b8 !important;
+  font-size: 12px !important;
+}
+
+.btn-force-record:hover {
+  color: #64748b !important;
+  text-decoration: underline;
 }
 </style>

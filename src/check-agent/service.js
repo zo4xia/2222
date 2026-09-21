@@ -1,5 +1,7 @@
 import { getCheckAgentApiSnapshot } from '../lib/checkAgentApiConfig.js'
 import { polishRowsASR } from './asrPolish.js'
+// ponytail: 接入 skillViolations 5 技能红线校验 (不阻断, 进 changes 报告)
+import { auditRowsBySkills } from './skillViolations.js'
 
 // 本地即时 ASR 润色
 export function polishLocally(rows) {
@@ -80,9 +82,23 @@ export async function checkAgentRows({ rows, mode } = {}) {
     }
   }
 
+  // ponytail: Check Agent 成功后, 额外跑 skillViolations 5 技能红线校验
+  // 违规不阻断流程, 只进 changes 报告让用户看到
+  const skillViolations = auditRowsBySkills(data.rows || [])
+  const allChanges = Array.isArray(data.changes) ? [...data.changes] : []
+  if (!skillViolations.ok) {
+    skillViolations.violations.forEach(v => {
+      allChanges.push({
+        row: null,
+        field: 'skillViolation',
+        reason: `[${v.from}] ${v.msg} (路径: ${v.path})`,
+      })
+    })
+  }
+
   return {
     rows: data.rows,
-    changes: Array.isArray(data.changes) ? data.changes : [],
+    changes: allChanges,
     model: data.model || userSnap.model,
     usage: data.usage || null,
     checkStatus: data.checkStatus || 'ok',

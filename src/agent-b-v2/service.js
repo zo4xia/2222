@@ -3,6 +3,7 @@
  */
 import { applyAgentBV2Timeline } from './timing.js'
 import { getAgentBApiSnapshot } from '../lib/agentBApiConfig.js'
+import { collectDeprecationWarnings } from './contract.js'
 
 const GENERATION_TEMPERATURE = 0.8
 
@@ -53,16 +54,15 @@ export async function generateAgentBV2Rows({ handoff, systemPrompt, skillId, row
       .filter((item) => item != null && String(item).trim())
       .map((item) => String(item).trim())
       .join(' | ')
-    const error = new Error(detail || `Agent B 生成失败 ${response.status}`)
-    error.code = data.code || ''
-    error.retryable = data.code === 'AGENT_B_V2_CONTRACT_INVALID' || response.status === 422
-    throw error
+    throw new Error(detail || `Agent B 生成失败 ${response.status}`)
   }
-
   const rows = applyAgentBV2Timeline(data.rows, { rowGapMs })
+  // 收集弃用字段警告，供 UI 弹窗提示用户（v2.0 startCoord / triggerAt / durationMs 等）
+  const deprecationWarnings = collectDeprecationWarnings(rows)
   return {
     rows,
     model: data.model || userSnap.model,
     usage: data.usage || null,
+    deprecationWarnings,
   }
 }

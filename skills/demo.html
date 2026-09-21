@@ -1,0 +1,1526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>平行四边形面积·仿人板书讲解</title>
+<!-- 板书字体（4选手写体） -->
+<link href="https://fontsapi.zeoseven.com/157/main/result.css" rel="stylesheet">
+<link href="https://fontsapi.zeoseven.com/490/main/result.css" rel="stylesheet">
+<link href="https://fontsapi.zeoseven.com/511/main/result.css" rel="stylesheet">
+<link href="https://fontsapi.zeoseven.com/510/main/result.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js"></script>
+<style>
+@import url("https://fontsapi.zeoseven.com/509/main/result.css");
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:10px}/* rem基准：1rem=10px，题目字体1.2rem=12px，行高1.65 */
+body{background:#e8ecf1;font-family:'Noto Sans SC','Microsoft YaHei',sans-serif;display:flex;justify-content:center;align-items:flex-start;gap:16px;min-height:100vh;padding:24px}
+.wrap{width:720px;background:#fff;border-radius:12px;box-shadow:0 4px 24px #00000018;overflow:hidden;flex-shrink:0}
+.config-panel{width:340px;flex-shrink:0;background:#fff;border-radius:12px;box-shadow:0 4px 24px #00000018;padding:16px;max-height:90vh;overflow-y:auto}
+.config-panel h3{font-size:14px;color:#3a5a8c;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #eee}
+.config-group{margin-bottom:14px}
+.config-group label{display:block;font-size:11px;color:#888;margin-bottom:4px}
+.config-group input{width:100%;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box}
+.config-group input:focus{outline:none;border-color:#3a5a8c}
+.config-row{display:flex;gap:6px}
+.config-row .config-group{flex:1;margin-bottom:0}
+.badge{position:absolute;z-index:5;pointer-events:none}
+.badge img{display:block;width:100%;height:auto}
+.region-container{position:absolute;z-index:4;box-sizing:border-box;padding:0.20% 0.12%;overflow:hidden;pointer-events:none;background:transparent}
+.region-container.debug{border:1px dashed rgba(14,165,233,.5)}
+.region-container.region-question.debug{border-color:rgba(239,68,68,.5)}
+.region-container.region-analysis.debug{border-color:rgba(14,165,233,.5)}
+.region-container.region-solution.debug{border-color:rgba(16,185,129,.5)}
+.region-container.region-summary.debug{border-color:rgba(168,85,247,.5)}
+
+/* 高仿手写板书动画：从左到右逐行揭示，非打字机 */
+.handwrite-line{
+  display:block;
+  clip-path:inset(0 100% 0 0); /* 初始：从右裁剪100%，完全隐藏 */
+  animation:handwrite-reveal 1.2s cubic-bezier(.22,.61,.36,1) forwards;
+}
+@keyframes handwrite-reveal{
+  to{clip-path:inset(0 0 0 0)} /* 结束：完全显示 */
+}
+.handwrite-line.paused{animation-play-state:paused}
+.handwrite-line.immediate{clip-path:inset(0 0 0 0);animation:none}
+
+.hd{background:linear-gradient(135deg,#3a5a8c,#5a7aac);padding:0 18px;height:50px;display:flex;align-items:center;gap:10px}
+.hd-t{color:white;font-size:15px;font-weight:600;flex:1;letter-spacing:.5px}
+.btn{border:none;padding:6px 16px;border-radius:14px;cursor:pointer;font-size:12px;font-family:inherit;transition:all .2s}
+.btn:active{transform:scale(.96)}
+.btn-prev{background:rgba(255,255,255,.2);color:white}
+.btn-prev:hover{background:rgba(255,255,255,.35)}
+.btn-next{background:white;color:#3a5a8c;font-weight:700}
+.btn-next:hover{background:#f0f4ff}
+.btn-reset{background:rgba(255,255,255,.12);color:white}
+.btn-reset:hover{background:rgba(255,255,255,.25)}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none}
+
+.prog-wrap{padding:14px 18px 8px}
+.prog-bg{width:100%;height:6px;background:#e0e4ea;border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;background:#3a5a8c;border-radius:3px;width:0;transition:width .5s ease}
+.prog-txt{text-align:center;font-size:11px;color:#999;margin-top:6px}
+
+.body{padding:10px 18px}
+.canvas-wrap{position:relative;width:100%;background-image:url(canvas.png);background-size:100% 100%;background-repeat:no-repeat;border-radius:10px;overflow:hidden}
+.canvas-wrap .label{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:11px;color:#c4b99a;pointer-events:none;z-index:1}
+.canvas-wrap canvas{display:block;width:100%;height:auto}
+
+.board-panel{flex:1;background:#fafbfc;border-radius:10px;border:1px solid #e8e8e8;padding:16px;min-height:390px;display:flex;flex-direction:column}
+.board-label{font-size:11px;color:#bbb;margin-bottom:12px}
+.board-title{font-family:'PingFangSaTuoTi','Noto Sans SC','Microsoft YaHei',sans-serif;font-size:15px;color:#2c3e50;font-weight:600;min-height:22px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #eee}
+.board-body{font-family:'PingFangSaTuoTi','Noto Sans SC','Microsoft YaHei',sans-serif;font-size:13px;color:#555;min-height:20px;margin-bottom:12px;line-height:1.7}
+.board-formula{font-family:'PingFangSaTuoTi','Noto Sans SC','Microsoft YaHei',sans-serif;font-size:12px;color:#1a4a8a;font-weight:600;min-height:18px;margin-bottom:12px;padding:8px 12px;background:#f0f4ff;border-radius:6px}
+.board-result{font-family:'PingFangSaTuoTi','Noto Sans SC','Microsoft YaHei',sans-serif;font-size:12px;color:#2a7a2a;min-height:18px;margin-bottom:12px;padding:8px 12px;background:#f0f8e8;border-radius:6px}
+.board-tip{font-family:'PingFangSaTuoTi','Noto Sans SC','Microsoft YaHei',sans-serif;font-size:11px;color:#ababab;min-height:16px;font-style:italic}
+.board-space{flex:1}
+.board-panels{margin-top:auto}
+.static-known{display:none;margin-top:10px;padding:10px;background:#fffbeb;border:1px solid #f0e4b0;border-radius:6px}
+.static-known .lbl{font-family:'PingFangSaTuoTi','Noto Sans SC','Microsoft YaHei',sans-serif;font-size:11px;color:#333;font-weight:600;margin-bottom:4px}
+.static-known ul{list-style:none;margin:0;padding:0}
+.static-known li{font-family:'PingFangSaTuoTi','Noto Sans SC','Microsoft YaHei',sans-serif;font-size:11px;color:#666;padding:2px 0 2px 12px;position:relative}
+.static-known li::before{content:'·';position:absolute;left:2px;top:2px;font-weight:bold;color:#999}
+.static-known .ask{font-family:'PingFangSaTuoTi','Noto Sans SC','Microsoft YaHei',sans-serif;font-size:11px;color:#d35400;margin-top:4px;padding-left:12px}
+.static-answer{display:none;margin-top:10px;padding:12px;background:#f0f8e8;border:1px solid #6a8a4a;border-radius:6px}
+.static-answer .big{font-family:'PingFangSaTuoTi','Noto Sans SC','Microsoft YaHei',sans-serif;font-size:14px;color:#2a7a2a;font-weight:700}
+.static-answer .small{font-family:'PingFangSaTuoTi','Noto Sans SC','Microsoft YaHei',sans-serif;font-size:10px;color:#888;margin-top:4px}
+
+.tts-bar{margin:0 18px 14px;background:#1a2a4a;border-radius:10px;padding:10px 16px}
+.tts-lbl{font-size:9px;color:#7ab4f8;margin-bottom:2px}
+.tts-txt{font-size:12px;color:#e8e8e8;min-height:18px;line-height:1.6}
+.sync{font-size:9px;color:#6aaa6a;margin-top:4px}
+.sync span{color:#c8e8c8;font-weight:600}
+
+/* 板书播放控制条 */
+.player-bar{display:flex;align-items:center;gap:10px;padding:8px 18px;background:#f0f3f8;border-top:1px solid #e0e4ea;}
+.player-btn{border:none;padding:5px 14px;border-radius:14px;background:#3a5a8c;color:white;cursor:pointer;font-size:12px;font-family:inherit;transition:all .2s;}
+.player-btn:hover{background:#4a6a9c}
+.player-btn:active{transform:scale(.96)}
+.player-slider{flex:1;height:4px;-webkit-appearance:none;appearance:none;background:#d0d4dc;border-radius:2px;outline:none;cursor:pointer;}
+.player-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:#3a5a8c;cursor:pointer;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.player-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#3a5a8c;cursor:pointer;border:2px solid white;}
+.player-time{font-size:11px;color:#888;min-width:70px;text-align:right;font-family:monospace;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hd">
+    <div class="hd-t">平行四边形面积 · 逐字板书讲解</div>
+    <button class="btn btn-prev" id="btnPrev">◀ 上一步</button>
+    <button class="btn btn-next" id="btnNext">下一步 ▶</button>
+    <button class="btn btn-reset" id="btnReset">重置</button>
+  </div>
+  <div class="prog-wrap">
+    <div class="prog-bg"><div class="prog-fill" id="progBar"></div></div>
+    <div class="prog-txt" id="progText">第 0 / 7 步 — 点击「下一步」开始</div>
+  </div>
+  <div class="body">
+    <div class="canvas-wrap" id="canvasWrap">
+      <div class="badge" id="badge-topic"><img src="https://i.ibb.co/bMwPqBpN/topic.png" alt="题目"></div>
+      <div class="badge" id="badge-analysis"><img src="https://i.ibb.co/9mHsQPSx/analysis.png" alt="分析"></div>
+      <div class="badge" id="badge-solution"><img src="https://i.ibb.co/MxXq10wz/solution.png" alt="解答"></div>
+      <div class="badge" id="badge-summary"><img src="https://i.ibb.co/Ld4qjwW9/summary.png" alt="总结"></div>
+      <div class="region-container region-question" id="region-question"></div>
+      <div class="region-container region-analysis" id="region-analysis"></div>
+      <div class="region-container region-solution" id="region-solution"></div>
+      <div class="region-container region-summary" id="region-summary"></div>
+      <canvas id="cv" width="1726" height="980"></canvas>
+    </div>
+  </div>
+
+  <!-- 板书播放控制条 -->
+  <div class="player-bar">
+    <button id="playBtn" class="player-btn">▶ 播放</button>
+    <input type="range" id="playSlider" class="player-slider" min="0" max="100" value="0" step="0.1">
+    <span id="playTime" class="player-time">0.0s / 0.0s</span>
+  </div>
+
+  <div class="tts-bar">
+    <div class="tts-lbl">口播台词（逐字）：</div>
+    <div class="tts-txt" id="ttsLive">口播台词等待开始…</div>
+    <div class="sync">板书同步状态：<span id="syncStat">等待开始</span></div>
+  </div>
+</div>
+
+<div class="config-panel" id="configPanel">
+  <h3>参数赋值配置</h3>
+
+  <div class="config-group">
+    <label>画布宽度 (px)</label>
+    <input type="number" id="cfg-canvas-w" value="1726">
+  </div>
+  <div class="config-group">
+    <label>画布高度 (px)</label>
+    <input type="number" id="cfg-canvas-h" value="980">
+  </div>
+  <div class="config-group">
+    <label>背景图</label>
+    <input type="text" id="cfg-bg" value="https://i.ibb.co/pvBCJjSG/canvas.png">
+  </div>
+
+  <div class="config-group">
+    <label>题目内容 (problemText)</label>
+    <textarea id="cfg-problem" rows="4" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box;resize:vertical;line-height:1.5">甲、乙两地相距一千米，A、B两人分别从甲、乙两地同时出发，在甲、乙两地之间往返散步。两人第一次相遇时距中点五十米，如果B的速度比A快，那么两人第二次相遇的地点距乙地多少米？</textarea>
+  </div>
+
+  <div class="config-group">
+    <label>题目图片 URL (有图时优先显示图片，自适应宽度)</label>
+    <input type="text" id="cfg-problem-img" value="" placeholder="留空则显示题目文字">
+  </div>
+
+  <div class="config-group">
+    <label>题目字体</label>
+    <div class="config-row">
+      <div class="config-group"><label>大小(rem)</label><input type="number" step="0.1" id="cfg-problem-font" value="1.2"></div>
+      <div class="config-group"><label>粗细</label><input type="number" step="100" id="cfg-problem-weight" value="500"></div>
+    </div>
+  </div>
+
+  <div class="config-group">
+    <label>板书字体（除题目区域外）</label>
+    <select id="cfg-board-font" style="width:100%;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box">
+      <option value="PING FANG SHAGN SHANG QIAN">PING FANG SHAGN SHANG QIAN</option>
+      <option value="PING FANG SHAO HUA">PING FANG SHAO HUA</option>
+      <option value="LikeJianJianTi" selected>LikeJianJianTi（默认）</option>
+      <option value="PING FANG SAN SHENG">PING FANG SAN SHENG</option>
+    </select>
+  </div>
+
+  <details style="margin-bottom:14px">
+    <summary style="font-size:10px;color:#aaa;cursor:pointer;user-select:none">板书内容 HTML 标签使用说明（点击展开）</summary>
+    <div style="margin-top:6px;padding:8px 10px;background:#fafafa;border-radius:5px;font-size:10px;color:#666;line-height:2">
+      <div><code style="background:#eee;padding:1px 4px;border-radius:2px;font-size:10px">&lt;b&gt;文字&lt;/b&gt;</code> 加粗</div>
+      <div><code style="background:#eee;padding:1px 4px;border-radius:2px;font-size:10px">&lt;i&gt;文字&lt;/i&gt;</code> 斜体</div>
+      <div><code style="background:#eee;padding:1px 4px;border-radius:2px;font-size:10px">&lt;u&gt;文字&lt;/u&gt;</code> 下划线</div>
+      <div><code style="background:#eee;padding:1px 4px;border-radius:2px;font-size:10px">&lt;br&gt;</code> 换行</div>
+      <div><code style="background:#eee;padding:1px 4px;border-radius:2px;font-size:10px">&lt;span style="color:#d64545"&gt;文字&lt;/span&gt;</code> 红色</div>
+      <div><code style="background:#eee;padding:1px 4px;border-radius:2px;font-size:10px">&lt;span style="background:#f8e58c"&gt;文字&lt;/span&gt;</code> 高亮</div>
+      <div style="margin-top:4px;color:#999;border-top:1px solid #eee;padding-top:4px">可组合：&lt;b&gt;&lt;span style="color:red"&gt;加粗红字&lt;/span&gt;&lt;/b&gt;</div>
+    </div>
+  </details>
+
+  <h3 style="margin-top:16px">角标坐标 (百分比)</h3>
+
+  <div class="config-group">
+    <label>题目角标</label>
+    <div class="config-row">
+      <div class="config-group"><label>x%</label><input type="number" step="0.1" id="cfg-topic-x" value="5.7"></div>
+      <div class="config-group"><label>y%</label><input type="number" step="0.1" id="cfg-topic-y" value="6.6"></div>
+      <div class="config-group"><label>w%</label><input type="number" step="0.1" id="cfg-topic-w" value="7.1"></div>
+    </div>
+  </div>
+
+  <div class="config-group">
+    <label>分析角标</label>
+    <div class="config-row">
+      <div class="config-group"><label>x%</label><input type="number" step="0.1" id="cfg-analysis-x" value="5.7"></div>
+      <div class="config-group"><label>y%</label><input type="number" step="0.1" id="cfg-analysis-y" value="34.5"></div>
+      <div class="config-group"><label>w%</label><input type="number" step="0.1" id="cfg-analysis-w" value="7.2"></div>
+    </div>
+  </div>
+
+  <div class="config-group">
+    <label>解答角标</label>
+    <div class="config-row">
+      <div class="config-group"><label>x%</label><input type="number" step="0.1" id="cfg-solution-x" value="53.7"></div>
+      <div class="config-group"><label>y%</label><input type="number" step="0.1" id="cfg-solution-y" value="6.6"></div>
+      <div class="config-group"><label>w%</label><input type="number" step="0.1" id="cfg-solution-w" value="7.4"></div>
+    </div>
+  </div>
+
+  <div class="config-group">
+    <label>总结角标</label>
+    <div class="config-row">
+      <div class="config-group"><label>x%</label><input type="number" step="0.1" id="cfg-summary-x" value="53.7"></div>
+      <div class="config-group"><label>y%</label><input type="number" step="0.1" id="cfg-summary-y" value="62.0"></div>
+      <div class="config-group"><label>w%</label><input type="number" step="0.1" id="cfg-summary-w" value="7.2"></div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:16px">区域容器坐标 (百分比)</h3>
+
+  <div class="config-group">
+    <label>Stage 1 · 题目区域</label>
+    <div class="config-row">
+      <div class="config-group"><label>x%</label><input type="number" step="0.1" id="cfg-q-x" value="6.0"></div>
+      <div class="config-group"><label>y%</label><input type="number" step="0.1" id="cfg-q-y" value="10.0"></div>
+      <div class="config-group"><label>w%</label><input type="number" step="0.1" id="cfg-q-w" value="44"></div>
+      <div class="config-group"><label>h%</label><input type="number" step="0.1" id="cfg-q-h" value="18"></div>
+    </div>
+  </div>
+
+  <div class="config-group">
+    <label>Stage 2 · 分析区域</label>
+    <div class="config-row">
+      <div class="config-group"><label>x%</label><input type="number" step="0.1" id="cfg-a-x" value="6.0"></div>
+      <div class="config-group"><label>y%</label><input type="number" step="0.1" id="cfg-a-y" value="41.0"></div>
+      <div class="config-group"><label>w%</label><input type="number" step="0.1" id="cfg-a-w" value="44"></div>
+      <div class="config-group"><label>h%</label><input type="number" step="0.1" id="cfg-a-h" value="48"></div>
+    </div>
+  </div>
+
+  <div class="config-group">
+    <label>Stage 3 · 解答区域</label>
+    <div class="config-row">
+      <div class="config-group"><label>x%</label><input type="number" step="0.1" id="cfg-s-x" value="54.0"></div>
+      <div class="config-group"><label>y%</label><input type="number" step="0.1" id="cfg-s-y" value="14.0"></div>
+      <div class="config-group"><label>w%</label><input type="number" step="0.1" id="cfg-s-w" value="40"></div>
+      <div class="config-group"><label>h%</label><input type="number" step="0.1" id="cfg-s-h" value="44"></div>
+    </div>
+  </div>
+
+  <div class="config-group">
+    <label>Stage 4 · 总结区域</label>
+    <div class="config-row">
+      <div class="config-group"><label>x%</label><input type="number" step="0.1" id="cfg-u-x" value="54.0"></div>
+      <div class="config-group"><label>y%</label><input type="number" step="0.1" id="cfg-u-y" value="69.5"></div>
+      <div class="config-group"><label>w%</label><input type="number" step="0.1" id="cfg-u-w" value="40"></div>
+      <div class="config-group"><label>h%</label><input type="number" step="0.1" id="cfg-u-h" value="22"></div>
+    </div>
+  </div>
+
+  <div class="config-group" style="margin-top:12px">
+    <label><input type="checkbox" id="cfg-show-regions" checked> 显示区域边框（调试用）</label>
+  </div>
+
+  <h3 style="margin-top:16px">Stage 内容配置 (board 板书 + txt 文本)</h3>
+
+  <div class="config-group">
+    <label>Stage 2 · 分析内容 (analysis)</label>
+    <details style="margin-top:4px" open>
+      <summary style="font-size:11px;color:#3a5a8c;cursor:pointer;font-weight:600">board 板书内容 · rows 数组（按顺序播放）</summary>
+      <div id="board-rows-analysis" data-prefix="ab" style="margin-top:8px">
+        <!-- Row 0 -->
+        <div class="board-row" style="border:1px solid #e8e8e8;border-radius:6px;padding:8px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:10px;color:#aaa">row 0</span>
+            <button type="button" onclick="deleteBoardRow(this)" style="border:none;background:#f5f5f5;color:#999;width:18px;height:18px;border-radius:4px;cursor:pointer;font-size:12px;line-height:1;padding:0">×</button>
+          </div>
+          <div class="config-row">
+            <div class="config-group"><label style="font-size:10px">time起</label><input type="number" step="0.1" id="ab0-t0" value="0"></div>
+            <div class="config-group"><label style="font-size:10px">time止</label><input type="number" step="0.1" id="ab0-t1" value="3"></div>
+            <div class="config-group"><label style="font-size:10px">startX%</label><input type="number" step="0.1" id="ab0-x" value="8"></div>
+            <div class="config-group"><label style="font-size:10px">startY%</label><input type="number" step="0.1" id="ab0-y" value="44"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+            <label style="font-size:10px;color:#999;margin:0">content</label>
+            <div style="display:flex;gap:4px">
+              <div><label style="font-size:9px;color:#bbb;display:block;text-align:center">旋转°</label><input type="number" step="1" id="ab0-rotate" value="-3" style="width:52px;padding:3px 4px;font-size:10px;text-align:center"></div>
+              <div><label style="font-size:9px;color:#bbb;display:block;text-align:center">字号rem</label><input type="number" step="0.1" id="ab0-fontsize" value="1.6" style="width:52px;padding:3px 4px;font-size:10px;text-align:center"></div>
+            </div>
+          </div>
+          <textarea id="ab0-content" rows="2" style="width:100%;padding:5px 7px;border:1px solid #ddd;border-radius:5px;font-size:11px;font-family:inherit;box-sizing:border-box;resize:vertical;line-height:1.4" placeholder="绘制指令或文本...">1. <b>第一次相遇分析</b><br>   两人共走1个全程</textarea>
+        </div>
+        <!-- Row 1 -->
+        <div class="board-row" style="border:1px solid #e8e8e8;border-radius:6px;padding:8px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:10px;color:#aaa">row 1</span>
+            <button type="button" onclick="deleteBoardRow(this)" style="border:none;background:#f5f5f5;color:#999;width:18px;height:18px;border-radius:4px;cursor:pointer;font-size:12px;line-height:1;padding:0">×</button>
+          </div>
+          <div class="config-row">
+            <div class="config-group"><label style="font-size:10px">time起</label><input type="number" step="0.1" id="ab1-t0" value="3"></div>
+            <div class="config-group"><label style="font-size:10px">time止</label><input type="number" step="0.1" id="ab1-t1" value="6"></div>
+            <div class="config-group"><label style="font-size:10px">startX%</label><input type="number" step="0.1" id="ab1-x" value="8"></div>
+            <div class="config-group"><label style="font-size:10px">startY%</label><input type="number" step="0.1" id="ab1-y" value="55"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+            <label style="font-size:10px;color:#999;margin:0">content</label>
+            <div style="display:flex;gap:4px">
+              <div><label style="font-size:9px;color:#bbb;display:block;text-align:center">旋转°</label><input type="number" step="1" id="ab1-rotate" value="0" style="width:52px;padding:3px 4px;font-size:10px;text-align:center"></div>
+              <div><label style="font-size:9px;color:#bbb;display:block;text-align:center">字号rem</label><input type="number" step="0.1" id="ab1-fontsize" value="1.5" style="width:52px;padding:3px 4px;font-size:10px;text-align:center"></div>
+            </div>
+          </div>
+          <textarea id="ab1-content" rows="2" style="width:100%;padding:5px 7px;border:1px solid #ddd;border-radius:5px;font-size:11px;font-family:inherit;box-sizing:border-box;resize:vertical;line-height:1.4" placeholder="绘制指令或文本...">2. 第二次相遇分析<br>   两人共走3个全程</textarea>
+        </div>
+      </div>
+      <button type="button" onclick="addBoardRow('board-rows-analysis')" style="width:100%;padding:5px;border:1px dashed #ccc;border-radius:5px;background:#fafafa;color:#888;font-size:11px;cursor:pointer;margin-bottom:8px">+ 添加 row</button>
+    </details>
+    <label style="font-size:11px;color:#999;margin-top:6px">txt 文本</label>
+    <textarea id="cfg-analysis-txt" rows="2" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box;resize:vertical;line-height:1.5" placeholder="分析环节的口播/辅助文本..."></textarea>
+  </div>
+
+  <div class="config-group">
+    <label>Stage 3 · 解答内容 (solution)</label>
+    <details style="margin-top:4px" open>
+      <summary style="font-size:11px;color:#3a5a8c;cursor:pointer;font-weight:600">board 板书内容 · rows 数组（按顺序播放）</summary>
+      <div id="board-rows-solution" data-prefix="sb" style="margin-top:8px">
+        <div class="board-row" style="border:1px solid #e8e8e8;border-radius:6px;padding:8px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:10px;color:#aaa">row 0</span>
+            <button type="button" onclick="deleteBoardRow(this)" style="border:none;background:#f5f5f5;color:#999;width:18px;height:18px;border-radius:4px;cursor:pointer;font-size:12px;line-height:1;padding:0">×</button>
+          </div>
+          <div class="config-row">
+            <div class="config-group"><label style="font-size:10px">time起</label><input type="number" step="0.1" id="sb0-t0" value="0"></div>
+            <div class="config-group"><label style="font-size:10px">time止</label><input type="number" step="0.1" id="sb0-t1" value="3"></div>
+            <div class="config-group"><label style="font-size:10px">startX%</label><input type="number" step="0.1" id="sb0-x" value="56"></div>
+            <div class="config-group"><label style="font-size:10px">startY%</label><input type="number" step="0.1" id="sb0-y" value="17"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+            <label style="font-size:10px;color:#999;margin:0">content</label>
+            <div style="display:flex;gap:4px">
+              <div><label style="font-size:9px;color:#bbb;display:block;text-align:center">旋转°</label><input type="number" step="1" id="sb0-rotate" value="0" style="width:52px;padding:3px 4px;font-size:10px;text-align:center"></div>
+              <div><label style="font-size:9px;color:#bbb;display:block;text-align:center">字号rem</label><input type="number" step="0.1" id="sb0-fontsize" value="1.5" style="width:52px;padding:3px 4px;font-size:10px;text-align:center"></div>
+            </div>
+          </div>
+          <textarea id="sb0-content" rows="2" style="width:100%;padding:5px 7px;border:1px solid #ddd;border-radius:5px;font-size:11px;font-family:inherit;box-sizing:border-box;resize:vertical;line-height:1.4" placeholder="绘制指令或文本..."></textarea>
+        </div>
+        <div class="board-row" style="border:1px solid #e8e8e8;border-radius:6px;padding:8px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:10px;color:#aaa">row 1</span>
+            <button type="button" onclick="deleteBoardRow(this)" style="border:none;background:#f5f5f5;color:#999;width:18px;height:18px;border-radius:4px;cursor:pointer;font-size:12px;line-height:1;padding:0">×</button>
+          </div>
+          <div class="config-row">
+            <div class="config-group"><label style="font-size:10px">time起</label><input type="number" step="0.1" id="sb1-t0" value="3"></div>
+            <div class="config-group"><label style="font-size:10px">time止</label><input type="number" step="0.1" id="sb1-t1" value="6"></div>
+            <div class="config-group"><label style="font-size:10px">startX%</label><input type="number" step="0.1" id="sb1-x" value="56"></div>
+            <div class="config-group"><label style="font-size:10px">startY%</label><input type="number" step="0.1" id="sb1-y" value="28"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+            <label style="font-size:10px;color:#999;margin:0">content</label>
+            <div style="display:flex;gap:4px">
+              <div><label style="font-size:9px;color:#bbb;display:block;text-align:center">旋转°</label><input type="number" step="1" id="sb1-rotate" value="0" style="width:52px;padding:3px 4px;font-size:10px;text-align:center"></div>
+              <div><label style="font-size:9px;color:#bbb;display:block;text-align:center">字号rem</label><input type="number" step="0.1" id="sb1-fontsize" value="1.5" style="width:52px;padding:3px 4px;font-size:10px;text-align:center"></div>
+            </div>
+          </div>
+          <textarea id="sb1-content" rows="2" style="width:100%;padding:5px 7px;border:1px solid #ddd;border-radius:5px;font-size:11px;font-family:inherit;box-sizing:border-box;resize:vertical;line-height:1.4" placeholder="绘制指令或文本..."></textarea>
+        </div>
+      </div>
+      <button type="button" onclick="addBoardRow('board-rows-solution')" style="width:100%;padding:5px;border:1px dashed #ccc;border-radius:5px;background:#fafafa;color:#888;font-size:11px;cursor:pointer;margin-bottom:8px">+ 添加 row</button>
+    </details>
+    <label style="font-size:11px;color:#999;margin-top:6px">txt 文本</label>
+    <textarea id="cfg-solution-txt" rows="2" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box;resize:vertical;line-height:1.5" placeholder="解答环节的口播/辅助文本..."></textarea>
+  </div>
+
+  <div class="config-group">
+    <label>Stage 4 · 总结内容 (summary)</label>
+    <details style="margin-top:4px" open>
+      <summary style="font-size:11px;color:#3a5a8c;cursor:pointer;font-weight:600">board 板书内容 · rows 数组（按顺序播放）</summary>
+      <div id="board-rows-summary" data-prefix="mb" style="margin-top:8px">
+        <div class="board-row" style="border:1px solid #e8e8e8;border-radius:6px;padding:8px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:10px;color:#aaa">row 0</span>
+            <button type="button" onclick="deleteBoardRow(this)" style="border:none;background:#f5f5f5;color:#999;width:18px;height:18px;border-radius:4px;cursor:pointer;font-size:12px;line-height:1;padding:0">×</button>
+          </div>
+          <div class="config-row">
+            <div class="config-group"><label style="font-size:10px">time起</label><input type="number" step="0.1" id="mb0-t0" value="0"></div>
+            <div class="config-group"><label style="font-size:10px">time止</label><input type="number" step="0.1" id="mb0-t1" value="3"></div>
+            <div class="config-group"><label style="font-size:10px">startX%</label><input type="number" step="0.1" id="mb0-x" value="56"></div>
+            <div class="config-group"><label style="font-size:10px">startY%</label><input type="number" step="0.1" id="mb0-y" value="72"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+            <label style="font-size:10px;color:#999;margin:0">content</label>
+            <div style="display:flex;gap:4px">
+              <div><label style="font-size:9px;color:#bbb;display:block;text-align:center">旋转°</label><input type="number" step="1" id="mb0-rotate" value="0" style="width:52px;padding:3px 4px;font-size:10px;text-align:center"></div>
+              <div><label style="font-size:9px;color:#bbb;display:block;text-align:center">字号rem</label><input type="number" step="0.1" id="mb0-fontsize" value="1.5" style="width:52px;padding:3px 4px;font-size:10px;text-align:center"></div>
+            </div>
+          </div>
+          <textarea id="mb0-content" rows="2" style="width:100%;padding:5px 7px;border:1px solid #ddd;border-radius:5px;font-size:11px;font-family:inherit;box-sizing:border-box;resize:vertical;line-height:1.4" placeholder="绘制指令或文本..."></textarea>
+        </div>
+        <div class="board-row" style="border:1px solid #e8e8e8;border-radius:6px;padding:8px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:10px;color:#aaa">row 1</span>
+            <button type="button" onclick="deleteBoardRow(this)" style="border:none;background:#f5f5f5;color:#999;width:18px;height:18px;border-radius:4px;cursor:pointer;font-size:12px;line-height:1;padding:0">×</button>
+          </div>
+          <div class="config-row">
+            <div class="config-group"><label style="font-size:10px">time起</label><input type="number" step="0.1" id="mb1-t0" value="3"></div>
+            <div class="config-group"><label style="font-size:10px">time止</label><input type="number" step="0.1" id="mb1-t1" value="6"></div>
+            <div class="config-group"><label style="font-size:10px">startX%</label><input type="number" step="0.1" id="mb1-x" value="56"></div>
+            <div class="config-group"><label style="font-size:10px">startY%</label><input type="number" step="0.1" id="mb1-y" value="82"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+            <label style="font-size:10px;color:#999;margin:0">content</label>
+            <div style="display:flex;gap:4px">
+              <div><label style="font-size:9px;color:#bbb;display:block;text-align:center">旋转°</label><input type="number" step="1" id="mb1-rotate" value="0" style="width:52px;padding:3px 4px;font-size:10px;text-align:center"></div>
+              <div><label style="font-size:9px;color:#bbb;display:block;text-align:center">字号rem</label><input type="number" step="0.1" id="mb1-fontsize" value="1.5" style="width:52px;padding:3px 4px;font-size:10px;text-align:center"></div>
+            </div>
+          </div>
+          <textarea id="mb1-content" rows="2" style="width:100%;padding:5px 7px;border:1px solid #ddd;border-radius:5px;font-size:11px;font-family:inherit;box-sizing:border-box;resize:vertical;line-height:1.4" placeholder="绘制指令或文本..."></textarea>
+        </div>
+      </div>
+      <button type="button" onclick="addBoardRow('board-rows-summary')" style="width:100%;padding:5px;border:1px dashed #ccc;border-radius:5px;background:#fafafa;color:#888;font-size:11px;cursor:pointer;margin-bottom:8px">+ 添加 row</button>
+    </details>
+    <label style="font-size:11px;color:#999;margin-top:6px">txt 文本</label>
+    <textarea id="cfg-summary-txt" rows="2" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box;resize:vertical;line-height:1.5" placeholder="总结环节的口播/辅助文本..."></textarea>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════
+//  参数配置 & 动态赋值
+// ═══════════════════════════════════
+const BADGE_IDS = ['topic','analysis','solution','summary'];
+const REGION_IDS = ['question','analysis','solution','summary'];
+const REGION_PREFIX = {question:'q', analysis:'a', solution:'s', summary:'u'};
+const cfgInputs = {};
+BADGE_IDS.forEach(id => {
+  cfgInputs[id] = {
+    x: document.getElementById('cfg-'+id+'-x'),
+    y: document.getElementById('cfg-'+id+'-y'),
+    w: document.getElementById('cfg-'+id+'-w'),
+  };
+});
+const cfgRegions = {};
+REGION_IDS.forEach(id => {
+  const p = REGION_PREFIX[id];
+  cfgRegions[id] = {
+    x: document.getElementById('cfg-'+p+'-x'),
+    y: document.getElementById('cfg-'+p+'-y'),
+    w: document.getElementById('cfg-'+p+'-w'),
+    h: document.getElementById('cfg-'+p+'-h'),
+  };
+});
+const cfgShowRegions = document.getElementById('cfg-show-regions');
+const cfgProblem = document.getElementById('cfg-problem');
+const cfgProblemImg = document.getElementById('cfg-problem-img');
+const cfgProblemFont = document.getElementById('cfg-problem-font');
+const cfgProblemWeight = document.getElementById('cfg-problem-weight');
+const cfgBoardFont = document.getElementById('cfg-board-font');
+// Stage 内容配置：board 板书(结构化rows) + txt 文本
+// 三个 stage 的 board 都已改为结构化 rows 配置
+const cfgStageContent = {
+  analysis: {txt: document.getElementById('cfg-analysis-txt')},
+  solution: {txt: document.getElementById('cfg-solution-txt')},
+  summary: {txt: document.getElementById('cfg-summary-txt')},
+};
+
+// board rows 前缀映射：analysis='ab', solution='sb', summary='mb'
+const BOARD_ROW_PREFIX = {analysis:'ab', solution:'sb', summary:'mb'};
+
+// 动态读取 board rows（通过 container 查询所有 .board-row，支持动态增删）
+function readBoardRows(prefix){
+  const stage = Object.keys(BOARD_ROW_PREFIX).find(k => BOARD_ROW_PREFIX[k] === prefix);
+  const container = document.getElementById('board-rows-' + stage);
+  if(!container) return [];
+  const rowEls = container.querySelectorAll('.board-row');
+  const rows = [];
+  rowEls.forEach((rowEl, idx) => {
+    const t0 = document.getElementById(prefix + idx + '-t0');
+    const t1 = document.getElementById(prefix + idx + '-t1');
+    const x = document.getElementById(prefix + idx + '-x');
+    const y = document.getElementById(prefix + idx + '-y');
+    const content = document.getElementById(prefix + idx + '-content');
+    const rotate = document.getElementById(prefix + idx + '-rotate');
+    const fontSize = document.getElementById(prefix + idx + '-fontsize');
+    if(!t0) return;
+    rows.push({
+      time: [Number(t0.value)||0, Number(t1.value)||0],
+      startX: Number(x.value)||0,
+      startY: Number(y.value)||0,
+      rotate: rotate ? (Number(rotate.value)||0) : 0,
+      fontSize: fontSize ? ((Number(fontSize.value)||1.4)+'rem') : '1.4rem',
+      content: content.value||'',
+    });
+  });
+  return rows;
+}
+
+// 动态添加 board row
+function addBoardRow(containerId){
+  const container = document.getElementById(containerId);
+  const prefix = container.dataset.prefix;
+  const rowEls = container.querySelectorAll('.board-row');
+  const idx = rowEls.length;
+  const rowEl = document.createElement('div');
+  rowEl.className = 'board-row';
+  rowEl.style.cssText = 'border:1px solid #e8e8e8;border-radius:6px;padding:8px;margin-bottom:8px;position:relative';
+  rowEl.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <span style="font-size:10px;color:#aaa">row ${idx}</span>
+      <button type="button" onclick="deleteBoardRow(this)" style="border:none;background:#f5f5f5;color:#999;width:18px;height:18px;border-radius:4px;cursor:pointer;font-size:12px;line-height:1;padding:0">×</button>
+    </div>
+    <div class="config-row">
+      <div class="config-group"><label style="font-size:10px">time起</label><input type="number" step="0.1" id="${prefix}${idx}-t0" value="0"></div>
+      <div class="config-group"><label style="font-size:10px">time止</label><input type="number" step="0.1" id="${prefix}${idx}-t1" value="3"></div>
+      <div class="config-group"><label style="font-size:10px">startX%</label><input type="number" step="0.1" id="${prefix}${idx}-x" value="8"></div>
+      <div class="config-group"><label style="font-size:10px">startY%</label><input type="number" step="0.1" id="${prefix}${idx}-y" value="44"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+      <label style="font-size:10px;color:#999;margin:0">content</label>
+      <div style="display:flex;gap:4px">
+        <div><label style="font-size:9px;color:#bbb;display:block;text-align:center">旋转°</label><input type="number" step="1" id="${prefix}${idx}-rotate" value="0" style="width:52px;padding:3px 4px;font-size:10px;text-align:center"></div>
+        <div><label style="font-size:9px;color:#bbb;display:block;text-align:center">字号rem</label><input type="number" step="0.1" id="${prefix}${idx}-fontsize" value="1.5" style="width:52px;padding:3px 4px;font-size:10px;text-align:center"></div>
+      </div>
+    </div>
+    <textarea id="${prefix}${idx}-content" rows="2" style="width:100%;padding:5px 7px;border:1px solid #ddd;border-radius:5px;font-size:11px;font-family:inherit;box-sizing:border-box;resize:vertical;line-height:1.4" placeholder="绘制指令或文本..."></textarea>
+  `;
+  container.appendChild(rowEl);
+  // 给新添加的输入框绑定事件
+  rowEl.querySelectorAll('input, textarea').forEach(el => {
+    el.addEventListener('input', applyConfig);
+    el.addEventListener('change', applyConfig);
+  });
+  applyConfig();
+}
+
+// 删除 board row
+function deleteBoardRow(btn){
+  const rowEl = btn.closest('.board-row');
+  const container = rowEl.parentElement;
+  const prefix = container.dataset.prefix;
+  rowEl.remove();
+  // 重新编号和重设 id
+  const rowEls = container.querySelectorAll('.board-row');
+  rowEls.forEach((row, idx) => {
+    const idxSpan = row.querySelector('span');
+    if(idxSpan) idxSpan.textContent = 'row ' + idx;
+    row.querySelectorAll('[id]').forEach(el => {
+      const field = el.id.split('-').pop();
+      el.id = prefix + idx + '-' + field;
+    });
+  });
+  applyConfig();
+}
+const cfgCanvasW = document.getElementById('cfg-canvas-w');
+const cfgCanvasH = document.getElementById('cfg-canvas-h');
+const cfgBg = document.getElementById('cfg-bg');
+
+function getConfig(){
+  const cfg = {
+    canvasW: Number(cfgCanvasW.value) || 1726,
+    canvasH: Number(cfgCanvasH.value) || 980,
+    bg: cfgBg.value || 'canvas.png',
+    badges: {},
+  };
+  BADGE_IDS.forEach(id => {
+    cfg.badges[id] = {
+      x: Number(cfgInputs[id].x.value) || 0,
+      y: Number(cfgInputs[id].y.value) || 0,
+      w: Number(cfgInputs[id].w.value) || 0,
+    };
+  });
+  cfg.regions = {};
+  REGION_IDS.forEach((id, idx) => {
+    cfg.regions[id] = {
+      stage: idx + 1,
+      x: Number(cfgRegions[id].x.value) || 0,
+      y: Number(cfgRegions[id].y.value) || 0,
+      w: Number(cfgRegions[id].w.value) || 0,
+      h: Number(cfgRegions[id].h.value) || 0,
+    };
+  });
+  cfg.showRegions = cfgShowRegions.checked;
+  cfg.problemText = cfgProblem.value || '';
+  cfg.problemImage = (cfgProblemImg.value || '').trim();
+  cfg.problemFontSize = (Number(cfgProblemFont.value) || 1.2) + 'rem';
+  cfg.problemFontWeight = Number(cfgProblemWeight.value) || 500;
+  cfg.boardFont = cfgBoardFont.value || 'LikeJianJianTi';
+  // Stage 内容：board 板书(结构化rows) + txt 文本（Stage 2/3/4 对应 analysis/solution/summary）
+  cfg.stageContent = {};
+  ['analysis','solution','summary'].forEach(id => {
+    cfg.stageContent[id] = {
+      board: { rows: readBoardRows(BOARD_ROW_PREFIX[id]) },
+      txt: cfgStageContent[id].txt.value || '',
+    };
+  });
+  return cfg;
+}
+
+function applyConfig(){
+  const cfg = getConfig();
+  window._boardCfg = cfg;
+  // 画布尺寸
+  cv.width = cfg.canvasW;
+  cv.height = cfg.canvasH;
+  // 背景图
+  document.getElementById('canvasWrap').style.backgroundImage = 'url('+cfg.bg+')';
+  // 角标定位：百分比（和背景图一起缩放）
+  BADGE_IDS.forEach(id => {
+    const b = cfg.badges[id];
+    const el = document.getElementById('badge-'+id);
+    el.style.left = b.x + '%';
+    el.style.top = b.y + '%';
+    el.style.width = b.w + '%';
+  });
+  // 区域容器定位：百分比
+  REGION_IDS.forEach(id => {
+    const r = cfg.regions[id];
+    const el = document.getElementById('region-'+id);
+    el.style.left = r.x + '%';
+    el.style.top = r.y + '%';
+    el.style.width = r.w + '%';
+    el.style.height = r.h + '%';
+    // 题目区域用微软雅黑（印刷体），其他区域用板书字体（手写体）
+    if(id === 'question'){
+      el.style.fontFamily = '"Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif';
+    } else {
+      el.style.fontFamily = '"'+cfg.boardFont+'","Noto Sans SC",sans-serif';
+    }
+    if(cfg.showRegions) el.classList.add('debug');
+    else el.classList.remove('debug');
+  });
+
+  // 渲染 board 内容到对应区域容器（analysis/solution/summary）
+  // 每个 row 从 startX%/startY% 开始显示 content，用板书字体
+  ['analysis','solution','summary'].forEach(id => {
+    const el = document.getElementById('region-'+id);
+    el.innerHTML = '';
+    const rows = cfg.stageContent[id].board.rows;
+    rows.forEach(row => {
+      if(!row.content) return;
+      const rowEl = document.createElement('div');
+      rowEl.style.position = 'absolute';
+      rowEl.style.left = row.startX + '%';
+      rowEl.style.top = row.startY + '%';
+      rowEl.style.whiteSpace = 'pre-wrap';
+      rowEl.style.wordBreak = 'break-word';
+      rowEl.style.color = '#1f1f1f';
+      rowEl.style.lineHeight = '1.6';
+      rowEl.style.fontSize = '14px';
+      rowEl.innerHTML = row.content; // content 支持 <br> 换行
+      el.appendChild(rowEl);
+    });
+  });
+
+  // 题目内容渲染到题目容器：有图片优先显示图片（自适应宽度），无图显示文字
+  const qEl = document.getElementById('region-question');
+  if(cfg.problemImage){
+    qEl.innerHTML = '';
+    const img = document.createElement('img');
+    img.src = cfg.problemImage;
+    img.style.width = '100%';
+    img.style.height = 'auto';
+    img.style.display = 'block';
+    img.style.objectFit = 'contain';
+    qEl.appendChild(img);
+  } else {
+    qEl.style.fontFamily = '"Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif';
+    qEl.style.fontSize = cfg.problemFontSize;/* 标准：默认1.2rem=12px（基准10px），行高1.65，前端可配置 */
+    qEl.style.fontWeight = cfg.problemFontWeight;/* 默认500，前端可配置 */
+    qEl.style.lineHeight = '1.65';
+    qEl.style.color = '#1f1f1f';
+    qEl.style.whiteSpace = 'pre-wrap';
+    qEl.style.wordBreak = 'break-word';
+    qEl.textContent = cfg.problemText;
+  }
+
+  // 板书内容渲染到对应区域（每个 row 按起手坐标 startX%/startY% 绝对定位；播放过滤由外层处理）
+  ['analysis','solution','summary'].forEach(id => {
+    const el = document.getElementById('region-'+id);
+    const rows = cfg.stageContent[id].board.rows;
+    el.innerHTML = '';
+    rows.forEach(row => {
+      if(!row.content || !row.content.trim()) return;
+      const rowEl = document.createElement('div');
+      rowEl.style.position = 'absolute';
+      rowEl.style.left = row.startX + '%';
+      rowEl.style.top = row.startY + '%';
+      rowEl.style.fontSize = row.fontSize;
+      rowEl.style.lineHeight = '1.8';
+      rowEl.style.color = (id === 'analysis') ? '#d64545' : '#1f1f1f';
+      rowEl.style.whiteSpace = 'pre-wrap';
+      rowEl.style.wordBreak = 'break-word';
+      rowEl.style.transform = 'rotate(' + row.rotate + 'deg)';
+      rowEl.style.transformOrigin = 'top left';
+      // 限制 rowEl 不溢出区域容器（从起手坐标到容器边界）
+      rowEl.style.maxWidth = 'calc(100% - ' + row.startX + '%)';
+      rowEl.style.maxHeight = 'calc(100% - ' + row.startY + '%)';
+      rowEl.className = 'board-row-el';
+      rowEl.dataset.stage = id;
+      rowEl.dataset.rowIndex = idx;
+      rowEl.style.clipPath = 'inset(0 100% 0 0)';
+      rowEl.style.overflow = 'hidden';
+      // 判断 content 是否为图片 URL，是则渲染成图片，否则按多行 HTML 文本渲染
+      const trimmed = row.content.trim();
+      const isImg = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?.*)?$/i.test(trimmed);
+      if(isImg){
+        rowEl.innerHTML = '<img src="'+trimmed+'" style="max-width:100%;max-height:100%;width:auto;height:auto;display:block;border-radius:4px;object-fit:contain;">';
+      } else {
+        // 按 <br> 拆分成多行，每行伪随机行高（1.65~1.95，模拟手写自然感）
+        const lines = row.content.split(/<br\s*\/?>/i);
+        let html = '';
+        lines.forEach((line, lineIdx) => {
+          // 伪随机基于内容长度+行号，保证同样内容每次渲染行高稳定不跳动
+          const seed = (row.content.length * 13 + lineIdx * 7 + row.startX * 3) % 100;
+          const rand = Math.abs((Math.sin(seed * 12.9898) * 43758.5453) % 1);
+          const lh = (1.65 + rand * 0.3).toFixed(2);
+          // 逐行手写揭示动画，每行延迟0.25s
+          html += '<div style="line-height:' + lh + '">' + line + '</div>';
+        });
+        rowEl.innerHTML = html;
+      }
+      el.appendChild(rowEl);
+    });
+  });
+  // 重建板书播放时间轴并按当前时间渲染
+  buildTimeline(cfg);
+  renderBoardByTime();
+}
+
+// ═══════════════════════════════════
+//  板书播放控制（时间轴 + 播放条）
+// ═══════════════════════════════════
+let timeline = [];
+let totalDuration = 0;
+let currentTime = 0;
+let isPlaying = false;
+let playRAF = null;
+const PLAY_MIN_DUR = 1.0;
+const PLAY_MAX_DUR = 1.5;
+const PLAY_ROW_GAP = 0.25;
+
+function buildTimeline(cfg){
+  timeline = [];
+  let t = 0;
+  ['analysis','solution','summary'].forEach(stage => {
+    if(!cfg || !cfg.stageContent || !cfg.stageContent[stage]) return;
+    const rows = cfg.stageContent[stage].board.rows;
+    rows.forEach((row, idx) => {
+      const seed = (row.content.length * 7 + idx * 13 + stage.length * 3) % 100;
+      const rand = Math.abs((Math.sin(seed * 12.9898) * 43758.5453) % 1);
+      const duration = PLAY_MIN_DUR + rand * (PLAY_MAX_DUR - PLAY_MIN_DUR);
+      timeline.push({stage, rowIndex: idx, startTime: t, duration, endTime: t + duration});
+      t += duration + PLAY_ROW_GAP;
+    });
+  });
+  totalDuration = Math.max(0.1, t - PLAY_ROW_GAP);
+  const slider = document.getElementById('playSlider');
+  if(slider) slider.max = totalDuration.toFixed(1);
+  updatePlayUI();
+}
+
+function renderBoardByTime(){
+  document.querySelectorAll('.board-row-el').forEach(rowEl => {
+    const stage = rowEl.dataset.stage;
+    const rowIndex = parseInt(rowEl.dataset.rowIndex);
+    const item = timeline.find(t => t.stage === stage && t.rowIndex === rowIndex);
+    if(!item){ rowEl.style.clipPath = 'inset(0 100% 0 0)'; return; }
+    let progress;
+    if(currentTime <= item.startTime) progress = 0;
+    else if(currentTime >= item.endTime) progress = 1;
+    else progress = (currentTime - item.startTime) / item.duration;
+    rowEl.style.clipPath = 'inset(0 ' + ((1-progress)*100) + '% 0 0)';
+  });
+}
+
+function updatePlayUI(){
+  const slider = document.getElementById('playSlider');
+  const timeEl = document.getElementById('playTime');
+  const btn = document.getElementById('playBtn');
+  if(slider) slider.value = Math.min(currentTime, totalDuration);
+  if(timeEl) timeEl.textContent = currentTime.toFixed(1) + 's / ' + totalDuration.toFixed(1) + 's';
+  if(btn) btn.textContent = isPlaying ? '⏸ 暂停' : '▶ 播放';
+}
+
+function startPlay(){
+  if(totalDuration <= 0) return;
+  if(currentTime >= totalDuration - 0.01) currentTime = 0;
+  isPlaying = true;
+  updatePlayUI();
+  let lastTime = performance.now();
+  function tick(now){
+    if(!isPlaying) return;
+    const dt = (now - lastTime) / 1000;
+    lastTime = now;
+    currentTime += dt;
+    if(currentTime >= totalDuration){ currentTime = totalDuration; pausePlay(); }
+    updatePlayUI();
+    renderBoardByTime();
+    if(isPlaying) playRAF = requestAnimationFrame(tick);
+  }
+  playRAF = requestAnimationFrame(tick);
+}
+function pausePlay(){
+  isPlaying = false;
+  if(playRAF){ cancelAnimationFrame(playRAF); playRAF = null; }
+  updatePlayUI();
+}
+function togglePlay(){ isPlaying ? pausePlay() : startPlay(); }
+
+// 绑定播放控制事件
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('playBtn');
+  const slider = document.getElementById('playSlider');
+  if(btn) btn.addEventListener('click', togglePlay);
+  if(slider) slider.addEventListener('input', () => {
+    currentTime = parseFloat(slider.value);
+    pausePlay();
+    renderBoardByTime();
+    updatePlayUI();
+  });
+});
+
+// 实时监听配置变化
+[cfgCanvasW, cfgCanvasH, cfgBg, cfgShowRegions, cfgProblem, cfgProblemImg, cfgProblemFont, cfgProblemWeight, cfgBoardFont,
+  ...BADGE_IDS.flatMap(id => [cfgInputs[id].x, cfgInputs[id].y, cfgInputs[id].w]),
+  ...REGION_IDS.flatMap(id => [cfgRegions[id].x, cfgRegions[id].y, cfgRegions[id].w, cfgRegions[id].h]),
+  // 三个 stage 的 txt
+  ...['analysis','solution','summary'].map(id => cfgStageContent[id].txt),
+  // 三个 stage 的 board rows 所有输入框（ab=analysis, sb=solution, mb=summary）
+  ...['ab','sb','mb'].flatMap(prefix =>
+    [0,1].flatMap(i => [
+      document.getElementById(prefix+i+'-t0'),
+      document.getElementById(prefix+i+'-t1'),
+      document.getElementById(prefix+i+'-x'),
+      document.getElementById(prefix+i+'-y'),
+      document.getElementById(prefix+i+'-content'),
+    ])
+  )
+].forEach(el => {
+  el.addEventListener('input', applyConfig);
+  el.addEventListener('change', applyConfig);
+});
+
+// 给所有现有 board row 里的输入框绑定事件（旋转、字号等）
+document.querySelectorAll('.board-row input, .board-row textarea').forEach(el => {
+  el.addEventListener('input', applyConfig);
+  el.addEventListener('change', applyConfig);
+});
+
+// ═══════════════════════════════════
+//  坐标 & rough.js 初始化
+// ═══════════════════════════════════
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const rc = rough.canvas(cv);
+const W=1726,H=980;
+
+const A={x:80,y:300},B={x:270,y:300},C={x:300,y:150},D={x:110,y:150};
+const Hfoot={x:D.x,y:A.y};
+const Htop={x:D.x,y:D.y};
+
+const FONT = '"PingFangSaTuoTi","Noto Sans SC","Microsoft YaHei",sans-serif';
+
+// rough.js 公共样式
+const RS={roughness:1.8,bowing:.8};
+const RL={roughness:1.5,bowing:.7,strokeWidth:2.2};
+const RH={roughness:2.5,bowing:1.0};
+const RB={roughness:1.2,bowing:.4};
+
+// ═══════════════════════════════════
+//  草稿纸背景：圆点网格
+// ═══════════════════════════════════
+function drawDotGrid(){
+  ctx.fillStyle='#d8d3c4';
+  for(let x=14;x<W;x+=18){
+    for(let y=14;y<H;y+=18){
+      ctx.beginPath();ctx.arc(x,y,1.1,0,Math.PI*2);ctx.fill();
+    }
+  }
+}
+
+// ═══════════════════════════════════
+//  文字白底辅助 — 所有文字都走这里
+// ═══════════════════════════════════
+function measureText(text,font){
+  ctx.font=font;
+  return ctx.measureText(text).width;
+}
+/**
+ * 在 (cx,cy) 居中绘制带白底圆角矩形背景的文字。
+ * cx/cy 是文字中心点（textAlign=center baseline=middle）。
+ */
+function drawTextBG(cx,cy,text,font,color,padX,padY,radius,alpha){
+  if(alpha===undefined)alpha=1;
+  if(padX===undefined)padX=4;
+  if(padY===undefined)padY=2;
+  const tw=measureText(text,font);
+  // 解析 font size 用于估算行高
+  const fontSize=parseInt(font)||12;
+  // 背景尺寸
+  const bgW=tw+padX*2,bgH=fontSize+padY*2+2;
+  const bgX=cx-bgW/2,bgY=cy-bgH/2-fontSize*.35;
+
+  ctx.save();
+  ctx.globalAlpha=alpha*.92;
+  ctx.fillStyle='white';
+  // 圆角矩形背景
+  ctx.beginPath();
+  ctx.roundRect(bgX,bgY,bgW,bgH,radius||3);
+  ctx.fill();
+
+  // 可选：极淡的边框，增加层次感
+  ctx.strokeStyle='rgba(200,195,185,.5)';
+  ctx.lineWidth=.6;
+  ctx.stroke();
+  ctx.restore();
+
+  // 文字本身
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  ctx.fillStyle=color;
+  ctx.font=font;
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText(text,cx,cy);
+  ctx.restore();
+}
+
+/**
+ * 左对齐版本：x/y 为文字左下角起点（原生 fillText 坐标系）
+ */
+function drawTextBGL(x,y,text,font,color,padX,padY,alpha){
+  if(alpha===undefined)alpha=1;
+  if(padX===undefined)padX=5;
+  if(padY===undefined)padY=2;
+  const tw=measureText(text,font);
+  const fontSize=parseInt(font)||12;
+  const bgW=tw+padX*2,bgH=fontSize+padY*2+1;
+  const bgX=x-padX,bgY=y-bgH-fontSize*.78;
+
+  ctx.save();
+  ctx.globalAlpha=alpha*.92;
+  ctx.fillStyle='white';
+  ctx.beginPath();
+  ctx.roundRect(bgX,bgY,bgW,bgH,3);
+  ctx.fill();
+  ctx.strokeStyle='rgba(200,195,185,.45)';
+  ctx.lineWidth=.6;
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  ctx.fillStyle=color;
+  ctx.font=font;
+  ctx.textAlign='left';
+  ctx.textBaseline='alphabetic';
+  ctx.fillText(text,x,y);
+  ctx.restore();
+}
+
+// ── 精简批注：轻量手绘标记 ──
+
+// 小手绘括号 / 指示线（比 circle 干净得多）
+function draw_tinyBracket(p,a,x,y,w,h,color,seed,side){
+  /* side: 'right' | 'bottom' | 'top' | 'left' */
+  if(p<=0)return;
+  const t=Math.min(1,p);
+  ctx.globalAlpha=t*a;
+  let pts=[];
+  if(side==='right') pts=[[x+w,y],[x+w+5,y+h/2],[x+w,y+h]];
+  else if(side==='bottom') pts=[[x,y+h],[x+w/2,y+h+4],[x+w,y+h]];
+  else if(side==='top') pts=[[x,y],[x+w/2,y-4],[x+w,y]];
+  else if(side==='left') pts=[[x,y],[x-5,y+h/2],[x,y+h]];
+  rc.linearPath(pts,{roughness:1.4,bowing:.5,stroke:color,strokeWidth:1.2,seed});
+  ctx.globalAlpha=1;
+}
+
+// 极简手绘箭头（单条短线 + V 尖）
+function draw_miniArrow(p,a,x1,y1,x2,y2,color,seed){
+  if(p<=0)return;
+  const t=Math.min(1,p);
+  ctx.globalAlpha=a*t;
+  const mx=x1+(x2-x1)*t,my=y1+(y2-y1)*t;
+  rc.linearPath([[x1,y1],[mx,my]],{
+    roughness:1.6,bowing:.5,stroke:color,strokeWidth:1.1,seed
+  });
+  if(t>=.95){ // 箭头尖
+    const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);
+    const ux=-dx/len,uy=-dy/len;
+    const ax=x2+ux*3,ay=y2+uy*3;
+    rc.linearPath([[ax+uy*4,ay-ux*4],[x2,y2],[ax-uy*4,ay+ux*4]],
+      {roughness:1.4,bowing:.4,stroke:color,strokeWidth:1.1,seed:seed+1});
+  }
+  ctx.globalAlpha=1;
+}
+
+// 轻量圈注（只用于最终答案高亮）
+function draw_liteCircle(p,a,cx,cy,rw,rh,color,seed){
+  if(p<=0)return;
+  ctx.globalAlpha=Math.min(1,p)*a;
+  rc.rectangle(cx-rw/2,cy-rh/2,rw,rh,{
+    roughness:2.2,bowing:.8,stroke:color,strokeWidth:1.3,
+    fill:null,seed,curveStepCount:5
+  });
+  ctx.globalAlpha=1;
+}
+
+// ═══════════════════════════════════
+//  Canvas 元素：rough.js 手绘版
+// ═══════════════════════════════════
+
+// ---- 填充（最底层）----
+function draw_triangleFill(p,a){
+  if(p<=0)return;
+  ctx.globalAlpha=p*a*.55;
+  rc.polygon([[A.x,A.y],[Hfoot.x,Hfoot.y],[D.x,D.y]],{
+    ...RS, fill:'#6b8fbf',fillStyle:'hachure',
+    hachureAngle:48,hachureGap:4.5,fillWeight:1.3,
+    stroke:'#4a6c9c',strokeWidth:1.4,seed:300
+  });
+  ctx.globalAlpha=1;
+}
+function draw_trapezoidFill(p,a){
+  if(p<=0)return;
+  ctx.globalAlpha=p*a*.55;
+  rc.polygon([[Hfoot.x,Hfoot.y],[B.x,B.y],[C.x,C.y],[D.x,D.y]],{
+    ...RS, fill:'#8aaa6a',fillStyle:'hachure',
+    hachureAngle:-48,hachureGap:4.5,fillWeight:1.3,
+    stroke:'#6a8a4a',strokeWidth:1.4,seed:350
+  });
+  ctx.globalAlpha=1;
+}
+function draw_highlight(p,a){
+  if(p<=0)return;
+  ctx.globalAlpha=p*a*.28;
+  rc.polygon([[A.x,A.y],[B.x,B.y],[C.x,C.y],[D.x,D.y]],{
+    ...RS, roughness:1.4, fill:'#f0a828',fillStyle:'solid',
+    stroke:'#c08020',strokeWidth:2.5,seed:600
+  });
+  ctx.globalAlpha=1;
+}
+
+// ---- 线条（中层）----
+function draw_shape(p,a){
+  if(p<=0)return;
+  const segs=[[A,B],[B,C],[C,D],[D,A]];
+  ctx.globalAlpha=a;
+  for(let i=0;i<segs.length;i++){
+    const sp=Math.min(1,Math.max(0,p*4-i));
+    if(sp<=0)continue;
+    const [s,e]=segs[i];
+    const ex=s.x+(e.x-s.x)*sp,ey=s.y+(e.y-s.y)*sp;
+    rc.linearPath([[s.x,s.y],[ex,ey]],{...RL,seed:100+i});
+  }
+  ctx.globalAlpha=1;
+}
+function draw_baseLine(p,a){
+  if(p<=0)return;
+  ctx.globalAlpha=a;
+  const bx=A.x+(B.x-A.x)*Math.min(1,p);
+  rc.linearPath([[A.x,A.y+38],[bx,A.y+38]],{
+    ...RB, stroke:'#aaa',strokeWidth:.9,seed:150
+  });
+  ctx.globalAlpha=1;
+}
+function draw_heightLine(p,a){
+  if(p<=0)return;
+  ctx.globalAlpha=a;
+  const hy=Hfoot.y-(Hfoot.y-Htop.y)*Math.min(1,p);
+  rc.linearPath([[Hfoot.x,Hfoot.y],[Hfoot.x,hy]],{
+    ...RH, stroke:'#d04545',strokeWidth:2,
+    strokeLineDash:[6,5],seed:200
+  });
+  ctx.globalAlpha=1;
+}
+function draw_rightAngle(p,a){
+  if(p<=0)return;
+  const ss=10;
+  ctx.globalAlpha=Math.min(1,p*3.3)*a;
+  rc.linearPath([
+    [Hfoot.x-ss,Hfoot.y],[Hfoot.x-ss,Hfoot.y-ss],[Hfoot.x,Hfoot.y-ss]
+  ],{roughness:1.2,bowing:.4,stroke:'#666',strokeWidth:1.2,seed:250});
+  ctx.globalAlpha=1;
+}
+function draw_formulaBox(p,a){
+  if(p<=0)return;
+  ctx.globalAlpha=p*a*.45;
+  rc.rectangle(A.x,D.y-10,B.x-A.x,A.y-D.y+10,{
+    roughness:2.0,bowing:.7,
+    stroke:'#3a5a8c',strokeWidth:1.5,
+    strokeLineDash:[8,5],fill:null,seed:400
+  });
+  ctx.globalAlpha=1;
+}
+function draw_segLabels(p,a){
+  if(p<=0)return;
+  const pp=Math.min(1,p);
+  ctx.globalAlpha=pp*a;
+  rc.linearPath([[D.x,D.y-6],[Htop.x,Htop.y-6]],{
+    roughness:1,bowing:.3,stroke:'#d04545',strokeWidth:1.3,seed:500
+  });
+  rc.linearPath([[Htop.x,Htop.y-6],[C.x,C.y-6]],{
+    roughness:1,bowing:.3,stroke:'#6a8a4a',strokeWidth:1.3,seed:501
+  });
+  // 用白底文字！
+  drawTextBG((D.x+Htop.x)/2,D.y-20,'AE=3cm','9px '+FONT,'#d04545',4,2);
+  drawTextBG((Htop.x+C.x)/2,D.y-20,'EB=6cm','9px '+FONT,'#6a8a4a',4,2);
+  ctx.textAlign='left';
+  ctx.globalAlpha=1;
+}
+
+// ---- 精简批注（只保留最关键的 2 个）----
+// 高线旁的 mini 箭头指示
+function draw_markHeightArrow(p,a){
+  draw_miniArrow(p,a,52,Hfoot.y-25,Hfoot.x-14,Htop.y+22,'#d04545',840);
+}
+// 最终答案的轻量框注
+function draw_markAnswerBox(p,a){
+  draw_liteCircle(p,a,W/2,(A.y+D.y)/2+4,110,30,'#c87a00',860);
+}
+
+// ---- 文字（最上层）— 全部用白底 ----
+function draw_labels(p,a){
+  if(p<=0)return;
+  const alpha=Math.min(1,p*2)*a;
+  // A B C D 四个顶点标签
+  drawTextBG(A.x-12,A.y+12,'A','bold 13px '+FONT,'#3a5a8c',5,3,4,alpha);
+  drawTextBG(B.x+2,B.y+12,'B','bold 13px '+FONT,'#3a5a8c',5,3,4,alpha);
+  drawTextBG(C.x+2,C.y-8,'C','bold 13px '+FONT,'#3a5a8c',5,3,4,alpha);
+  drawTextBG(D.x-12,D.y-8,'D','bold 13px '+FONT,'#3a5a8c',5,3,4,alpha);
+}
+function draw_baseLabel(p,a){
+  if(p<.6)return;
+  const alpha=Math.min(1,(p-.6)*2)*a;
+  ctx.save();ctx.translate((A.x+B.x)/2+1,A.y+52);ctx.rotate(-.02);
+  drawTextBG(0,0,'底 = 9 cm','10px '+FONT,'#777',5,2,3,alpha);
+  ctx.restore();
+}
+function draw_titleLabel(p,a){
+  if(p<.6)return;
+  const alpha=Math.min(1,(p-.6)*2)*a;
+  ctx.save();ctx.translate(W/2,22);ctx.rotate(.01);
+  drawTextBG(0,0,'平行四边形 ABCD','bold 11px '+FONT,'#4a6fa5',6,3,4,alpha);
+  ctx.restore();
+}
+function draw_heightLabel(p,a){
+  if(p<.5)return;
+  const alpha=Math.min(1,(p-.5)*2)*a;
+  ctx.save();ctx.translate(Hfoot.x-62,(Hfoot.y+Htop.y)/2+1);ctx.rotate(-.03);
+  drawTextBG(0,0,'h = 20.4 cm','9px '+FONT,'#d04545',5,2,3,alpha);
+  ctx.restore();
+}
+function draw_triLabel(p,a){
+  if(p<.6)return;
+  const alpha=Math.min(1,(p-.6)*2)*a;
+  ctx.save();ctx.translate(A.x+14,A.y-12);ctx.rotate(-.04);
+  drawTextBG(0,0,'△ADE','bold 11px '+FONT,'#1a3a6a',5,2,3,alpha);
+  ctx.restore();
+}
+function draw_trapLabel(p,a){
+  if(p<.6)return;
+  const alpha=Math.min(1,(p-.6)*2)*a;
+  ctx.save();ctx.translate((Hfoot.x+B.x)/2+10,A.y-12);ctx.rotate(.02);
+  drawTextBG(0,0,'梯形 DEBC','bold 10px '+FONT,'#3a5a2a',5,2,3,alpha);
+  ctx.restore();
+}
+function draw_formulaText(p,a){
+  if(p<.5)return;
+  const alpha=Math.min(1,(p-.5)*2)*a;
+  ctx.save();ctx.translate((A.x+B.x)/2,D.y-16);ctx.rotate(.01);
+  drawTextBG(0,0,'S = 底 × 高','10px '+FONT,'#3a5a8c',6,3,4,alpha);
+  ctx.restore();
+}
+function draw_resultText(p,a){
+  if(p<.6)return;
+  const alpha=Math.min(1,(p-.6)*2)*a;
+  ctx.save();ctx.translate(W/2,(A.y+D.y)/2+5);ctx.rotate(-.01);
+  drawTextBG(0,0,'S = 183.6 cm²','bold 13px '+FONT,'#c87a00',7,3,5,alpha);
+  ctx.restore();
+}
+
+// ═══════════════════════════════════
+//  元素键 → drawFn 映射
+// ═══════════════════════════════════
+const drawFn={
+  triangleFill:draw_triangleFill, trapezoidFill:draw_trapezoidFill,
+  highlight:draw_highlight,
+  shape:draw_shape, baseLine:draw_baseLine,
+  heightLine:draw_heightLine, rightAngle:draw_rightAngle,
+  formulaBox:draw_formulaBox, segLabels:draw_segLabels,
+  labels:draw_labels, baseLabel:draw_baseLabel,
+  titleLabel:draw_titleLabel, heightLabel:draw_heightLabel,
+  triLabel:draw_triLabel, trapLabel:draw_trapLabel,
+  formulaText:draw_formulaText, resultText:draw_resultText,
+  // 精简后的批注（只有 2 个）
+  markHeightArrow:draw_markHeightArrow,
+  markAnswerBox:draw_markAnswerBox,
+};
+
+// 渲染顺序：背景→填充→线条→批注→文字
+const renderOrder=[
+  'triangleFill','trapezoidFill','highlight',
+  'shape','baseLine','heightLine','rightAngle',
+  'formulaBox','segLabels',
+  'markHeightArrow',
+  'markAnswerBox',
+  'labels','baseLabel','titleLabel','heightLabel',
+  'triLabel','trapLabel','formulaText','resultText',
+];
+
+// ── 状态 & 动画 ──
+let elState={};
+renderOrder.forEach(k=>{elState[k]={p:0,a:0};});
+
+let animFrame=null,animEls=[];
+
+function startAnim(key,target,duration,done){
+  const cur=elState[key];
+  cur.a=1;
+  animEls.push({key,startP:cur.p,targetP:target,duration,startTime:performance.now(),done});
+  if(!animFrame)animFrame=requestAnimationFrame(frame);
+}
+
+function frame(now){
+  let allDone=true;
+  for(let i=animEls.length-1;i>=0;i--){
+    const a=animEls[i];
+    const elapsed=now-a.startTime;
+    if(elapsed>=a.duration){
+      elState[a.key].p=a.targetP;
+      if(a.done)a.done();
+      animEls.splice(i,1);
+    }else{
+      elState[a.key].p=a.startP+(a.targetP-a.startP)*(elapsed/a.duration);
+      allDone=false;
+    }
+  }
+  renderCanvas();
+  if(animEls.length>0)animFrame=requestAnimationFrame(frame);
+  else animFrame=null;
+}
+
+function renderCanvas(){
+  ctx.clearRect(0,0,W,H);
+  for(const k of renderOrder){
+    const s=elState[k];
+    if(s.p>0)drawFn[k](s.p,s.a);
+  }
+}
+
+// ── 板书 typing ──
+let typeTimers=[];
+function typeWrite(el,text,speed,cb){
+  el.textContent='';
+  let i=0;
+  const t=setInterval(()=>{
+    if(i>=text.length){clearInterval(t);if(cb)cb();return;}
+    el.textContent+=text[i++];
+  },speed);
+  typeTimers.push(t);
+}
+function clearTyping(){
+  typeTimers.forEach(clearInterval);
+  typeTimers=[];
+}
+function delay(ms,fn){
+  const t=setTimeout(fn,ms);
+  typeTimers.push(t);
+}
+
+// ═══════════════════════════════════════
+//  Phase 定义 — 精简批注版
+// ═══════════════════════════════════════
+const STEP_PHASES=[
+  // Step 0: 读题
+  [
+    {type:'draw',key:'shape',dur:2400},
+    {type:'draw',key:'labels',dur:800},
+    {type:'write',tgt:'title',spd:65,text:'① 读题：已知条件'},
+    {type:'write',tgt:'body',spd:75,text:'已知：底 = 9 cm，高 = 20.4 cm，沿高分割成三角形和梯形'},
+    {type:'show',panel:'known'},
+  ],
+  // Step 1: 认识图形
+  [
+    {type:'write',tgt:'title',spd:65,text:'② 认识图形：平行四边形'},
+    {type:'draw',key:'titleLabel',dur:600},
+    {type:'draw',key:'baseLine',dur:1200},
+    {type:'draw',key:'baseLabel',dur:800},
+    {type:'write',tgt:'body',spd:75,text:'图形：平行四边形 ABCD，对边平行且相等'},
+    {type:'write',tgt:'formula',spd:70,text:'S = a × h'},
+  ],
+  // Step 2: 作高
+  [
+    {type:'write',tgt:'title',spd:65,text:'③ 作高：标出关键尺寸'},
+    {type:'draw',key:'heightLine',dur:2000},
+    {type:'draw',key:'heightLabel',dur:1000},
+    {type:'draw',key:'rightAngle',dur:500},
+    {type:'draw',key:'markHeightArrow',dur:800},   // 只留一个轻量箭头
+    {type:'write',tgt:'body',spd:75,text:'从 D 点向底边 AB 作垂线 DE，高 h = 20.4 cm'},
+  ],
+  // Step 3: 分割
+  [
+    {type:'write',tgt:'title',spd:65,text:'④ 分割：三角形 + 梯形'},
+    {type:'draw',key:'triangleFill',dur:1600},
+    {type:'draw',key:'triLabel',dur:800},
+    {type:'draw',key:'trapezoidFill',dur:1600},
+    {type:'draw',key:'trapLabel',dur:800},
+    {type:'write',tgt:'body',spd:75,text:'沿高分割：左边 三角形 ADE  +  右边 梯形 DEBC'},
+    {type:'write',tgt:'formula',spd:70,text:'AE = 3 cm，EB = 6 cm'},
+  ],
+  // Step 4: 方法一
+  [
+    {type:'write',tgt:'title',spd:65,text:'⑤ 方法一：直接用公式'},
+    {type:'draw',key:'formulaBox',dur:1200},
+    {type:'draw',key:'formulaText',dur:600},
+    {type:'write',tgt:'body',spd:75,text:'方法一：S = 底 × 高'},
+    {type:'write',tgt:'formula',spd:70,text:'= 9 × 20.4'},
+    {type:'write',tgt:'result',spd:70,text:'= 183.6 (cm²)'},
+  ],
+  // Step 5: 方法二
+  [
+    {type:'write',tgt:'title',spd:65,text:'⑥ 方法二：分割法验证'},
+    {type:'draw',key:'segLabels',dur:1600},
+    {type:'write',tgt:'body',spd:75,text:'方法二：分别算三角形和梯形面积，再加起来'},
+    {type:'write',tgt:'formula',spd:70,text:'S₁ = 3×20.4÷2 = 30.6'},
+    {type:'write',tgt:'result',spd:70,text:'S₂ = (6+9)×20.4÷2 = 153'},
+    {type:'write',tgt:'body',spd:70,text:'S = 30.6 + 153 = 183.6 (cm²) ✓'},
+  ],
+  // Step 6: 作答
+  [
+    {type:'write',tgt:'title',spd:65,text:'⑦ 作答 + 心得总结'},
+    {type:'draw',key:'highlight',dur:1400},
+    {type:'draw',key:'resultText',dur:600},
+    {type:'draw',key:'markAnswerBox',dur:600},       // 轻量答案框注
+    {type:'write',tgt:'body',spd:75,text:'答：这个平行四边形的面积是 183.6 平方厘米'},
+    {type:'write',tgt:'formula',spd:70,text:'方法一（公式）= 方法二（分割）'},
+    {type:'write',tgt:'result',spd:65,text:'两种方法互相验证，答案一致'},
+    {type:'show',panel:'answer'},
+  ],
+];
+
+// ══════════════════════════════
+//  主控制器
+// ══════════════════════════════
+const TOTAL=STEP_PHASES.length;
+const PHASE_DELAY=550;
+let stepIdx=-1,phaseIdx=0,busy=false;
+
+const $progBar=document.getElementById('progBar');
+const $progTxt=document.getElementById('progText');
+const $tts=document.getElementById('ttsLive');
+const $sync=document.getElementById('syncStat');
+const $bTitle=document.getElementById('bTitle');
+const $bBody=document.getElementById('bBody');
+const $bFormula=document.getElementById('bFormula');
+const $bResult=document.getElementById('bResult');
+const $bTip=document.getElementById('bTip');
+const $pKnown=document.getElementById('pKnown');
+const $pAnswer=document.getElementById('pAnswer');
+
+const tgtMap={title:$bTitle,body:$bBody,formula:$bFormula,result:$bResult,tip:$bTip};
+
+function clearBoard(){
+  $bTitle.textContent=$bBody.textContent=$bFormula.textContent=$bResult.textContent=$bTip.textContent='';
+}
+function hideAllPanels(){
+  $pKnown.style.display=$pAnswer.style.display='none';
+}
+
+function execPhase(phase,cb){
+  switch(phase.type){
+    case 'draw':
+      startAnim(phase.key,1,phase.dur,cb);
+      break;
+    case 'write':
+      typeWrite(tgtMap[phase.tgt],phase.text,phase.spd,cb);
+      break;
+    case 'show':
+      if(phase.panel==='known')$pKnown.style.display='block';
+      if(phase.panel==='answer')$pAnswer.style.display='block';
+      setTimeout(cb,150);
+      break;
+    case 'hide':
+      if(phase.panel==='known')$pKnown.style.display='none';
+      if(phase.panel==='answer')$pAnswer.style.display='none';
+      setTimeout(cb,150);
+      break;
+    case 'pause':
+      setTimeout(cb,phase.ms||500);
+      break;
+    default:cb();
+  }
+}
+
+function playNextPhase(){
+  if(stepIdx<0||stepIdx>=TOTAL){busy=false;updateButtons();return;}
+  const phases=STEP_PHASES[stepIdx];
+  if(phaseIdx>=phases.length){busy=false;updateButtons();return;}
+  busy=true;
+  const ph=phases[phaseIdx];phaseIdx++;
+  const extraPause=(phases.length>1&&phaseIdx>1)?100:0;
+  execPhase(ph,()=>{delay(PHASE_DELAY+extraPause,playNextPhase);});
+}
+
+function advance(){
+  if(busy||stepIdx>=TOTAL-1)return;
+  clearTyping();
+  animEls=[];if(animFrame){cancelAnimationFrame(animFrame);animFrame=null;}
+  stepIdx++;phaseIdx=0;
+  clearBoard();hideAllPanels();
+
+  const d=LECTURE[stepIdx];
+  typeWrite($tts,' '+d.tts,50);
+  $sync.textContent=d.title;
+  $progBar.style.width=((stepIdx+1)/TOTAL*100)+'%';
+  $progTxt.textContent='第 '+(stepIdx+1)+' / '+TOTAL+' 步 — '+d.title;
+  updateButtons();
+  playNextPhase();
+}
+
+function retreat(){
+  if(busy)return;
+  if(stepIdx<=0){fullReset();return;}
+  clearTyping();
+  animEls=[];if(animFrame){cancelAnimationFrame(animFrame);animFrame=null;}
+  stepIdx--;phaseIdx=0;
+  clearBoard();hideAllPanels();
+  resetCanvasToStep(stepIdx);
+
+  const d=LECTURE[stepIdx];
+  typeWrite($tts,' '+d.tts,50);
+  $sync.textContent=d.title;
+  $progBar.style.width=((stepIdx+1)/TOTAL*100)+'%';
+  $progTxt.textContent='第 '+(stepIdx+1)+' / '+TOTAL+' 步 — '+d.title;
+  updateButtons();
+  playNextPhase();
+}
+
+function resetCanvasToStep(s){
+  renderOrder.forEach(k=>{elState[k]={p:0,a:0};});
+  for(let i=0;i<=s;i++){
+    for(const p of STEP_PHASES[i]){
+      if(p.type==='draw')elState[p.key]={p:1,a:1};
+    }
+  }
+  if(s<3){elState.triangleFill.p=elState.triLabel.p=elState.trapezoidFill.p=elState.trapLabel.p=0;}
+  if(s<4){elState.formulaBox.p=elState.formulaText.p=0;}
+  if(s<5){elState.segLabels.p=0;}
+  if(s<6){elState.highlight.p=elState.resultText.p=0;elState.markAnswerBox.p=0;}
+  renderCanvas();
+  hideAllPanels();
+  if(s>=0)$pKnown.style.display='block';
+  if(s>=6)$pAnswer.style.display='block';
+}
+
+function fullReset(){
+  clearTyping();clearBoard();hideAllPanels();
+  animEls=[];if(animFrame){cancelAnimationFrame(animFrame);animFrame=null;}
+  stepIdx=-1;phaseIdx=0;busy=false;
+  renderOrder.forEach(k=>{elState[k]={p:0,a:0};});
+  renderCanvas();
+  $progBar.style.width='0%';
+  $progTxt.textContent='第 0 / 7 步 — 点击「下一步」开始';
+  $tts.textContent='口播台词等待开始…';
+  $sync.textContent='等待开始';
+  updateButtons();
+}
+
+function updateButtons(){
+  const $prev=document.getElementById('btnPrev');
+  const $next=document.getElementById('btnNext');
+  $prev.disabled=busy;
+  $next.disabled=busy||stepIdx>=TOTAL-1;
+  $prev.style.opacity=busy?'.4':'1';
+  $next.style.opacity=busy?'.4':'1';
+}
+
+const LECTURE=STEP_PHASES.map((phases,i)=>{
+  const t=phases.find(p=>p.type==='write'&&p.tgt==='title');
+  const ts=[
+    '同学们，我们来看看这道平行四边形面积题。底是 9 厘米，高是 20.4 厘米。',
+    '这是平行四边形 ABCD，对边平行且相等，面积公式是底乘以高。',
+    '从 D 点向底边 AB 作垂线 DE，这就是高，长度 20.4 厘米，用虚线表示。',
+    '沿着这条高，平行四边形被分割成了左边的三角形和右边的梯形两部分。',
+    '方法一：直接用平行四边形面积公式，底 9 乘以高 20.4，等于 183.6 平方厘米。',
+    '方法二：分别算三角形和梯形的面积，再加起来，也等于 183.6，答案完全一致！',
+    '答：这个平行四边形的面积是 183.6 平方厘米。把复杂图形分割成简单图形，是非常好用的方法！',
+  ];
+  return {title:t?t.text:'',tts:ts[i]||''};
+});
+
+document.getElementById('btnNext').addEventListener('click',advance);
+document.getElementById('btnPrev').addEventListener('click',retreat);
+document.getElementById('btnReset').addEventListener('click',fullReset);
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();advance();}
+  if(e.key==='ArrowLeft'){e.preventDefault();retreat();}
+});
+
+try { applyConfig(); } catch(e){ console.error('[applyConfig]', e); }
+try { if(window._boardCfg){ buildTimeline(window._boardCfg); renderBoardByTime(); } } catch(e){ console.error('[player-init]', e); }
+try { fullReset(); } catch(e){ console.error('[fullReset]', e); }
+</script>
+</body>
+</html>

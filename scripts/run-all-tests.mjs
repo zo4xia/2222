@@ -1,0 +1,45 @@
+#!/usr/bin/env node
+/**
+ * run-all-tests.mjs — 统一测试入口
+ * 一键跑全部测试, 任一失败返回非零退出码
+ */
+
+import { execSync } from 'node:child_process'
+import { resolve, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const root = resolve(__dirname, '..')
+
+const tests = [
+  { name: 'parseLLMJson (16 用例)',     cmd: 'node scripts/test-parseLLMJson.mjs' },
+  { name: 'timing fix (5 用例)',         cmd: 'node scripts/test-timing-fix.mjs' },
+  { name: 'timing computeRowGroup (7+6)', cmd: 'node scripts/test-timing-computeRowGroup.mjs' },
+  { name: 'skillViolations (11 用例)',  cmd: 'node scripts/smoke-test-skills.mjs' },
+  { name: 'validate_contract',          cmd: 'node skills/board-lecture-player/scripts/validate_contract.cjs skills/board-lecture-player/assets/sample-rows.json' },
+]
+
+let pass = 0, fail = 0
+
+console.log('═══════════════════════════════════════════════════')
+console.log('  全部测试 · 一键执行')
+console.log('═══════════════════════════════════════════════════\n')
+
+for (const t of tests) {
+  try {
+    const output = execSync(t.cmd, { cwd: root, encoding: 'utf-8', timeout: 15000 })
+    const lastLine = output.trim().split('\n').pop()
+    const ok = /通过|PASS|已统一/.test(lastLine)
+    console.log(`${ok ? '✓' : '✗'} ${t.name}: ${lastLine}`)
+    if (ok) pass++; else fail++
+  } catch (e) {
+    console.log(`✗ ${t.name}: FAILED (${e.message.slice(0, 80)})`)
+    fail++
+  }
+}
+
+console.log(`\n═══════════════════════════════════════════════════`)
+console.log(`  结果: ${pass}/${pass + fail} 通过, ${fail} 失败`)
+console.log(`═══════════════════════════════════════════════════`)
+
+process.exit(fail ? 1 : 0)

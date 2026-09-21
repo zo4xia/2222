@@ -1,13 +1,12 @@
 <script setup>
 /* @qh-core LANE=STEP1 POINT=UI_CONFIRM recognize+type+boardPlan+save handoff */
-import { computed, defineAsyncComponent, nextTick, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 
 const emit = defineEmits(['enter-board-draft'])
-const RealBoardPreview = defineAsyncComponent(() => import('./RealBoardPreview.vue'))
 import { message } from 'ant-design-vue'
 import { recognizeProblem, fileToDataUrl } from '../services/recognitionClient'
 import { renderProblemHtml } from '../utils/mathText'
-import { buildStep1Handoff, hasUsableAgentAKnowledge, QUESTION_FONT_SIZE } from '../services/stepHandoff'
+import { buildStep1Handoff, hasUsableAgentAKnowledge } from '../services/stepHandoff'
 import { saveLiveBoardPreview } from '../board-preview/liveBoardPreview.js'
 import { selectAgentARelatedKnowledge } from '../services/agentAKnowledge.js'
 import {
@@ -27,6 +26,7 @@ import {
   saveAgentBApiConfig,
   isAgentBApiReady,
 } from '../lib/agentBApiConfig.js'
+import RealBoardPreview from './RealBoardPreview.vue'
 import QhPageHeader from './QhPageHeader.vue'
 import { planLabelsFromTopic } from '../utils/boardLayout'
 import {
@@ -35,6 +35,7 @@ import {
   ReloadOutlined,
   SearchOutlined,
   SettingOutlined,
+  FullscreenOutlined,
 } from '@ant-design/icons-vue'
 
 // 生产车间第1步：真画布上贴题，不是假预览壳
@@ -179,7 +180,7 @@ const topicLayout = computed(() => {
       x: baseLayout.question.x,
       y: hasImage ? 42 + jitter : baseLayout.question.y + jitter * 0.3,
       w: baseLayout.question.w - jitter * 0.2,
-      fontSize: QUESTION_FONT_SIZE,
+      fontSize: hasImage ? 28 - fontBump : 30 - fontBump,
     },
   }
 
@@ -249,13 +250,6 @@ const suggestedLayoutLabel = computed(() => ({
   left_right: '左右布局',
   top_bottom: '上下布局',
 }[suggestedLayout.value?.layout] || suggestedLayout.value?.layout || '自动落座'))
-
-// 主操作禁用时给用户一个明确原因，避免"按钮灰了却不知道为什么"
-const recognizeBlockedHint = computed(() => {
-  if (step1Confirmed.value) return '已确认进入下一步，需先撤销确认才能重做'
-  if (!problemText.value.trim() && !sourceImageUrl.value) return '请先输入题目文本，或上传题目图片'
-  return ''
-})
 
 const canQueryKnowledge = computed(() => {
   return (
@@ -338,8 +332,7 @@ function resetKnowledgeQuery() {
 
 function suggestFromText(text) {
   const raw = text || ''
-  // 暂定粗判断；夏夏后续会整理「题型分类库」再细接，避免 agent 乱判
-  // 夏夏：几何题特征一定有面积/长/宽/角度/边长等几何相关字眼
+  // 题型特征模式识别与侧重匹配：几何题核心特征（面积/周长/角度/边长等）
   const geometryHit =
     /梯形|平行四边形|矩形|正方形|菱形|三角|圆|扇形|几何|图形|如图|作图|证明|∠|°|底边|高|对角线|相似|全等|平行|垂直|面积|周长|体积|边长|长|宽|角度|求角|夹角|圆心角|半径|直径|弦|弧|面积是多少|边长是多少/.test(
       raw,
@@ -442,7 +435,7 @@ async function placeOnCanvas({ fromUpload = false } = {}) {
       knowledgeStatus.value = 'success'
     }
 
-    // 夏夏硬边界：纯文字题图归文本，不贴原图；只有识别为 has_diagram 才贴
+    // 图像贴图边界：纯文字题图归文本，不贴原图；只有识别为 has_diagram 才贴原图
     const imageKind = String(result.imageKind || '').toLowerCase()
     if (imageKind === 'text_only' || imageKind === 'text') {
       keepOriginal.value = false
@@ -474,7 +467,7 @@ async function placeOnCanvas({ fromUpload = false } = {}) {
   } catch (error) {
     recognizeStatus.value = 'error'
     layoutStatus.value = 'idle'
-    message.error(error?.message || '识别/落���未完成')
+    message.error(error?.message || '识别/落位未完成')
   }
 }
 
@@ -766,9 +759,14 @@ function pct(style) {
 
 <template>
   <a-layout class="qh-page">
-    <QhPageHeader step-label="第 1 步 · 生产车间" subtitle="识别 → 真画布落位" :current-step="1">
+    <QhPageHeader step-label="第 1 步 · 生产车间" subtitle="识别 → 真画布落位">
       <template #actions>
         <a-tag :color="userApiConfig.endpoint ? 'purple' : 'default'">{{ agentSummary }}</a-tag>
+        <a-tooltip title="全屏画布预览">
+          <a-button type="text" shape="circle" aria-label="全屏画布预览" @click="openFullscreenBoardPreview">
+            <template #icon><FullscreenOutlined /></template>
+          </a-button>
+        </a-tooltip>
         <a-tooltip title="本页 Agent 配置">
           <a-button type="text" shape="circle" aria-label="本页 Agent 配置" @click="agentDrawerOpen = true">
             <template #icon><SettingOutlined /></template>
@@ -779,7 +777,7 @@ function pct(style) {
     <a-layout-content class="qh-page-content">
       <a-row :gutter="[16, 16]">
         <a-col :xs="24" :lg="10">
-          <a-card title="① 创建一道题" class="qh-surface-card" :bordered="false">
+          <a-card title="创建一道题" class="main-card qh-surface-card" :bordered="false">
             <div class="agent-a-params">
               <div class="param-head">
                 <div>
@@ -796,9 +794,9 @@ function pct(style) {
 
               <div class="param-field param-field-wide">
                 <div class="field-label">题目文本</div>
-                <textarea
-                  v-model="problemText"
-                  rows="4"
+                <a-textarea
+                  v-model:value="problemText"
+                  :rows="6"
                   :disabled="step1Confirmed"
                   placeholder="支持文本输入；也可上传图片识别后落到这里"
                   @input="onTextInput"
@@ -841,67 +839,84 @@ function pct(style) {
 
               <div v-if="uncertainItems.length" class="uncertain-row">
                 <span class="uncertain-label">识别备注</span>
-                <a-tag v-for="item in uncertainItems" :key="item" color="gold"  style="max-width: 100%">{{ item }}</a-tag>
+                <a-tag v-for="item in uncertainItems" :key="item" color="gold"  style="width: 100%">{{ item }}</a-tag>
               </div>
             </div>
 
-            <div class="upload-actions">
-              <a-upload
-                :disabled="step1Confirmed"
-                :show-upload-list="false"
-                :before-upload="beforeUpload"
-                accept="image/*"
-              >
-                <a-button :disabled="step1Confirmed">
-                  <template #icon><CloudUploadOutlined /></template>
-                  支持上传图片
-                </a-button>
-              </a-upload>
-            </div>
+            <!-- 可爱的手账题目操作区：成组布局，告别孤零零单行 -->
+            <div class="topic-actions-dock">
+              <div class="dock-buttons-group">
+                <div class="upload-actions">
+                  <a-upload
+                    :disabled="step1Confirmed"
+                    :show-upload-list="false"
+                    :before-upload="beforeUpload"
+                    accept="image/*"
+                  >
+                    <a-button class="btn-cute-action btn-upload-cute" :disabled="step1Confirmed">
+                      <template #icon><CloudUploadOutlined /></template>
+                      <span>上传题目图片</span>
+                    </a-button>
+                  </a-upload>
+                </div>
 
-            <div v-if="sourceImageUrl" class="image-mini">
-              <img
-                :src="sourceImageUrl"
-                :alt="sourceImageName || '题目图片'"
-                class="image-mini-thumb"
-                title="点击查看题目原图"
-                @click="sourceImagePreviewOpen = true"
-              />
-              <div class="image-mini-meta">
-                <a-typography-text :content="sourceImageName" :ellipsis="{ tooltip: sourceImageName }" />
-                <a-space size="small">
-                  <a-switch v-model:checked="keepOriginal" size="small" :disabled="step1Confirmed" />
-                  <a-typography-text type="secondary">原图入题（仅含图才开）</a-typography-text>
-                  <a-typography-text v-if="sourceImageUrl && !keepOriginal" type="warning" style="font-size:11px">
-                    纯文字图：归文本，不贴原图
-                  </a-typography-text>
-                  <a-button type="link" size="small" :disabled="step1Confirmed" @click="clearImage">移除</a-button>
-                </a-space>
+                <div class="actions">
+                  <a-button
+                    class="btn-cute-action btn-recognize-cute"
+                    type="primary"
+                    :loading="recognizeStatus === 'loading'"
+                    :disabled="step1Confirmed || (!sourceImageUrl && !problemText.trim())"
+                    @click="placeOnCanvas({ fromUpload: Boolean(sourceImageUrl) })"
+                  >
+                    <template #icon><CheckCircleOutlined v-if="!step1Confirmed" /></template>
+                    <span>识别并贴上画布</span>
+                  </a-button>
+                  <a-button v-if="step1Confirmed" class="btn-cute-action btn-reset-cute" @click="resetConfirm">
+                    撤销确认
+                  </a-button>
+                </div>
+              </div>
+
+              <!-- 若已载入图片：拍立得手账相纸风格 -->
+              <div v-if="sourceImageUrl" class="image-mini">
+                <div class="image-polaroid-wrap">
+                  <span class="polaroid-pin">📌</span>
+                  <img
+                    :src="sourceImageUrl"
+                    :alt="sourceImageName || '题目图片'"
+                    class="image-mini-thumb"
+                    title="点击查看题目原图"
+                    @click="sourceImagePreviewOpen = true"
+                  />
+                </div>
+                <div class="image-mini-meta">
+                  <div class="image-mini-title-bar">
+                    <span class="cute-tag-pill">📷 题目原图</span>
+                    <a-typography-text :content="sourceImageName" :ellipsis="{ tooltip: sourceImageName }" class="image-name-text" />
+                  </div>
+                  <a-space size="small" class="image-switches-bar">
+                    <a-switch v-model:checked="keepOriginal" size="small" :disabled="step1Confirmed" />
+                    <span class="switch-hint-text">原图入题（仅含图才开）</span>
+                    <a-typography-text v-if="sourceImageUrl && !keepOriginal" type="warning" class="text-mode-tip">
+                      纯文字图：归文本，不贴原图
+                    </a-typography-text>
+                    <a-button type="link" size="small" :disabled="step1Confirmed" class="btn-remove-photo" @click="clearImage">移除图片</a-button>
+                  </a-space>
+                </div>
+              </div>
+
+              <div class="status-indicator" v-if="statusText">
+                <span class="status-indicator-dot"></span>
+                <span class="status-indicator-text">{{ statusText }}</span>
               </div>
             </div>
-
-            <div class="actions">
-              <a-tooltip :title="recognizeBlockedHint">
-                <a-button
-                  type="primary"
-                  :loading="recognizeStatus === 'loading'"
-                  :disabled="step1Confirmed || (!sourceImageUrl && !problemText.trim())"
-                  @click="placeOnCanvas({ fromUpload: Boolean(sourceImageUrl) })"
-                >
-                  识别并贴上画布
-                </a-button>
-              </a-tooltip>
-              <a-button v-if="step1Confirmed" @click="resetConfirm">撤销确认</a-button>
-            </div>
-
-            <a-typography-text type="secondary" class="status">{{ statusText }}</a-typography-text>
           </a-card>
         </a-col>
 
         <a-col :xs="24" :lg="14">
-          <a-card class="qh-surface-card" :bordered="false">
+          <a-card class="preview-card qh-surface-card" :bordered="false">
             <template #title>
-              <span>② 预览</span>
+              <span>预览</span>
               <a-typography-text type="secondary" class="preview-sub">
                 缩小的真画布 · 初始空白 · 现做现产
               </a-typography-text>
@@ -940,10 +955,6 @@ function pct(style) {
                 @update:problem-text="onProblemTextUpdated"
               />
               <div v-if="layoutStatus === 'regenerating'" class="board-mask-outer">落位中…</div>
-              <!-- 空态引导：容器层提示，不进入画布元素；有内容后自动消失 -->
-              <div v-if="!hasBoardContent && layoutStatus !== 'regenerating'" class="board-empty-hint">
-                上传题目图片或输入题目文本，识别后将落位到这张真画布
-              </div>
             </div>
 
             <div class="preview-tools" v-if="hasBoardContent">
@@ -965,6 +976,13 @@ function pct(style) {
                   {{ showGrid ? '关闭网格' : '打开网格' }}
                 </a-button>
                 <a-button
+                  size="small"
+                  :disabled="!hasBoardContent"
+                  @click="openFullscreenBoardPreview"
+                >
+                  全屏预览
+                </a-button>
+                <a-button
                   id="btn-shot-canvas"
                   size="small"
                   :disabled="!hasBoardContent"
@@ -981,7 +999,7 @@ function pct(style) {
             </div>
 
             <a-typography-paragraph type="secondary" class="thumb-tip">
-              请核对识别文字与落位是否正确；本步只做识别与落画布，确认无误后进入下一步。
+              客户看这里：字识对了没有、有没有放对地方。第1步没有技巧，纯粹识别 + 落画布。
             </a-typography-paragraph>
           </a-card>
         </a-col>
@@ -989,23 +1007,41 @@ function pct(style) {
 
       <a-row :gutter="[16, 16]" style="margin-top: 0">
         <a-col :xs="24">
-          <a-card title="③ 知识关联点（可选）" class="qh-surface-card" :bordered="false">
-            <template #extra>
-              <a-button
-                size="small"
-                :loading="knowledgeStatus === 'loading'"
-                :disabled="!canQueryKnowledge"
-                @click="queryRelatedKnowledge"
-              >
-                <template #icon><SearchOutlined /></template>
-                <span>查询关联点</span>
-              </a-button>
+          <a-card class="knowledge-card qh-surface-card" :bordered="false">
+            <template #title>
+              <div class="knowledge-card-title-bar">
+                <div class="title-left">
+                  <span class="title-tape-icon">🏷️</span>
+                  <span class="title-main-text">知识关联便签盒</span>
+                  <span class="title-sub-text">为当前题目匹配的解题灵感与知识小纸条</span>
+                </div>
+                <span class="title-note-count" v-if="relatedKnowledge.length">
+                  已收录 {{ relatedKnowledge.length }} 张小纸条
+                </span>
+              </div>
             </template>
 
-            <a-typography-text type="secondary" class="knowledge-tip">
-              可选步骤 · 关联建议不是唯一答案 · 不作为进入下一步的门槛
-            </a-typography-text>
+            <!-- 顶部引导与查询栏：并排整合，告别各自孤零零占一行 -->
+            <div class="knowledge-toolbar-pod">
+              <div class="knowledge-notice-pill">
+                <span class="notice-icon">💡</span>
+                <span class="notice-text">关联建议 · 启迪思路，不作为进入下一步的门槛</span>
+              </div>
 
+              <div class="knowledge-actions">
+                <a-button
+                  class="btn-cute-query-knowledge"
+                  :loading="knowledgeStatus === 'loading'"
+                  :disabled="!canQueryKnowledge"
+                  @click="queryRelatedKnowledge"
+                >
+                  <template #icon><SearchOutlined /></template>
+                  <span>抽取知识小便签</span>
+                </a-button>
+              </div>
+            </div>
+
+            <!-- 状态信息 -->
             <a-alert
               v-if="knowledgeStatus === 'error'"
               class="knowledge-state"
@@ -1014,58 +1050,128 @@ function pct(style) {
               :message="knowledgeError"
             />
 
-            <a-empty
+            <!-- 暂未匹配提示 -->
+            <div
               v-else-if="knowledgeStatus === 'success' && relatedKnowledge.length === 0"
-              class="knowledge-state"
-              :image="null"
-              description="暂未匹配到明确关联点，Agent B 仍可继续处理"
-            />
+              class="knowledge-empty-paper"
+            >
+              <span class="empty-icon">🍃</span>
+              <span class="empty-text">本题暂未匹配到特定知识标签，Agent B 仍会根据题目语义生成最温柔循序渐进的板书引导~</span>
+            </div>
 
+            <!-- 未查询时的空状态可爱便签提示 -->
+            <div
+              v-else-if="knowledgeStatus === 'idle' && !relatedKnowledge.length"
+              class="knowledge-paper-invitation"
+            >
+              <div class="invitation-tape"></div>
+              <div class="invitation-content">
+                <span class="invitation-emoji">✨</span>
+                <div class="invitation-texts">
+                  <div class="invitation-heading">知识小纸条待揭晓</div>
+                  <div class="invitation-desc">点击右上角「抽取知识小便签」，为本题生成 3~6 张可爱的解题秘籍小纸条（可选步骤）</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 核心：可爱的手账便签小纸条墙 (Paper Notes Wall) -->
             <div
               v-else-if="relatedKnowledge.length"
-              class="knowledge-chips"
+              class="knowledge-paper-notes-wall"
             >
-              <a-tag
-                v-for="item in relatedKnowledge"
-                :key="item['编号'] || item['知识点']"
-                color="blue"
-                class="knowledge-chip"
+              <div
+                v-for="(item, idx) in relatedKnowledge"
+                :key="item['编号'] || item['知识点'] || idx"
+                class="knowledge-paper-slip"
+                :class="'slip-theme-' + (idx % 5)"
                 @click="selectedKnowledge = item"
               >
-                {{ item['知识点'] || '未命名知识点' }}
-              </a-tag>
+                <!-- 顶部彩色和纸胶带 -->
+                <div class="slip-washi-tape" :class="'tape-theme-' + (idx % 5)"></div>
+
+                <!-- 纸条顶部信息 -->
+                <div class="slip-meta-row">
+                  <span class="slip-pin-icon">📌</span>
+                  <span class="slip-code">{{ item['编号'] || ('#0' + (idx + 1)) }}</span>
+                  <span v-if="item['类型'] || item['系列'] || item['学段']" class="slip-category-badge">
+                    {{ item['类型'] || item['系列'] || item['学段'] }}
+                  </span>
+                </div>
+
+                <!-- 核心知识点大字 -->
+                <div class="slip-title-text">
+                  {{ item['知识点'] || '未命名知识点' }}
+                </div>
+
+                <!-- 秘籍策略简讯 -->
+                <div v-if="item['策略方法'] || item['考点'] || item['讲解要点举例']" class="slip-brief-snippet">
+                  <span class="snippet-prefix">💡</span>
+                  <span class="snippet-content">{{ item['策略方法'] || item['考点'] || item['讲解要点举例'] }}</span>
+                </div>
+
+                <!-- 纸条底部操作提示 -->
+                <div class="slip-bottom-bar">
+                  <span class="slip-peek-hint">翻看便签秘籍</span>
+                  <span class="slip-peek-icon">🔍</span>
+                </div>
+              </div>
             </div>
 
-            <div class="confirm-row">
-              <a-button type="primary" :loading="confirming" :disabled="!canConfirm || confirming" @click="confirmStep1">
+            <!-- 底部下一步推进栏：不再是单一孤零零按钮 -->
+            <div class="knowledge-footer-deck">
+              <div class="footer-handoff-status">
+                <span class="handoff-status-icon">🎒</span>
+                <span class="handoff-status-text">
+                  {{ relatedKnowledge.length ? `将携带 ${relatedKnowledge.length} 张解题小纸条交给 Agent B` : '准备就绪 · 可直接进入下一步生成表' }}
+                </span>
+              </div>
+              <a-button
+                class="btn-cute-confirm-next"
+                type="primary"
+                size="large"
+                :loading="confirming"
+                :disabled="!canConfirm || confirming"
+                @click="confirmStep1"
+              >
                 <template #icon><CheckCircleOutlined /></template>
-                确定进入生成表
+                <span>确定进入生成表</span>
               </a-button>
-              <a-typography-text v-if="knowledgeStatus === 'success'" type="secondary">
-                将携带 {{ relatedKnowledge.length }} 条关联建议交给 Agent B
-              </a-typography-text>
             </div>
           </a-card>
+
+          <!-- 知识点手账详情弹窗 -->
           <a-modal
             :open="Boolean(selectedKnowledge)"
-            :title="selectedKnowledge?.['知识点'] || '知识点详情'"
-            width="720px"
+            :title="null"
+            width="680px"
             :footer="null"
+            wrap-class-name="cute-paper-modal-wrap"
             @cancel="selectedKnowledge = null"
           >
-            <a-descriptions v-if="selectedKnowledge" bordered size="small" :column="1" class="knowledge-detail-table">
-              <a-descriptions-item label="编号">{{ selectedKnowledge['编号'] || '未提供' }}</a-descriptions-item>
-              <a-descriptions-item label="学段 / 系列 / 类型">
-                {{ [selectedKnowledge['学段'], selectedKnowledge['系列'], selectedKnowledge['类型']].filter(Boolean).join(' / ') || '未提供' }}
-              </a-descriptions-item>
-              <a-descriptions-item label="经典样题">{{ selectedKnowledge['经典样题'] || '未提供' }}</a-descriptions-item>
-              <a-descriptions-item label="考点">{{ selectedKnowledge['考点'] || '未提供' }}</a-descriptions-item>
-              <a-descriptions-item label="策略方法">{{ selectedKnowledge['策略方法'] || '未提供' }}</a-descriptions-item>
-              <a-descriptions-item label="讲解要点">{{ selectedKnowledge['讲解要点举例'] || '未提供' }}</a-descriptions-item>
-              <a-descriptions-item label="易错点">{{ selectedKnowledge['易错点'] || '未提供' }}</a-descriptions-item>
-              <a-descriptions-item label="公式">{{ selectedKnowledge._formula || '按本题判断' }}</a-descriptions-item>
-              <a-descriptions-item label="总结归纳">{{ selectedKnowledge['总结归纳'] || '未提供' }}</a-descriptions-item>
-            </a-descriptions>
+            <div class="notebook-modal-sheet" v-if="selectedKnowledge">
+              <div class="notebook-tape"></div>
+              <div class="notebook-title-row">
+                <span class="notebook-pin">📌</span>
+                <span class="notebook-main-title">{{ selectedKnowledge['知识点'] || '知识点便签详情' }}</span>
+                <span class="notebook-id-badge">{{ selectedKnowledge['编号'] || '秘籍便签' }}</span>
+              </div>
+
+              <div class="notebook-tags-row">
+                <span v-if="selectedKnowledge['学段']" class="notebook-tag">🎓 {{ selectedKnowledge['学段'] }}</span>
+                <span v-if="selectedKnowledge['系列']" class="notebook-tag">📚 {{ selectedKnowledge['系列'] }}</span>
+                <span v-if="selectedKnowledge['类型']" class="notebook-tag">🔖 {{ selectedKnowledge['类型'] }}</span>
+              </div>
+
+              <a-descriptions bordered size="small" :column="1" class="knowledge-detail-table">
+                <a-descriptions-item label="经典样题">{{ selectedKnowledge['经典样题'] || '未提供' }}</a-descriptions-item>
+                <a-descriptions-item label="考点">{{ selectedKnowledge['考点'] || '未提供' }}</a-descriptions-item>
+                <a-descriptions-item label="策略方法">{{ selectedKnowledge['策略方法'] || '未提供' }}</a-descriptions-item>
+                <a-descriptions-item label="讲解要点">{{ selectedKnowledge['讲解要点举例'] || '未提供' }}</a-descriptions-item>
+                <a-descriptions-item label="易错点">{{ selectedKnowledge['易错点'] || '未提供' }}</a-descriptions-item>
+                <a-descriptions-item label="公式">{{ selectedKnowledge._formula || '按本题判断' }}</a-descriptions-item>
+                <a-descriptions-item label="总结归纳">{{ selectedKnowledge['总结归纳'] || '未提供' }}</a-descriptions-item>
+              </a-descriptions>
+            </div>
           </a-modal>
         </a-col>
       </a-row>
@@ -1190,7 +1296,7 @@ function pct(style) {
           />
         </a-form-item>
         <a-form-item label="模型名称">
-          <a-input v-model:value="checkAgentApiConfig.model" placeholder="输入模型名��" />
+          <a-input v-model:value="checkAgentApiConfig.model" placeholder="输入模型名称" />
         </a-form-item>
         <a-form-item label="API Key">
           <a-input-password
@@ -1247,12 +1353,11 @@ function pct(style) {
 </template>
 
 <style scoped>
-/* 知识关联点 chips 唯一定义（后文不得再重复声明） */
 .knowledge-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 .knowledge-chips .ant-tag {
   margin: 0;
@@ -1261,45 +1366,60 @@ function pct(style) {
 
 /* 壳层宽度/顶栏见 style.css：--page-max-width 等 */
 
-/* 卡片外观一律复用 .qh-surface-card（style.css 单一真源），此处不再重复定义圆角与阴影 */
+.preview-card {
+  border-radius: var(--card-radius, 18px);
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--line, #d7ded5);
+  background: var(--surface, #fffdf7);
+  min-height: 560px;
+}
+
+.main-card {
+  border-radius: var(--card-radius, 18px);
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--line, #d7ded5);
+  background: var(--surface, #fffdf7);
+}
+
 .field-label {
-  margin: 0 0 8px;
-  color: var(--qh-ink-2);
+  margin: 0 0 6px;
+  color: var(--ink-deep, #163b3d);
   font-size: 13px;
+  font-weight: 600;
 }
 
 .agent-a-params {
-  padding: 14px;
-  border: 1px solid var(--qh-border-soft);
-  border-radius: var(--qh-radius-card);
-  background: var(--qh-surface-sub);
+  padding: 16px;
+  border: 1px solid var(--line, #d7ded5);
+  border-radius: var(--control-radius, 12px);
+  background: var(--surface-soft, #edf7f0);
 }
 
 .param-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 11px;
+  gap: 12px;
   align-items: start;
   margin-bottom: 14px;
 }
 
 .param-title {
-  color: var(--qh-ink);
-  font-size: 13px;
-  font-weight: 600;
+  color: var(--ink-deep, #163b3d);
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .param-subtitle {
   margin-top: 2px;
-  color: var(--qh-muted);
-  font-size: 11px;
+  color: var(--muted, #708786);
+  font-size: 11.5px;
 }
 
 .param-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 0.8fr;
-  gap: 10px;
-  margin-top: 11px;
+  gap: 12px;
+  margin-top: 12px;
 }
 
 .param-field {
@@ -1311,95 +1431,232 @@ function pct(style) {
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
-  margin-top: 11px;
+  margin-top: 12px;
 }
 
 .uncertain-label {
-  color: #8a5a14;
-  font-size: 11px;
+  color: var(--warning, #9a6a18);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+/* 题目输入操作坞：精致成组，告别孤零零一行 */
+.topic-actions-dock {
+  margin-top: 14px;
+  background: var(--surface-soft, #edf7f0);
+  border: 1.5px dashed var(--line-strong, #b9cdc5);
+  border-radius: var(--control-radius, 14px);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dock-buttons-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .upload-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 11px;
+  display: inline-flex;
   align-items: center;
-  margin-top: 8px;
+  margin: 0;
 }
 
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  flex-wrap: wrap;
+}
+
+.btn-cute-action {
+  border-radius: 9999px !important;
+  font-weight: 700 !important;
+  font-size: 12.5px !important;
+  padding: 4px 16px !important;
+  height: 36px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.btn-cute-action:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.btn-upload-cute {
+  background: var(--surface, #fffdf7) !important;
+  border: 1.5px solid var(--line-strong, #b9cdc5) !important;
+  color: var(--ink-deep, #163b3d) !important;
+  box-shadow: 0 2px 6px rgba(22, 59, 61, 0.05);
+}
+
+.btn-upload-cute:hover:not(:disabled) {
+  border-color: var(--brand, #16856f) !important;
+  color: var(--brand, #16856f) !important;
+  box-shadow: 0 4px 12px rgba(22, 133, 111, 0.15);
+}
+
+.btn-recognize-cute {
+  background: linear-gradient(135deg, #16856f 0%, #116b5b 100%) !important;
+  border: none !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(22, 133, 111, 0.25);
+}
+
+.btn-recognize-cute:hover:not(:disabled) {
+  box-shadow: 0 6px 16px rgba(22, 133, 111, 0.35);
+  filter: brightness(1.05);
+}
+
+.btn-reset-cute {
+  background: #fff0f3 !important;
+  border: 1px solid #fed7e2 !important;
+  color: #d95f5f !important;
+  font-weight: 600 !important;
+}
+
+.btn-reset-cute:hover {
+  background: #ffe3e8 !important;
+}
+
+/* 拍立得手账相纸风格 */
 .image-mini {
   display: flex;
-  gap: 10px;
+  gap: 14px;
   align-items: center;
-  margin-top: 11px;
-  padding: 8px;
-  border-radius: var(--qh-radius-card);
-  background: var(--qh-surface-sub);
+  padding: 10px 14px;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid var(--line, #d7ded5);
+  box-shadow: 0 3px 10px rgba(22, 59, 61, 0.05);
+  margin-top: 2px;
+}
+
+.image-polaroid-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.polaroid-pin {
+  position: absolute;
+  top: -8px;
+  left: -4px;
+  font-size: 14px;
+  z-index: 2;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
 }
 
 .image-mini-thumb {
-  width: 64px;
-  height: 64px;
+  width: 58px;
+  height: 58px;
   object-fit: cover;
-  border-radius: var(--qh-radius-control);
-  border: 1px solid var(--qh-border);
+  border-radius: 8px;
+  border: 1.5px solid var(--line-strong, #b9cdc5);
   cursor: pointer;
-  background: var(--qh-surface);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  background: var(--surface, #fffdf7);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* 缩略图可点开原图：抬升 + 品牌蓝投影给出明确的可点击反馈 */
 .image-mini-thumb:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.2);
+  transform: scale(1.06) rotate(1deg);
+  box-shadow: 0 4px 12px rgba(22, 59, 61, 0.12);
 }
 
 .image-mini-meta {
   min-width: 0;
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
 }
 
-.actions {
+.image-mini-title-bar {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
-  margin-top: 14px;
 }
 
-.status {
-  display: block;
-  margin-top: 10px;
+.cute-tag-pill {
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  background: var(--blue-pale, #e8f1fa);
+  color: var(--blue, #5c88b8);
+  font-weight: 700;
+}
+
+.image-name-text {
+  font-size: 12px;
+  color: var(--ink-deep, #163b3d);
+  font-weight: 600;
+}
+
+.image-switches-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.switch-hint-text {
+  font-size: 11.5px;
+  color: var(--muted, #708786);
+}
+
+.text-mode-tip {
+  font-size: 11px;
+}
+
+.btn-remove-photo {
+  padding: 0 !important;
+  height: auto !important;
+  font-size: 11.5px !important;
+  color: var(--danger, #d95f5f) !important;
+}
+
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--muted, #708786);
+  padding: 2px 4px;
+}
+
+.status-indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand, #16856f);
+  animation: cutePulse 2s infinite ease-in-out;
+}
+
+@keyframes cutePulse {
+  0%, 100% { opacity: 0.5; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.15); }
 }
 
 .preview-sub {
   margin-left: 8px;
-  font-size: 11px;
+  font-size: 12px;
+  color: var(--muted, #708786);
 }
 
-/* 容器高度跟随画布自然高度（画布自带 1726/980 比例），不再用 min-height 硬撑，避免出现大片留白 */
 .board-viewport {
   position: relative;
   display: grid;
   place-items: center;
-  padding: 11px;
-  border-radius: var(--qh-radius-card);
-  background: var(--qh-surface-sunken);
-  border: 1px solid var(--qh-border-soft);
-}
-
-.board-empty-hint {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  color: var(--qh-faint);
-  font-size: 13px;
-  text-align: center;
-  pointer-events: none;
+  min-height: 420px;
+  padding: 16px;
+  border-radius: var(--control-radius, 12px);
+  background: #f1f5f9;
+  border: 1px solid var(--line, #d7ded5);
 }
 
 .board-mask-outer {
@@ -1408,77 +1665,492 @@ function pct(style) {
   z-index: 10;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.68);
-  color: var(--qh-muted);
-  font-size: 11px;
+  background: rgba(255, 253, 247, 0.8);
+  color: var(--ink-deep, #163b3d);
+  font-size: 13px;
+  font-weight: 600;
   pointer-events: none;
+  backdrop-filter: blur(2px);
 }
 
 .thumb-tip {
-  margin: 11px 0 0;
-  font-size: 11px;
+  margin: 12px 0 0;
+  font-size: 11.5px;
+  color: var(--muted, #708786);
 }
 
 .screenshot-status {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-size: 12px;
-  color: #52c41a;
-  font-weight: 500;
+  color: var(--positive-strong, #116b5b);
+  font-weight: 600;
 }
 
 .screenshot-url {
-  font-family: monospace;
-  font-size: 12px;
-  color: var(--qh-brand);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  color: var(--positive, #16856f);
   cursor: pointer;
   text-decoration: underline;
   text-decoration-style: dotted;
 }
 
 .screenshot-url:hover {
-  opacity: 0.75;
+  color: var(--positive-strong, #116b5b);
 }
 
-/* 知识卡外观复用 .qh-surface-card；纵向间距由 a-row 的 gutter 提供，不重复加 margin */
-.knowledge-tip {
-  display: block;
+/* 知识关联点手账卡 */
+.knowledge-card {
+  margin-top: 16px;
+  border-radius: var(--card-radius, 18px);
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--line, #d7ded5);
+  background: var(--surface, #fffdf7);
 }
 
-.knowledge-state,
-.knowledge-list {
-  margin-top: 12px;
-}
-
-.confirm-row {
+.knowledge-card-title-bar {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+.title-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title-tape-icon {
+  font-size: 18px;
+}
+
+.title-main-text {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--ink-deep, #163b3d);
+  letter-spacing: 0.2px;
+}
+
+.title-sub-text {
+  font-size: 12px;
+  color: var(--muted, #708786);
+  margin-left: 4px;
+}
+
+.title-note-count {
+  font-size: 11.5px;
+  background: var(--sun-pale, #fff2c7);
+  border: 1px solid #fae69e;
+  color: var(--warning, #9a6a18);
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-weight: 700;
+}
+
+/* 顶部引导与操作工具坞 */
+.knowledge-toolbar-pod {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  align-items: center;
-  margin-top: 16px;
-}
-.knowledge-chip {
-  margin: 0;
-  padding: 3px 11px;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  background: var(--surface-soft, #edf7f0);
+  border: 1.5px dashed var(--line-strong, #b9cdc5);
+  border-radius: var(--control-radius, 14px);
+  padding: 10px 14px;
+  margin-bottom: 14px;
 }
 
-.knowledge-chip:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.16);
+.knowledge-notice-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--ink, #31595a);
+}
+
+.notice-icon {
+  font-size: 15px;
+}
+
+.notice-text {
+  font-weight: 600;
+}
+
+.knowledge-actions {
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-cute-query-knowledge {
+  border-radius: 9999px !important;
+  font-size: 12.5px !important;
+  font-weight: 700 !important;
+  padding: 4px 16px !important;
+  height: 34px !important;
+  background: var(--sun, #f6c95f) !important;
+  border: 1.5px solid #ebd076 !important;
+  color: #6d4b00 !important;
+  box-shadow: 0 2px 8px rgba(246, 201, 95, 0.35);
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.btn-cute-query-knowledge:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 5px 14px rgba(246, 201, 95, 0.45);
+  background: #fdd835 !important;
+}
+
+.knowledge-state {
+  margin: 12px 0;
+}
+
+.knowledge-empty-paper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--surface-soft, #edf7f0);
+  border: 1px dashed var(--line, #d7ded5);
+  border-radius: 12px;
+  margin: 12px 0;
+  font-size: 12px;
+  color: var(--muted, #708786);
+}
+
+.knowledge-paper-invitation {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 16px 20px 14px;
+  background: #fffdf7;
+  border: 1.5px dashed var(--line-strong, #b9cdc5);
+  border-radius: 14px;
+  margin: 14px 0;
+  box-shadow: 0 2px 8px rgba(22, 59, 61, 0.03);
+}
+
+.invitation-tape {
+  position: absolute;
+  top: -7px;
+  left: 36px;
+  width: 60px;
+  height: 14px;
+  background: repeating-linear-gradient(45deg, #f6c95f, #f6c95f 5px, #ffe082 5px, #ffe082 10px);
+  opacity: 0.85;
+  border-radius: 2px;
+  transform: rotate(-2deg);
+}
+
+.invitation-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.invitation-emoji {
+  font-size: 24px;
+}
+
+.invitation-heading {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-deep, #163b3d);
+}
+
+.invitation-desc {
+  font-size: 12px;
+  color: var(--muted, #708786);
+  margin-top: 2px;
+}
+
+/* 核心：手账便签小纸条墙 (Paper Notes Wall) */
+.knowledge-paper-notes-wall {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+  gap: 16px;
+  margin: 18px 0 16px;
+}
+
+.knowledge-paper-slip {
+  position: relative;
+  padding: 22px 14px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* 自然微倾斜手账感 */
+.knowledge-paper-slip:nth-child(4n+1) { transform: rotate(-1.2deg); }
+.knowledge-paper-slip:nth-child(4n+2) { transform: rotate(1deg); }
+.knowledge-paper-slip:nth-child(4n+3) { transform: rotate(-0.8deg); }
+.knowledge-paper-slip:nth-child(4n+4) { transform: rotate(1.3deg); }
+
+.knowledge-paper-slip:hover {
+  transform: translateY(-5px) rotate(0deg) scale(1.025) !important;
+  z-index: 10;
+}
+
+/* 顶部和纸胶带装饰 */
+.slip-washi-tape {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-1deg);
+  width: 66px;
+  height: 15px;
+  opacity: 0.88;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  pointer-events: none;
+}
+
+/* 5 种马卡龙便签纸色系 */
+.slip-theme-0 {
+  background: #fffde7;
+  border: 1px solid #fae69e;
+  box-shadow: 0 4px 14px rgba(154, 106, 24, 0.08);
+}
+.slip-theme-0:hover { box-shadow: 0 8px 22px rgba(154, 106, 24, 0.18); }
+.tape-theme-0 {
+  background: repeating-linear-gradient(45deg, #f6c95f, #f6c95f 6px, #ffe082 6px, #ffe082 12px);
+}
+
+.slip-theme-1 {
+  background: #fff0f3;
+  border: 1px solid #fed7e2;
+  box-shadow: 0 4px 14px rgba(217, 95, 95, 0.08);
+}
+.slip-theme-1:hover { box-shadow: 0 8px 22px rgba(217, 95, 95, 0.18); }
+.tape-theme-1 {
+  background: repeating-linear-gradient(45deg, #ff8fa3, #ff8fa3 6px, #ffb3c1 6px, #ffb3c1 12px);
+}
+
+.slip-theme-2 {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  box-shadow: 0 4px 14px rgba(22, 133, 111, 0.08);
+}
+.slip-theme-2:hover { box-shadow: 0 8px 22px rgba(22, 133, 111, 0.18); }
+.tape-theme-2 {
+  background: repeating-linear-gradient(45deg, #6ee7b7, #6ee7b7 6px, #a7f3d0 6px, #a7f3d0 12px);
+}
+
+.slip-theme-3 {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  box-shadow: 0 4px 14px rgba(92, 136, 184, 0.08);
+}
+.slip-theme-3:hover { box-shadow: 0 8px 22px rgba(92, 136, 184, 0.18); }
+.tape-theme-3 {
+  background: repeating-linear-gradient(45deg, #7dd3fc, #7dd3fc 6px, #bae6fd 6px, #bae6fd 12px);
+}
+
+.slip-theme-4 {
+  background: #faf5ff;
+  border: 1px solid #e9d5ff;
+  box-shadow: 0 4px 14px rgba(147, 51, 234, 0.08);
+}
+.slip-theme-4:hover { box-shadow: 0 8px 22px rgba(147, 51, 234, 0.18); }
+.tape-theme-4 {
+  background: repeating-linear-gradient(45deg, #d8b4fe, #d8b4fe 6px, #e9d5ff 6px, #e9d5ff 12px);
+}
+
+/* 便签卡内部元素 */
+.slip-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.slip-pin-icon {
+  font-size: 12px;
+}
+
+.slip-code {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--ink-deep, #163b3d);
+  font-family: monospace;
+}
+
+.slip-category-badge {
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  font-weight: 600;
+  color: var(--ink, #31595a);
+}
+
+.slip-title-text {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--ink-deep, #163b3d);
+  line-height: 1.4;
+  letter-spacing: 0.1px;
+}
+
+.slip-brief-snippet {
+  font-size: 11px;
+  color: var(--ink, #31595a);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+.snippet-prefix {
+  margin-right: 3px;
+}
+
+.slip-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted, #708786);
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.slip-peek-hint {
+  font-size: 11px;
+}
+
+.slip-peek-icon {
+  font-size: 12px;
+}
+
+/* 底部下一步行动推进条 */
+.knowledge-footer-deck {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line, #d7ded5);
+  margin-top: 8px;
+}
+
+.footer-handoff-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink, #31595a);
+  background: var(--surface-soft, #edf7f0);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  border: 1px solid var(--line, #d7ded5);
+}
+
+.btn-cute-confirm-next {
+  height: 40px !important;
+  padding: 0 24px !important;
+  border-radius: 9999px !important;
+  font-size: 13.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.3px !important;
+  background: linear-gradient(135deg, #16856f 0%, #116b5b 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(22, 133, 111, 0.28) !important;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.btn-cute-confirm-next:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.02) !important;
+  box-shadow: 0 8px 20px rgba(22, 133, 111, 0.38) !important;
+}
+
+/* 弹窗手账纸感 */
+.notebook-modal-sheet {
+  position: relative;
+  background: #fffdf7;
+  padding: 6px 4px 4px;
+}
+
+.notebook-tape {
+  width: 90px;
+  height: 16px;
+  margin: 0 auto 12px;
+  background: repeating-linear-gradient(45deg, #f6c95f, #f6c95f 6px, #ffe082 6px, #ffe082 12px);
+  opacity: 0.85;
+  border-radius: 3px;
+  transform: rotate(-1deg);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.notebook-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.notebook-pin {
+  font-size: 18px;
+}
+
+.notebook-main-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink-deep, #163b3d);
+}
+
+.notebook-id-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: var(--sun-pale, #fff2c7);
+  color: var(--warning, #9a6a18);
+  font-weight: 700;
+}
+
+.notebook-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.notebook-tag {
+  font-size: 11.5px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: var(--surface-soft, #edf7f0);
+  border: 1px solid var(--line, #d7ded5);
+  color: var(--ink, #31595a);
+  font-weight: 600;
 }
 
 .knowledge-detail-table :deep(.ant-descriptions-item-label) {
   width: 132px;
-  color: var(--qh-ink-2);
-  background: var(--qh-surface-sub);
+  color: #49627c;
+  background: #f6faff;
 }
 
 .knowledge-list :deep(.ant-list-item-meta-description) {
-  color: var(--qh-muted);
+  color: #595959;
 }
 
 .knowledge-card :deep(.ant-divider-horizontal) {
@@ -1495,8 +2167,12 @@ function pct(style) {
     grid-template-columns: 1fr;
   }
 
+  .preview-card {
+    min-height: auto;
+  }
+
   .board-viewport {
-    padding: 8px;
+    min-height: 260px;
   }
 }
 </style>

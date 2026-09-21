@@ -5,8 +5,6 @@
  */
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
-// 画布专属规则：只清理即将进入画布的题文，不改口播或页面元数据。
-import { normalizeCanvasText } from './canvasText.js'
 
 const LATEX_HINT = /\\[a-zA-Z]|[_^]\{|\$\$|\$|\\\(|\\\[/
 const CJK = /[\u4e00-\u9fff\uff00-\uffef]/
@@ -76,6 +74,7 @@ function renderDelimited(text) {
         continue
       }
     }
+    // plain until next delimiter or bare latex command
     let j = i + 1
     while (j < src.length) {
       if (src.startsWith('$$', j) || src[j] === '$' || src.startsWith('\\[', j) || src.startsWith('\\(', j)) break
@@ -104,28 +103,51 @@ function renderMixedBareLatex(text) {
       let depth = 0
       while (j < src.length) {
         const ch = src[j]
-        if (ch === '{') { depth++; j++; continue }
-        if (ch === '}') { depth--; j++; continue }
+        if (ch === '{') {
+          depth++
+          j++
+          continue
+        }
+        if (ch === '}') {
+          depth--
+          j++
+          continue
+        }
         if (depth === 0 && CJK.test(ch)) break
+        // stop bare command at whitespace when depth 0 after command body started
         if (depth === 0 && j > i + 1 && /[\s，。；：！？、]/.test(ch)) break
         j++
       }
+      // include trailing ^\circ or _x loosely
       while (j < src.length && /[\^_]/.test(src[j])) {
         j++
         if (src[j] === '{') {
           let d = 0
           while (j < src.length) {
             if (src[j] === '{') d++
-            if (src[j] === '}') { d--; j++; if (d === 0) break; continue }
+            if (src[j] === '}') {
+              d--
+              j++
+              if (d === 0) break
+              continue
+            }
             j++
           }
-        } else if (src[j]) j++
+        } else if (src[j]) {
+          j++
+        }
       }
-      parts.push(renderKatex(src.slice(i, j).trim(), false))
+      const mathPart = src.slice(i, j).trim()
+      parts.push(renderKatex(mathPart, false))
       i = j
     } else {
       let j = i
-      while (j < src.length && !(src[j] === '\\' && j + 1 < src.length && /[a-zA-Z]/.test(src[j + 1]))) j++
+      while (
+        j < src.length &&
+        !(src[j] === '\\' && j + 1 < src.length && /[a-zA-Z]/.test(src[j + 1]))
+      ) {
+        j++
+      }
       parts.push(escapeHtml(src.slice(i, j)).replace(/\n/g, '<br>'))
       i = j
     }
@@ -133,18 +155,17 @@ function renderMixedBareLatex(text) {
   return parts.join('')
 }
 
-/** 把题文渲染成可安全 v-html 的 HTML；规则仅作用于画布题文。 */
+/**
+ * 把题文渲染成可安全 v-html 的 HTML
+ * - 普通中文/数字原样（转义）
+ * - 分数 3/4、LaTeX 命令、$...$ 走 KaTeX
+ */
 export function renderProblemHtml(text) {
-  const raw = normalizeCanvasText(text).trim()
+  const raw = String(text || '').trim()
   if (!raw) return ''
   const promoted = promoteSimpleFractions(raw)
   if (!LATEX_HINT.test(promoted) && !/\d+\/\d+/.test(raw)) {
     return escapeHtml(raw).replace(/\n/g, '<br>')
   }
   return renderDelimited(promoted)
-}
-
-export function hasMathContent(text) {
-  const raw = normalizeCanvasText(text)
-  return LATEX_HINT.test(raw) || /\d+\/\d+/.test(raw)
 }

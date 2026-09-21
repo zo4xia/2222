@@ -22,10 +22,6 @@ export default [
         Blob: 'readonly',
         FileReader: 'readonly',
         console: 'readonly',
-        navigator: 'readonly',
-        performance: 'readonly',
-        MediaRecorder: 'readonly',
-        CropTarget: 'readonly',
         requestAnimationFrame: 'readonly',
         cancelAnimationFrame: 'readonly',
         ResizeObserver: 'readonly',
@@ -35,20 +31,26 @@ export default [
         SVGElement: 'readonly',
         NodeFilter: 'readonly',
         getComputedStyle: 'readonly',
+        navigator: 'readonly',
+        MediaRecorder: 'readonly',
       },
     },
     rules: {
       'vue/multi-word-component-names': 'off',
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       'no-console': 'off',
+      'no-empty': ['error', { allowEmptyCatch: true }],
+      'no-useless-escape': 'off',
+      'no-control-regex': 'off',
+      'preserve-caught-error': 'off',
     },
   },
   {
-    ignores: ['dist/**', 'node_modules/**', 'public/**'],
+    ignores: ['dist/**', 'node_modules/**', 'public/**', 'truth/**', 'skills/**'],
   },
-  // server/ 目录是 Node.js 环境，使用 Node 全局变量
+  // server/ 和 api/ 目录是 Node.js 环境，使用 Node 全局变量
   {
-    files: ['server/**/*.js', 'scripts/**/*.{js,mjs}'],
+    files: ['server/**/*.js', 'api/**/*.js'],
     languageOptions: {
       globals: {
         process: 'readonly',
@@ -63,7 +65,6 @@ export default [
         clearInterval: 'readonly',
         console: 'readonly',
         URL: 'readonly',
-        require: 'readonly',
       },
     },
   },

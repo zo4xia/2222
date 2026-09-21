@@ -4,24 +4,14 @@ import { fileURLToPath } from 'url'
 import { isOptions, sendJson } from './http.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const projectDir = resolve(__dirname, '..')
-const publicDir = resolve(projectDir, 'public')
-
-const TEMP_FILES = [
-  'dev-smoke.log',
-  '.dev-3200.log',
-  '.vite3001.log',
-  '.vite3001.err',
-  '.linttmp.json',
-]
+const publicDir = resolve(__dirname, '..', 'public')
 
 const CLEANUP_RULES = [
-  { dir: 'audio-cache', keep: (name, keepSet) => keepSet.has(name) },
+  { dir: 'audio-cache', keep: () => false },
   { dir: 'audio', keep: (name, keepSet) => keepSet.has(name) },
   { dir: 'pic', keep: (name, keepSet) => keepSet.has(name) },
   { dir: 'board-result', keep: (name, keepSet) => keepSet.has(name) || name === 'current.json' },
   { dir: 'deliverable', keep: (name, keepSet) => keepSet.has(name) || name === 'current.json' || name === 'current.html' || name === 'DELIVERABLE_API_SPEC.md' || name === 'deliverable.schema.json' },
-  { dir: 'handoff', keep: (name, keepSet) => keepSet.has(name) || name === 'current.json' },
 ]
 
 function readPointer(dir, keys, keep) {
@@ -40,17 +30,25 @@ function collectKeepSet() {
   readPointer('board-result', ['filename', 'htmlFilename'], keep)
   readPointer('deliverable', ['filename', 'htmlFilename'], keep)
   try {
-    const handoffPointer = JSON.parse(readFileSync(resolve(publicDir, 'handoff', 'current.json'), 'utf8'))
-    const handoffFilename = handoffPointer?.filename
-    if (handoffFilename) {
-      keep.add(handoffFilename)
-      keep.add(handoffFilename.replace(/\.json$/, '.original.json'))
-      const handoff = JSON.parse(readFileSync(resolve(publicDir, 'handoff', handoffFilename), 'utf8'))
-      const assetRefs = JSON.stringify(handoff).match(/(?:\/|\\)(?:audio|audio-cache|pic)\/[^"\\]+/g) || []
-      for (const ref of assetRefs) keep.add(ref.split(/[\\/]/).pop())
+    const handoff = JSON.parse(readFileSync(resolve(publicDir, 'handoff', 'current.json'), 'utf8'))
+    if (handoff?.screenshotUrl) keep.add(handoff.screenshotUrl.split('/').pop())
+  } catch {
+    // 没有当前截图时无需保留图片文件。
+  }
+  // 保留当前交付物引用的音频文件，避免清理后播放器音频 404
+  try {
+    const deliverable = JSON.parse(readFileSync(resolve(publicDir, 'deliverable', 'current.json'), 'utf8'))
+    const rows = Array.isArray(deliverable?.rows) ? deliverable.rows
+      : (deliverable?.deliverable && Array.isArray(deliverable.deliverable.rows)) ? deliverable.deliverable.rows
+      : []
+    for (const row of rows) {
+      const url = row?.audioUrl
+      if (typeof url === 'string' && url.startsWith('/audio/')) {
+        keep.add(url.split('/').pop())
+      }
     }
   } catch {
-    // 当前 handoff 损坏时不删除其他目录的文件，避免误删资产。
+    // 没有当前交付物时无需保留音频文件。
   }
   return keep
 }

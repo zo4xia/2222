@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>页面导入示范 · 标准化模板</title>
+<style>
+  :root{--bg:#0f172a;--surface:#1e293b;--surface-2:#334155;--ink:#f1f5f9;--muted:#94a3b8;
+        --brand:#22d3ee;--warn:#fbbf24;--ok:#4ade80;--err:#f87171;--line:#334155}
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;background:var(--bg);color:var(--ink);
+       font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;line-height:1.6}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;
+         padding:16px;margin-bottom:14px}
+  .panel h2{font-size:14px;margin:0 0 10px;color:var(--brand)}
+  pre{background:#0b1220;color:var(--ok);border:1px solid var(--line);
+      border-radius:6px;padding:12px;overflow-x:auto;font-size:12px;
+      font-family:"JetBrains Mono","Consolas",monospace;line-height:1.5;margin:0}
+  code{background:var(--surface-2);padding:1px 5px;border-radius:3px;
+       font-family:"JetBrains Mono",monospace;font-size:12px}
+  .tab-bar{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+  .tab{background:var(--surface-2);color:var(--ink);border:1px solid var(--line);
+       border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px}
+  .tab.active{background:var(--brand);color:#0b1220;border-color:var(--brand);font-weight:600}
+  .note{color:var(--muted);font-size:11px;margin-top:6px;line-height:1.5}
+  .field-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+  .field-table th,.field-table td{border:1px solid var(--line);padding:6px 8px;text-align:left}
+  .field-table th{background:var(--surface-2);color:var(--muted);font-weight:600}
+  .field-table td.req{color:var(--err);font-weight:600}
+  .field-table td.opt{color:var(--muted)}
+</style>
+</head>
+<body>
+<h1>页面导入示范 · 标准化模板</h1>
+<p class="sub">下游 Agent / 第三方应用消费 handoff / deliverable JSON 的最简集成代码 · 全局唯一字段规范</p>
+
+<div class="tab-bar" id="tabs">
+  <button class="tab active" data-tab="handoff">Handoff 导入</button>
+  <button class="tab" data-tab="deliverable">Deliverable 导入</button>
+  <button class="tab" data-tab="row-player">row-player 嵌入</button>
+  <button class="tab" data-tab="field-spec">字段规范</button>
+</div>
+
+<div id="content"></div>
+
+<script>
+const tabs = {
+  handoff: {
+    title: '① Handoff JSON 导入示范（Agent A → Agent B 交接）',
+    desc: '下游 Agent 读取 handoff，按 boardPlan + canvasParams 落区，按 stageRatioSuggestion 分配行数，按 essence 贯穿主线',
+    code: `// ─── 1. fetch handoff ──────────────────────────────────────
+const res = await fetch('/api/handoff');        // GET 当前活跃 handoff
+const handoff = await res.json();
+// 或读归档: fetch('/handoff/handoff-20260915-094754-995.json')
+
+// ─── 2. 锁定画布基准（绝对物理基准）─────────────────────────
+const { canvasSize, fontSize } = handoff.canvasParams;
+const W = canvasSize.width;   // 1726
+const H = canvasSize.height;  // 980
+const Q = fontSize.question.px;  // 30
+const B = fontSize.analysis.px;  // 38
+
+// ─── 3. 取四区坐标（参考区间，不死板）──────────────────────
+const { question, analysis, solution, summary } = handoff.boardPlan;
+// 每个区: { x, y, w, h }  百分比 0—100, 原点左上
+
+// ─── 4. 按 stageRatioSuggestion 分配 rows 行数 ────────────────
+const ratio = handoff.stageRatioSuggestion.suggestedRatio;
+// { analysis: 35, solution: 40, summary: 15, intro_outro: 10 }
+const totalRows = 20;  // 按音频时长定
+const rowsAnalysis  = Math.round(totalRows * ratio.analysis  / 100);
+const rowsSolution  = Math.round(totalRows * ratio.solution  / 100);
+const rowsSummary   = Math.round(totalRows * ratio.summary   / 100);
+
+// ─── 5. 教学精髓贯穿（essence 必须贯穿全题始终）──────────────
+const essence = handoff.essence;  // 如 '解答绝对主体，标准结构'
+// 在每个 row 的口播与板书里都要呼应 essence
+
+// ─── 6. 弃用字段检测（歧义弹窗）──────────────────────────
+function detectDeprecated(row) {
+  const warns = [];
+  if (row.board?.startCoord) warns.push('v2.0 旧字段 board.startCoord，应迁移到 board.region');
+  if (row.actionSpec?.some(a => a.triggerAt)) warns.push('旧版 triggerAt，应迁移到 startDelay');
+  if (row.actionSpec?.some(a => a.durationMs != null)) warns.push('Agent 填 durationMs，应忽略');
+  return warns;
+}`
+  },
+  deliverable: {
+    title: '② Deliverable JSON 导入示范（Agent B 五字段产物）',
+    desc: '下游课件/画布 Agent 消费 deliverable，按 exclusiveExecutionPlan 串行播放音画',
+    code: `// ─── 1. fetch deliverable ──────────────────────────────────
+const res = await fetch('/api/deliverable');     // GET 当前活跃 deliverable
+const deliverable = await res.json();
+// 或读归档: fetch('/deliverable/deliverable-deliverable-1789337449932.json')
+
+// ─── 2. 校验 Schema ───────────────────────────────────────
+const schemaRes = await fetch('/deliverable/deliverable.schema.json');
+const schema = await schemaRes.json();
+// 用 ajv 校验: const valid = ajv.validate(schema, deliverable);
+
+// ─── 3. 取核心字段 ────────────────────────────────────────
+const {
+  projectCode,        // 唯一项目流水编码
+  apiSpecVersion,      // '2.0.0'
+  problemText,        // 题目纯文本
+  boardPlan,          // 四区坐标
+  rows,               // 五字段执行表数组
+  stats               // 统计
+} = deliverable;
+
+// ─── 4. 按 exclusiveExecutionPlan 串行播放 ─────────────────
+for (const row of rows) {
+  // 每个 row 自带真实音频 (mp3 或 audioBase64)
+  const audio = new Audio(row.mp3 || \`data:audio/mp3;base64,\${row.audioBase64}\`);
+  await audio.play();
+  
+  // exclusiveExecutionPlan: 单手串行执行计划
+  for (const step of row.exclusiveExecutionPlan) {
+    switch (step.type) {
+      case 'speech':  /* 口播进行中 */ break;
+      case 'board':   /* 板书写 step.content */ break;
+      case 'action':  /* 动作 step.action (rough-notation/line/arrow) */ break;
+    }
+    // 等到 step.endOffsetMs
+    await new Promise(r => setTimeout(r, step.endOffsetMs - currentTime));
+  }
+}`
+  },
+  'row-player': {
+    title: '③ row-player.html 嵌入示范（iframe 集成）',
+    desc: '把单文件 deliverable 播放器作为 iframe 嵌入第三方页面',
+    code: `<!-- ─── 1. iframe 嵌入 row-player ────────────────────────── -->
+<iframe
+  src="/row-player.html?deliverable=/deliverable/current.json"
+  style="width:1726px;height:980px;border:0;transform-origin:top left;transform:scale(0.7)"
+  allow="autoplay; fullscreen"
+  title="讲学播放器"
+></iframe>
+
+<!-- ─── 2. 或用 Blob URL 传当前 rows (B 页演播按钮同款) ─── -->
+<script>
+  const payload = { projectCode: 'demo', problemText: '题目', rows: [...] };
+  const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+  const blobUrl = URL.createObjectURL(blob);
+  window.open('/row-player.html?deliverable=' + encodeURIComponent(blobUrl), '_blank');
+</script>
+
+<!-- ─── 3. 或用 deliverable HTML 直开 (已注入 __INITIAL_DELIVERABLE__) ─── -->
+<a href="/deliverable/current.html" target="_blank">
+  打开讲学页（单文件离线，已注入数据）
+</a>
+
+<!-- ─── 4. AgentCanvas 控制桥（可选, 程序控制）────────────── -->
+<script>
+  const iframe = document.querySelector('iframe');
+  iframe.addEventListener('load', () => {
+    const bridge = iframe.contentWindow.AgentCanvas;
+    bridge.setRow(0);              // 跳到第 0 行
+    bridge.play();                 // 播放
+    bridge.pause();                // 暂停
+    bridge.seek(5.2);              // 跳到 5.2 秒
+    bridge.screenshot().then(b64 => console.log('截图', b64));
+  });
+</script>`
+  },
+  'field-spec': {
+    title: '④ 全局唯一字段规范',
+    desc: 'handoff / deliverable 共用的字段命名与类型规范，禁止歧义',
+    html: `
+<table class="field-table">
+  <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
+  <tr><td><code>projectCode</code></td><td>string</td><td class="req">必</td><td>唯一项目流水编码</td></tr>
+  <tr><td><code>stage</code></td><td>enum</td><td class="req">必</td><td>'题目' / '分析' / '解答' / '总结' (中文)</td></tr>
+  <tr><td><code>region</code></td><td>enum</td><td class="req">必</td><td>'question' / 'analysis' / 'solution' / 'summary' (英文)</td></tr>
+  <tr><td><code>speech</code></td><td>string</td><td class="req">必</td><td>口播原文，仅用于字幕与校对，不用于算时长</td></tr>
+  <tr><td><code>board.content</code></td><td>string</td><td class="req">必</td><td>板书内容，\\n 换行，支持 LaTeX 子集</td></tr>
+  <tr><td><code>board.startDelay</code></td><td>number</td><td class="req">必</td><td>本 row 音频开始后几秒落笔（秒）</td></tr>
+  <tr><td><code>board.region</code></td><td>enum</td><td class="req">必</td><td>板书所在区（v3.0，不含坐标）</td></tr>
+  <tr><td><code>actionSpec</code></td><td>array</td><td class="req">必</td><td>动作数组，无动作为 []</td></tr>
+  <tr><td><code>action.tool</code></td><td>enum</td><td class="req">必</td><td>'rough-notation' / 'rough-line' / 'rough-arrow'</td></tr>
+  <tr><td><code>action.action</code></td><td>enum</td><td class="opt">选</td><td>'underline' / 'highlight' / 'circle' (rough-notation 专属)</td></tr>
+  <tr><td><code>action.order</code></td><td>number</td><td class="req">必</td><td>单手队列正整数顺序，全表唯一</td></tr>
+  <tr><td><code>action.target.exactText</code></td><td>string</td><td class="req">必</td><td>rough-notation 必须锚定原文（禁止改写）</td></tr>
+  <tr><td><code>mp3</code> / <code>audioBase64</code></td><td>string</td><td class="req">必</td><td>真实音频（二者至少其一，缺即规格冲突）</td></tr>
+  <tr><td><code>exclusiveExecutionPlan</code></td><td>array</td><td class="opt">选</td><td>单手串行执行计划 (deliverable v2.0)</td></tr>
+</table>
+<p class="note">⚠ <b>禁止字段</b>：board.startCoord / board.coord / board.x / board.y / actionSpec[].triggerAt / actionSpec[].durationMs / actionSpec[].startMs / actionSpec[].seed</p>
+<p class="note">📚 <b>真相源</b>：handoff.schema.json + deliverable.schema.json + HANDOFF_API_SPEC.md + DELIVERABLE_API_SPEC.md + truth/territory-A-agent-b.md</p>
+`
+  }
+};
+
+function render(tab) {
+  const t = tabs[tab];
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  const el = document.getElementById('content');
+  if (t.html) {
+    el.innerHTML = `<div class="panel"><h2>${t.title}</h2><p class="sub">${t.desc}</p>${t.html}</div>`;
+  } else {
+    el.innerHTML = `<div class="panel"><h2>${t.title}</h2><p class="sub">${t.desc}</p><pre>${t.code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre></div>`;
+  }
+}
+
+document.getElementById('tabs').addEventListener('click', e => {
+  if (e.target.classList.contains('tab')) render(e.target.dataset.tab);
+});
+render('handoff');
+</script>
+</body>
+</html>

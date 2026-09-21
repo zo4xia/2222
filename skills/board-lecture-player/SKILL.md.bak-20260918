@@ -1,0 +1,96 @@
+---
+name: board-lecture-player
+description: 把 handoff/deliverable JSON（Agent B 口播+板书产物）渲染成「口播+手写板书+动作」同步播放的 standalone HTML 讲学页。触发：用户给了一道数学/解题题的 handoff JSON + 分镜表，要求做成 HTML 口播板书讲学。
+---
+
+# board-lecture-player — 口播板书讲学 HTML 播放器
+
+把 Agent B 产出的 handoff/deliverable JSON（口播 speech + 板书 board + 动作 actionSpec，按 row 分原子单元）渲染成单文件 HTML：Web Speech 朗读口播 + rough.js 手绘线/箭头 + rough-notation 下划线 + 逐字手写板书，沿一维时间轴同步。
+
+## 数据真相（先读真实文件再动手）
+- `board` 是 v2.0 对象 `{startCoord, content, startDelay}`，**不是字符串**。startCoord 形如 `"[8.0%, 43.0%]"`。
+- 坐标默认 **percentage**。数据里通常**没有 `coordinateMode` 字段** → 默认 percentage，预留 pixel 分支（pixel 时按画布 1726×980 换算成 %）。
+- 数据里**可能有** `estimatedDurationMs` / `exclusiveExecutionPlan`（带 startOffsetMs），但**下游必须忽略、自己动态算时长**（B 不输出时间）。
+- 动作数据里通常**没有 `triggerAt`** 字段 → 按「口播播完→板书→动作串行互斥」顺序排，预留读 `+00:00:SS` 分支（本 row 开始后秒数）。
+- 口播稿里变量 x 已写成「艾克斯」（上游写稿时处理），TTS 直接念，代码不动。
+
+## 12 条硬规矩（渲染时必须遵守）
+1. handoff JSON 是唯一真相源，所有参数从 handoff 读取真实值。
+2. 坐标格式由 `coordinateMode` 决定（percentage/pixel），不是固定百分比。
+3. `board` 是 v2.0 对象 `{startCoord, content}`，不是字符串。
+4. B 不输出时间字段（duration 等），时间由下游动态计算。
+5. 板书字号是题目的 1.2~1.5 倍（题目区微软雅黑 1rem，其他区 1.35rem），行间距/字间距轻微抖动。
+6. 板书速度别太慢；出现的样式要像手写（逐字位移/旋转抖动、整行轻微倾斜 ±1.5°、行距 ±10% 抖动），不要板板正正。
+7. 分数用 `\frac{num}{den}`，渲染成上下结构；`^2`/`_x` → 上下标；`\begin{aligned}`/`\\`/`&` → 分行/对齐。口播念「分母分之分子」（上游稿已处理）。
+8. 字母 x 在复合式里念「艾克斯」（上游稿已写谐音，代码不动）。
+9. 动作只有 3 个：`rough-notation` / `rough-line` / `rough-arrow`；**可操作区域是整个画布**（SVG overlay 覆盖全画布）；rough-notation 必须锚定 `target.exactText` 文字，否则会飘。
+10. 动作 `triggerAt` 是本 row 开始后多少秒，格式 `+00:00:SS`（数据无则顺序排）。
+11. 板书坐标推荐 region 区域内，但写不下时往旁边写（达芬奇手稿感），弹性调整，不溢出画布（越界坐标钳入 [3,88]%）。
+12. 松门槛：格式硬约束，内容软引导，不把题型卡成唯一答案。
+
+## 时间轴模型（下游动态测算）
+- 口播：字数 / 160 字每分 → speechSec。
+- 板书：每行 units（渲染后原子数）/ 3 × 0.9s（比 1.25 快）。
+- 动作：每个 ~1.0s（标点停顿）。
+- 整 row 时长 = max(speechSec, startDelay + 板书+动作)；若板书+动作 > 口播可用时长，则压缩（scale）进口播内。**所有东西被包裹在口播时长内。**
+- row 之间 1s 空白停顿；row 内板书行与动作**时间互斥、顺序出现**（一维播放轴同一时刻仅一项）。
+
+## 轻量 LaTeX 渲染（renderLine）
+子集：`\frac{A}{B}`→上下标结构（num/den 各包 char）、`^x`/`^{x}`→sup、`_x`→sub、`\times \div \pm \cdot \Rightarrow \sqrt \checkmark` 等→符号。每个原子包 `<span class="char">`（opacity 0→1 逐字显现）。`boardLines()` 先去 `\begin{aligned}`/`\end{aligned}`、把 `\\` 当换行、`&` 丢弃、再 split。
+
+## 实现要点 / 坑
+- **同一条消息对同一个 HTML 发多个 Edit 会静默漏改**（约每两个漏一个）。必须一次一改、串行执行，每改一处 grep 校验再继续。
+- rough.js / rough-notation 走 CDN（unpkg），需联网；纯离线把库拷进 public/lib 改本地路径。
+- 分数如需念「分母分之分子」，在 speech 文本里已经写好，别在 board 渲染层做 TTS 变换。
+
+## 布局内核：三条硬规矩（任何「写死坐标 + 自动排版」都适用）★
+都是能让错误**从系统里消失**的类型——只在报告里看 OK 会骗人，最后得靠眼睛发现：
+
+1. **安全底一律按「区 y + 规范 h」推导，禁止手写常量。**
+   反例：手写 `SAFE_BOTTOM.solution = 68`，规范实为 `y14 + h44 = 58` → 解答区静默压到总结区标签，自检报告仍显示 OK。
+2. **测量必须在真实落位容器内做：先建列，再在列内量。**
+   反例：用 `zoneW/2 - 12` 估算列宽，与 flex 实际列宽不等 → 换行数不同 → 实测高度远超报告值。
+   正解：`makeCols()` 先建真实列容器 → `measureIn(col0, items)` 量完再分发。
+3. **分列算法必须显式返回 `rest`，否则「装不下」永远检测不到。**
+   反例：`greedyColumns` 的段数恒 ≤ maxCols，`segs.length > maxCols` 永不成立 → 最后一列静默超高。
+   正解：`packColumns()` 返回 `{cols, rest}`，装不下的**最早内容**进 rest → 回流到草稿区（即硬规矩 11 的「往旁边写」）。
+
+### 字号：本区 + 回流区联合评估，别单点贪心
+只盯着本区窄列硬塞，会把字号压到不可读（实例：被迫 26px）；把「本区多列 + 草稿区」在同一档字号下统一评估、装得下才降级 → 回升到 34px。
+**动手前先算容量**：规范要 38px 但区只给 40% 宽时，容量可能根本不够——这属「规格与数据的物理冲突」，要提前摆给用户拍板，不许静默降级了事。
+
+### 字体必须就绪后再排版
+`document.fonts.ready` 在「当前 pending 的加载」完成时 resolve，**手写体那时可能还没被请求**。必须 `document.fonts.load('38px "字体名"')` + 监听 `loadingdone` 重排（限次）+ 超时兜底；重排前 `resetLayout()`，并用 `SHOWN` 集合恢复已显现的板书。
+
+### 溢出分块后必须打「书写顺序徽标」
+内容顺着空白「哪里有空塞哪里」之后，**几何位置不再等于讲课顺序**——实例：推导的开头（row 9–20）落在左下空白槽，结尾反而留在主解答区，续块标签却写着「（演算续）」，观众不知道从哪儿读起。
+正解：排版完成后按「块内最小行号」排序（行号即书写先后，与放映顺序严格一致），给每块打 ①→② 徽标（续块并进标签文案，主区用独立 `.flow-tag`）；单块不打标避免噪音。验证时注意：**并排列同基线在截图里像连成一行**，判重叠要用 rect 坐标（x 区间是否交叠），别靠肉眼。
+
+## 验证三件套（缺一不可）
+1. **静态自检**：构建脚本内 `node --check` + 数据一致性断言（rows 数 / 动作数 / 动作锚点命中原文 / 四区坐标齐备）。临时文件要在 `finally` 里删，且变量必须声明在 `try` 外（块级作用域会让 finally 里的 unlink 静默失败）。
+2. **纯函数断言**：从模板**切片**抽无 DOM 依赖的函数（`new Function` 注入），在 node 跑——不丢项 / 段内升序 / 溢出项是最早内容 / 每列不超容量。
+3. **浏览器实测复核**（最关键，前两条全过也可能视觉崩）：
+   ```
+   msedge --headless=new --disable-gpu --virtual-time-budget=12000 \
+     --dump-dom "file:///.../board-lecture-XXX.html?audit=1" > dom.txt
+   ```
+   页面内 `getBoundingClientRect()` 换算回画布百分比，**「布局报告」与「真实 rect」两套数字并列对照**（偏差应 ≤0.3%）。
+   - 抓运行时异常：临时注入 `window.onerror`（含 `unhandledrejection`）+ 延迟 ~7s 回写 `<pre id="__PROBE__">`，再 dump-dom 取出。
+   - 模型读不了图时，这套 dump-dom 文字报告就是唯一的眼睛。
+
+## 姊妹技能（本技能的排障已升格为通用方法论）
+
+本页的「布局内核三条硬规矩」「验证三件套」都取自一次真实排障，现已提炼成**与本项目无关**的通用技能：
+
+```
+~/.workbuddy/skills/layout-truth-check/     # 排版真相校验 · Layout Truth Check
+└── scripts/check_layout_source.py          # 四条味道 R1–R4，纯标准库、离线可跑
+```
+
+- 下次遇到**分区落位 / 溢出回流 / 自检全绿但视觉崩 / 字号被压太小**，先调用它
+- 本技能只保留讲学演播的领域知识（时间轴、 LaTeX、板书动作），布局治理交给通用技能
+- **执行顺序**：改本技能产物的布局代码 → 先跑 `check_layout_source.py` 机器扫 → 再跑本页验证三件套
+
+> 更新时间：2026-09-18 04:36 GMT+8 / 更新人：小阿星 ✦（代表夏夏）
+> 来源：projectCode 20260917-035129-059（38 步 / 3 动作）实测修出来的
+> 版本：v1.3（新增「溢出分块后必须打书写顺序徽标」；v1.2 挂 layout-truth-check 姊妹技能索引，布局治理从本技能剥离）

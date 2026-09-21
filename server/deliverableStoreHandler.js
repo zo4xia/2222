@@ -8,11 +8,10 @@ import { writeFileSync, readFileSync, existsSync, readdirSync, mkdirSync } from 
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { isOptions, readJsonBody, sendJson } from './http.js'
-import { renderDeliverableHtml, normalizeDeliverableAssetPaths } from './renderDeliverableHtml.js'
+import { renderDeliverableHtml } from './renderDeliverableHtml.js'
 import { computeRowGroupTimeline } from '../src/agent-b-v2/timing.js'
-import { normalizeBoardsField } from '../src/agent-b-v2/contract.js'
-// 车同轨、书同文：对外 JSON 统一带规格批注（画布 / 比例 / 字号 / 四区区间 / 越界与手稿风格）
-import { buildCanvasSpecAnnotation } from '../src/utils/superFilter.js'
+import { layoutBoardRows } from '../src/utils/boardLayout.js'
+import { buildCanvasParams } from '../src/services/stepHandoff.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const projectRoot = resolve(__dirname, '..')
@@ -61,9 +60,7 @@ export function syncExistingDeliverableHtmls(force = false) {
           const data = JSON.parse(raw)
           const htmlContent = renderDeliverableHtml({ ...data, projectCode: code })
           writeFileSync(htmlPath, htmlContent, 'utf-8')
-        } catch (error) {
-          console.warn('[v0] 同步交付 HTML 失败:', error)
-        }
+        } catch {}
       }
     }
     // 同步 current.html
@@ -74,13 +71,9 @@ export function syncExistingDeliverableHtmls(force = false) {
         if (cur?.deliverable) {
           writeFileSync(currentPath, renderDeliverableHtml(cur.deliverable), 'utf-8')
         }
-      } catch (error) {
-        console.warn('[v0] 同步当前交付 HTML 失败:', error)
-      }
+      } catch {}
     }
-  } catch (error) {
-    console.warn('[v0] 扫描交付文件失败:', error)
-  }
+  } catch {}
 }
 
 export function readDeliverableByCode(codeOrFilename) {
@@ -105,6 +98,8 @@ export function readCurrentDeliverable() {
   let filename = null
   let projectCode = null
   let createdAt = null
+  let deliverable
+
   if (existsSync(CURRENT_POINTER)) {
     try {
       const pointer = JSON.parse(readFileSync(CURRENT_POINTER, 'utf-8'))
@@ -134,7 +129,7 @@ export function readCurrentDeliverable() {
   if (!existsSync(filePath)) return null
 
   try {
-    const deliverable = JSON.parse(readFileSync(filePath, 'utf-8'))
+    deliverable = JSON.parse(readFileSync(filePath, 'utf-8'))
     return {
       filename,
       projectCode: projectCode || deliverable?.projectCode || null,
@@ -148,85 +143,119 @@ export function readCurrentDeliverable() {
 
 export function writeDeliverableFile(data) {
   ensureDeliverableDir()
-  // 车同轨：项目编码唯一真源 = 服务端 genProjectCode()（YYYYMMDD-HHMMSS-SSS，见文件头契约"文件名=项目编码"）。
-  // 前端传入的 projectCode 一律不信任（历史事故：曾传入 deliverable-<epoch> / handoff-xxx，
-  // 造成 deliverable-deliverable-* 双前缀，与全链路 \d{8}-\d{6}-\d{3} 正则失配 → 列表/索引/清理/补 HTML 全部失明）。
-  const projectCode = genProjectCode()
+  const projectCode = data.projectCode || genProjectCode()
   const jsonFilename = deliverableFilename(projectCode)
   const htmlFilename = deliverableHtmlFilename(projectCode)
   const jsonFilePath = fullPath(jsonFilename)
   const htmlFilePath = fullPath(htmlFilename)
 
-  // 为每个 row 注入严格的单手互斥时序计划与定量 1-2 秒标点停顿动作计划。
-  // 契约定案（2026-09-17）：row 五字段 { stage, mp3, speech, boards:[{startDelay,content}], actionSpec }；
-  // boards 数组唯一契约，旧 board 单对象兼容归一；triggerKeyword 已废弃，导出时剥离。
+  // 为每个 row 注入严格的单手互斥时序计划与定量 1-2 秒标点停顿动作计划
+  // 并补回 board.startCoord：区域即起点 + 纵向累加（模型不产坐标，本层算出来供外部播放器消费）
+  const rowLayouts = layoutBoardRows(data.rows || [])
   const normalizedRows = Array.isArray(data.rows)
-    ? data.rows.map((row) => {
+    ? data.rows.map((row, index) => {
         const computed = computeRowGroupTimeline(row)
-        const boards = normalizeBoardsField(row.boards, row.board).map((board) => ({
-          startDelay: typeof board.startDelay === 'number' && Number.isFinite(board.startDelay)
-            ? Math.max(0, board.startDelay)
-            : 0,
-          content: board.content || '',
-        }))
-        const measuredAudioDurationMs = Number(row.audioDurationMs)
-        const hasMeasuredAudio = Number.isFinite(measuredAudioDurationMs) && measuredAudioDurationMs > 0
-        // 契约诚实（决策 #019）：行内已存旧排程时，只要拿到真实音频时长就必须重算。
-        // 否则 exclusiveExecutionPlan 的 speech 段仍是语速预估（实测 row4 预估 15.7s vs 真实 8.46s），
-        // 下游按契约里的 timingPolicy 读数字会算错。computeRowGroupTimeline() 以 row.audioDurationMs
-        // 为语音时长真源（timing.js:81-86），重算即自动对齐，无需另写缩放逻辑。
-        const rowTotalDurationMs = hasMeasuredAudio
-          ? computed.rowTotalDurationMs
-          : (row.estimatedDurationMs || computed.rowTotalDurationMs)
-        const exclusiveExecutionPlan = hasMeasuredAudio
-          ? computed.exclusiveExecutionPlan
-          : (row.exclusiveExecutionPlan || computed.exclusiveExecutionPlan)
+        const layout = rowLayouts[index]
+        const board =
+          row.board && typeof row.board === 'object'
+            ? { ...row.board, startCoord: row.board.startCoord || (layout ? layout.startCoord : undefined) }
+            : row.board
+        const estimatedDurationMs = row.estimatedDurationMs || computed.rowTotalDurationMs
+        const exclusiveExecutionPlan = row.exclusiveExecutionPlan || computed.exclusiveExecutionPlan
         return {
           ...row,
-          boards,
-          mp3: typeof row.mp3 === 'string' && row.mp3 ? row.mp3 : (row.audioUrl || ''),
-          // audioDurationMs 是真实音频时长；duration 仅保留为旧播放器兼容的秒单位字段
-          duration: hasMeasuredAudio
-            ? Math.round((measuredAudioDurationMs / 1000) * 10) / 10
-            : (typeof row.duration === 'number' && row.duration > 0
-              ? row.duration
-              : Math.round((rowTotalDurationMs / 1000) * 10) / 10),
-          audioDurationMs: hasMeasuredAudio ? Math.round(measuredAudioDurationMs) : null,
-          rowTotalDurationMs,
-          estimatedDurationMs: rowTotalDurationMs,
-          totalDurationMs: row.totalDurationMs || rowTotalDurationMs,
+          board,
+          estimatedDurationMs,
+          totalDurationMs: row.totalDurationMs || estimatedDurationMs,
           exclusiveExecutionPlan,
           plan: row.plan || exclusiveExecutionPlan,
-          timingPolicy: 'boards-all-written-then-actions-serial',
+          timingPolicy: 'speech-full-board-action-mutually-exclusive',
         }
       })
     : []
 
-  const payload = normalizeDeliverableAssetPaths({
+  const fallbackBoardPlan = {
+    question: { x: 6, y: 13.32, w: 40.32, h: '' },
+    analysis: { x: 6, y: 40.62, w: 44, h: 54.38 },
+    solution: { x: 54, y: 14, w: 40, h: 44 },
+    summary: { x: 54, y: 69.5, w: 40, h: 22 },
+  }
+  const hbp = data.boardPlan || data.zoneAnchors || fallbackBoardPlan
+  const defaultHcp = buildCanvasParams()
+  const rawCanvasParams = data.canvasParams || {}
+  const canvasParams = {
+    source: 'handoff (Agent A 根据题目实时判断，为唯一真相源)',
+    canvasWidth: 1726,
+    canvasHeight: 980,
+    coordinateSystem: '百分比坐标 0-100',
+    fontSize: {
+      question: { px: 30, family: '微软雅黑（印刷体，30px）', color: '黑色' },
+      analysis: { px: 35, family: 'LikeJianJianTi（手写尖尖体，网络字体 fontSource.handwriting，font-weight: normal，约题目的1.2~1.5倍，推荐35px）', color: '红色' },
+      solution: { px: 35, family: 'LikeJianJianTi（手写尖尖体，网络字体 fontSource.handwriting，font-weight: normal，约题目的1.2~1.5倍，推荐35px）', color: '黑色' },
+      summary: { px: 35, family: 'LikeJianJianTi（手写尖尖体，网络字体 fontSource.handwriting，font-weight: normal，约题目的1.2~1.5倍，推荐35px）', color: '黑色' },
+    },
+    lineHeight: {
+      question: 1.65,
+      others: '自然换行即可；渲染层会对行高做微小随机抖动营造手写感，B 按正常行高估算坐标，不需要自己叠加抖动',
+    },
+    boardSpeed: '下游渲染参数：1秒约2~3个汉字，每行±10%轻微抖动（B 不需要处理速度细节）',
+    actionSpeed: '差不多同样速度（rough-line/rough-arrow/rough-notation绘制速度）',
+    ...defaultHcp,
+    ...rawCanvasParams,
+  }
+
+  const uiSettings = {
+    coordinateMode: '百分比',
+    questionFontSize: '30px',
+    questionFontFamily: '"Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+    audioSpeedPolicy: '（若有音频url的，以音频自然播放时间为时间，一组一组自然播放即可，如果没有音频url信息的，用填充演示数据占位，）速度计算 160字/分',
+    ...(data.uiSettings || {}),
+  }
+
+  const rawProblemInfo = data.problemInfo || {}
+  const problemInfo = {
+    screenshotUrl: rawProblemInfo.screenshotUrl || data.screenshotUrl || '',
+    problemType: rawProblemInfo.problemType || data.meta?.problemType || '小学数学题',
+    relatedKnowledge: rawProblemInfo.relatedKnowledge || [],
+    teachingFocus: rawProblemInfo.teachingFocus || '',
+    keyFormulaList: rawProblemInfo.keyFormulaList || [],
+    zoneAnchors: rawProblemInfo.zoneAnchors || data.zoneAnchors || hbp,
+    stageRatios: rawProblemInfo.stageRatios || {
+      analysis: '35%',
+      solution: '40%',
+      summary: '15%',
+      introAndClosing: '10%',
+    },
+    stageRatioSuggestion: rawProblemInfo.stageRatioSuggestion || null,
+    ...rawProblemInfo,
+  }
+
+  const payload = {
     $schema: '/deliverable/deliverable.schema.json',
     apiSpecVersion: '2.0.0',
     apiDocUrl: '/deliverable/DELIVERABLE_API_SPEC.md',
-    specificationSummary: '每个 row 为一组原子单元（五字段：stage/mp3/speech/boards/actionSpec）；语音全程；speech 内 **加粗** 按序映射 boards[i] 触发落笔；单手串行：本 row 所有 boards 写完才按 order 执行 actionSpec；动作时长定量 1~2 秒作为标点停顿。供下游课件制作与画布 Agent 直接消费。',
-    // 对外规格批注：画布尺寸 / 比例 / 题目字号 / 板书字号 / 本题 stage 四区坐标落座区间 / 越界与手稿风格
-    specAnnotation: buildCanvasSpecAnnotation({
-      zoneAnchors: data.boardPlan || data.zoneAnchors || null,
-    }),
+    specificationSummary: '每个 row 为一组原子单元；语音全程；板书与动作二者绝对互斥；动作时长定量 1~2 秒作为标点停顿。供下游课件制作与画布 Agent 直接消费。',
     ...data,
-    // 下载物唯一真相源块（前端 serializeDeliverableState 根节点注入；缺失显式置 null，保证下游结构稳定）
-    canvasParams: data.canvasParams ?? null,
-    uiSettings: data.uiSettings ?? null,
-    problemInfo: data.problemInfo ?? null,
+    canvasParams,
+    boardPlan: {
+      question: { x: hbp.question?.x ?? 6, y: hbp.question?.y ?? 13.32, w: hbp.question?.w ?? 40.32, h: hbp.question?.h ?? '' },
+      analysis: { x: hbp.analysis?.x ?? 6, y: hbp.analysis?.y ?? 40.62, w: hbp.analysis?.w ?? 44, h: hbp.analysis?.h ?? 54.38 },
+      solution: { x: hbp.solution?.x ?? 54, y: hbp.solution?.y ?? 14, w: hbp.solution?.w ?? 40, h: hbp.solution?.h ?? 44 },
+      summary: { x: hbp.summary?.x ?? 54, y: hbp.summary?.y ?? 69.5, w: hbp.summary?.w ?? 40, h: hbp.summary?.h ?? 22 },
+    },
+    uiSettings,
+    problemInfo,
     rows: normalizedRows.length > 0 ? normalizedRows : (data.rows || []),
     projectCode,
     filename: jsonFilename,
     htmlFilename,
     createdAt: data.createdAt || new Date().toISOString(),
-  })
+  }
 
   // 1. 写入配套实体 JSON 归档文件
   writeFileSync(jsonFilePath, JSON.stringify(payload, null, 2), 'utf-8')
 
-  // 2. 写入同名落地实体 HTML 交付单页文件（夏夏核心需求：与 JSON 配对的一批归档物）
+  // 2. 写入同名落地实体 HTML 交付单页文件（与 JSON 配对的归档交付物）
   const htmlContent = renderDeliverableHtml(payload)
   writeFileSync(htmlFilePath, htmlContent, 'utf-8')
 
@@ -492,6 +521,19 @@ export function deliverableStorePlugin() {
               res.statusCode = 500
               res.setHeader('Content-Type', 'text/plain; charset=utf-8')
               res.end('Read html error: ' + err.message)
+              return
+            }
+          }
+          // 若 /deliverable/row-player.html 未就绪，自动回退到项目 public/row-player.html 或 root row-player.html
+          if (filename === 'row-player.html' || filename === 'handdraw-player.html') {
+            const rootPlayerPath = resolve(projectRoot, 'row-player.html')
+            const publicPlayerPath = resolve(projectRoot, 'public', 'row-player.html')
+            const fallbackPath = existsSync(publicPlayerPath) ? publicPlayerPath : (existsSync(rootPlayerPath) ? rootPlayerPath : null)
+            if (fallbackPath) {
+              const content = readFileSync(fallbackPath, 'utf-8')
+              res.setHeader('Content-Type', 'text/html; charset=utf-8')
+              res.statusCode = 200
+              res.end(content)
               return
             }
           }

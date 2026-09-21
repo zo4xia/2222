@@ -20,6 +20,26 @@ const props = defineProps({
   sourceImageUrl: { type: String, default: '' },
   keepOriginal: { type: Boolean, default: false },
   draggable: { type: Boolean, default: true },
+  /**
+   * ★ Task 9 修复: 画布舞台参数 (canvasParams)
+   *  含 fontSize.question.px / canvasSize.width / lineHeight.question 等
+   *  没传则 fallback 到 stepHandoff.js 常量 (QUESTION_FONT_SIZE / CANVAS_SIZE)
+   */
+  canvasParams: { type: Object, default: null },
+})
+
+// ★ Task 9: 从 canvasParams 提取真实题目字号 (没传则 fallback 常量)
+const realQuestionFontSize = computed(() => {
+  const px = Number(props.canvasParams?.fontSize?.question?.px)
+  return px > 0 ? px : QUESTION_FONT_SIZE
+})
+const realCanvasWidth = computed(() => {
+  const w = Number(props.canvasParams?.canvasSize?.width)
+  return w > 0 ? w : CANVAS_SIZE.width
+})
+const realCanvasHeight = computed(() => {
+  const h = Number(props.canvasParams?.canvasSize?.height)
+  return h > 0 ? h : CANVAS_SIZE.height
 })
 
 const emit = defineEmits([
@@ -82,7 +102,8 @@ const identifiedBlocks = computed(() => {
         x: savedCoord?.x ?? (b.x ?? plan.value.question.x),
         y: savedCoord?.y ?? (b.y ?? plan.value.question.y + idx * 7.5),
         w: currentW,
-        fontSize: b.fontSize ?? plan.value.question.fontSize ?? QUESTION_FONT_SIZE,
+        // ★ Task 9: 字号优先用 canvasParams.fontSize.question.px (真相源), 没 canvasParams 时 fallback QUESTION_FONT_SIZE 常量
+        fontSize: b.fontSize ?? plan.value.question.fontSize ?? realQuestionFontSize.value,
       }
     })
   }
@@ -104,7 +125,8 @@ const identifiedBlocks = computed(() => {
       x: savedCoord?.x ?? plan.value.question.x,
       y: savedCoord?.y ?? defaultY,
       w: currentW,
-      fontSize: plan.value.question.fontSize || QUESTION_FONT_SIZE,
+      // ★ Task 9: 字号优先用 canvasParams.fontSize.question.px (真相源), 没 canvasParams 时 fallback QUESTION_FONT_SIZE 常量
+      fontSize: plan.value.question.fontSize || realQuestionFontSize.value,
     }
   })
 })
@@ -334,41 +356,61 @@ function onTextareaBlur() {
 // 同步题目内容与布局至父组件及本地持久化
 function syncAll() {
   const blocks = identifiedBlocks.value
-  if (!blocks || blocks.length === 0) return
 
   // 1. 拼接所有文本块内容生成完整题目字符串
-  const fullText = blocks
-    .map(b => (localBlockTexts.has(b.id) ? localBlockTexts.get(b.id) : b.text))
-    .join('\n')
+  if (blocks && blocks.length > 0) {
+    const fullText = blocks
+      .map(b => (localBlockTexts.has(b.id) ? localBlockTexts.get(b.id) : b.text))
+      .join('\n')
 
-  isEmittingProblemText.value = true
-  emit('update:problem-text', fullText)
-  emit('problem-text-change', fullText)
+    isEmittingProblemText.value = true
+    emit('update:problem-text', fullText)
+    emit('problem-text-change', fullText)
+    try {
+      localStorage.setItem('qinghuabu.problemText', fullText)
+    } catch (_) {}
+  }
 
   // 2. 构建最新的 updatedLayout
   const updatedLayout = JSON.parse(JSON.stringify(props.topicLayout || {}))
-  const updatedBlocks = blocks.map(b => ({
-    id: b.id,
-    text: localBlockTexts.has(b.id) ? localBlockTexts.get(b.id) : b.text,
-    x: localBlockCoords.get(b.id)?.x ?? b.x,
-    y: localBlockCoords.get(b.id)?.y ?? b.y,
-    w: localBlockWidths.get(b.id) ?? b.w,
-    fontSize: b.fontSize,
-  }))
-  updatedLayout.blocks = updatedBlocks
+  if (blocks && blocks.length > 0) {
+    const updatedBlocks = blocks.map(b => ({
+      id: b.id,
+      text: localBlockTexts.has(b.id) ? localBlockTexts.get(b.id) : b.text,
+      x: localBlockCoords.get(b.id)?.x ?? b.x,
+      y: localBlockCoords.get(b.id)?.y ?? b.y,
+      w: localBlockWidths.get(b.id) ?? b.w,
+      fontSize: b.fontSize,
+    }))
+    updatedLayout.blocks = updatedBlocks
 
-  if (updatedBlocks[0]) {
-    updatedLayout.question = {
-      ...(updatedLayout.question || plan.value.question),
-      x: updatedBlocks[0].x,
-      y: updatedBlocks[0].y,
-      w: updatedBlocks[0].w,
+    if (updatedBlocks[0]) {
+      updatedLayout.question = {
+        ...(updatedLayout.question || plan.value.question),
+        x: updatedBlocks[0].x,
+        y: updatedBlocks[0].y,
+        w: updatedBlocks[0].w,
+      }
+    }
+  }
+
+  // 同步四个角标拖拽后的最新坐标
+  const badgeTargets = ['topic', 'analysis', 'solution', 'summary']
+  for (const t of badgeTargets) {
+    const targetId = `${t}-label`
+    if (localBlockCoords.has(targetId)) {
+      const c = localBlockCoords.get(targetId)
+      const labelKey = `${t}Label`
+      updatedLayout[labelKey] = {
+        ...(updatedLayout[labelKey] || plan.value[labelKey] || BOARD_LAYOUT[labelKey]),
+        x: c.x,
+        y: c.y,
+      }
     }
   }
 
   try {
     localStorage.setItem('qinghuabu.topicLayout', JSON.stringify(updatedLayout))
-    localStorage.setItem('qinghuabu.problemText', fullText)
   } catch (_) {}
 
   emit('update:topic-layout', updatedLayout)
@@ -395,10 +437,9 @@ function setBlockElementRef(el, blockId) {
   if (!blockElementObservers.has(blockId)) {
     const obs = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        if (!entry?.target || typeof entry.target.getBoundingClientRect !== 'function') continue
         const rect = entry.target.getBoundingClientRect()
         const layer = layerRef.value
-        const layerRect = layer && typeof layer.getBoundingClientRect === 'function' ? layer.getBoundingClientRect() : null
+        const layerRect = layer ? layer.getBoundingClientRect() : null
         const layerW = layerRect?.width || CANVAS_SIZE.width
         const layerH = layerRect?.height || CANVAS_SIZE.height
 
@@ -438,7 +479,8 @@ function getBlockStyle(block) {
     left: `${coord.x}%`,
     top: `${coord.y}%`,
     width: `${widthVal}%`,
-    fontSize: `calc(${block.fontSize || 30} * 1cqw / 17.26)`,
+    // ★ Task 9: 用 realCanvasWidth 替代写死的 17.26 (= 1726/100), 让画布尺寸随 canvasParams 自适应
+    fontSize: `calc(${block.fontSize || realQuestionFontSize.value} * 1cqw / ${realCanvasWidth.value / 100})`,
   }
 }
 
@@ -452,23 +494,30 @@ function getImageStyle() {
   }
 }
 
-function getLabelStyle() {
-  const coord = localBlockCoords.get('topic-label') || { x: plan.value.topicLabel?.x ?? 5.7, y: plan.value.topicLabel?.y ?? 6.6 }
+function getBadgeStyle(target) {
+  const labelKey = `${target}Label`
+  const defaultBox = plan.value[labelKey] || BOARD_LAYOUT[labelKey] || { x: 5, y: 5, w: 7.1 }
+  const targetId = `${target}-label`
+  const coord = localBlockCoords.get(targetId) || { x: defaultBox.x, y: defaultBox.y }
   return {
     left: `${coord.x}%`,
     top: `${coord.y}%`,
-    width: `${plan.value.topicLabel?.w ?? 7.1}%`,
+    width: `${defaultBox.w ?? 7.1}%`,
   }
+}
+
+function getLabelStyle() {
+  return getBadgeStyle('topic')
 }
 
 function measureTopic() {
   const layer = layerRef.value
   const topic = topicContentRef.value
-  if (!layer || !topic || typeof layer.getBoundingClientRect !== 'function' || typeof topic.getBoundingClientRect !== 'function') return
+  if (!layer || !topic) return
 
   const layerRect = layer.getBoundingClientRect()
   const topicRect = topic.getBoundingClientRect()
-  if (!layerRect || !layerRect.height) return
+  if (!layerRect.height) return
 
   emit('topic-measured', {
     bottomPct: Number((((topicRect.bottom - layerRect.top) / layerRect.height) * 100).toFixed(2)),
@@ -507,16 +556,18 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="layerRef" class="board-content-layer" data-board-layer="L2">
-    <!-- 题目标签：支持拖拽 -->
+    <!-- 四个角标 (支持鼠标直接拖拽排版) -->
     <div
       v-if="problemText.trim() || showExtraLabels"
-      class="board-item label draggable-item"
+      id="badge-topic"
+      class="badge board-item label draggable-item"
+      data-target="topic"
       :class="{ 'is-dragging': activeDrag?.targetId === 'topic-label' }"
-      :style="getLabelStyle()"
-      title="按住鼠标可自由拖拽题目标签"
+      :style="getBadgeStyle('topic')"
+      title="拖动调整「题目」角标位置"
       @pointerdown="startDrag($event, 'label', 'topic-label', localBlockCoords.get('topic-label')?.x ?? plan.topicLabel.x, localBlockCoords.get('topic-label')?.y ?? plan.topicLabel.y)"
     >
-      <img src="/topic.png" alt="题目" draggable="false" />
+      <img src="/topic.png" onerror="this.src='https://i.ibb.co/bMwPqBpN/topic.png'" alt="题目" draggable="false" />
       <div v-if="activeDrag?.targetId === 'topic-label'" class="coord-badge">
         {{ activeDrag.currentX.toFixed(1) }}%, {{ activeDrag.currentY.toFixed(1) }}%
       </div>
@@ -635,14 +686,47 @@ onBeforeUnmount(() => {
     </template>
 
     <template v-if="showExtraLabels">
-      <div class="board-item label" :style="pctBox(plan.analysisLabel)">
-        <img src="/analysis.png" alt="分析" draggable="false" />
+      <div
+        id="badge-analysis"
+        class="badge board-item label draggable-item"
+        data-target="analysis"
+        :class="{ 'is-dragging': activeDrag?.targetId === 'analysis-label' }"
+        :style="getBadgeStyle('analysis')"
+        title="拖动调整「分析」角标位置"
+        @pointerdown="startDrag($event, 'label', 'analysis-label', localBlockCoords.get('analysis-label')?.x ?? plan.analysisLabel.x, localBlockCoords.get('analysis-label')?.y ?? plan.analysisLabel.y)"
+      >
+        <img src="/analysis.png" onerror="this.src='https://i.ibb.co/9mHsQPSx/analysis.png'" alt="分析" draggable="false" />
+        <div v-if="activeDrag?.targetId === 'analysis-label'" class="coord-badge">
+          {{ activeDrag.currentX.toFixed(1) }}%, {{ activeDrag.currentY.toFixed(1) }}%
+        </div>
       </div>
-      <div class="board-item label" :style="pctBox(plan.solutionLabel)">
-        <img src="/solution.png" alt="解答" draggable="false" />
+      <div
+        id="badge-solution"
+        class="badge board-item label draggable-item"
+        data-target="solution"
+        :class="{ 'is-dragging': activeDrag?.targetId === 'solution-label' }"
+        :style="getBadgeStyle('solution')"
+        title="拖动调整「解答」角标位置"
+        @pointerdown="startDrag($event, 'label', 'solution-label', localBlockCoords.get('solution-label')?.x ?? plan.solutionLabel.x, localBlockCoords.get('solution-label')?.y ?? plan.solutionLabel.y)"
+      >
+        <img src="/solution.png" onerror="this.src='https://i.ibb.co/MxXq10wz/solution.png'" alt="解答" draggable="false" />
+        <div v-if="activeDrag?.targetId === 'solution-label'" class="coord-badge">
+          {{ activeDrag.currentX.toFixed(1) }}%, {{ activeDrag.currentY.toFixed(1) }}%
+        </div>
       </div>
-      <div class="board-item label" :style="pctBox(plan.summaryLabel)">
-        <img src="/summary.png" alt="总结" draggable="false" />
+      <div
+        id="badge-summary"
+        class="badge board-item label draggable-item"
+        data-target="summary"
+        :class="{ 'is-dragging': activeDrag?.targetId === 'summary-label' }"
+        :style="getBadgeStyle('summary')"
+        title="拖动调整「总结」角标位置"
+        @pointerdown="startDrag($event, 'label', 'summary-label', localBlockCoords.get('summary-label')?.x ?? plan.summaryLabel.x, localBlockCoords.get('summary-label')?.y ?? plan.summaryLabel.y)"
+      >
+        <img src="/summary.png" onerror="this.src='https://i.ibb.co/Ld4qjwW9/summary.png'" alt="总结" draggable="false" />
+        <div v-if="activeDrag?.targetId === 'summary-label'" class="coord-badge">
+          {{ activeDrag.currentX.toFixed(1) }}%, {{ activeDrag.currentY.toFixed(1) }}%
+        </div>
       </div>
     </template>
 
@@ -674,7 +758,8 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 .board-item { position: absolute; z-index: 3; }
-.label img { display: block; width: 100%; height: auto; pointer-events: none; }
+.badge { display: block; }
+.label img, .badge img { display: block; width: 100%; height: auto; pointer-events: none; }
 .topic-image { overflow: hidden; z-index: 3; background: transparent; }
 .topic-image img {
   display: block; width: 100%; max-height: 100%; object-fit: contain;

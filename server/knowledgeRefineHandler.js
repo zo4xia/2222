@@ -14,20 +14,12 @@ import {
 import { existsSync, readFileSync, copyFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 
+// ponytail: JSON 解析唯一真源已抽到 src/lib/parseLLMJson.js
+import { parseLLMJson } from '../src/lib/parseLLMJson.js'
+
 // 从文本中提取 JSON（支持纯 JSON、```json ... ```、嵌套对象）
 function extractJsonFromText(text) {
-  if (!text) return null
-  try { return JSON.parse(text) } catch { /* continue */ }
-  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i)
-  if (codeBlockMatch) {
-    try { return JSON.parse(codeBlockMatch[1].trim()) } catch { /* continue */ }
-  }
-  const firstBrace = text.indexOf('{')
-  const lastBrace = text.lastIndexOf('}')
-  if (firstBrace !== -1 && lastBrace > firstBrace) {
-    try { return JSON.parse(text.slice(firstBrace, lastBrace + 1)) } catch { /* fail */ }
-  }
-  return null
+  return parseLLMJson(text)
 }
 
 // 字段级 merge：只覆盖知识点相关字段，其他字段保持原样（防上游乱改）

@@ -149,16 +149,17 @@ onBeforeUnmount(() => {
 .pulse-card {
   width: 100%;
   max-width: 380px;
-  background: var(--qh-surface);
-  border-radius: var(--qh-radius-dialog);
+  background: #ffffff;
+  border-radius: 18px;
   padding: 30px 24px 22px;
   display: flex;
   flex-direction: column;
   align-items: center;
   position: relative;
   overflow: hidden;
-  box-shadow: var(--qh-shadow-raise);
-  border: 1px solid var(--qh-border-soft);
+  box-shadow:
+    0 20px 35px -10px rgba(15, 23, 42, 0.22),
+    0 0 0 1px rgba(226, 232, 240, 0.95);
   transform: translateY(0);
   animation: cardPopup 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -190,7 +191,7 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: -6px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(29, 78, 216, 0.14) 0%, rgba(29, 78, 216, 0.04) 65%, transparent 100%);
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.25) 0%, rgba(99, 102, 241, 0.05) 65%, transparent 100%);
   animation: beaconPulseOuter 2.2s ease-in-out infinite;
   pointer-events: none;
 }
@@ -215,7 +216,7 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 2px;
   border-radius: 50%;
-  border: 1.5px solid rgba(29, 78, 216, 0.28);
+  border: 1.5px solid rgba(59, 130, 246, 0.35);
   animation: beaconPulseInner 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
@@ -242,8 +243,8 @@ onBeforeUnmount(() => {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: var(--qh-brand);
-  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.16);
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.38);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -255,11 +256,11 @@ onBeforeUnmount(() => {
 @keyframes beaconCoreBreath {
   0%, 100% {
     transform: scale(1);
-    box-shadow: 0 4px 12px rgba(16, 24, 40, 0.14);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.38);
   }
   50% {
     transform: scale(1.04);
-    box-shadow: 0 6px 16px rgba(16, 24, 40, 0.2);
+    box-shadow: 0 8px 22px rgba(79, 70, 229, 0.52);
   }
 }
 
@@ -289,7 +290,7 @@ onBeforeUnmount(() => {
   margin: 0;
   font-size: 17px;
   font-weight: 600;
-  color: var(--qh-ink);
+  color: #0f172a;
   letter-spacing: -0.01em;
   display: inline-flex;
   align-items: baseline;
@@ -305,7 +306,7 @@ onBeforeUnmount(() => {
 .pulse-animated-dots .dot {
   display: inline-block;
   font-weight: 700;
-  color: var(--qh-brand);
+  color: #2563eb;
   animation: dotFadeBlink 1.4s infinite;
   opacity: 0.2;
 }
@@ -323,7 +324,7 @@ onBeforeUnmount(() => {
 .pulse-subtext {
   margin: 6px 0 0;
   font-size: 13px;
-  color: var(--qh-muted);
+  color: #64748b;
   line-height: 1.5;
   max-width: 290px;
 }
@@ -332,7 +333,7 @@ onBeforeUnmount(() => {
 .pulse-gleam-track {
   width: 100%;
   height: 3px;
-  background: var(--qh-surface-sunken);
+  background: #f1f5f9;
   border-radius: 9999px;
   position: relative;
   overflow: hidden;
@@ -343,7 +344,7 @@ onBeforeUnmount(() => {
   top: 0;
   bottom: 0;
   width: 45%;
-  background: var(--qh-brand);
+  background: linear-gradient(90deg, transparent 0%, #3b82f6 50%, #8b5cf6 100%);
   border-radius: 9999px;
   animation: streamGlide 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
@@ -370,7 +371,7 @@ onBeforeUnmount(() => {
 
 .elapsed-badge {
   font-size: 11px;
-  color: var(--qh-faint);
+  color: #94a3b8;
   font-variant-numeric: tabular-nums;
 }
 
@@ -386,8 +387,8 @@ onBeforeUnmount(() => {
 }
 
 .pulse-dismiss-btn:hover {
-  background: var(--qh-surface-sunken);
-  color: var(--qh-ink);
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 /* 渐入渐出动画 */

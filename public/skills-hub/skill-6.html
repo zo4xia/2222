@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>skill 6 · board-lecture-player · 三条非协商修订校验</title>
+<style>
+  :root{--bg:#0f172a;--surface:#1e293b;--surface-2:#334155;--ink:#f1f5f9;--muted:#94a3b8;
+        --brand:#22d3ee;--warn:#fbbf24;--ok:#4ade80;--err:#f87171;--line:#334155}
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;background:var(--bg);color:var(--ink);
+       font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;line-height:1.6}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+  .panel h2{font-size:14px;margin:0 0 10px;color:var(--brand)}
+  textarea{width:100%;height:340px;background:#0b1220;color:var(--ink);
+            border:1px solid var(--line);border-radius:6px;padding:10px;
+            font-family:"JetBrains Mono","Consolas",monospace;font-size:12px;resize:vertical}
+  button{background:var(--brand);color:#0b1220;border:0;border-radius:6px;
+         padding:8px 14px;font-weight:600;cursor:pointer;margin-top:8px}
+  button:hover{filter:brightness(1.1)}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .presets button{background:var(--surface-2);color:var(--ink);font-size:11px;padding:5px 10px}
+  .presets button:hover{background:var(--brand);color:#0b1220}
+  .report{background:#0b1220;border:1px solid var(--line);border-radius:6px;
+          padding:12px;font-family:monospace;font-size:12px;white-space:pre-wrap;
+          min-height:200px;line-height:1.5}
+  .report.pass{border-color:var(--ok);color:var(--ok)}
+  .report.fail{border-color:var(--err);color:var(--err)}
+  .rules{margin-top:10px}
+  .rule{padding:8px 10px;border-left:3px solid var(--line);margin:6px 0;
+        background:var(--surface-2);border-radius:0 6px 6px 0;font-size:12px}
+  .rule .n{display:inline-block;width:22px;height:22px;border-radius:50%;
+           background:var(--warn);color:#0b1220;text-align:center;line-height:22px;
+           font-weight:700;margin-right:8px}
+  .rule.bad{border-left-color:var(--err)}
+  .rule.bad .n{background:var(--err);color:#fff}
+  .note{color:var(--muted);font-size:11px;margin-top:8px;line-height:1.5}
+</style>
+</head>
+<body>
+<h1>skill 6 · board-lecture-player · 三条非协商修订校验</h1>
+<p class="sub">真实音频唯一时长真相源 · 零 keyword · board v3.0 零坐标 · 一期动作 circle+underline · 浏览器内联跑 validate_contract 逻辑</p>
+
+<div class="presets" id="presets"></div>
+
+<div class="grid">
+  <div class="panel">
+    <h2>deliverable JSON 输入（rows 数组或 {rows:[...]}）</h2>
+    <textarea id="input"></textarea>
+    <button onclick="validate()">▶ 跑 validate_contract 校验</button>
+  </div>
+  <div class="panel">
+    <h2>校验报告</h2>
+    <div class="report" id="report">点"跑校验"看结果...</div>
+    <h2 style="margin-top:14px">三条非协商修订</h2>
+    <div class="rules">
+      <div class="rule"><span class="n">1</span><b>真实音频唯一时长真相源</b>：禁止字数/160 估算。缺 mp3/audioBase64 = 规格冲突，显式报错停下，不许静默降级</div>
+      <div class="rule"><span class="n">2</span><b>零 keyword</b>：合同里没有 keyword 字段，渲染端不得依赖任何关键词字段做同步</div>
+      <div class="rule"><span class="n">3</span><b>board v3.0 零坐标</b>：board 不带 x/y/startCoord，只有 {startDelay, content, region}，位置由渲染层 occupancy map 自动排版</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── validate_contract.js 的浏览器内联版（与 scripts/validate_contract.cjs 对齐） ──
+const VALID_STAGES=['题目','分析','解答','总结'];
+const PHASE1_TOOLS=['rough-notation'];
+const PHASE1_ACTIONS=['circle','underline'];
+const ILLEGAL_COORD_KEYS=['startCoord','coord','x','y','left','top','position'];
+const ILLEGAL_SYNC_KEYS=['keyword','keywords','cue','triggerAtWords'];
+
+function deepScanForKeys(node,target,path,hits){
+  if(Array.isArray(node)){node.forEach((v,i)=>deepScanForKeys(v,target,`${path}[${i}]`,hits));return;}
+  if(node&&typeof node==='object'){
+    for(const k of Object.keys(node)){
+      if(target.includes(k))hits.push({key:k,path:`${path}.${k}`});
+      deepScanForKeys(node[k],target,`${path}.${k}`,hits);
+    }
+  }
+}
+
+function validate(){
+  const txt=document.getElementById('input').value.trim();
+  const reportEl=document.getElementById('report');
+  const errors=[],warns=[];
+  let data;
+  try{data=JSON.parse(txt);}catch(e){
+    reportEl.className='report fail';
+    reportEl.textContent='✗ JSON 解析失败: '+e.message;return;
+  }
+  const rows=Array.isArray(data)?data:data.rows;
+  if(!Array.isArray(rows)){
+    reportEl.className='report fail';
+    reportEl.textContent='✗ 找不到 rows 数组';return;
+  }
+
+  // ① 全局禁字段扫描
+  const coordHits=[];deepScanForKeys(rows,ILLEGAL_COORD_KEYS,'rows',coordHits);
+  coordHits.forEach(h=>errors.push(`[坐标退场] board 不得带坐标字段：${h.path}`));
+  const syncHits=[];deepScanForKeys(rows,ILLEGAL_SYNC_KEYS,'rows',syncHits);
+  syncHits.forEach(h=>errors.push(`[零 keyword] 合同里不存在关键词字段：${h.path}`));
+
+  const orderSeen=new Set();const questionText=[];
+  rows.forEach((r,i)=>{
+    const at=`rows[${i}]`;const stage=r.stage;
+    if(!VALID_STAGES.includes(stage))errors.push(`${at}.stage 非法值: ${JSON.stringify(stage)}`);
+    const hasAudio=Boolean(r.mp3||r.audioBase64);
+    if(!hasAudio)errors.push(`${at} 缺真实音频（mp3/audioBase64）。按契约这是规格冲突，禁止用估算兜底`);
+    if(typeof r.duration==='number'&&hasAudio===false)errors.push(`${at} 只有 duration 没有音频：时长不得来自估算`);
+    // 语速合理性
+    if(typeof r.duration==='number'&&hasAudio&&typeof r.speech==='string'&&r.speech.length){
+      const cps=r.speech.length/Math.max(r.duration,0.1);
+      if(cps>7||cps<3)warns.push(`${at} duration=${r.duration}s 与口播 ${r.speech.length} 字不匹配（${cps.toFixed(1)} 字/秒，真人约 3~7），该 duration 大概率是猜的`);
+    }
+    if(typeof r.speech!=='string'||!r.speech.length)errors.push(`${at}.speech 缺失或为空`);
+    if(stage==='题目')questionText.push(`${r.speech||''} ${(r.board&&r.board.content)||''}`);
+    // board v3.0
+    const b=r.board;
+    if(!b||typeof b!=='object')errors.push(`${at}.board 缺失`);
+    else{
+      if(typeof b.startDelay!=='number')errors.push(`${at}.board.startDelay 必须是数字（秒）`);
+      if(typeof b.content!=='string')errors.push(`${at}.board.content 必须是字符串`);
+      if(b.region&&!['question','analysis','solution','summary'].includes(b.region))errors.push(`${at}.board.region 非法值: ${b.region}`);
+      if(!b.region)warns.push(`${at}.board.region 缺失，渲染层将按 stage 推断起始区`);
+    }
+    // actionSpec
+    const specs=Array.isArray(r.actionSpec)?r.actionSpec:null;
+    if(!specs){errors.push(`${at}.actionSpec 必须是数组`);return;}
+    if(stage==='题目'&&b&&b.content!=='')errors.push(`${at} 读题行 board.content 必须为空字符串`);
+    specs.forEach((s,j)=>{
+      const sat=`${at}.actionSpec[${j}]`;const a=s&&s.action;
+      if(!a||typeof a!=='object'){errors.push(`${sat} 缺少 action 对象`);return;}
+      if(typeof a.order!=='number')errors.push(`${sat}.action.order 缺失或非数字`);
+      else{if(orderSeen.has(a.order))errors.push(`${sat}.action.order=${a.order} 重复`);orderSeen.add(a.order);}
+      if(typeof a.tool!=='string'||!PHASE1_TOOLS.includes(a.tool))errors.push(`${sat}.action.tool 不在一期白名单 ${JSON.stringify(PHASE1_TOOLS)}`);
+      if(a.tool==='rough-notation'){
+        if(!PHASE1_ACTIONS.includes(a.action))errors.push(`${sat}.action.action 不在一期白名单 ${JSON.stringify(PHASE1_ACTIONS)}`);
+        const t=a.target||{};
+        if(!t.exactText)errors.push(`${sat} rough-notation 必须锚定 target.exactText`);
+        else if(typeof t.exactText==='string'){
+          const hay=questionText.join(' ');
+          if(hay&&!hay.includes(t.exactText))warns.push(`${sat} exactText="${t.exactText}" 未在题目文本中命中`);
+        }
+      }
+      if(a.durationMs!==undefined||a.startMs!==undefined)errors.push(`${sat} 禁止携带 durationMs/startMs`);
+    });
+  });
+  // order 连续
+  const orders=[...orderSeen].sort((x,y)=>x-y);
+  orders.forEach((o,i)=>{if(o!==i+1)warns.push(`order 序列不连续：期望 ${i+1} 得到 ${o}`);});
+
+  // 输出
+  const lines=[`== validate_contract ==  rows=${rows.length}`,
+    `ERROR: ${errors.length}   WARN: ${warns.length}`];
+  if(errors.length)lines.push('','-- ERROR --',...errors.map(e=>'  ✗ '+e));
+  if(warns.length)lines.push('','-- WARN --',...warns.map(w=>'  ! '+w));
+  lines.push('',errors.length?'RESULT: FAIL':'RESULT: PASS');
+  reportEl.className='report '+(errors.length?'fail':'pass');
+  reportEl.textContent=lines.join('\n');
+}
+
+const PRESETS=[
+  {name:'合法 sample-rows', s:JSON.stringify({
+    rows:[
+      {stage:'题目',mp3:'row-001.mp3',duration:12,speech:'梯形上底9厘米下底15厘米高20.4厘米面积多少？',board:{startDelay:0,region:'question',content:''},
+        actionSpec:[{action:{tool:'rough-notation',action:'circle',target:{region:'question',exactText:'9',occurrence:1},options:{multiline:false},order:1}}]},
+      {stage:'分析',mp3:'row-002.mp3',duration:15,speech:'梯形面积等于上底加下底乘高除以二。',board:{startDelay:1.8,region:'analysis',content:'面积 =（上底+下底）x 高 ÷ 2'},
+        actionSpec:[]},
+      {stage:'解答',mp3:'row-003.mp3',duration:11,speech:'二十四乘二十点四等于四百八十九点六，除以二得二百四十四点八。',board:{startDelay:1.2,region:'solution',content:'S = 24 x 20.4 ÷ 2 = 244.8'},
+        actionSpec:[]},
+      {stage:'总结',mp3:'row-004.mp3',duration:11,speech:'梯形面积公式记好。',board:{startDelay:1.5,region:'summary',content:'梯形面积 =（上底+下底）x 高 ÷ 2'},
+        actionSpec:[]}
+    ]
+  },null,2)},
+  {name:'错误: 缺音频', s:JSON.stringify({rows:[{stage:'题目',duration:12,speech:'读题',board:{startDelay:0,region:'question',content:''},actionSpec:[]}]},null,2)},
+  {name:'错误: board 带坐标', s:JSON.stringify({rows:[{stage:'分析',mp3:'r.mp3',duration:10,speech:'分析',board:{startDelay:1,region:'analysis',content:'分析内容',startCoord:'[8%, 44%]'},actionSpec:[]}]},null,2)},
+  {name:'错误: 含 keyword', s:JSON.stringify({rows:[{stage:'分析',mp3:'r.mp3',duration:10,speech:'分析',keyword:'面积',board:{startDelay:1,region:'analysis',content:'分析'},actionSpec:[]}]},null,2)},
+  {name:'错误: 二期动作', s:JSON.stringify({rows:[{stage:'分析',mp3:'r.mp3',duration:10,speech:'分析',board:{startDelay:1,region:'analysis',content:'分析'},actionSpec:[{action:{tool:'rough-line',order:1,region:'analysis',start:[10,10],end:[50,50]}}]}]},null,2)},
+  {name:'错误: Agent 填时长', s:JSON.stringify({rows:[{stage:'分析',mp3:'r.mp3',duration:10,speech:'分析',board:{startDelay:1,region:'analysis',content:'分析'},actionSpec:[{action:{tool:'rough-notation',action:'underline',target:{region:'analysis',exactText:'分析'},order:1,durationMs:2000}}]}]},null,2)}
+];
+const presetsEl=document.getElementById('presets');
+PRESETS.forEach(p=>{
+  const b=document.createElement('button');b.textContent=p.name;
+  b.onclick=()=>{document.getElementById('input').value=p.s;validate();};
+  presetsEl.appendChild(b);
+});
+document.getElementById('input').value=PRESETS[0].s;
+validate();
+</script>
+</body>
+</html>

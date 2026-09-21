@@ -1,0 +1,60 @@
+{
+  "name": "board-speech-rules",
+  "version": "3.1.0",
+  "archetype": "workflow",
+  "description": "小学数学AI讲题系统——板书与口播稿规则蒸馏",
+  "created": "2026-08-20",
+  "updated": "2026-08-24",
+  "sources": [
+    "src/agent-b-v2/prompt.js",
+    "src/agent-b-v2/contract.js",
+    "doc/建议提示.md",
+    "DECISIONS.md（时间不预计算决策）"
+  ],
+  "distillation_contract": "Distill [板书+口播稿规则] as a [workflow] pack so it can help with [Agent B生成五字段执行表/后续画布执行/Check Agent校验], using [src/agent-b-v2/prompt.js + src/agent-b-v2/contract.js + doc/建议提示.md], while respecting [松门槛原则/题型兼容/教学过程不被结构化压扁].",
+  "core_sections": [
+    "真相源与参数体系",
+    "板书规则",
+    "口播稿规则",
+    "时间与节奏（B不输出时间）",
+    "动作工具规则",
+    "输出格式",
+    "反模式与失败模式",
+    "松门槛原则",
+    "快速参考"
+  ],
+  "key_rules": [
+    "handoff JSON 是唯一真相源，所有参数从 handoff 读取真实值",
+    "坐标格式由 coordinateMode 决定（percentage/pixel），不是固定百分比",
+    "board 是 v2.0 对象格式 {startCoord, content}，不是字符串",
+    "B 不输出时间字段（duration等），时间由下游动态计算",
+    "板书字号是题目的1.2~1.5倍，行间距/字间距轻微抖动",
+    "板书速度约1秒2字，每行±10%轻微抖动，避免机械感",
+    "分数用\\frac{}，口播念分母分之分子",
+    "字母x在复合表达式里念艾克斯",
+    "动作只有3个：rough-notation/rough-line/rough-arrow",
+    "动作triggerAt是本row开始后多少秒，格式+00:00:SS",
+    "动作坐标必须落在region区域内，不得跨区域",
+    "松门槛：格式硬约束，内容软引导，不把题型卡成唯一答案"
+  ],
+  "v3_1_changes": [
+    "板书字号从32px调整为38px（题目的1.2~1.5倍）",
+    "行高随机范围从1.6-1.8调整为1.55-1.85",
+    "新增letterSpacing字段（0-2px微小随机）",
+    "板书速度增加±10%轻微抖动描述",
+    "新增行间距/字间距抖动说明"
+  ],
+  "breaking_changes_from_v2": [
+    "board 从字符串 [x%, y%] 内容 改为对象 {startCoord, content}",
+    "移除 duration 字段（B不输出时间，下游动态算）",
+    "坐标格式从固定百分比改为 coordinateMode 驱动（percentage/pixel）",
+    "画布尺寸/字号/行高从写死改为从 handoff.canvasParams 动态读取",
+    "四区坐标从写死默认值改为从 handoff.boardPlan 动态读取"
+  ],
+  "confidence": "high",
+  "boundaries": [
+    "本蒸馏只覆盖板书+口播稿规则，不覆盖教学方法/四环教学法/人设风格",
+    "不覆盖Agent A识别逻辑/画布落坐逻辑/Check Agent润色逻辑",
+    "实际坐标以handoff.boardPlan为准，四区参考坐标仅为帮助理解"
+  ]
+}

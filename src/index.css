@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+/* UI 正文/标题统一用本地系统字体栈，不加载任何境外网络字体（Google Fonts 等国内不可达） */
+@theme {
+  --font-body: "PingFang SC", "Microsoft YaHei", "微软雅黑", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-headline: "PingFang SC", "Microsoft YaHei", "微软雅黑", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* 极简微质感滑动条：透明轨道 + 浅浅半透明滑块，告别粗重原生滑条 */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.16);
+  border-radius: 999px;
+  transition: background-color 0.2s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.32);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.16) transparent;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}

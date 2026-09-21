@@ -1,135 +1,116 @@
-import { polishSpeechText } from '../check-agent/asrPolish.js'
-// 车同轨、书同文：板书文本统一过全局唯一超级过滤器（清洗错误转义与多余换行）
-import { superCleanBoardField } from '../utils/superFilter.js'
-// 画布字号/行高/字体唯一真源：src/services/stepHandoff.js
+// 画布字号/行高唯一真源：src/services/stepHandoff.js
+// ★ Task 10: 引入完整常量避免硬编码 35/30/LikeJianJianTi
 import {
+  buildCanvasParams,
   QUESTION_FONT_SIZE,
-  QUESTION_LINE_HEIGHT,
   BOARD_FONT_SIZE,
-  CANVAS_SIZE,
-  COORDINATE_SYSTEM,
   HANDWRITING_FAMILY,
+  BOARD_FONT_RATIO_TEXT,
+  QUESTION_LINE_HEIGHT,
   LINE_HEIGHT_RULE,
-  alignHandoffCanvasParams,
+  BOARD_SPEED_CHARS_PER_SEC,
+  BOARD_SPEED_JITTER,
 } from '../services/stepHandoff.js'
 
-// ---- 规范说明参数段落（下载物唯一真相源）----
-// 完整要素表 MD 与分镜表 MD 共用这唯一一份说明，禁止各自再写一套参数表。
-// 参数一律从 handoff 文件动态读取（meta.handoffCanvasParams / handoffBoardPlan / handoffZoneAnchors /
-// canvasParams / problemInfo）；handoff 缺失时回退 stepHandoff.js 真源常量。
-const REGION_KEYS = ['question', 'analysis', 'solution', 'summary']
-const REGION_LABELS = { question: '题目区', analysis: '分析区', solution: '解答区', summary: '总结区' }
-const BOARD_REGION_KEYS = ['analysis', 'solution', 'summary']
-
-function pickText(value, fallback = '—') {
-  if (value === null || value === undefined || value === '') return fallback
-  return String(value)
-}
-function numText(value, fallback = '—') {
-  const n = Number(value)
-  return Number.isFinite(n) ? String(Number(n.toFixed(2))) : pickText(value, fallback)
-}
-function anchorText(anchor) {
-  if (!anchor || typeof anchor !== 'object') return '—'
-  const parts = []
-  const label = anchor.labelStartCoord || anchor.label
-  const region = anchor.regionStartCoord
-  if (label) parts.push(`标签(${numText(label.x, '')}%, ${numText(label.y, '')}%)`)
-  if (region) parts.push(`区域(${numText(region.x, '')}%, ${numText(region.y, '')}%)`)
-  return parts.join(' ｜ ') || '—'
-}
-
+/**
+ * 导出物全局说明参数（真相源与规范基准）
+ * 布局参数从 handoff 文件动态读取（Agent A 根据题目实时判断），为唯一真相源
+ */
 export function buildStandardExplainParamsSection(meta = {}) {
-  // 画布固定规格与真源对齐（旧 handoff 快照可能停留在拍板前的字号），题目相关真相仍严格读 handoff
-  const hcp = alignHandoffCanvasParams(meta.handoffCanvasParams)
-  const hbp = meta.handoffBoardPlan || {}
-  const anchors = meta.handoffZoneAnchors || meta.problemInfo?.zoneAnchors || {}
-  const cp = meta.canvasParams || {}
-  const pi = meta.problemInfo || {}
-  const fs = hcp.fontSize || {}
-  const speechSpeed = Number(cp.speechSpeed) || 160
-  const out = []
+  const hcp = meta.handoffCanvasParams || meta.canvasParams || buildCanvasParams()
+  const fallbackHbp = {
+    question: { x: 6, y: 13.32, w: 40.32, h: '' },
+    analysis: { x: 6, y: 40.62, w: 44, h: 54.38 },
+    solution: { x: 54, y: 14, w: 40, h: 44 },
+    summary: { x: 54, y: 69.5, w: 40, h: 22 },
+  }
+  const rawHbp = meta.handoffBoardPlan || meta.boardPlan || meta.zoneAnchors || fallbackHbp
+  const hbp = {
+    question: { ...fallbackHbp.question, ...(rawHbp.question || {}) },
+    analysis: { ...fallbackHbp.analysis, ...(rawHbp.analysis || {}) },
+    solution: { ...fallbackHbp.solution, ...(rawHbp.solution || {}) },
+    summary: { ...fallbackHbp.summary, ...(rawHbp.summary || {}) },
+  }
 
-  out.push(
+  // 题目信息与环节配比
+  const screenshotUrl = meta.screenshotUrl || '无'
+  const problemType = meta.problemType || '未指定'
+  const relatedKnowledge = Array.isArray(meta.relatedKnowledge) ? meta.relatedKnowledge : []
+  const knowledgeText = relatedKnowledge.length
+    ? relatedKnowledge.map(k => typeof k === 'string' ? k : (k.title || k.name || JSON.stringify(k))).join('、')
+    : '无'
+  const teachingFocus = meta.teachingFocus || '未指定'
+  const keyFormulaList = Array.isArray(meta.keyFormulaList) ? meta.keyFormulaList : []
+  const formulaText = keyFormulaList.length ? keyFormulaList.join('；') : '无'
+  const zoneAnchorsText = meta.zoneAnchors ? (typeof meta.zoneAnchors === 'object' ? JSON.stringify(meta.zoneAnchors) : String(meta.zoneAnchors)) : '使用默认四区锚点'
+
+  const stageRatioData = meta.stageRatioSuggestion || meta['环节配比占比'] || null
+  const suggestedRatio = stageRatioData?.suggestedRatio || meta.stageRatios || {}
+
+  const analysisPct = suggestedRatio.analysis || '35%'
+  const solutionPct = suggestedRatio.solution || '40%'
+  const summaryPct = suggestedRatio.summary || '15%'
+  const introPct = suggestedRatio.introAndClosing || suggestedRatio.intro || '10%'
+
+  return [
     '',
-    '## 规范说明参数（下载物唯一真相源）',
+    '> 布局参数从 handoff 文件动态读取（Agent A 根据题目实时判断），为唯一真相源。',
     '',
-    '> 全部参数从 handoff 文件动态读取（Agent A 按题目实时判定），为下载物唯一真相源；handoff 缺失项回退 `src/services/stepHandoff.js` 真源常量。',
-    '',
-    '### 1. handoff 画布参数（真相源）',
+    '### handoff 画布参数（真相源）',
     '',
     '| 参数 | 值 |',
     '| --- | --- |',
-    `| 画布尺寸 | ${numText(hcp.canvasSize?.width, CANVAS_SIZE.width)} × ${numText(hcp.canvasSize?.height, CANVAS_SIZE.height)} px（${pickText(hcp.canvasSize?.origin, CANVAS_SIZE.origin)}） |`,
-    `| 坐标体系 | ${pickText(hcp.coordinateSystem, COORDINATE_SYSTEM)} |`,
-    `| ${REGION_LABELS.question} | ${numText(fs.question?.px, QUESTION_FONT_SIZE)}px ｜ ${pickText(fs.question?.family)} ｜ ${pickText(fs.question?.color)} ｜ 行高 ${numText(hcp.lineHeight?.question, QUESTION_LINE_HEIGHT)} |`,
-    ...BOARD_REGION_KEYS.map((key) => `| ${REGION_LABELS[key]} | ${numText(fs[key]?.px, BOARD_FONT_SIZE)}px ｜ ${pickText(fs[key]?.family, HANDWRITING_FAMILY)} ｜ ${pickText(fs[key]?.color)} ｜ 行高 ${pickText(hcp.lineHeight?.others, LINE_HEIGHT_RULE)} |`),
-    `| 板书渲染速度 | ${pickText(hcp.boardSpeed)} |`,
-    `| 动作速度 | ${pickText(hcp.actionSpeed)} |`,
-    `| 字间距 | 题目 ${pickText(hcp.letterSpacing?.question)} ｜ 板书 ${pickText(hcp.letterSpacing?.others)} |`,
-    `| 整体风格 | ${pickText(hcp.style)} |`,
+    `| 画布宽度 | ${hcp.canvasSize?.width ?? 1726}px |`,
+    `| 画布高度 | ${hcp.canvasSize?.height ?? 980}px |`,
+    `| 坐标系统 | ${hcp.coordinateSystem || '百分比坐标 0-100'} |`,
+    `| 题目区字号 | ${hcp.fontSize?.question?.px ?? QUESTION_FONT_SIZE}px |`,
+    `| 题目区字体 | \`${hcp.fontSize?.question?.family || `微软雅黑（印刷体，${QUESTION_FONT_SIZE}px）`}\` |`,
+    `| 题目区颜色 | ${hcp.fontSize?.question?.color || '黑色'} |`,
+    `| 分析区字号 | ${hcp.fontSize?.analysis?.px ?? BOARD_FONT_SIZE}px |`,
+    `| 分析区字体 | \`${hcp.fontSize?.analysis?.family || `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`}\` |`,
+    `| 分析区颜色 | ${hcp.fontSize?.analysis?.color || '红色'} |`,
+    `| 解答区字号 | ${hcp.fontSize?.solution?.px ?? BOARD_FONT_SIZE}px |`,
+    `| 解答区字体 | \`${hcp.fontSize?.solution?.family || `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`}\` |`,
+    `| 解答区颜色 | ${hcp.fontSize?.solution?.color || '黑色'} |`,
+    `| 总结区字号 | ${hcp.fontSize?.summary?.px ?? BOARD_FONT_SIZE}px |`,
+    `| 总结区字体 | \`${hcp.fontSize?.summary?.family || `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`}\` |`,
+    `| 总结区颜色 | ${hcp.fontSize?.summary?.color || '黑色'} |`,
+    `| 题目区行高 | ${hcp.lineHeight?.question ?? QUESTION_LINE_HEIGHT} |`,
+    `| 其他区行高 | ${hcp.lineHeight?.others || LINE_HEIGHT_RULE} |`,
+    `| 板书速度 | ${hcp.boardSpeed || `下游渲染参数：1秒约${BOARD_SPEED_CHARS_PER_SEC}个汉字，每行±${BOARD_SPEED_JITTER * 100}%轻微抖动；书写时长超出音频窗口时自适应加速压进音频内（音频=行时长唯一主时钟）`} |`,
+    `| 动作速度 | ${hcp.actionSpeed || '差不多同样速度（rough-line/rough-arrow/rough-notation绘制速度）'} |`,
     '',
-  )
-
-  const zoneRows = REGION_KEYS.map((key) => {
-    const z = hbp[key] || {}
-    return `| ${REGION_LABELS[key]} | ${numText(z.x, '')} | ${numText(z.y, '')} | ${numText(z.w, '')} | ${numText(z.h, '')} | ${anchorText(anchors[key])} |`
-  })
-  if (hbp.image) {
-    const z = hbp.image
-    zoneRows.push(`| 图片区 | ${numText(z.x, '')} | ${numText(z.y, '')} | ${numText(z.w, '')} | ${numText(z.h ?? z.maxH, '')} | — |`)
-  }
-  out.push(
-    '### 2. handoff 四区布局（真相源）',
+    '| 区域 | 左% | 上% | 宽% | 高% |',
+    '| --- | ---: | ---: | ---: | ---: |',
+    `| 题目区 | ${hbp.question?.x ?? 6} | ${hbp.question?.y ?? 13.32} | ${hbp.question?.w ?? 40.32} | ${hbp.question?.h ?? ''} |`,
+    `| 分析区 | ${hbp.analysis?.x ?? 6} | ${hbp.analysis?.y ?? 40.62} | ${hbp.analysis?.w ?? 44} | ${hbp.analysis?.h ?? 54.38} |`,
+    `| 解答区 | ${hbp.solution?.x ?? 54} | ${hbp.solution?.y ?? 14} | ${hbp.solution?.w ?? 40} | ${hbp.solution?.h ?? 44} |`,
+    `| 总结区 | ${hbp.summary?.x ?? 54} | ${hbp.summary?.y ?? 69.5} | ${hbp.summary?.w ?? 40} | ${hbp.summary?.h ?? 22} |`,
     '',
-    '| 区域 | 左% | 上% | 宽% | 高% | 动态锚点（handoff zoneAnchors） |',
-    '| --- | ---: | ---: | ---: | ---: | --- |',
-    ...zoneRows,
-    '',
-  )
-
-  out.push(
-    '### 3. UI 可调参数（B 页面设置）',
+    '### UI 可调参数（B 页面设置）',
     '',
     '| 参数 | 值 |',
     '| --- | --- |',
-    `| 坐标计算方式 | ${cp.coordinateMode === 'percentage' ? '百分比' : pickText(cp.coordinateMode, '百分比')} |`,
-    `| 题目字号 | ${numText(cp.questionFontSize, QUESTION_FONT_SIZE)}px |`,
-    `| 题目字体 | \`${pickText(cp.questionFontFamily)}\` |`,
-    `| 题目行高 | ${numText(cp.questionLineHeight, QUESTION_LINE_HEIGHT)} |`,
-    `| 行间隔时长 | ${numText(cp.rowGapMs, 1500)}ms |`,
-    `| 音频播放速度策略 | 有音频 URL → 按自然播放时间（\`audioDurationMs\` 毫秒真源，秒制 \`duration = ms/1000\`）；无音频 → 按 ${speechSpeed} 字/分估算兜底（虚拟时钟推进，不卡死） |`,
+    '| 坐标计算方式 | 百分比 |',
+    '| 题目字号（UI） | 30px |',
+    '| 题目字体（UI） | `"Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif` |',
+    '| 音频速度 | （若有音频url的，以音频自然播放时间为时间，一组一组自然播放即可，如果没有音频url信息的，用填充演示数据占位，）速度计算 160字/分 |',
     '',
-  )
-
-  const ratio = pi.stageRatio || meta.stageRatio || null
-  const formulas = Array.isArray(pi.knowledgeAnalysis?.coreKnowledge)
-    ? pi.knowledgeAnalysis.coreKnowledge
-      .map((k) => pickText(k?.formula || k?.knowledgePoint || k?.summary, ''))
-      .filter(Boolean)
-    : []
-  const knowledges = Array.isArray(pi.relatedKnowledge) ? pi.relatedKnowledge : []
-  out.push(
-    '### 4. 题目全量信息与环节配比',
+    '### 题目信息与环节配比',
     '',
-    '| 项目 | 值 |',
-    '| --- | --- |',
-    `| 题目截图地址 | ${pickText(pi.screenshotUrl || meta.screenshotUrl)} |`,
-    `| 题型 | ${pickText(pi.problemType)} ｜ 板书侧重 ${pickText(pi.boardFocus)} ｜ 年级 ${pickText(pi.gradeLevel)} ｜ 图片类型 ${pickText(pi.imageKind)} |`,
-    `| 教学重点 | ${pickText(pi.essence)} |`,
-    `| 环节配比占比 | ${ratio
-      ? `分析 ${pickText(ratio.suggestedRatio?.analysis)} ｜ 解答 ${pickText(ratio.suggestedRatio?.solution)} ｜ 总结 ${pickText(ratio.suggestedRatio?.summary)} ｜ 开收场 ${pickText(ratio.suggestedRatio?.introAndClosing)}（${pickText(ratio.category)}／${pickText(ratio.type)} 型，${pickText(ratio.essence)}）`
-      : '—'} |`,
+    `- 题目截图地址 (screenshotUrl)：${screenshotUrl}`,
+    `- 题型 (problemType)：${problemType}`,
+    `- 关联知识点 (relatedKnowledge)：${knowledgeText}`,
+    `- 教学重点 (teachingFocus)：${teachingFocus}`,
+    `- 关键公式清单 (keyFormulaList)：${formulaText}`,
+    `- 区域锚点 (zoneAnchors)：${zoneAnchorsText}`,
+    '- 内容占比环节配比占比：',
+    `  - 分析：${analysisPct}`,
+    `  - 解答：${solutionPct}`,
+    `  - 总结：${summaryPct}`,
+    `  - 开收场：${introPct}`,
     '',
-  )
-  if (formulas.length) {
-    out.push('**关键公式清单**', '', ...formulas.map((f) => `- ${f}`), '')
-  }
-  if (knowledges.length) {
-    out.push('**关联知识点**', '', ...knowledges.map((k) => `- ${typeof k === 'string' ? k : pickText(k?.knowledgePoint || k?.name || k)}`), '')
-  }
-  out.push('**区域锚点（动态）**', '', ...REGION_KEYS.map((key) => `- ${REGION_LABELS[key]}：${anchorText(anchors[key])}`), '')
-  return out
+  ]
 }
 
 export function buildElementsMarkdown(rows, meta = {}) {
@@ -148,8 +129,7 @@ export function buildElementsMarkdown(rows, meta = {}) {
     meta.generatedAt ? `- 生成时间：${meta.generatedAt}` : '',
   ].filter(Boolean)
 
-  // 规范说明参数段落（下载物唯一真相源，与分镜表共用同一函数）
-  const canvasParamsSection = buildStandardExplainParamsSection(meta)
+  const explainParamsSection = buildStandardExplainParamsSection(meta)
 
   // 计算每个 stage 内的行号
   const stageRowCounts = {}
@@ -169,13 +149,13 @@ export function buildElementsMarkdown(rows, meta = {}) {
       boardText,
       formatActionSpec(row?.actionSpec),
       row?.audioDurationMs > 0 ? `${row.audioDurationMs}ms（真实音频）` : `${row?.duration ?? 0}ms（预估）`,
-      row?.audioUrl || '',
+      row?.audioUrl || '音频暂未生成',
     ].map(escapeCell).join(' | ')
   })
   return [
     `# ${title}`,
     ...(metadata.length ? ['', ...metadata] : []),
-    ...canvasParamsSection,
+    ...explainParamsSection,
     '',
     '| 序号 | 行标识 | 口播稿 | 板书内容 | 动作参数（完整 JSON） | 时长 | 音频 URL |',
     '| ---: | --- | --- | --- | --- | --- | --- |',
@@ -246,20 +226,10 @@ function summarizeActionSpec(actionSpec) {
   }).join('｜')
 }
 
-// 解析 board 字段，兼容历史坐标前缀和当前对象格式。
-export function parseBoardField(board) {
-  if (board == null) return { content: '' }
-  if (typeof board === 'string') {
-    const match = board.match(/^\[(\d+(?:\.\d+)?%\s*,\s*\d+(?:\.\d+)?%)\]\s*/)
-    const cleaned = superCleanBoardField(match ? board.slice(match[0].length) : board)
-    return { content: cleaned.content, lines: cleaned.lines }
-  }
-  if (typeof board === 'object') {
-    const cleaned = superCleanBoardField(board.content ?? board.text ?? board)
-    return { content: cleaned.content, lines: cleaned.lines }
-  }
-  const cleaned = superCleanBoardField(board)
-  return { content: cleaned.content, lines: cleaned.lines }
+// ponytail: parseBoardField 归并到 contract.js#normalizeBoard 唯一真源
+import { normalizeBoard } from '../agent-b-v2/contract.js'
+function parseBoardField(board) {
+  return { content: normalizeBoard(board).content }
 }
 
 function formatBoardBlock(board) {
@@ -282,7 +252,6 @@ export function buildStoryboardMarkdown(rows, meta = {}) {
     meta.generatedAt ? `- 生成时间：${meta.generatedAt}` : '',
   ].filter(Boolean)
 
-  // 规范说明参数段落（下载物唯一真相源，与完整要素表共用同一函数）
   const paramsSection = buildStandardExplainParamsSection(meta)
 
   const stageLabels = {
@@ -309,7 +278,7 @@ export function buildStoryboardMarkdown(rows, meta = {}) {
     const duration = row?.audioDurationMs > 0
       ? `${row.audioDurationMs}ms（真实音频）`
       : `${row?.duration ?? 0}ms（预估）`
-    const audioUrl = String(row?.audioUrl || '')
+    const audioUrl = String(row?.audioUrl || '音频暂未生成')
 
     const stageHeader = rowInStage === 1
       ? `\n## ${stageLabels[stage] || stage}\n`

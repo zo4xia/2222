@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "contract": "board-lecture-player v2.0",
+    "note": "示范：[真实音频唯一时长真相] + [board 零坐标] + [零 keyword] + [一期动作只 circle/underline]。duration 按真人语速约 5 字/秒取值，仅占位，渲染时被真实音频覆盖",
+    "updated_at": "2026-09-19 00:02 GMT+8",
+    "updated_by": "小阿星 ✦（代表夏夏）"
+  },
+  "rows": [
+    {
+      "stage": "题目",
+      "mp3": "row-001.mp3",
+      "duration": 12.0,
+      "speech": "同学你好！很高兴为你讲解这道题！我们来看：一个梯形，上底是9厘米，下底是15厘米，高是20.4厘米，它的面积是多少呢？",
+      "board": { "startDelay": 0, "region": "question", "content": "" },
+      "actionSpec": [
+        { "action": { "tool": "rough-notation", "action": "circle", "target": { "region": "question", "exactText": "9", "occurrence": 1 }, "options": { "multiline": false }, "order": 1 } },
+        { "action": { "tool": "rough-notation", "action": "underline", "target": { "region": "question", "exactText": "20.4厘米", "occurrence": 1 }, "options": { "multiline": false }, "order": 2 } }
+      ]
+    },
+    {
+      "stage": "分析",
+      "mp3": "row-002.mp3",
+      "duration": 15.0,
+      "speech": "嗯，咱们先看这道题哈。梯形面积怎么求呢？是上底加下底，乘高，再除以2，对吧？那这题上底9、下底15，加起来是24，再乘高20.4，最后除以2就好啦。",
+      "board": { "startDelay": 1.8, "region": "analysis", "content": "梯形面积 =（上底+下底）x 高 ÷ 2\\n上底+下底 = 9+15 = 24" },
+      "actionSpec": [
+        { "action": { "tool": "rough-notation", "action": "underline", "target": { "region": "analysis", "exactText": "9", "occurrence": 1 }, "options": { "multiline": false }, "order": 3 } }
+      ]
+    },
+    {
+      "stage": "解答",
+      "mp3": "row-003.mp3",
+      "duration": 11.0,
+      "speech": "来，咱们一起算一下。二十四乘二十点四，等于四百八十九点六，再除以二，就是二百四十四点八平方厘米。好嘞，答案出来啦。",
+      "board": { "startDelay": 1.2, "region": "solution", "content": "S = (9+15) x 20.4 ÷ 2\\n  = 24 x 20.4 ÷ 2\\n  = 489.6 ÷ 2\\n  = 244.8（平方厘米）" },
+      "actionSpec": []
+    },
+    {
+      "stage": "总结",
+      "mp3": "row-004.mp3",
+      "duration": 11.0,
+      "speech": "好嘞，我们来总结一下哈。这类题就是梯形面积公式，记住上底加下底，乘高除以2就行啦。路虽远，行则将至，加油！",
+      "board": { "startDelay": 1.5, "region": "summary", "content": "梯形面积：（上底+下底）x 高 ÷ 2" },
+      "actionSpec": []
+    }
+  ]
+}
