@@ -82,7 +82,7 @@ const GLYPH2COMMON=[
   [/\u2235/g,'因为']
 ];
 const LATEX2U=[
-  [/\\times\b/g,'x'],[/\\div\b/g,'/'],[/\\cdot\b/g,'·'],
+  [/\\times(?=\d|\s|$|[^a-zA-Z])/g,'x'],[/\\div(?=\d|\s|$|[^a-zA-Z])/g,'/'],[/\\cdot\b/g,'·'],
   [/\^\s*(?:\{\s*\\circ\s*\}|\\circ)/g,'°'],[/\\circ\b/g,'°'],[/\\degree\b/g,'°'],
   [/\^\s*(?:\{\s*2\s*\}|2)/g,'²'],[/\^\s*(?:\{\s*3\s*\}|3)/g,'³'],
   [/\\angle\b/g,'∠'],[/\\pm\b/g,'±'],[/\\perp\b/g,'⊥'],[/\\parallel\b/g,'∥'],

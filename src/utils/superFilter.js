@@ -26,7 +26,8 @@ const GLYPH2COMMON = [
 
 // LaTeX → Unicode 映射（⚠ 顺序敏感：^\circ 先于 \circ，\sqrt{x} 先于 \sqrt）
 const LATEX2U = [
-  [/\\times\b/g, 'x'], [/\\div\b/g, '/'], [/\\cdot\b/g, '·'],
+  // ★ Task 23 修正: \times/\div 后面紧跟数字时 \b 不匹配 (如 \times20.4), 改用 (?=\d|\s|$|[^a-zA-Z]) 前瞻
+  [/\\times(?=\d|\s|$|[^a-zA-Z])/g, 'x'], [/\\div(?=\d|\s|$|[^a-zA-Z])/g, '/'], [/\\cdot\b/g, '·'],
   [/\^\s*(?:\{\s*\\circ\s*\}|\\circ)/g, '°'], [/\\circ\b/g, '°'], [/\\degree\b/g, '°'],
   [/\^\s*(?:\{\s*2\s*\}|2)/g, '²'], [/\^\s*(?:\{\s*3\s*\}|3)/g, '³'],
   [/\\angle\b/g, '∠'], [/\\pm\b/g, '±'], [/\\perp\b/g, '⊥'], [/\\parallel\b/g, '∥'],
