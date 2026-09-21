@@ -1,5 +1,6 @@
 /* @qh-core LANE=SHARED POINT=TOOL_CATALOG only registered actions for B script */
 import { createHandActionScheduler } from './handActionScheduler.js'
+import { MIN_HAND_LIFT_GAP_MS } from './boardToolTiming.js'
 import { createTextTargetRegistry } from './textTargetRegistry.js'
 import {
   getRoughNotationAgentTool,
@@ -65,10 +66,25 @@ export function createBoardToolRuntime({
   const targetResolver = resolveTarget || targetRegistry.resolve
   const scheduler = createHandActionScheduler()
   const preparedPlans = new Set()
+  let fallbackSequence = 0
+
+  function createFallbackPlan(type, action) {
+    fallbackSequence += 1
+    return {
+      type,
+      action,
+      id: `board-action-fallback:${fallbackSequence}`,
+      order: Number.isFinite(action?.order) ? Math.max(1, Math.round(action.order)) : fallbackSequence,
+      durationMs: 1,
+      gapAfterMs: MIN_HAND_LIFT_GAP_MS,
+      execute: () => {},
+      remove: () => {},
+    }
+  }
 
   function prepare(action) {
     if (!action || typeof action !== 'object') {
-      return { type: 'noop', execute: () => {}, remove: () => {} }
+      return createFallbackPlan('noop', action)
     }
     try {
       if (action?.tool === ROUGH_NOTATION_TOOL_ID) {
@@ -91,15 +107,10 @@ export function createBoardToolRuntime({
       }
     } catch (err) {
       console.warn('[boardToolCatalog] prepare 动作失败降级:', action?.tool, err?.message)
-      return {
-        type: 'fallback-noop',
-        action,
-        execute: () => {},
-        remove: () => {},
-      }
+      return createFallbackPlan('fallback-noop', action)
     }
     console.warn(`[boardToolCatalog] 未知板书动作工具: ${action?.tool || '空'}`)
-    return { type: 'noop', execute: () => {}, remove: () => {} }
+    return createFallbackPlan('noop', action)
   }
 
   return {
