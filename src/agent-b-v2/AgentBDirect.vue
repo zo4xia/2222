@@ -1425,12 +1425,15 @@ function openDeliverablePage() {
 }
 
 function openHanddrawPlayer() {
+  // ★ Task 17 修正 (2026-09-21): 直接给 row-player 一个 URL 参数, 让它 fetch /api/deliverable/current.json
+  // 不再用 localStorage 通道 (那是闭门造车, 你说的对 - row-player 本来就有 URL query 通道现成的)
+  // 前提: generateDeliverablePage 已经把产物写到 public/deliverable/current.json
+  //       (用户必须先点"生成交付单页"按钮, 才会落 current.json)
   const payload = serializeCurrentDeliverableState()
-  window._LATEST_AGENT_B_RESULT = payload
-  try {
-    localStorage.setItem('agent-b-deliverable', JSON.stringify(payload))
-  } catch {}
-  window.open('/deliverable/row-player.html', '_blank')
+  window._LATEST_AGENT_B_RESULT = payload  // 备用, 不依赖
+  // 直接打开 row-player 带 ?deliverable=/api/deliverable/current.json
+  // row-player 的 loadFromUrlOrDefault 会 fetch 这个 URL, 走 normData 归一, 然后 load
+  window.open('/deliverable/row-player.html?deliverable=/api/deliverable/current.json', '_blank')
 }
 
 function downloadDeliverableJson() {

@@ -1171,36 +1171,13 @@ document.getElementById('btnRec').onclick=toggleRec;
    支持 ?deliverable=/path/to/rows.json 或 ?data=... 两种 key
    fetch 远程 JSON 替换 DATA 再 load; 失败降级用内置 DATA 示例
    例: /row-player.html?deliverable=/deliverable/current.json
-   ★ Task 16 修复 (2026-09-21): 合并备份版 localStorage 读取逻辑
-     openHanddrawPlayer 写 localStorage['agent-b-deliverable'], row-player 必须读
-     否则点击"演播录制"打开的页面始终是内嵌默认示例 (平行四边形)
+   ★ Task 17 修正 (2026-09-21): 只走 URL query 通道, 不再读 localStorage
+     (上游 openHanddrawPlayer 已经直接传 ?deliverable=/api/deliverable/current.json)
 */
 async function loadFromUrlOrDefault(){
   const params = new URLSearchParams(location.search);
   const url = params.get('deliverable') || params.get('data') || params.get('rows');
-  if (!url) {
-    // ★ Task 16: 尝试从 localStorage 读取 (B 页 openHanddrawPlayer 用 localStorage 传数据)
-    try {
-      const lsData = localStorage.getItem('agent-b-deliverable');
-      if (lsData) {
-        const json = JSON.parse(lsData);
-        // CRITICAL 修复: 走 normData/normRow 统一字段归一 (audioUrl→mp3 / actionSpec 形状)
-        const nd = normData(json);
-        if (nd.rows && nd.rows.length) {
-          if (nd.projectCode) DATA.projectCode = nd.projectCode;
-          if (nd.problemText) DATA.problemText = nd.problemText;
-          if (nd.boardPlan) DATA.boardPlan = nd.boardPlan;
-          if (nd.problemImage) { DATA.problemImage = nd.problemImage; setProblemImage(nd.problemImage); }
-          DATA.rows = nd.rows;
-          load(DATA);
-          console.info('[row-player] 已从 localStorage 加载:', '(' + nd.rows.length + ' 行)');
-          return;
-        }
-      }
-    } catch(e) { console.warn('[row-player] localStorage 读取失败', e); }
-    load(DATA);
-    return;
-  }
+  if (!url) { load(DATA); return; }
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
