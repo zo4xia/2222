@@ -34,6 +34,15 @@ const LATEX2U = [
   [/\\le(?:q)?\b/g, '≤'], [/\\ge(?:q)?\b/g, '≥'], [/\\ne(?:q)?\b/g, '≠'], [/\\approx\b/g, '≈'],
   [/\\pi\b/g, 'π'], [/\\infty\b/g, '∞'], [/\\sqrt\s*\{([^}]*)\}/g, '√$1'], [/\\sqrt\b/g, '√'],
   [/\\rightarrow\b/g, '→'], [/\\Rightarrow\b/g, '⇒'], [/\\to\b/g, '→'],
+  // ★ Task 20: 兜底处理 Agent B LLM 输出里不该出现的 LaTeX 命令
+  //   \text{xxx} → xxx (Agent B 应该直接写中文, 不该用 \text 包装)
+  //   \quad / \, / \; / \!  → 空格 (LaTeX 间距命令, 手写体直接用空格)
+  //   \, → 空格, \; → 空格, \! → 空, \: → 空格
+  [/\\text\s*\{([^}]*)\}/g, '$1'],
+  [/\\quad\b/g, ' '], [/\\qquad\b/g, '  '],
+  [/\\,/g, ' '], [/\\;/g, ' '], [/\\:/g, ' '], [/\\!/g, ''],
+  // \displaystyle / \dfrac / \tfrac → \frac (统一分数命令)
+  [/\\displaystyle\s+/g, ''], [/\\dfrac\s*\{/g, '\\frac{'], [/\\tfrac\s*\{/g, '\\frac{'],
 ]
 
 // 结构数学检测：手写字体写不了的 LaTeX 命令

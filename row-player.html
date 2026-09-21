@@ -663,7 +663,13 @@ const LATEX2U=[
   [/\\triangle\b/g,'三角形'],[/\\therefore\b/g,'因此'],[/\\because\b/g,'因为'],
   [/\\le(?:q)?\b/g,'≤'],[/\\ge(?:q)?\b/g,'≥'],[/\\ne(?:q)?\b/g,'≠'],[/\\approx\b/g,'≈'],
   [/\\pi\b/g,'π'],[/\\infty\b/g,'∞'],[/\\sqrt\s*\{([^}]*)\}/g,'√$1'],[/\\sqrt\b/g,'√'],
-  [/\\rightarrow\b/g,'→'],[/\\Rightarrow\b/g,'⇒'],[/\\to\b/g,'→']
+  [/\\rightarrow\b/g,'→'],[/\\Rightarrow\b/g,'⇒'],[/\\to\b/g,'→'],
+  // ★ Task 20: 兜底处理 Agent B LLM 输出里不该出现的 LaTeX 命令
+  //   \text{xxx} → xxx, \quad / \, / \; → 空格, \dfrac / \tfrac → \frac
+  [/\\text\s*\{([^}]*)\}/g,'$1'],
+  [/\\quad\b/g,' '],[/\\qquad\b/g,'  '],
+  [/\\,/g,' '],[/\\;/g,' '],[/\\:/g,' '],[/\\!/g,''],
+  [/\\displaystyle\s+/g,''],[/\\dfrac\s*\{/g,'\\frac{'],[/\\tfrac\s*\{/g,'\\frac{']
 ];
 // 结构数学：LaTeX 命令 / ^_{...} / 连续上下标 —— 手写字体写不了，需要公式图（平方²立方³已被转为常用Unicode）
 const STRUCT_MATH=/\\(?!frac\b)[a-zA-Z]+|[A-Za-z0-9)\]}]\s*[\^_]\s*\{[^}]+\}|[A-Za-z0-9)\]}]\s*[\^_]\s*[A-Za-z0-9]\s*[\^_]/;
