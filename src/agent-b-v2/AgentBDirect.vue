@@ -1271,7 +1271,9 @@ function serializeCurrentDeliverableState() {
       durationLabel: Number(r.audioDurationMs) > 0 ? '真实音频时长' : '预估',
       stage: rowStage,
       speech: r.speech != null ? String(r.speech) : '',
-      audioUrl: r.audioUrl || '音频暂未生成',
+      // ★ Task 22: 用户没点试听时 audioUrl 留空字符串 (不是'音频暂未生成'污染数据)
+      // row-player 的 isAudioSrc 会过滤掉空字符串 → 走虚拟时钟用 duration 估算 (填充数据做板书演示)
+      audioUrl: r.audioUrl || rowAudioCache.value?.[idx] || '',
       audioDurationMs: Number(r.audioDurationMs) > 0 ? Math.round(Number(r.audioDurationMs)) : null,
       board: {
         // ★ 必须带 stage：板书字段自描述属于哪个 stage (题目/分析/解答/总结)
@@ -1416,6 +1418,16 @@ async function generateDeliverablePage() {
     message.warning('当前无生成内容，请先生成五字段后再固化产物单页')
     return
   }
+  // ★ Task 22 (2026-09-21): 程序判断 audioUrl 是否存在
+  // 用户点试听 → audioUrl 回填; 没点 → 弹提示"用填充数据做板书演示"
+  const rowsWithAudio = rows.value.filter(r => r.audioUrl || rowAudioCache.value[rows.value.indexOf(r)])
+  const rowsWithoutAudio = rows.value.length - rowsWithAudio.length
+  if (rowsWithoutAudio > 0) {
+    message.warning({
+      content: `检测到 ${rowsWithoutAudio} 行未试听音频 (无 audioUrl)，系统默认用填充数据做板书演示。建议先点各行"试听"按钮生成音频后再固化。`,
+      duration: 4,
+    })
+  }
   deliverableGenerating.value = true
   try {
     // 严格从当前运行时状态树序列化最新数据
@@ -1474,13 +1486,21 @@ function openDeliverablePage() {
 }
 
 function openHanddrawPlayer() {
-  // ★ Task 17 修正 (2026-09-21): 直接给 row-player 一个 URL 参数, 让它 fetch /api/deliverable
-  // 不再用 localStorage 通道 (闭门造车)
-  // 前提: generateDeliverablePage 已经把产物写到 public/deliverable/current.json
-  //       /api/deliverable 返回 wrapper 格式 {ok, deliverable:{rows:[...]}}
-  //       row-player 的 loadFromUrlOrDefault 兼容 json.deliverable.rows
-  // ★ Task 18 修正: URL 必须是 /api/deliverable (不是 /api/deliverable/current.json,
-  //   后者会被 Vite SPA fallback 到 index.html, 返回 HTML 不是 JSON)
+  // ★ Task 22 (2026-09-21): 程序判断 audioUrl 是否存在
+  // 用户点试听 → audioUrl 回填到 record.audioUrl + rowAudioCache (Task 7 的 backfillAudioToRow)
+  // 用户没点试听 → audioUrl 为空 → 弹提示"由于没有音频链接，系统默认用填充数据做板书演示"
+  // 这不是 Agent B 契约的事, 是程序在播放前做的判断 (用户原话)
+  const rowsWithAudio = rows.value.filter(r => r.audioUrl || rowAudioCache.value[rows.value.indexOf(r)])
+  const rowsWithoutAudio = rows.value.length - rowsWithAudio.length
+  if (rowsWithoutAudio > 0) {
+    message.warning({
+      content: `检测到 ${rowsWithoutAudio} 行未试听音频 (无 audioUrl)，系统默认用填充数据做板书演示。建议先点各行"试听"按钮生成音频。`,
+      duration: 4,
+    })
+  }
+
+  // ★ Task 17 修正: 直接给 row-player 一个 URL 参数, 让它 fetch /api/deliverable
+  // ★ Task 18 修正: URL 必须是 /api/deliverable (不是 /api/deliverable/current.json)
   const payload = serializeCurrentDeliverableState()
   window._LATEST_AGENT_B_RESULT = payload  // 备用, 不依赖
   window.open('/deliverable/row-player.html?deliverable=/api/deliverable', '_blank')
