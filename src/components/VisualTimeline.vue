@@ -65,6 +65,21 @@
             <span class="metric-val audio-val">{{ getDuration(row).toFixed(1) }}s</span>
           </div>
 
+          <!-- ★ 试听按钮：点击立即试听本 Row 的音频（缓存 mp3） -->
+          <button
+            v-if="getAudioUrl(row)"
+            class="block-play-btn"
+            :class="{ 'is-playing': playingIndex === idx }"
+            :title="playingIndex === idx ? '暂停试听' : '试听本 Row 组音频'"
+            @click.stop="onPlayClick(idx, row)"
+          >
+            <span class="play-btn-icon">{{ playingIndex === idx ? '⏸' : '▶' }}</span>
+            <span class="play-btn-text">{{ playingIndex === idx ? '暂停试听' : '试听' }}</span>
+          </button>
+          <div v-else class="block-play-btn block-play-btn-empty" title="本 Row 尚未生成音频">
+            <span class="play-btn-text-muted">未生成音频</span>
+          </div>
+
           <!-- 核心指标2：板书动画起手延时（只读展示，由系统语义与音频自动驱动） -->
           <div
             :class="['block-metric-row', 'offset-row', { 'no-board-offset': !hasBoard(row) }]"
@@ -135,14 +150,39 @@ const props = defineProps({
     type: Number,
     default: -1,
   },
+  // ★ 当前正在播放的 row index（用于在时间轴块上显示"正在播放"状态）
+  playingIndex: {
+    type: Number,
+    default: -1,
+  },
 })
 
-const emit = defineEmits(['select-row'])
+// ★ emit 增加两个事件：select-row（行定位，原有） + play-audio（试听，新增）
+const emit = defineEmits(['select-row', 'play-audio'])
 
 const trackRef = ref(null)
 
+// ★ 提取 row 的音频 URL（优先 audioUrl，兜底缓存 rowAudioCache，再兜底 audio.mp3）
+//  注意：父组件传入的 row 已含 audioUrl 与 audioDurationMs 字段（若已生成）
+function getAudioUrl(row) {
+  if (!row) return ''
+  return row.audioUrl || row.mp3 || row.audio || ''
+}
+
+// ★ 试听按钮点击：emit 给父组件，由父组件调 playAudioUrl 统一管理音频实例
+//  这样可以复用父组件的 activeAudio / playingAudioIndex 状态，不会多实例冲突
+function onPlayClick(idx, row) {
+  const url = getAudioUrl(row)
+  if (!url) return
+  emit('play-audio', { index: idx, url })
+}
+
 // 提取 row 的时长（单位：秒）
 function getDuration(row) {
+  // ★ 优先使用真实音频时长（如果有）
+  if (row.audioDurationMs && row.audioDurationMs > 0) {
+    return row.audioDurationMs / 1000
+  }
   if (row.audioDuration && row.audioDuration > 0) return row.audioDuration
   if (row.estimatedDurationMs && row.estimatedDurationMs > 0) return row.estimatedDurationMs / 1000
   if (row.rowTimeline?.rowTotalDurationMs && row.rowTimeline.rowTotalDurationMs > 0) {
@@ -431,6 +471,60 @@ function onBlockClick(index) {
 .audio-row {
   background: var(--positive-pale, #dff4ea);
   border: 1px solid var(--line-strong, #b9cdc5);
+}
+
+/* ★ 试听按钮（时间轴块内） */
+.block-play-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.28);
+}
+.block-play-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(22, 163, 74, 0.4);
+}
+.block-play-btn:active {
+  transform: translateY(0);
+}
+.block-play-btn.is-playing {
+  background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
+  box-shadow: 0 2px 6px rgba(180, 83, 9, 0.4);
+  animation: tl-play-pulse 1.4s ease-in-out infinite;
+}
+@keyframes tl-play-pulse {
+  0%, 100% { box-shadow: 0 2px 6px rgba(180, 83, 9, 0.4); }
+  50%      { box-shadow: 0 4px 12px rgba(180, 83, 9, 0.65); }
+}
+.play-btn-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+.play-btn-text {
+  line-height: 1;
+}
+.block-play-btn-empty {
+  background: var(--surface-soft, #edf7f0);
+  border: 1px dashed var(--line, #d7ded5);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.play-btn-text-muted {
+  color: var(--muted, #94a3b8);
+  font-size: 10.5px;
+  font-weight: 500;
 }
 .offset-row {
   background: var(--sun-pale, #fff2c7);

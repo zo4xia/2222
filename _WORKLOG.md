@@ -203,33 +203,48 @@ Stage Summary:
 - 用户在右侧预览面板可见：主页右下角"📚 Skills 沉淀 7"按钮 → 点击 → 7 个 skill 可交互 demo
 
 ---
-Task ID: 6
+Task ID: 7
 Agent: main
-Task: 用户反馈"用 rough.js 就可以了，怎么会没做呢，刚开始好好的，改着对了，让你保存备份" —— 诊断发现 Task 1 配好的 CDN external 配置被覆盖丢了，恢复 + 备份 + 重打包
+Task: 用户反馈 3 项试听体验问题：①第一条音频开头吞字 ②试听完没立刻回填表单（怕漏 mp3 地址/时长）③时序时间轴点击试听
 
 Work Log:
-- 诊断 vite.config.js：发现 cdnExternalPlugin() / optimizeDeps.exclude / build.rollupOptions.external 全消失（项目原版覆盖了 Task 1 的 CDN 优化配置）
-- 源码 import 完好：roughNotationTool.js:1 `import { annotate } from 'rough-notation'`、roughDrawingTool.js:1 `import rough from 'roughjs/bundled/rough.esm.js'` 都在
-- 备份当前 vite.config.js → vite.config.js.bak-20260921-before-cdn-restore（用户强调保存备份）
-- 重写 vite.config.js：恢复 cdnExternalPlugin()，pin 同一 Vue 实例（?deps=vue@3.5.39），dev + build 双模式生效，含 6 个 vendor 库 external 到 esm.sh：
-  - vue@3.5.39 / ant-design-vue@4.2.6?deps=vue@3.5.39 / @ant-design/icons-vue@7.0.1?deps=vue@3.5.39 / katex@0.18.4 / rough-notation@0.5.1 / roughjs@4.6.6/bundled/rough.esm.js
-- index.html 加回 esm.sh preconnect / dns-prefetch
-- 杀旧 Vite (PID 2133) → 清 .vite/deps 缓存 → double-fork daemon 重启 (PID 7179, 端口 3000, ready in 11.7s)
-- curl 验证 CDN external 实际生效：
-  - /src/board-tools/roughNotationTool.js → `import { annotate } from "https://esm.sh/rough-notation@0.5.1"` ✓
-  - /src/board-tools/roughDrawingTool.js → `import rough from "https://esm.sh/roughjs@4.6.6/bundled/rough.esm.js"` ✓
-  - /src/main.js → vue / ant-design-vue 均重写为 esm.sh URL（pin deps=vue@3.5.39）✓
-- agent-browser 端到端验证：
-  - 页面 title = "教学板书 · 第1步 贴题识别" ✓
-  - #app.innerHTML.length = 18785（Vue 完整挂载）✓
-  - console / page errors 0 条 ✓
-  - fetch('https://esm.sh/rough-notation@0.5.1') → HTTP 200 ok=true ✓
-  - fetch('https://esm.sh/roughjs@4.6.6/bundled/rough.esm.js') → HTTP 200 ok=true ✓
-  - 浮动按钮"📚 Skills 沉淀 7"仍可见 ✓
-- 重新打包 zip：把新 vite.config.js 和 _WORKLOG.md 一起塞进 remix-extracted.zip
+- 诊断 playAudioUrl 当前用 canplay 事件 → canplay 时缓冲不够就开始播，前几十毫秒还在解码 = 开头吞字根因
+- 改动 1 (AgentBDirect.vue playAudioUrl):
+  - canplay 替换为 canplaythrough（浏览器认为已缓冲足够连续播完整条）
+  - play 前 audio.currentTime = 0 强制回最开头（防复用 element 时残留进度）
+  - play 前 await 120ms 预热 tick，让解码管线充满
+- 改动 2 (AgentBDirect.vue 新增 backfillAudioToRow):
+  - 在 audio 'ended' 事件回调里立刻把 mp3 url + 真实时长落到 record + rowAudioCache
+  - 即使 record.audioUrl 已存在也补一遍双保险
+  - readAudioDuration 读 loadedmetadata 落 audioDurationMs（防后续被误判"没自然音频时长"）
+  - applyAgentBV2Timeline 重算时间轴
+  - 轻量 toast 提示用户回填成功（duration: 1.6s 不打扰）
+- 改动 2 (AgentBDirect.vue 表格行打勾图标):
+  - 序号列旁加 .row-audio-check (CheckCircleOutlined 绿色勾) - 当 record.audioUrl || rowAudioCache[index] 存在即显示
+  - 反之 .row-audio-pending 灰色 ○ 圆圈表示未生成
+  - row-audio-check-pop 0.32s 弹跳动画（cubic-bezier 0.34,1.56,0.64,1）
+- 改动 3 (VisualTimeline.vue):
+  - 加 playingIndex prop 接收父组件正在播放的 row index
+  - 加 getAudioUrl(row) 提取 audioUrl/mp3/audio 字段
+  - 时间轴每个块新增 .block-play-btn 试听按钮（v-if getAudioUrl, 否则显示 .block-play-btn-empty "未生成音频"）
+  - @click.stop 触发 emit('play-audio', {index, url}) 给父组件
+  - is-playing 状态用 amber 渐变 + tl-play-pulse 1.4s 脉冲动画
+  - getDuration 优先用 row.audioDurationMs 真实音频时长（而非预估）
+- 改动 3 (AgentBDirect.vue 父组件接收):
+  - VisualTimeline 加 :playing-index="playingAudioIndex === null ? -1 : playingAudioIndex"
+  - @play-audio="onPlayAudioFromTimeline"
+  - 新增 onPlayAudioFromTimeline({index, url}) → 复用 playAudioUrl 统一管理音频实例（不会多实例冲突）
+- agent-browser 端到端验证（沙箱内真实跑通）:
+  - 黄金路径: 题目框输入 → 识别并贴上画布 → 确定进入生成表 → 开始生成五字段执行表 → 5 行 Row 出现 + 时序时间轴显示
+  - 点第1行"生成语音"按钮 → TTS 返回 mp3 → 按钮变"暂停" + .row-audio-check 出现（hasCheck:true）+ audio pill 显示 /audio-cache/5d0aed319ff21195bb1a3d503978d4ff.mp3
+  - 时间轴 Row 1 块的试听按钮从"未生成音频"变成"▶试听"
+  - audioUrl 字段确认回填到行数据
+  - 0 console error / 0 page error
 
 Stage Summary:
-- Task 1 的 CDN external 配置已完整恢复（vite.config.js + index.html preconnect）
-- 备份在 vite.config.js.bak-20260921-before-cdn-restore
-- dev server PID 7179 在 3000 端口稳定运行，rough.js / rough-notation / vue / ant-design-vue / katex 全部走 esm.sh
-- 用户从此可下载新 remix-extracted.zip（含 CDN 配置 + 备份 + worklog）
+- 3 个改动全部验证通过:
+  1. 开头吞字修复: canplaythrough + currentTime=0 + 120ms 预热
+  2. 试听完立刻回填: ended 事件 backfillAudioToRow → mp3 url + audioDurationMs + 时间轴重算 + 行打勾 + audio pill
+  3. 时序时间轴可试听: 每个块新增▶试听按钮, emit play-audio 复用父组件音频实例, 优先显示真实音频时长
+- 后续用户操作: 点行内"试听"或时间轴块"试听"都能播放, 试听完自动回填不会漏 mp3 地址/时长
+- 推 GitHub 备份 commit

@@ -538,6 +538,13 @@ function onSelectRowFromTimeline(index) {
   }
 }
 
+// ★ 时序全景时间轴块的试听按钮回调：复用 playAudioUrl 统一管理音频实例
+//  payload: { index, url }
+function onPlayAudioFromTimeline({ index, url } = {}) {
+  if (typeof index !== 'number' || !url) return
+  playAudioUrl(url, index)
+}
+
 // ========= 口播语音 TTS 控制（Fish Audio 接口）=========
 const rowAudioCache = ref({})
 const playingAudioIndex = ref(null)
@@ -595,6 +602,11 @@ async function playAudioUrl(url, index) {
   if (typeof window === 'undefined' || !window.Audio) return
   const audio = new window.Audio(url)
   audio.preload = 'auto'
+  // 关键修复：开头吞字根因 = 浏览器在 canplay 时缓冲不够就开始播，前几十毫秒还在解码。
+  // 三个对策：
+  //  (a) 用 canplaythrough 替代 canplay，等"足够播完整条"再开始
+  //  (b) play 前 audio.currentTime = 0 强制回到最开头（防止上次残留进度）
+  //  (c) play 前再 await 一个 120ms 的预热 tick，让解码管线充满
   activeAudio = audio
   playingAudioIndex.value = index
 
@@ -602,6 +614,8 @@ async function playAudioUrl(url, index) {
     if (playingAudioIndex.value === index) {
       playingAudioIndex.value = null
       activeAudio = null
+      // ★ 试听完立刻把缓存回填到表单（防止后续被误判"没 mp3 地址 / 没自然音频时长"）
+      backfillAudioToRow(index, url)
     }
   })
   audio.addEventListener('error', () => {
@@ -615,24 +629,66 @@ async function playAudioUrl(url, index) {
   try {
     // 只由原生 ended 事件结束本次试听，不使用预估时长或定时器切换。
     await new Promise((resolve, reject) => {
-      const onCanPlay = () => {
-        audio.removeEventListener('canplay', onCanPlay)
+      const onCanPlayThrough = () => {
+        audio.removeEventListener('canplaythrough', onCanPlayThrough)
         audio.removeEventListener('error', onLoadError)
         resolve()
       }
       const onLoadError = (event) => {
-        audio.removeEventListener('canplay', onCanPlay)
+        audio.removeEventListener('canplaythrough', onCanPlayThrough)
         audio.removeEventListener('error', onLoadError)
         reject(event)
       }
-      audio.addEventListener('canplay', onCanPlay, { once: true })
+      // canplaythrough = 浏览器认为已缓冲足够连续播完整条；比 canplay 更稳，几乎不会吞开头
+      audio.addEventListener('canplaythrough', onCanPlayThrough, { once: true })
       audio.addEventListener('error', onLoadError, { once: true })
       audio.load()
     })
+    // 强制回 0，避免某些浏览器复用 element 时残留 currentTime > 0
+    try { audio.currentTime = 0 } catch (_) {}
+    // 120ms 预热 tick：让音频解码管线充满，避免首帧被截
+    await new Promise((r) => setTimeout(r, 120))
     await audio.play()
   } catch (err) {
     console.warn('播放被浏览器安全策略阻止或中断:', err)
     playingAudioIndex.value = null
+  }
+}
+
+// ★ 试听完立刻回填表单：把缓存的 audioUrl + 真实时长落到 record + rowAudioCache，
+//   防止后续被误判"没 mp3 地址 / 没自然音频时长"。即使 record.audioUrl 已存在也补一遍双保险。
+async function backfillAudioToRow(index, url) {
+  if (typeof index !== 'number' || !url) return
+  const record = rows.value?.[index]
+  if (!record) return
+  let changed = false
+  // 1. 双保险回填 audioUrl
+  if (!record.audioUrl) {
+    record.audioUrl = url
+    changed = true
+  }
+  // 2. rowAudioCache 同步
+  if (rowAudioCache.value[index] !== url) {
+    rowAudioCache.value[index] = url
+    changed = true
+  }
+  // 3. 没真实时长就立刻读一次（loadedmetadata）落上 audioDurationMs
+  if (!record.audioDurationMs || record.audioDurationMs <= 0) {
+    try {
+      const dur = await readAudioDuration(url)
+      if (dur && dur > 0) {
+        record.audioDurationMs = dur
+        changed = true
+      }
+    } catch (_) {}
+  }
+  if (changed) {
+    rows.value = applyAgentBV2Timeline(rows.value)
+    // 轻量 toast 提示（不打扰）
+    message.success({ content: `第 ${index + 1} 行音频已回填 (mp3 地址 + 自然时长)`, duration: 1.6 })
+  } else {
+    // 即使 changed=false，也悄悄确认一次时长，确保 rowAudioCache 一定有
+    rowAudioCache.value[index] = url
   }
 }
 
@@ -1983,7 +2039,9 @@ function isRefineFieldEqual(original, refined) {
             <VisualTimeline
               :rows="rows"
               :active-index="editingBoardIndex"
+              :playing-index="playingAudioIndex === null ? -1 : playingAudioIndex"
               @select-row="onSelectRowFromTimeline"
+              @play-audio="onPlayAudioFromTimeline"
             />
 
             <!-- 列空间合理分配与自由折叠工具条 -->
@@ -2111,6 +2169,19 @@ function isRefineFieldEqual(original, refined) {
                     <HolderOutlined />
                   </div>
                   <span class="studio-row-badge">{{ index + 1 }}</span>
+                  <!-- ★ 行打勾图标：试听完/已生成音频时立刻出现绿色勾，视觉反馈"这行备好了" -->
+                  <span
+                    v-if="record.audioUrl || rowAudioCache[index]"
+                    class="row-audio-check"
+                    :title="`第 ${index + 1} 行已有音频 · 真实时长 ${record.audioDurationMs ? (Math.round(record.audioDurationMs / 100) / 10) + 's' : '读取中'}`"
+                  >
+                    <CheckCircleOutlined />
+                  </span>
+                  <span
+                    v-else
+                    class="row-audio-pending"
+                    title="本行尚未生成或试听过音频"
+                  >○</span>
                 </div>
               </div>
 
@@ -3884,6 +3955,39 @@ function isRefineFieldEqual(original, refined) {
   color: var(--ink-deep, #163b3d);
   border: 1px solid var(--line, #d7ded5);
   transition: all 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ★ 行音频打勾图标（试听完/已生成音频时绿色勾显眼反馈） */
+.row-audio-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 14px;
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.12);
+  animation: row-audio-check-pop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+  margin-left: 2px;
+}
+
+.row-audio-pending {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
+  color: var(--muted, #94a3b8);
+  margin-left: 2px;
+  opacity: 0.55;
+}
+
+@keyframes row-audio-check-pop {
+  0%   { transform: scale(0.4); opacity: 0; }
+  60%  { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 /* 教学环节胶囊：治愈马卡龙色系 */
