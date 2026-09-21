@@ -1,0 +1,166 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/handoff/handoff.schema.json",
+  "title": "HandoffSchema",
+  "description": "Agent A → Agent B 交接 JSON 标准模板 (v1.0)。Agent A 在 Step1 完成贴题/识别/落坐后产出此文件，作为 Agent B 生成五字段执行表的唯一真相源。所有字段从 handoff 读取真实值，不套示例值或默认值。",
+  "type": "object",
+  "required": [
+    "handoffVersion",
+    "confirmedAt",
+    "problemText",
+    "problemType",
+    "boardFocus",
+    "suggestedGrade",
+    "coordinateSpec",
+    "zoneAnchors",
+    "boardPlan",
+    "canvasParams",
+    "stageRatioSuggestion",
+    "essence"
+  ],
+  "properties": {
+    "handoffVersion": { "type": ["string", "number"], "description": "合同版本号，当前为 1（数字或字符串都允许，active 输出 number 1）" },
+    "confirmedAt": { "type": "string", "format": "date-time", "description": "Agent A 确认进入生成表的 ISO 时间戳" },
+    "problemText": { "type": "string", "description": "题目完整纯文本（识别后）" },
+    "problemType": {
+      "type": "string",
+      "enum": ["word", "arithmetic", "geometry", "algebra", "concept", "modeling", "mixed"],
+      "description": "题型分类，指导 Agent B 解题策略"
+    },
+    "boardFocus": { "type": "string", "description": "板书侧重点（如 relation_understanding / formula_application）" },
+    "relatedKnowledge": { "type": "array", "items": { "type": "object" }, "description": "关联知识点参考（按需取用，不硬塞）" },
+    "knowledgeAnalysis": {
+      "type": "object",
+      "description": "Agent A 深度知识点分析",
+      "properties": {
+        "suggestedGrade": { "type": "string" },
+        "coreKnowledge": { "type": "array" },
+        "teachingFocus": { "type": ["string", "array"], "description": "教学方向锚点（active 输出 string，旧版用 array）" },
+        "keyFormulaList": { "type": "array", "description": "必 cue 公式清单" },
+        "formulaHints": { "type": "array" }
+      }
+    },
+    "suggestedGrade": { "type": "string", "description": "建议年级（1-3 年级柔语气 / 4-6 年级深逻辑）" },
+    "uncertainItems": { "type": "array", "description": "答案不确定项" },
+    "suggestedLayout": {
+      "type": "object",
+      "description": "建议布局：四区 question/analysis/solution/summary",
+      "properties": {
+        "topic": { "type": "object" },
+        "analysis": { "type": "object" },
+        "solution": { "type": "object" },
+        "summary": { "type": "object" }
+      }
+    },
+    "imageKind": {
+      "type": "string",
+      "enum": ["text_only", "image_with_text", "image_only"],
+      "description": "题目形态：纯文字 / 图文 / 纯图"
+    },
+    "keepOriginal": { "type": ["string", "boolean"], "description": "是否保留原图（看图题用）。active 输出 boolean true/false，旧版用 'True'/'False' 字符串" },
+    "coordinateSpec": {
+      "type": "object",
+      "description": "坐标系说明（百分比 0—100，原点左上）",
+      "properties": {
+        "coordinateSystem": { "type": "string" },
+        "format": { "type": ["string", "object"], "description": "坐标系格式。旧版用 'percentage'/'pixel' 字符串，active 用 object {region, point} 描述具体坐标格式" },
+        "example": { "type": "string" }
+      }
+    },
+    "zoneAnchors": {
+      "type": "object",
+      "description": "四区锚点坐标，key 为 question/analysis/solution/summary",
+      "properties": {
+        "question": { "type": "object" },
+        "analysis": { "type": "object" },
+        "solution": { "type": "object" },
+        "summary": { "type": "object" }
+      }
+    },
+    "topicLayout": {
+      "type": "object",
+      "description": "题目区布局（含 topicLabel/question/image/keepOriginal/blocks）"
+    },
+    "boardPlan": {
+      "type": ["object", "null"],
+      "description": "四个标签区域规划：question/analysis/solution/summary 四区的 x/y/w/h + 标签位置。当无 input.boardPlan 时可为 null",
+      "properties": {
+        "canvas": {
+          "type": "object",
+          "properties": {
+            "w": { "type": "number" },
+            "h": { "type": "number" }
+          }
+        },
+        "layoutMode": { "type": "string" },
+        "topicLabel": { "type": "object" },
+        "question": { "type": "object" },
+        "analysisLabel": { "type": "object" },
+        "analysis": { "type": "object" },
+        "solutionLabel": { "type": "object" },
+        "solution": { "type": "object" },
+        "summaryLabel": { "type": "object" },
+        "summary": { "type": "object" },
+        "image": { "type": "object" },
+        "topicBottomPct": { "type": "number" }
+      }
+    },
+    "canvasParams": {
+      "type": "object",
+      "description": "画布舞台固定规格与字体参数（绝对物理基准）",
+      "properties": {
+        "canvasSize": {
+          "type": "object",
+          "properties": {
+            "width": { "type": "number", "description": "1726" },
+            "height": { "type": "number", "description": "980" },
+            "origin": { "type": "string" },
+            "unit": { "type": "string" }
+          }
+        },
+        "coordinateSystem": { "type": "string" },
+        "fontSource": { "type": "string" },
+        "fontSize": {
+          "type": "object",
+          "description": "题目 QUESTION_FONT_SIZE px 微软雅黑；正文 BOARD_FONT_RATIO_TEXT 手写体"
+        },
+        "lineHeight": { "type": "object" },
+        "letterSpacing": { "type": "object" },
+        "style": { "type": "object" },
+        "boardSpeed": { "type": "string" }
+      }
+    },
+    "showGrid": { "type": "string", "enum": ["True", "False"] },
+    "agentPageName": { "type": "string", "description": "如 '第1步 · 贴题识别'" },
+    "agentCapability": { "type": "string", "enum": ["multimodal", "text"], "description": "Agent A 能力" },
+    "screenshotUrl": { "type": "string", "description": "画布截图 URL（图片题必看，做视觉避让）" },
+    "knowledgeBasePath": { "type": "string", "description": "知识库基准文件路径（如 doc/knowledge-a.compact.json）" },
+    "essence": {
+      "type": "string",
+      "description": "解题与教学精髓（如 '解答绝对主体，标准结构'），必须贯穿全题始终"
+    },
+    "stageRatioSuggestion": {
+      "type": "object",
+      "description": "题型各环节时间与行数配比建议（极重要，必须严格遵守）",
+      "properties": {
+        "type": { "type": "string" },
+        "cuCode": { "type": "string" },
+        "category": { "type": "string" },
+        "topicExamples": { "type": "array" },
+        "suggestedRatio": { "type": "object", "description": "如 {analysis: 35%, solution: 40%, summary: 15%, intro_outro: 10%}" },
+        "essence": { "type": "string" },
+        "confidence": { "type": "string" }
+      }
+    },
+    "环节配比占比": {
+      "type": "object",
+      "description": "stageRatioSuggestion 的中文键镜像（兼容历史数据）"
+    },
+    "commonMistakes": {
+      "type": "array",
+      "description": "易错点清单（顺嘴提一句防坑提醒）",
+      "items": { "type": "object" }
+    }
+  },
+  "additionalProperties": false
+}

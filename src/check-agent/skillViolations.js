@@ -39,7 +39,11 @@ const SPEECH_RULES = [
 
 // ─── skill 3: hand-action-control 工具白名单 + Agent 不得填时长 ─────────
 const ALLOWED_TOOLS = new Set(['rough-notation', 'rough-line', 'rough-arrow'])
-const ALLOWED_NOTATION_ACTIONS = new Set(['underline', 'highlight'])
+// ★ Task 24 (审计 P0-3 修复): 加 circle 到白名单
+//  - prompt.js line 212 说 underline + circle 是 truth/territory-C 契约核心兜底
+//  - schema availableActions.notationActions enum 含 circle
+//  - 之前缺 circle 会让 Agent B 按 prompt 输出的 circle 被误判违规
+const ALLOWED_NOTATION_ACTIONS = new Set(['underline', 'highlight', 'circle'])
 
 // ─── skill 2: handwriting-font-policy L1 题目层永久印刷体 ─────────
 // board.region === 'question' 时, 不应该有手写体标记 (本题代码层不直接判字体, 留软提示)

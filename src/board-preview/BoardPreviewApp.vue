@@ -367,7 +367,7 @@ const pipelineJsonString = computed(() => {
       // 有音频用真实时长；无音频明确标记为预估，并保留音频槽位。
       duration: row.audioDurationMs ?? row.duration ?? 0,
       durationLabel: row.audioDurationMs ? '真实音频时长' : '预估',
-      audioUrl: row.audioUrl || '音频暂未生成',
+      audioUrl: row.audioUrl || '',
       audioDurationMs: row.audioDurationMs ?? null,
       speech: row.speech,
       board: row.board,
@@ -486,7 +486,7 @@ const ttsReadiness = computed(() => {
     }
   }
 
-  const isRowAudioValid = (r) => Boolean(r?.audioUrl && r.audioUrl !== '音频暂未生成')
+  const isRowAudioValid = (r) => Boolean(r?.audioUrl)
   const readyCount = rows.value.filter(isRowAudioValid).length
   const missingRows = rows.value
     .map((r, idx) => ({ step: idx + 1, valid: isRowAudioValid(r) }))

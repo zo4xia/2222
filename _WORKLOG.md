@@ -367,3 +367,75 @@ Stage Summary:
 - P5 阻断 bug 完整诊断 + 3 方案对比 + 推荐方案 C + 紧急修复步骤
 - 改进 0 必须最先做, 否则后续任何 .vue 改动都会触发 HMR 报错
 - 严格执行用户硬要求: 只改文档不改代码 (本次只改 .md)
+
+---
+Task ID: 12-23 集中补记
+Agent: main
+Task: Task 12-23 工作日志补全 (审计 P0-5 修复)
+
+Work Log:
+- Task 12: 紧急删除 CDN external 配置 (vite.config.js cdnExternalPlugin)
+  原因: Task 1/6 加的 CDN external 把 vue 推到 esm.sh 生产版, 无 __VUE_HMR_RUNTIME__ → HMR 报错
+  修复: dev + build 都走本地 node_modules, 删 optimizeDeps.exclude + rollupOptions.external
+
+- Task 13: prompt + checkAgent 双修 LaTeX aligned 硬规则 (已 Task 15 回滚)
+  错误: 加 aligned 硬规则鼓励 LLM 用 LaTeX, 违背"符号从简"原则
+
+- Task 14: skillViolations.js 与 skill-6 validate_contract 对齐 (已 Task 15 回滚)
+  错误: PHASE1 工具白名单只 1 个, 动作白名单缺 highlight, 与 active 代码不一致
+
+- Task 15: 回滚 Task 13+14 污染, 改为符号从简校验 (已 Task 16 进一步回滚)
+  错误: checkSymbolSimplify 重复 superFilter.js §5c 已做的事
+
+- Task 16: row-player.html 合并 localStorage 读取逻辑 (已 Task 17 回滚)
+  错误: 加 localStorage 通道是闭门造车, 用户说"用 json 给 row-play 根本不需要 localStorage"
+
+- Task 17: openHanddrawPlayer 改用 URL query 通道, 不再用 localStorage
+  修复: window.open('/deliverable/row-player.html?deliverable=/api/deliverable')
+
+- Task 18: row-player URL query 通道两个关键 bug 修复
+  bug1: URL 路径 /api/deliverable/current.json → Vite SPA fallback 返回 HTML, 改为 /api/deliverable
+  bug2: loadFromUrlOrDefault 元信息读取错, 旧版只读 json.problemText, 改为 meta = json.deliverable || json
+  bug3: load() 只调 compile+render 不更新 inProblem textarea, 加手动同步 inCode/inProblem
+
+- Task 19: 表格当前页面加预览小窗 (RealBoardPreview)
+  新增: allActionSpec computed + canvasParamsForPreview computed + openFullscreenPreview 函数
+  UI: .studio-preview-mini 卡片放在表格上方, 16:9 比例锁, max-height 380px
+
+- Task 20: deliverable.schema.json 按用户标准 6 大块重写 + superFilter 加 \text \quad 兜底
+  6 大块: 题目/参数侧/row参数/画布规范/手写符号转义/schema抽取规则
+  superFilter: LATEX2U 表加 \text{xxx}→xxx, \quad→空格, \dfrac→\frac
+  .gitignore 排除 public/deliverable/, 用 git add -f 强制提交 schema.json
+
+- Task 21: 规范 deliverable.json 实测 row-player 参数映射完全正确 (诊断)
+  真相: 参数映射没有错, 是 row-player canvas + 时间轴渲染, t=0 只画题目, 板书要 seek 才显示
+
+- Task 22: 程序判断 audioUrl 缺失时弹提示 + 用填充数据做板书演示
+  修复: openHanddrawPlayer + generateDeliverablePage 加 audioUrl 判断 + message.warning
+  serialize: audioUrl 从 '音频暂未生成' 改为空字符串 ''
+  row-player 虚拟时钟兜底 (空串 mp3 → audioRow=false → 用 duration 估算)
+
+- Task 23: superFilter LATEX2U 正则 \b 词边界 bug, \times20.4 不被转换
+  bug: [/\\times\\b/g] 在 \times20.4 里不匹配 (s 和 2 都是 \w, 没词边界)
+  修复: 改用前瞻 [/\\times(?=\\d|\\s|$|[^a-zA-Z])/g]
+  同步: superFilter.js + row-player.html + handdraw-player.html + skill-5.html + demo.html
+
+- Task 24: 全盘 4 层深度审计 + 0 置信筛查 (sub agent 交叉验证)
+  发现: 7 阻塞 + 18 歧义 + 14 清理建议
+  本 task 修复:
+    P0-3: skillViolations.js ALLOWED_NOTATION_ACTIONS 加 circle
+    P0-1: deliverableStoreHandler.js boardPlan 补 canvas + topicLabel, 不注入 startCoord
+    P0-2: handoff.schema.json 5 处类型不匹配 (handoffVersion/keepOriginal/coordinateSpec/boardPlan/teachingFocus)
+    清理: 4 个 .bak 文件, 4 处 '音频暂未生成' 残留, row-player BOM, deliverableStoreHandler 死代码 px:35
+    补全: _WORKLOG.md Task 12-23 集中补记
+
+Stage Summary:
+- Task 12-23 全部记录补全
+- 审计 P0-1/P0-2/P0-3 阻塞问题已修复
+- 4 个 .bak 备份文件已清理
+- 4 处 '音频暂未生成' 残留已清理
+- row-player.html BOM 字符已删除
+- server/deliverableStoreHandler.js 死代码 px:35 + LikeJianJianTi 已删
+- handoff.schema.json 5 处类型不匹配已修复
+- skillViolations.js circle 已加入白名单
+- deliverableStoreHandler.js boardPlan 补 canvas + topicLabel, 不再注入 startCoord

@@ -149,7 +149,7 @@ export function buildElementsMarkdown(rows, meta = {}) {
       boardText,
       formatActionSpec(row?.actionSpec),
       row?.audioDurationMs > 0 ? `${row.audioDurationMs}ms（真实音频）` : `${row?.duration ?? 0}ms（预估）`,
-      row?.audioUrl || '音频暂未生成',
+      row?.audioUrl || '',
     ].map(escapeCell).join(' | ')
   })
   return [
@@ -278,7 +278,7 @@ export function buildStoryboardMarkdown(rows, meta = {}) {
     const duration = row?.audioDurationMs > 0
       ? `${row.audioDurationMs}ms（真实音频）`
       : `${row?.duration ?? 0}ms（预估）`
-    const audioUrl = String(row?.audioUrl || '音频暂未生成')
+    const audioUrl = String(row?.audioUrl || '')
 
     const stageHeader = rowInStage === 1
       ? `\n## ${stageLabels[stage] || stage}\n`

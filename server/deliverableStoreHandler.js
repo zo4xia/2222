@@ -156,10 +156,12 @@ export function writeDeliverableFile(data) {
     ? data.rows.map((row, index) => {
         const computed = computeRowGroupTimeline(row)
         const layout = rowLayouts[index]
-        const board =
-          row.board && typeof row.board === 'object'
-            ? { ...row.board, startCoord: row.board.startCoord || (layout ? layout.startCoord : undefined) }
-            : row.board
+        // ★ Task 24 (审计 P0-1 修复): 不注入 startCoord
+        //  - truth/territory-B 明说"normalizeBoard 不输出 startCoord"
+        //  - schema 说 board v3.0 零坐标 (board 不带 x/y/startCoord)
+        //  - 之前 server 注入 startCoord 与 truth 冲突, 与 schema 冲突
+        //  - 现在只保留 row.board 原样, 不加 startCoord
+        const board = row.board
         const estimatedDurationMs = row.estimatedDurationMs || computed.rowTotalDurationMs
         const exclusiveExecutionPlan = row.exclusiveExecutionPlan || computed.exclusiveExecutionPlan
         return {
@@ -181,25 +183,13 @@ export function writeDeliverableFile(data) {
     summary: { x: 54, y: 69.5, w: 40, h: 22 },
   }
   const hbp = data.boardPlan || data.zoneAnchors || fallbackBoardPlan
+  // ★ Task 24 (审计清理): 删除死代码 px:35 + LikeJianJianTi
+  //  - 之前这里写死 35px + LikeJianJianTi, 但被 ...defaultHcp 覆盖 (buildCanvasParams 返回 38px + 平方乔木体)
+  //  - 死代码会误导阅读, 现在直接用 buildCanvasParams() 真源, 不再写死
   const defaultHcp = buildCanvasParams()
   const rawCanvasParams = data.canvasParams || {}
   const canvasParams = {
     source: 'handoff (Agent A 根据题目实时判断，为唯一真相源)',
-    canvasWidth: 1726,
-    canvasHeight: 980,
-    coordinateSystem: '百分比坐标 0-100',
-    fontSize: {
-      question: { px: 30, family: '微软雅黑（印刷体，30px）', color: '黑色' },
-      analysis: { px: 35, family: 'LikeJianJianTi（手写尖尖体，网络字体 fontSource.handwriting，font-weight: normal，约题目的1.2~1.5倍，推荐35px）', color: '红色' },
-      solution: { px: 35, family: 'LikeJianJianTi（手写尖尖体，网络字体 fontSource.handwriting，font-weight: normal，约题目的1.2~1.5倍，推荐35px）', color: '黑色' },
-      summary: { px: 35, family: 'LikeJianJianTi（手写尖尖体，网络字体 fontSource.handwriting，font-weight: normal，约题目的1.2~1.5倍，推荐35px）', color: '黑色' },
-    },
-    lineHeight: {
-      question: 1.65,
-      others: '自然换行即可；渲染层会对行高做微小随机抖动营造手写感，B 按正常行高估算坐标，不需要自己叠加抖动',
-    },
-    boardSpeed: '下游渲染参数：1秒约2~3个汉字，每行±10%轻微抖动（B 不需要处理速度细节）',
-    actionSpeed: '差不多同样速度（rough-line/rough-arrow/rough-notation绘制速度）',
     ...defaultHcp,
     ...rawCanvasParams,
   }
@@ -238,9 +228,17 @@ export function writeDeliverableFile(data) {
     ...data,
     canvasParams,
     boardPlan: {
+      // ★ Task 24 (审计 P0-1 修复): 补 canvas + 4 个 Label, 与 schema required 对齐
+      //  - schema boardPlan.required = ["canvas", "topicLabel", "question", "analysis", "solution", "summary"]
+      //  - 之前缺 canvas + topicLabel + analysisLabel + solutionLabel + summaryLabel
+      canvas: { w: 1726, h: 980 },
+      topicLabel: hbp.topicLabel || { x: 5.7, y: 6.6, w: 7.1 },
       question: { x: hbp.question?.x ?? 6, y: hbp.question?.y ?? 13.32, w: hbp.question?.w ?? 40.32, h: hbp.question?.h ?? '' },
+      analysisLabel: hbp.analysisLabel || { x: 5.7, y: 34.5, w: 7.2 },
       analysis: { x: hbp.analysis?.x ?? 6, y: hbp.analysis?.y ?? 40.62, w: hbp.analysis?.w ?? 44, h: hbp.analysis?.h ?? 54.38 },
+      solutionLabel: hbp.solutionLabel || { x: 53.7, y: 6.6, w: 7.4 },
       solution: { x: hbp.solution?.x ?? 54, y: hbp.solution?.y ?? 14, w: hbp.solution?.w ?? 40, h: hbp.solution?.h ?? 44 },
+      summaryLabel: hbp.summaryLabel || { x: 53.7, y: 62, w: 7.2 },
       summary: { x: hbp.summary?.x ?? 54, y: hbp.summary?.y ?? 69.5, w: hbp.summary?.w ?? 40, h: hbp.summary?.h ?? 22 },
     },
     uiSettings,
