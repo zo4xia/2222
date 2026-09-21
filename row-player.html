@@ -1187,12 +1187,22 @@ async function loadFromUrlOrDefault(){
              : (json.deliverable && Array.isArray(json.deliverable.rows)) ? json.deliverable.rows
              : null;
     if (!rows || !rows.length) throw new Error('rows 为空或缺失');
-    // 同步替换 DATA 关键字段后 load (保留 schema/boardPlan 等元信息)
-    if (json.projectCode) DATA.projectCode = json.projectCode;
-    if (json.problemText) DATA.problemText = json.problemText;
-    if (json.boardPlan) DATA.boardPlan = json.boardPlan;
-    if (json.screenshotUrl) DATA.screenshotUrl = json.screenshotUrl;
+    // ★ Task 18 修正: 元信息(projectCode/problemText/boardPlan)也要从 deliverable 子对象拿
+    //   /api/deliverable 返回 {ok, projectCode, deliverable:{...}}, 元信息在 deliverable 里
+    //   旧代码只读 json.projectCode/json.problemText = 永远拿不到, 一直显示内嵌 DATA
+    const meta = json.deliverable && typeof json.deliverable === 'object' ? json.deliverable : json;
+    if (meta.projectCode) DATA.projectCode = meta.projectCode;
+    if (meta.problemText) DATA.problemText = meta.problemText;
+    if (meta.boardPlan) DATA.boardPlan = meta.boardPlan;
+    if (meta.screenshotUrl) DATA.screenshotUrl = meta.screenshotUrl;
+    if (meta.sourceImageUrl) DATA.screenshotUrl = DATA.screenshotUrl || meta.sourceImageUrl;
     DATA.rows = rows;
+    // ★ Task 18 修正: load() 只调 compile+render, 不更新配置面板的 textarea
+    //   必须手动同步 inCode/inProblem 元素, 否则页面顶部一直显示内嵌 DATA 默认示例
+    const inCodeEl = document.getElementById('inCode');
+    const inProblemEl = document.getElementById('inProblem');
+    if (inCodeEl) inCodeEl.value = DATA.projectCode || '';
+    if (inProblemEl) inProblemEl.value = DATA.problemText || '';
     load(DATA);
     console.info('[row-player] 已从 URL 参数加载:', url, '(' + rows.length + ' 行)');
   } catch (e) {
