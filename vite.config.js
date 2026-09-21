@@ -16,59 +16,19 @@ import { AGENT_A_KNOWLEDGE_BASE } from './server/docReferences.js'
 const projectRoot = dirname(fileURLToPath(import.meta.url))
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CDN External Plugin（Task 1: vendor 库 external 到 esm.sh，浏览器直拉 ESM）
-//  - pin 同一 Vue 实例（?deps=vue@3.5.39）避免 ant-design-vue 与 icons-vue 重复运行时
-//  - dev + build 双模式生效（dev: resolveId/importAnalysis 钩子改写 import；build: rollupOptions.external）
-//  - CSS（reset.css / katex.min.css）保留本地打包，字体 url() 引用本地最稳
+// ★ Task 12 紧急修复 (2026-09-21): 删除 CDN external 配置
+//
+// 原因: Task 1/6 的 cdnExternalPlugin 把 vue external 到 esm.sh 引发两个阻断 bug:
+//  ① dev 模式: esm.sh vue 是生产版, 无 __VUE_HMR_RUNTIME__ → HMR 报错
+//  ② build 模式: rollupOptions.external 外置但 rollup 不改写 bare import
+//     → dist 里仍是 `import "vue"` → 浏览器原生 ESM 报
+//     "Failed to resolve module specifier 'vue'. Relative references must start..."
+//
+// 修复方案: dev + build 都走本地 node_modules (vite 预打包 / rollup 打包)
+//  - 代价: build 产物变大 (vue + ant-design-vue + rough-notation + roughjs + katex 全部打包)
+//  - 优点: 0 风险, HMR 正常, 部署能跑
+//  - 后续优化: 如果需要 CDN 减小体积, 用 importmap + vite-plugin-cdn-import (v3 升级)
 // ─────────────────────────────────────────────────────────────────────────────
-const CDN_VERSIONS = {
-  vue: '3.5.39',
-  'ant-design-vue': '4.2.6',
-  '@ant-design/icons-vue': '7.0.1',
-  katex: '0.18.4',
-  'rough-notation': '0.5.1',
-  roughjs: '4.6.6',
-}
-
-const CDN_URLS = {
-  vue: `https://esm.sh/vue@${CDN_VERSIONS.vue}`,
-  'ant-design-vue': `https://esm.sh/ant-design-vue@${CDN_VERSIONS['ant-design-vue']}?deps=vue@${CDN_VERSIONS.vue}`,
-  '@ant-design/icons-vue': `https://esm.sh/@ant-design/icons-vue@${CDN_VERSIONS['@ant-design/icons-vue']}?deps=vue@${CDN_VERSIONS.vue}`,
-  katex: `https://esm.sh/katex@${CDN_VERSIONS.katex}`,
-  'rough-notation': `https://esm.sh/rough-notation@${CDN_VERSIONS['rough-notation']}`,
-  roughjs: `https://esm.sh/roughjs@${CDN_VERSIONS.roughjs}/bundled/rough.esm.js`,
-}
-
-// 精确匹配（防止子路径导入如 roughjs/bundled/rough.esm.js 被漏掉）
-function toCdnUrl(spec) {
-  // 精确匹配
-  if (CDN_URLS[spec]) return CDN_URLS[spec]
-  // roughjs 子路径（roughjs/bundled/rough.esm.js）
-  if (spec === 'roughjs/bundled/rough.esm.js') return CDN_URLS.roughjs
-  // 其他子路径尝试前缀匹配（如 'ant-design-vue/es/xxx'）
-  for (const pkg of Object.keys(CDN_URLS)) {
-    if (spec === pkg || spec.startsWith(pkg + '/')) return CDN_URLS[pkg]
-  }
-  return null
-}
-
-function cdnExternalPlugin() {
-  return {
-    name: 'cdn-external-plugin',
-    enforce: 'pre',
-    resolveId(source, importer) {
-      // 只改写 bare import，不改写相对路径 / 已是 URL 的
-      if (!source || source.startsWith('.') || source.startsWith('/')) return null
-      if (/^https?:\/\//.test(source)) return null
-      // virtual / vite 内部模块不动
-      if (source.startsWith('\0') || source.startsWith('virtual:')) return null
-      const cdnUrl = toCdnUrl(source)
-      if (!cdnUrl) return null
-      // 返回 { id, external: true } 把它外置，浏览器直接走 esm.sh
-      return { id: cdnUrl, external: true }
-    },
-  }
-}
 
 function healthAndMockPlugin() {
   return {
@@ -108,7 +68,6 @@ function healthAndMockPlugin() {
 
 export default defineConfig({
   plugins: [
-    cdnExternalPlugin(),  // ← Task 1 CDN external 优化（必须在 vue() 之前）
     vue(),
     healthAndMockPlugin(),
     createRecognitionProxyPlugin({ knowledgeBase: AGENT_A_KNOWLEDGE_BASE }),
@@ -121,10 +80,8 @@ export default defineConfig({
     fishAudioPlugin(),
     cleanupPlugin(),
   ],
-  // dev 模式：不让 vite 预打包这些 vendor，否则 cdnExternalPlugin 会被 .vite/deps 缓存绕过
-  optimizeDeps: {
-    exclude: Object.keys(CDN_URLS),
-  },
+  // ★ Task 12: optimizeDeps 不再 exclude 任何包，让 vite 预打包 vendor 到 .vite/deps
+  // 这样 dev 模式 HMR 正常 (vite 注入的 __VUE_HMR_RUNTIME__ 由本地 vue dev 版提供)
   server: {
     host: '0.0.0.0',
     port: 3000,
@@ -142,8 +99,8 @@ export default defineConfig({
         'board-preview': resolve(projectRoot, 'board-preview.html'),
         'agent-b-v2': resolve(projectRoot, 'agent-b-v2.html'),
       },
-      // build 模式：把 CDN 列表 external 出去，rollup 不会把它们打包进 chunk
-      external: Object.keys(CDN_URLS).concat(['roughjs/bundled/rough.esm.js']),
+      // ★ Task 12: 不再 external 任何包, rollup 把 vendor 全部打包进 chunk
+      // 浏览器原生 ESM 不需要解析 bare import, 部署到任何静态服务器都能跑
     },
   },
 })
