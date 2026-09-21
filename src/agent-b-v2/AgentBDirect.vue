@@ -1196,23 +1196,48 @@ function serializeCurrentDeliverableState() {
   // 逐行深层清洗并计算单手互斥执行计划（动作定量 1-2 秒作为标点停顿，绝不与板书重叠）
   const cleanRows = (rows.value || []).map((r, idx) => {
     const parsedBoard = parseBoard(r.board)
+    // ★ 用户硬约束: board 字段与 actionSpec 映射必须自带 stage，让 deliverable JSON 自描述
+    //  - row.stage 仍然存在（行级 stage）
+    //  - board.stage = 行级 stage（板书自描述，下游消费板书时不必反查 row）
+    //  - 每个 actionSpec[i].stage = 行级 stage（动作映射自描述，下游消费动作时不必反查 row）
+    //  这样即使 row 顺序变化或下游只取局部字段，board 与 actionSpec 仍然知道属于哪个 stage
+    const rowStage = r.stage || (idx === 0 ? '题目' : '分析')
     const normalizedRow = {
       // ponytail: duration 统一为秒 (row-player 合同是秒, 不是毫秒)
       duration: Number(r.audioDurationMs) > 0
         ? Math.round(Number(r.audioDurationMs) / 1000 * 10) / 10  // ms → 秒, 保留1位小数
         : (Number(r.duration) || 0),
       durationLabel: Number(r.audioDurationMs) > 0 ? '真实音频时长' : '预估',
-      stage: r.stage || (idx === 0 ? '题目' : '分析'),
+      stage: rowStage,
       speech: r.speech != null ? String(r.speech) : '',
       audioUrl: r.audioUrl || '音频暂未生成',
       audioDurationMs: Number(r.audioDurationMs) > 0 ? Math.round(Number(r.audioDurationMs)) : null,
       board: {
+        // ★ 必须带 stage：板书字段自描述属于哪个 stage (题目/分析/解答/总结)
+        stage: rowStage,
         content: parsedBoard.content || '',
         startDelay: typeof parsedBoard.startDelay === 'number' && !isNaN(parsedBoard.startDelay)
           ? parsedBoard.startDelay
           : 0,
       },
-      actionSpec: Array.isArray(r.actionSpec) ? safeDeepClone(r.actionSpec) : [],
+      // ★ 必须带 stage：actionSpec 映射里每个 action 自带 stage (与 row.stage 一致)
+      //  - 原有 region 字段保留不动（是 B 给的英文 zone 名 question/analysis/solution/summary）
+      //  - 新增 stage 字段为中文 stage 名 (题目/分析/解答/总结)，便于下游双重校验
+      //  - 如果某条 actionSpec 已自带 stage 就尊重它（罕见，但允许跨 stage 动作）
+      //  - safeDeepClone 先克隆, 再加 stage, 避免污染 Vue 响应式 state
+      actionSpec: Array.isArray(r.actionSpec)
+        ? safeDeepClone(r.actionSpec).map(a => {
+            if (!a || typeof a !== 'object') return a
+            // 容错: actionSpec 项可能是 { action: {...} } 或直接 {...}
+            // 优先给外层加 stage
+            if (!a.stage) a.stage = rowStage
+            // 若内层 action 子对象也没 stage, 顺便补上 (双保险)
+            if (a.action && typeof a.action === 'object' && !a.action.stage) {
+              a.action.stage = rowStage
+            }
+            return a
+          })
+        : [],
     }
     const computed = computeRowGroupTimeline(normalizedRow)
     return {

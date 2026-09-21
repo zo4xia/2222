@@ -248,3 +248,39 @@ Stage Summary:
   3. 时序时间轴可试听: 每个块新增▶试听按钮, emit play-audio 复用父组件音频实例, 优先显示真实音频时长
 - 后续用户操作: 点行内"试听"或时间轴块"试听"都能播放, 试听完自动回填不会漏 mp3 地址/时长
 - 推 GitHub 备份 commit
+
+---
+Task ID: 8
+Agent: main
+Task: 用户硬约束: "这块字段，b，映射，这些，必须带着stage" —— deliverable JSON 序列化时 board 字段和 actionSpec 映射必须自带 stage
+
+Work Log:
+- 诊断 serializeCurrentDeliverableState (AgentBDirect.vue:1196-1216):
+  - row.level: stage 已存在 ✓ (line 1205: stage: r.stage || (idx === 0 ? '题目' : '分析'))
+  - board 字段 (line 1209-1214): 只有 content + startDelay，❌ 无 stage
+  - actionSpec 数组 (line 1215): 直接 safeDeepClone，❌ 每个 item 不带 stage
+- 改动 (AgentBDirect.vue:1196-1241):
+  - 提取 rowStage = r.stage || (idx === 0 ? '题目' : '分析') 单一真相源
+  - board 字段加 stage: rowStage (板书自描述)
+  - actionSpec: safeDeepClone(r.actionSpec).map(a => ...) 给每个 action 项加 stage
+    - 外层 a.stage = rowStage
+    - 内层 a.action.stage = rowStage (双保险，因为 row-player 读 actionSpec[i].action 时也能拿到)
+    - 已有 stage 的不覆盖 (尊重跨 stage 动作)
+- 容错: actionSpec 项可能是 { action: {...} } 或直接 {...}，两种都处理
+- 防污染: safeDeepClone 先克隆再加 stage，避免污染 Vue 响应式 state
+- agent-browser 端到端验证:
+  - 黄金路径跑通: 8 行 rows 生成 (题目/分析/解答×5/总结)
+  - 点击 "🎬 演播录制" 触发 serializeCurrentDeliverableState + localStorage 落定
+  - 验证 localStorage['agent-b-deliverable']:
+    Row 1: stage=题目 | board.stage=题目 ✓ | actionSpec带stage: 3/3 ✓
+    Row 2: stage=分析 | board.stage=分析 ✓ | actionSpec带stage: 1/1 ✓
+    Row 3: stage=解答 | board.stage=解答 ✓ | actionSpec带stage: 1/1 ✓
+    Row 4-7: stage=解答 | board.stage=解答 ✓ | actionSpec: 0/0 (此行无动作)
+    Row 8: stage=总结 | board.stage=总结 ✓ | actionSpec: 0/0
+  - row0_actionSpec0_action_stage: "题目" ✓ (双保险内层 action.stage 也有)
+
+Stage Summary:
+- deliverable JSON 现在自描述: 每行的 board 字段与每个 actionSpec 项都自带 stage
+- 下游消费方 (row-player.html / Check Agent / 任何取局部字段的工具) 不必反查 row.stage
+- 即使 row 顺序变化, board 与 actionSpec 仍然知道自己属于哪个 stage
+- 与 row.stage 三重对齐: row.stage == board.stage == actionSpec[i].stage == actionSpec[i].action.stage
