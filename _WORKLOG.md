@@ -259,3 +259,68 @@ Stage Summary:
   * 字体栈单 490 → 完整 6 CDN (507/157/511/510/509/490) + 系统楷体
 - 7 处修复覆盖: stepHandoff (真源) → index.html → RealBoardPreview → AgentBDirect → speechMarkdown → BoardPreviewApp → row-player.html
 - 后续即使字体/字号再变, 只改 stepHandoff.js 一处, 全链路自动同步 (Task 9 的 canvasParams 透传已就位)
+
+---
+Task ID: 11
+Agent: main
+Task: 用户反馈"演播录制跳出来旧题、语法bug、数据没传递、预览画布下面不见了"+ 严格要求"只写文档不改代码, 用RIPER-5+Deepthink协议"
+
+Work Log:
+- Phase 1 研究分析（真实诊断, 不推测）:
+  - 演播录制按钮触发链路: AgentBDirect.vue:1427 openHanddrawPlayer → 写 localStorage → window.open('/deliverable/row-player.html')
+  - row-player.html (现版 Task 10 后) line 1166-1170 loadFromUrlOrDefault: if(!url) { load(DATA); return; } 完全不读 localStorage
+  - row-player.html.bak-20260921-pre-task10 line 1188-1210 有完整 localStorage 读取逻辑
+  - 根因铁证: Task 10 用上传版 row-player.html 覆盖时, 把 localStorage 读取逻辑整段丢了
+  - row-player.html line 6 title 写死"平行四边形面积", line 200-201 DATA 写死平行四边形题
+  - Step1Entry.vue line 960 preview-tools 显示条件 v-if="hasBoardContent", Task 6/9 改动可能影响
+  - 旧版本残留: 3 个 .bak + archive/ 6 个 + 根目录 13 个 .md
+- Phase 2 方案探索:
+  - P1+P3 (数据传递) 3 方案: A 纯 localStorage 最小手术 / B 纯文件通道 / C 三通道降级 → 推荐方案 C
+  - P2 (语法 bug) 3 方案: A 去 BOM + 手工审查 / B HTMLHint / C 浏览器实测 → 推荐方案 A+C
+  - P4 (画布下面消失) 3 方案: A 诊断 / B 去掉 v-if / C v-if + placeholder → 推荐方案 A→C
+- Phase 3 规划: 10 个原子改进项, 每项含操作目标/变更描述/验收标准/风险点/预估时间
+  - 改进 1: 恢复 row-player.html localStorage 读取 (修复 P1+P3 核心)
+  - 改进 2: 去 row-player.html BOM (修复 P2 部分)
+  - 改进 3: 浏览器实测修真实语法 bug (修复 P2 核心)
+  - 改进 4: 诊断并修复预览画布下面消失 (修复 P4)
+  - 改进 5: 清理旧版本残留 (3 个 .bak + archive/)
+  - 改进 6: v2 升级 - 数据通道提示 banner
+  - 改进 7: v2 升级 - openHanddrawPlayer 防呆设计
+  - 改进 8: v2 升级 - 演播录制按钮 loading 反馈
+  - 改进 9: QA 自动化测试脚本 (Node.js, 9 项检查)
+  - 改进 10: 项目文档归档与索引
+- Phase 4 执行: 用户明确"只要文档, 不要改代码", 本任务不执行, 由其他 AI 接手
+- Phase 5 回顾: 30 个验收项 (V1-V10 功能 + C1-C8 代码质量 + QA 脚本 + 端到端)
+- 创建专门文件夹: 迭代计划/
+- 文档: 迭代计划/下一步改进指南.md (968 行, 44KB)
+  - 0. 文档使用约定
+  - Phase 1: 研究分析 (5 子章节)
+  - Phase 2: 方案探索 (3 痛点各 3 方案 + 评估矩阵 + 权衡分析)
+  - Phase 3: 规划 (10 改进项 + 执行顺序 + 6 质量检查点 + 风险回退)
+  - Phase 4: 执行说明 (由其他 AI 接手)
+  - Phase 5: 回顾验收清单 (30 项)
+  - 附录 A: v3 升级方向 10 项 (BroadcastChannel / seek 拖拽 / 多题目切换 / Agent B 优化 / Next.js 端口 / canvasParams 单一化 / 字体性能 / 录屏 / schema 校验 / 国际化)
+  - 附录 B: Deepthink Protocol 决策记录 (5 个关键决策)
+  - 附录 C: 项目现状全景图
+  - 附录 D: 执行追踪表 (10 改进项勾选)
+  - 附录 E: 术语表
+  - 附录 F: 引用文件清单 (所有路径+行号)
+- 严格按用户硬要求:
+  - ✓ 只写文档, 不改任何代码
+  - ✓ RIPER-5 5 阶段协议完整
+  - ✓ Deepthink Protocol 10 步推理
+  - ✓ TDD 清单 (改进 9 QA 脚本)
+  - ✓ 不重构原则 (所有改动最小手术)
+  - ✓ 不重复造轮子 (复用 row-player.html.bak 的 localStorage 逻辑)
+  - ✓ 二次审查 (附录 B 决策记录)
+  - ✓ 旧产物清理清单 (附录 1.4 + 改进 5)
+  - ✓ v1→v2→v3 升级路径 (Phase 3 + 附录 A)
+
+Stage Summary:
+- 文档: /home/z/my-project/upload/remix-extracted/迭代计划/下一步改进指南.md (968 行)
+- 核心诊断: Task 10 用上传版 row-player.html 覆盖时丢失了 localStorage 读取逻辑 (row-player.html.bak-20260921-pre-task10 line 1188-1210 仍保留)
+- 10 个原子改进项, 推荐执行顺序: 1→2→3→4→5→6→7→8→9→10
+- 30 个验收项, 接手 AI 必须全 PASS
+- 10 个 v3 升级方向 (附录 A) 供未来扩展
+- 用户可用其他 AI 按 Phase 3 逐项落地, 每完成一项填附录 D 追踪表
+- 后续若有新迭代, 请增量创建 v2.md, 不覆盖本文件
