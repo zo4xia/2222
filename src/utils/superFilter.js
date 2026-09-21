@@ -77,12 +77,17 @@ export function normalizeBoardLine(s) {
   t = repairCommonLatexEscapeDamage(t)
   // ⑤ LaTeX 环境与定界符剥壳：\begin{aligned}/\end{aligned}、\\ 换行、& 对齐符、\(\) \[\]
   //    （渲染层没有 KaTeX，prompt 让模型用 aligned 排版 → 统一剥壳成普通板书行，绝不字面落板）
+  //    ⚠ & 对齐符只在 aligned 环境内出现, 但 step③ 已把 &amp; 解码成 &
+  //    所以先删 aligned 的 &（紧跟在字母/数字/表达式后面的 &，用于对齐）
+  //    再删剩余的 \begin/\end/\\/\(/\)/\[/\] 定界符
   t = t
     .replace(/\\(?:begin|end)\s*\{[^}]*\}/g, '')
     .replace(/\\\\/g, '\n')
     .replace(/\\\(|\\\)/g, '')
     .replace(/\\\[|\\\]/g, '')
-    .replace(/&/g, '')
+    // 只删 LaTeX aligned 对齐符: 行首 & 或 & 后跟 = (如 S &= ...), 不删普通文字里的 &
+    .replace(/(^|\n)\s*&\s*(?==)/gm, '$1')
+    .replace(/\s*&\s*(?==)/g, '')
   // ⑥ 删 $ \left \right（绝不字面落板）
   t = t.replace(/\$+/g, '').replace(/\\left\b|\\right\b/g, '')
   // ⑥ 手写体缺字降级（先跑）
