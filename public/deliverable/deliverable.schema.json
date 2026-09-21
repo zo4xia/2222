@@ -1,0 +1,564 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DeliverableSchema",
+  "description": "教学音画微课与课件解耦交付物标准 JSON Schema (v3.0 - 2026-09-21 用户标准)",
+  "type": "object",
+  "required": ["projectCode", "problemText", "boardPlan", "canvasParams", "rows"],
+
+  "┌─────────────────────────────────────────────────────────────────────────┐": {
+    "说明": "本 schema 严格按用户 2026-09-21 给出的标准结构定义, 6 大块:",
+    "块1_题目": "题目内容 + 题目截图url + 题目类型 + 年级",
+    "块2_参数侧": "画布参数 + 四区参数 + 画布 + 四区标签 + 可用动作 + 播放序列",
+    "块3_row参数": "stage / audioUrl / speech / board / 板书接入时间点 / 动作",
+    "块4_画布规范": "字体字号 + 布局 + 越界规则 + 不许覆盖/超出/全部出现",
+    "块5_手写符号转义": "能用常用手写字体凑的符号就绝对不用 LaTeX",
+    "块6_schema抽取规则": "deliverable.schema.json 从上方抽取 row 与播放信息, 其他导出物也是"
+  },
+
+  "properties": {
+
+    "┌── 块1: 题目 ───────────────────────────────────────────────────────┐": {
+      "type": "object",
+      "description": "题目元信息 - 顶部表格里展示的知识内容/易错点等不在此重复"
+    },
+    "projectCode": {
+      "type": "string",
+      "description": "唯一项目流水编码 (与 handoff 同一编码)"
+    },
+    "problemText": {
+      "type": "string",
+      "description": "★ 题目内容 - 题目完整纯文本"
+    },
+    "sourceImageUrl": {
+      "type": "string",
+      "description": "★ 题目截图url - 原题图 (可选, 纯文字题为空)"
+    },
+    "screenshotUrl": {
+      "type": "string",
+      "description": "画布舞台截图 URL (如 /pic/shot-xxx.jpg)"
+    },
+    "problemType": {
+      "type": "string",
+      "description": "★ 题目类型 (计算确定/方法确定/答案不确定/建模推导/概念确定 等)"
+    },
+    "suggestedGrade": {
+      "type": "string",
+      "description": "★ 年级 (1-6年级, 如 '四年级')"
+    },
+    "apiSpecVersion": { "type": "string", "default": "3.0.0" },
+
+    "┌── 块2: 参数侧 ────────────────────────────────────────────────────┐": {
+      "type": "object",
+      "description": "参数侧: 画布参数 / 四区参数 / 画布 / 四区标签 / 可用动作 / 播放序列"
+    },
+
+    "canvasParams": {
+      "type": "object",
+      "description": "★ 画布参数 - 真源 stepHandoff.js buildCanvasParams()",
+      "required": ["canvasSize", "fontSize", "lineHeight"],
+      "properties": {
+        "canvasSize": {
+          "type": "object",
+          "description": "画布尺寸 (固定 1726×980, 16:9 比例)",
+          "properties": {
+            "width": { "type": "number", "const": 1726 },
+            "height": { "type": "number", "const": 980 },
+            "unit": { "type": "string", "default": "px" },
+            "origin": { "type": "string", "default": "左上角(0,0), X向右Y向下" }
+          }
+        },
+        "coordinateSystem": {
+          "type": "string",
+          "default": "百分比坐标 0-100"
+        },
+        "fontSize": {
+          "type": "object",
+          "description": "★ 字体字号规范",
+          "properties": {
+            "question": {
+              "type": "object",
+              "description": "【题目】字体字号: 微软雅黑, 30号",
+              "properties": {
+                "px": { "type": "number", "const": 30 },
+                "family": { "type": "string", "default": "微软雅黑 (Segoe UI/PingFang SC/Microsoft YaHei)" },
+                "color": { "type": "string", "default": "黑色" }
+              }
+            },
+            "analysis": {
+              "type": "object",
+              "description": "【分析】字体字号: 手写字体, 35或38号 (甲方 2026-09-17 拍板 38px, 35与42折中)",
+              "properties": {
+                "px": { "type": "number", "enum": [35, 38] },
+                "family": { "type": "string", "default": "平方乔木体 (手写体, CDN 507)" },
+                "color": { "type": "string", "default": "红色" }
+              }
+            },
+            "solution": {
+              "type": "object",
+              "description": "【解答】字体字号: 手写字体, 35或38号",
+              "properties": {
+                "px": { "type": "number", "enum": [35, 38] },
+                "family": { "type": "string", "default": "平方乔木体" },
+                "color": { "type": "string", "default": "黑色" }
+              }
+            },
+            "summary": {
+              "type": "object",
+              "description": "【总结】字体字号: 手写字体, 35或38号",
+              "properties": {
+                "px": { "type": "number", "enum": [35, 38] },
+                "family": { "type": "string", "default": "平方乔木体" },
+                "color": { "type": "string", "default": "黑色" }
+              }
+            }
+          }
+        },
+        "lineHeight": {
+          "type": "object",
+          "description": "★ 文本布局: 全部文本自然换行段落间距即可",
+          "properties": {
+            "question": { "type": "number", "default": 1.65, "description": "题目行高 1.65 固定" },
+            "boardMean": { "type": "number", "default": 1.7, "description": "板书行高均值 1.7" },
+            "boardMin": { "type": "number", "default": 1.55, "description": "板书行高随机区间下限 1.55" },
+            "boardMax": { "type": "number", "default": 1.85, "description": "板书行高随机区间上限 1.85" }
+          }
+        },
+        "fontSource": {
+          "type": "object",
+          "description": "字体加载来源 (CDN + 字体栈)",
+          "properties": {
+            "handwriting": {
+              "type": "object",
+              "properties": {
+                "family": { "type": "string", "default": "平方乔木体" },
+                "fontStack": { "type": "string", "default": "\"平方乔木体\",\"平方韶华体\",\"平方上上谦体\",\"平方三生体\",\"PingFangSaTuoTi\",\"LikeJianJianTi\",KaiTi,STKaiti,\"PingFang SC\",serif" },
+                "cssHref": { "type": "string", "default": "https://fontsapi.zeoseven.com/507/main/result.css" }
+              }
+            }
+          }
+        },
+        "boardSpeed": {
+          "type": "string",
+          "default": "1秒约2.5个汉字, 每行±5%轻微抖动, 书写时长超出音频窗口时自适应加速压进音频内"
+        }
+      }
+    },
+
+    "boardPlan": {
+      "type": "object",
+      "description": "★ 四区参数 + 四区标签 (handoff 真源, 唯一真相源)",
+      "required": ["canvas", "topicLabel", "question", "analysis", "solution", "summary"],
+      "properties": {
+        "canvas": {
+          "type": "object",
+          "description": "★ 画布尺寸",
+          "properties": {
+            "w": { "type": "number", "const": 1726 },
+            "h": { "type": "number", "const": 980 }
+          }
+        },
+        "topicLabel": {
+          "type": "object",
+          "description": "★ 四区标签 - 题目标签 (贴在题目区首行板书 baseline 上方)",
+          "properties": {
+            "x": { "type": "number" }, "y": { "type": "number" }, "w": { "type": "number" }
+          }
+        },
+        "question": {
+          "type": "object",
+          "description": "★ 四区参数 - 题目区 (百分比坐标)",
+          "properties": {
+            "x": { "type": "number" }, "y": { "type": "number" },
+            "w": { "type": "number" }, "h": { "type": "number" }
+          }
+        },
+        "analysisLabel": {
+          "type": "object",
+          "description": "★ 四区标签 - 分析标签",
+          "properties": {
+            "x": { "type": "number" }, "y": { "type": "number" }, "w": { "type": "number" }
+          }
+        },
+        "analysis": {
+          "type": "object",
+          "description": "★ 四区参数 - 分析区",
+          "properties": {
+            "x": { "type": "number" }, "y": { "type": "number" },
+            "w": { "type": "number" }, "h": { "type": "number" }
+          }
+        },
+        "solutionLabel": {
+          "type": "object",
+          "description": "★ 四区标签 - 解答标签",
+          "properties": {
+            "x": { "type": "number" }, "y": { "type": "number" }, "w": { "type": "number" }
+          }
+        },
+        "solution": {
+          "type": "object",
+          "description": "★ 四区参数 - 解答区",
+          "properties": {
+            "x": { "type": "number" }, "y": { "type": "number" },
+            "w": { "type": "number" }, "h": { "type": "number" }
+          }
+        },
+        "summaryLabel": {
+          "type": "object",
+          "description": "★ 四区标签 - 总结标签",
+          "properties": {
+            "x": { "type": "number" }, "y": { "type": "number" }, "w": { "type": "number" }
+          }
+        },
+        "summary": {
+          "type": "object",
+          "description": "★ 四区参数 - 总结区",
+          "properties": {
+            "x": { "type": "number" }, "y": { "type": "number" },
+            "w": { "type": "number" }, "h": { "type": "number" }
+          }
+        }
+      }
+    },
+
+    "availableActions": {
+      "type": "object",
+      "description": "★ 可用动作 - 工具白名单 + 动作白名单",
+      "properties": {
+        "tools": {
+          "type": "array",
+          "description": "可用工具白名单 (一期只 rough-notation, 二期 rough-line/rough-arrow)",
+          "items": { "type": "string", "enum": ["rough-notation", "rough-line", "rough-arrow"] }
+        },
+        "notationActions": {
+          "type": "array",
+          "description": "rough-notation 可用动作 (一期 underline, circle 是原始版, highlight 是二期)",
+          "items": { "type": "string", "enum": ["underline", "highlight", "circle"] }
+        },
+        "colors": {
+          "type": "object",
+          "description": "颜色白名单",
+          "properties": {
+            "ink": { "type": "string", "default": "#263238" },
+            "red": { "type": "string", "default": "#d64545" }
+          }
+        }
+      }
+    },
+
+    "playSequence": {
+      "type": "object",
+      "description": "★ 播放序列 - row 为单位, 逐一顺序播放",
+      "properties": {
+        "unit": { "type": "string", "default": "row", "description": "播放单位: row" },
+        "order": { "type": "string", "default": "sequential", "description": "顺序: 逐一顺序播放" },
+        "rowGap": { "type": "number", "default": 1500, "description": "row 之间的自然微间隔 (毫秒)" },
+        "exclusiveExecution": {
+          "type": "boolean",
+          "default": true,
+          "description": "★ 单手绝对互斥: 所有板书的任一行和动作的时间全部不重叠, 全部互斥"
+        }
+      }
+    },
+
+    "stageRatioSuggestion": {
+      "type": "object",
+      "description": "讲题环节配比 (Agent A 深度分析后给出, Agent B 必须遵守)",
+      "properties": {
+        "suggestedRatio": {
+          "type": "object",
+          "properties": {
+            "analysis": { "type": "string", "default": "35%" },
+            "solution": { "type": "string", "default": "40%" },
+            "summary": { "type": "string", "default": "15%" },
+            "introAndClosing": { "type": "string", "default": "10%" }
+          }
+        }
+      }
+    },
+
+    "┌── 块3: row 参数 (rows 数组每项) ─────────────────────────────────┐": {
+      "type": "object",
+      "description": "row 参数: stage / audioUrl / speech / board / 板书接入时间点 / 动作"
+    },
+
+    "rows": {
+      "type": "array",
+      "description": "★ 内容 - row 为单位的播放序列, 每行是一个原子单元",
+      "items": {
+        "type": "object",
+        "required": ["stage", "speech", "board", "actionSpec"],
+        "properties": {
+
+          "stage": {
+            "type": "string",
+            "enum": ["题目", "分析", "解答", "总结"],
+            "description": "★ 1. stage 区间 (核心, 直接关系到会不会写重叠)"
+          },
+
+          "audioUrl": {
+            "type": "string",
+            "description": "★ 2. audioUrl 音频缓存地址 (若无则空字符串, 渲染层走虚拟时钟)"
+          },
+
+          "audioDurationMs": {
+            "type": ["number", "null"],
+            "description": "真实音频时长 (毫秒), 试听后回填, 是行时长唯一主时钟"
+          },
+
+          "speech": {
+            "type": "string",
+            "description": "★ 3. speech 口播稿 (纯文本, 不含 TTS 控制标签)"
+          },
+
+          "board": {
+            "type": "object",
+            "description": "★ 4. board 板书内容 (数组, 一行就是一行, 一行写完才下一行)",
+            "properties": {
+              "content": {
+                "type": "string",
+                "description": "★ 板书内容, 用 \\n 换行表示多行 (一行写完才下一行, 不一行塞全部)"
+              },
+              "stage": {
+                "type": "string",
+                "enum": ["题目", "分析", "解答", "总结"],
+                "description": "板书自描述 stage (与 row.stage 一致)"
+              },
+              "startDelay": {
+                "type": "number",
+                "default": 0,
+                "description": "★ 5a. 板书接入时间点 - delaytime: 板书在本 row 播放后的 xx 秒开始书写 (自行调节书写速度)"
+              },
+              "triggerKeyword": {
+                "type": "string",
+                "description": "★ 5b. 板书接入时间点 - keywords: 板书在口播念到某个【关键词】开始书写 (与 startDelay 二选一, 优先 keywords)"
+              }
+            }
+          },
+
+          "actionSpec": {
+            "type": "array",
+            "description": "★ 6. 动作指令列表 (所有动作时间全部不重叠, 全部互斥, 绝不与板书重叠)",
+            "items": {
+              "type": "object",
+              "required": ["action"],
+              "properties": {
+                "action": {
+                  "type": "object",
+                  "required": ["tool", "order"],
+                  "properties": {
+                    "tool": {
+                      "type": "string",
+                      "enum": ["rough-notation", "rough-line", "rough-arrow"],
+                      "description": "★ 可用动作工具 (一期只 rough-notation, 二期 line/arrow)"
+                    },
+                    "action": {
+                      "type": "string",
+                      "enum": ["underline", "highlight", "circle"],
+                      "description": "rough-notation 动作类型"
+                    },
+                    "order": {
+                      "type": "number",
+                      "description": "全局唯一正整数, 按播放顺序递增"
+                    },
+                    "region": {
+                      "type": "string",
+                      "enum": ["question", "analysis", "solution", "summary"],
+                      "description": "动作落点区域 (英文)"
+                    },
+                    "target": {
+                      "type": "object",
+                      "description": "rough-notation 锚定目标 (exactText 必须是 board.content 或 problemText 里的原文)",
+                      "properties": {
+                        "region": { "type": "string" },
+                        "exactText": { "type": "string", "description": "锚定原文 (禁止改写)" },
+                        "occurrence": { "type": "number", "default": 1 }
+                      }
+                    },
+                    "start": {
+                      "type": "array",
+                      "items": { "type": "number" },
+                      "description": "rough-line/rough-arrow 起点坐标 [x, y] (百分比 0-100)"
+                    },
+                    "end": {
+                      "type": "array",
+                      "items": { "type": "number" },
+                      "description": "rough-line/rough-arrow 终点坐标 [x, y]"
+                    },
+                    "style": {
+                      "type": "object",
+                      "description": "画笔样式 (颜色/笔宽白名单)",
+                      "properties": {
+                        "colorId": { "type": "string", "enum": ["ink", "red"] },
+                        "strokeWidthId": { "type": "string", "enum": ["normal", "emphasis"] }
+                      }
+                    }
+                  }
+                },
+                "stage": {
+                  "type": "string",
+                  "enum": ["题目", "分析", "解答", "总结"],
+                  "description": "动作自描述 stage (与 row.stage 一致)"
+                }
+              }
+            }
+          },
+
+          "duration": {
+            "type": "number",
+            "description": "row 时长 (秒), 真实音频时长 > 字数估算"
+          },
+
+          "exclusiveExecutionPlan": {
+            "type": "array",
+            "description": "单手绝对互斥执行计划 (动作定量 1-2 秒作为标点停顿, 绝不与板书重叠)",
+            "items": {
+              "type": "object",
+              "required": ["type", "role", "startOffsetMs", "durationMs", "endOffsetMs"],
+              "properties": {
+                "type": { "type": "string", "enum": ["speech", "board", "action"] },
+                "role": { "type": "string", "enum": ["narration_full", "writing", "punctuation_pause"] },
+                "startOffsetMs": { "type": "number" },
+                "durationMs": { "type": "number" },
+                "endOffsetMs": { "type": "number" },
+                "text": { "type": "string" },
+                "content": { "type": "string" },
+                "action": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "┌── 块4: 画布规范 ───────────────────────────────────────────────┐": {
+      "type": "object",
+      "description": "画布规范 - 字体字号 / 布局 / 越界规则 / 不许覆盖/超出/全部出现"
+    },
+
+    "canvasSpec": {
+      "type": "object",
+      "description": "★ 画布规范 - 文本布局 + 越界规则 + 手写感",
+      "properties": {
+        "textLayout": {
+          "type": "string",
+          "default": "全部文本布局: 文本自然换行段落间距即可"
+        },
+        "fontSpec": {
+          "type": "object",
+          "description": "字体字号规范 (与 canvasParams.fontSize 一致)",
+          "properties": {
+            "question": { "type": "string", "default": "微软雅黑, 30号, 黑色, 行高1.65, 一打开就写好 (考卷式)" },
+            "board": { "type": "string", "default": "手写字体 (平方乔木体), 35或38号, 红色/黑色, 行高1.7±随机 (1.55~1.85)" }
+          }
+        },
+        "layout": {
+          "type": "string",
+          "default": "默认在各自 stage 内, 自行根据题目内容安排, 可以双列/单列根据题目解题内容自行安排"
+        },
+        "overflowRule": {
+          "type": "object",
+          "description": "★ 特殊情况: 不够写时",
+          "properties": {
+            "nearbyBlank": { "type": "string", "default": "可以写在附近空白区域继续塞着写" },
+            "smallFont": { "type": "string", "default": "可以字号小一点, 微斜" },
+            "reference": { "type": "string", "default": "可以在已经做过的题目圈出来引用前面结果用 -> 指向运算中某个内容, 节约文本" }
+          }
+        },
+        "absoluteForbid": {
+          "type": "object",
+          "description": "★ 绝对不许 (硬约束)",
+          "properties": {
+            "overwrite": { "type": "string", "default": "覆盖已经写的字" },
+            "outOfCanvas": { "type": "string", "default": "超出整个画布" },
+            "allAtOnce": { "type": "string", "default": "板书内容全部出现 (必须一行一行写)" }
+          }
+        }
+      }
+    },
+
+    "┌── 块5: 手写字体符号转义 ───────────────────────────────────────┐": {
+      "type": "object",
+      "description": "重点: 手写字体符号转义 - 能用常用手写字体凑出来的符号就绝对不用 LaTeX"
+    },
+
+    "glyphSimplifyRule": {
+      "type": "object",
+      "description": "★ 核心原则: 能用常见手写字体支持的写法凑出来的符号就绝对的要使用 LaTeX 之外的方式",
+      "properties": {
+        "principle": {
+          "type": "string",
+          "default": "能用常见手写字体支持的写法凑出来的符号就绝对的要使用 latex 之外的方式 (用户原话)"
+        },
+        "mappings": {
+          "type": "object",
+          "description": "符号转义映射表 (真源 src/utils/superFilter.js + row-player.html LATEX2U)",
+          "properties": {
+            "multiply": { "type": "string", "default": "乘号用英文小写 x (不用 \\times)" },
+            "divide": { "type": "string", "default": "除号用 / 或写分数 \\frac{a}{b} (不用 \\div 或 ÷, 手写体缺字)" },
+            "fraction": { "type": "string", "default": "分数的写法: 英文的 .-. 两个点再横线上, 或用 \\frac{a}{b}" },
+            "plusMinus": { "type": "string", "default": "加减号用加号, 下面加一个小 - (± 不用 \\pm)" },
+            "power": { "type": "string", "default": "平方/立方: 在右上角本字体缩小写 ²³ (不用 ^2 ^3)" },
+            "arrow": { "type": "string", "default": "箭头: -> 就是箭头 (不用 \\rightarrow)" },
+            "brace": { "type": "string", "default": "大括号: { 写大很多号就是大括号" },
+            "verticalDivision": { "type": "string", "default": "竖式除号: ) 和长的横线就是竖式计算的除号" },
+            "triangle": { "type": "string", "default": "三角形符号: 用中文'三角形'写 (不用 \\triangle)" },
+            "becauseTherefore": { "type": "string", "default": "因为/所以: 用中文写 (不用 \\because \\therefore)" },
+            "dot": { "type": "string", "default": "英文的点 . 来写" },
+            "angle": { "type": "string", "default": "角: ∠ Unicode (不用 \\angle)" },
+            "perp": { "type": "string", "default": "垂直: ⊥ Unicode (不用 \\perp)" },
+            "pi": { "type": "string", "default": "π Unicode (不用 \\pi)" },
+            "sqrt": { "type": "string", "default": "√ Unicode (不用 \\sqrt)" }
+          }
+        },
+        "forbidden": {
+          "type": "array",
+          "description": "绝对禁用的 LaTeX 命令 (手写体写不了, superFilter 兜底会转换)",
+          "items": { "type": "string" },
+          "default": ["\\text{...}", "\\quad", "\\,", "\\;", "\\:", "\\!", "\\displaystyle", "\\dfrac", "\\tfrac"]
+        },
+        "structuralMath": {
+          "type": "string",
+          "default": "只有真结构数学 (多层上下标, 复杂矩阵) 才用 LaTeX, 渲染层降级为公式图或告警"
+        }
+      }
+    },
+
+    "┌── 块6: schema 抽取规则 ───────────────────────────────────────┐": {
+      "type": "object",
+      "description": "deliverable.schema.json 从上方抽取 row 与播放信息, 其他导出物也是"
+    },
+
+    "schemaExtractionRule": {
+      "type": "object",
+      "description": "★ schema 抽取规则 - deliverable.schema.json 从上方抽取 row 与播放信息, 其他导出物也是",
+      "properties": {
+        "rowExtraction": {
+          "type": "string",
+          "default": "从 deliverable 顶层抽取 rows 数组作为播放信息核心"
+        },
+        "playInfoExtraction": {
+          "type": "string",
+          "default": "抽取 playSequence / canvasParams / boardPlan / availableActions 作为播放参数"
+        },
+        "otherExports": {
+          "type": "string",
+          "default": "其他导出物 (口播稿 MD / 分镜表 MD / 要素表 MD / 行级 JSON) 也从此 schema 抽取对应字段"
+        }
+      }
+    },
+
+    "stats": {
+      "type": "object",
+      "description": "统计信息 (由 rows 自动计算)",
+      "properties": {
+        "totalDuration": { "type": "number", "description": "总时长 (秒)" },
+        "stepCount": { "type": "number", "description": "row 数" },
+        "charCount": { "type": "number", "description": "口播总字数" },
+        "actionCount": { "type": "number", "description": "动作总数" }
+      }
+    }
+  },
+
+  "additionalProperties": true,
+  "description": "★ additionalProperties: true - 允许其他导出物从此 schema 抽取字段, 不锁死字段"
+}
