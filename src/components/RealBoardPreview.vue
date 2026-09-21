@@ -6,7 +6,7 @@ import {
   CANVAS_W as DESIGN_W,
   CANVAS_H as DESIGN_H,
 } from '../utils/canvasCoords'
-import { BOARD_FONT_SIZE } from '../services/stepHandoff.js'
+import { BOARD_FONT_SIZE, QUESTION_FONT_SIZE } from '../services/stepHandoff.js'
 import { createBoardToolRuntime } from '../board-tools/boardToolCatalog.js'
 
 const props = defineProps({
@@ -28,6 +28,33 @@ const props = defineProps({
   boardRows: { type: Array, default: () => [] },
   /** 是否自动播放 actionSpec，默认 true */
   autoPlay: { type: Boolean, default: true },
+  /**
+   * ★ Task 9 修复: 画布舞台参数 (canvasParams)
+   *  真相源: handoff.canvasParams (Agent A 给) → AgentBDirect/Step1Entry 透传
+   *  含 canvasSize / fontSize.question.px / fontSize.analysis.px / lineHeight 等
+   *  若不传则 fallback 到 stepHandoff.js 的 BOARD_FONT_SIZE / QUESTION_FONT_SIZE 常量
+   */
+  canvasParams: { type: Object, default: null },
+})
+
+// ★ Task 9: 从 canvasParams 提取真实字号 (没传则 fallback 常量)
+const questionFontSize = computed(() => {
+  const px = Number(props.canvasParams?.fontSize?.question?.px)
+  return px > 0 ? px : QUESTION_FONT_SIZE
+})
+const boardFontSize = computed(() => {
+  // analysis / solution / summary 都用同一个 BOARD_FONT_SIZE
+  const px = Number(props.canvasParams?.fontSize?.analysis?.px)
+  return px > 0 ? px : BOARD_FONT_SIZE
+})
+// ★ Task 9: 画布尺寸 (没传则 fallback 1726×980 常量)
+const canvasWidth = computed(() => {
+  const w = Number(props.canvasParams?.canvasSize?.width)
+  return w > 0 ? w : DESIGN_W
+})
+const canvasHeight = computed(() => {
+  const h = Number(props.canvasParams?.canvasSize?.height)
+  return h > 0 ? h : DESIGN_H
 })
 
 const emit = defineEmits(['pick-coord', 'topic-measured', 'update:topic-layout', 'layout-change', 'update:problem-text'])
@@ -193,6 +220,7 @@ function onClick() {
         :show-zone-guides="showZoneGuides"
         :source-image-url="sourceImageUrl"
         :keep-original="keepOriginal"
+        :canvas-params="canvasParams"
         @topic-measured="emit('topic-measured', $event)"
         @update:topic-layout="emit('update:topic-layout', $event)"
         @layout-change="emit('layout-change', $event)"
@@ -222,7 +250,7 @@ function onClick() {
             v-for="item in boardTextRows.filter((entry) => entry.region === region)"
             :key="item.id"
             class="board-text-anchor"
-            :style="{ fontSize: `${BOARD_FONT_SIZE}px` }"
+            :style="{ fontSize: `${boardFontSize}px` }"
           >{{ item.content }}</span>
         </div>
         <div

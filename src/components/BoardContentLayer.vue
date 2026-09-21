@@ -20,6 +20,26 @@ const props = defineProps({
   sourceImageUrl: { type: String, default: '' },
   keepOriginal: { type: Boolean, default: false },
   draggable: { type: Boolean, default: true },
+  /**
+   * ★ Task 9 修复: 画布舞台参数 (canvasParams)
+   *  含 fontSize.question.px / canvasSize.width / lineHeight.question 等
+   *  没传则 fallback 到 stepHandoff.js 常量 (QUESTION_FONT_SIZE / CANVAS_SIZE)
+   */
+  canvasParams: { type: Object, default: null },
+})
+
+// ★ Task 9: 从 canvasParams 提取真实题目字号 (没传则 fallback 常量)
+const realQuestionFontSize = computed(() => {
+  const px = Number(props.canvasParams?.fontSize?.question?.px)
+  return px > 0 ? px : QUESTION_FONT_SIZE
+})
+const realCanvasWidth = computed(() => {
+  const w = Number(props.canvasParams?.canvasSize?.width)
+  return w > 0 ? w : CANVAS_SIZE.width
+})
+const realCanvasHeight = computed(() => {
+  const h = Number(props.canvasParams?.canvasSize?.height)
+  return h > 0 ? h : CANVAS_SIZE.height
 })
 
 const emit = defineEmits([
@@ -82,7 +102,8 @@ const identifiedBlocks = computed(() => {
         x: savedCoord?.x ?? (b.x ?? plan.value.question.x),
         y: savedCoord?.y ?? (b.y ?? plan.value.question.y + idx * 7.5),
         w: currentW,
-        fontSize: b.fontSize ?? plan.value.question.fontSize ?? QUESTION_FONT_SIZE,
+        // ★ Task 9: 字号优先用 canvasParams.fontSize.question.px (真相源), 没 canvasParams 时 fallback QUESTION_FONT_SIZE 常量
+        fontSize: b.fontSize ?? plan.value.question.fontSize ?? realQuestionFontSize.value,
       }
     })
   }
@@ -104,7 +125,8 @@ const identifiedBlocks = computed(() => {
       x: savedCoord?.x ?? plan.value.question.x,
       y: savedCoord?.y ?? defaultY,
       w: currentW,
-      fontSize: plan.value.question.fontSize || QUESTION_FONT_SIZE,
+      // ★ Task 9: 字号优先用 canvasParams.fontSize.question.px (真相源), 没 canvasParams 时 fallback QUESTION_FONT_SIZE 常量
+      fontSize: plan.value.question.fontSize || realQuestionFontSize.value,
     }
   })
 })
@@ -457,7 +479,8 @@ function getBlockStyle(block) {
     left: `${coord.x}%`,
     top: `${coord.y}%`,
     width: `${widthVal}%`,
-    fontSize: `calc(${block.fontSize || 30} * 1cqw / 17.26)`,
+    // ★ Task 9: 用 realCanvasWidth 替代写死的 17.26 (= 1726/100), 让画布尺寸随 canvasParams 自适应
+    fontSize: `calc(${block.fontSize || realQuestionFontSize.value} * 1cqw / ${realCanvasWidth.value / 100})`,
   }
 }
 

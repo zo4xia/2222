@@ -1366,6 +1366,9 @@ async function generateDeliverablePage() {
     if (data.ok) {
       deliverableResult.value = data
       // 同步本地预览缓存作为双重保险
+      // ★ Task 9 修复: 必须把 canvasParams 与 meta 一起写入 localStorage,
+      //  否则 BoardPreviewApp 打开时 RealBoardPreview 拿不到 canvasParams
+      //  (字号/字体/行高/画布尺寸全部丢失, 预览画布降级为静态常量)
       saveLiveBoardPreview({
         problemText: payload.problemText,
         topicLayout: payload.topicLayout,
@@ -1374,6 +1377,21 @@ async function generateDeliverablePage() {
         keepOriginal: payload.keepOriginal,
         rows: payload.rows,
         projectCode: data.projectCode,
+        // ★ 必须带 canvasParams: 真相源 = handoff.canvasParams 或 buildCanvasParams()
+        canvasParams: payload.canvasParams || handoff.value?.canvasParams || null,
+        // ★ 必须带 meta: BoardPreviewApp.applyDeliverablePayload 从 payload.meta 读 canvasParams/model 等
+        meta: {
+          canvasParams: payload.canvasParams || handoff.value?.canvasParams || null,
+          model: generatedModel.value || agentBApiConfig.model || '',
+          generatedAt: new Date().toLocaleString('zh-CN', { hour12: false }),
+          handoffCanvasParams: handoff.value?.canvasParams || null,
+          handoffBoardPlan: handoff.value?.boardPlan || null,
+          problemType: handoff.value?.problemType || '',
+          stageRatioSuggestion: handoff.value?.stageRatioSuggestion || handoff.value?.['环节配比占比'] || null,
+        },
+        // ★ 同时带 screenshotUrl 与 problemText 等下游消费字段
+        screenshotUrl: payload.screenshotUrl || handoff.value?.screenshotUrl || '',
+        problemType: handoff.value?.problemType || '',
       })
       deliverableModalOpen.value = true
       message.success('教学视频素材产物单页已成功生成并归档！')

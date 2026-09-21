@@ -171,6 +171,15 @@ function applyDeliverablePayload(payload, code = null, created = null) {
   if (payload.meta) {
     meta.value = { ...meta.value, ...payload.meta }
   }
+  // ★ Task 9 修复: 兜底从 payload 顶层读 canvasParams (有些上游 saveLiveBoardPreview 直接写在顶层)
+  //  优先级: payload.meta.canvasParams > payload.canvasParams > payload.handoffCanvasParams
+  //  这样无论上游怎么放, BoardPreviewApp 都能拿到 canvasParams 给 RealBoardPreview
+  if (payload.canvasParams && !meta.value.canvasParams) {
+    meta.value.canvasParams = payload.canvasParams
+  }
+  if (payload.handoffCanvasParams && !meta.value.canvasParams) {
+    meta.value.canvasParams = payload.handoffCanvasParams
+  }
   if (payload.stats) {
     stats.value = { ...stats.value, ...payload.stats }
   }
@@ -748,6 +757,7 @@ function getStageTagColor(stage) {
             :board-rows="rows"
             :action-spec="actionSpec"
             :interactive="false"
+            :canvas-params="(meta && meta.canvasParams) || null"
             @update:topic-layout="onTopicLayoutUpdated"
             @update:problem-text="onProblemTextUpdated"
           />

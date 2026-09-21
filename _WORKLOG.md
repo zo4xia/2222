@@ -284,3 +284,58 @@ Stage Summary:
 - 下游消费方 (row-player.html / Check Agent / 任何取局部字段的工具) 不必反查 row.stage
 - 即使 row 顺序变化, board 与 actionSpec 仍然知道自己属于哪个 stage
 - 与 row.stage 三重对齐: row.stage == board.stage == actionSpec[i].stage == actionSpec[i].action.stage
+
+---
+Task ID: 9
+Agent: main
+Task: 用户反馈"预览画布参数都没有传递过去，检查这一块，朔源整个业务流业务链"
+
+Work Log:
+- 溯源整条业务链: Step1Entry.vue → POST /api/handoff → handoffStoreHandler.js (自动补 canvasParams) → DirectFlow.vue GET /api/handoff → AgentBDirect.vue (props.initialHandoff 含 canvasParams) → saveLiveBoardPreview → BoardPreviewApp.vue → RealBoardPreview.vue → BoardContentLayer.vue
+- 发现 4 个传递断点:
+  1. AgentBDirect.vue line 1369-1377 调 saveLiveBoardPreview 时 state 里 ❌ 没有 canvasParams / meta
+  2. BoardPreviewApp.vue applyDeliverablePayload 只从 payload.meta 读 canvasParams，但 saveLiveBoardPreview 没写 meta
+  3. RealBoardPreview.vue defineProps ❌ 没有 canvasParams prop
+  4. BoardPreviewApp.vue 用 RealBoardPreview 时 ❌ 没传 :canvas-params
+- 修复 1 (AgentBDirect.vue saveLiveBoardPreview 调用):
+  - 加 canvasParams: payload.canvasParams || handoff.value?.canvasParams || null
+  - 加 meta: { canvasParams, model, generatedAt, handoffCanvasParams, handoffBoardPlan, problemType, stageRatioSuggestion }
+  - 加 screenshotUrl / problemType 兜底
+- 修复 2 (BoardPreviewApp.vue applyDeliverablePayload):
+  - 兜底从 payload 顶层读 canvasParams 写入 meta.canvasParams
+  - 优先级: payload.meta.canvasParams > payload.canvasParams > payload.handoffCanvasParams
+- 修复 3 (RealBoardPreview.vue):
+  - 新增 canvasParams prop (Object, default: null)
+  - 新增 computed questionFontSize / boardFontSize / canvasWidth / canvasHeight
+  - 没传 fallback 到 stepHandoff.js 的 QUESTION_FONT_SIZE / BOARD_FONT_SIZE / 1726×980 常量
+  - line 252 字号从 ${BOARD_FONT_SIZE}px 改为 ${boardFontSize}px (响应 canvasParams)
+  - BoardContentLayer 传 :canvas-params="canvasParams"
+- 修复 4 (BoardContentLayer.vue):
+  - 新增 canvasParams prop
+  - 新增 computed realQuestionFontSize / realCanvasWidth / realCanvasHeight
+  - line 105/127 字号 fallback 从 QUESTION_FONT_SIZE 改为 realQuestionFontSize.value
+  - line 480 fontSize calc 从写死 17.26 改为 realCanvasWidth.value / 100 (画布尺寸随 canvasParams 自适应)
+- 修复 5 (BoardPreviewApp.vue 用 RealBoardPreview 处):
+  - 加 :canvas-params="(meta && meta.canvasParams) || null"
+- agent-browser 端到端验证:
+  - 黄金路径跑通: 输入题目 → 识别 → 进生成表 → 软降级产出 10 rows
+  - 点击"生成交付单页" → saveLiveBoardPreview 写入 localStorage
+  - 验证 localStorage[qinghuabu.live-board-preview]:
+    * hasCanvasParams: true ✓
+    * hasMeta: true ✓
+    * metaHasCanvasParams: true ✓
+    * canvasSize: {width:1726, height:980} ✓
+    * questionFontPx: 30 ✓
+    * analysisFontPx: 35 ✓
+  - 打开 /board-preview.html:
+    * BoardPreviewApp 接到 meta.canvasParams
+    * RealBoardPreview 的 .board-text-anchor 字号 = 35px (来自 canvasParams) ✓
+    * fontFamily = LikeJianJianTi (手写体) ✓
+
+Stage Summary:
+- 4 个传递断点全部修复
+- canvasParams 现在能完整流转: handoff → AgentBDirect → saveLiveBoardPreview(localStorage) → BoardPreviewApp → RealBoardPreview → BoardContentLayer
+- 画布尺寸/字号/字体随 canvasParams 自适应 (没传时 fallback 到 stepHandoff.js 常量)
+- RealBoardPreview 内 board-text-anchor 字号从硬编码 35px 变为 canvasParams.fontSize.analysis.px (默认 35px)
+- BoardContentLayer 内 fontSize calc 从写死 17.26 改为 realCanvasWidth/100, 让画布尺寸真正随 canvasParams 自适应
+- 后续: 即使题目层字号将来改了 (如 30→28), 只需改 stepHandoff.js 或 handoff.canvasParams, 全链路自动同步
