@@ -6,7 +6,7 @@ import {
   CANVAS_W as DESIGN_W,
   CANVAS_H as DESIGN_H,
 } from '../utils/canvasCoords'
-import { BOARD_FONT_SIZE, QUESTION_FONT_SIZE } from '../services/stepHandoff.js'
+import { BOARD_FONT_SIZE, QUESTION_FONT_SIZE, HANDWRITING_FONT_STACK } from '../services/stepHandoff.js'
 import { createBoardToolRuntime } from '../board-tools/boardToolCatalog.js'
 
 const props = defineProps({
@@ -310,7 +310,8 @@ function onClick() {
   margin: 0 0 18px;
   white-space: pre-wrap;
   line-height: 1.5;
-  font-family: "LikeJianJianTi", "KaiTi", "STKaiti", cursive;
+  /* ★ Task 10: 字体栈与 stepHandoff.HANDWRITING_FONT_STACK 同序（507 主 → 490 降级 → 系统楷体） */
+  font-family: "平方乔木体", "平方韶华体", "平方上上谦体", "平方三生体", "PingFangSaTuoTi", "LikeJianJianTi", KaiTi, STKaiti, "PingFang SC", serif;
   font-weight: normal;
   letter-spacing: 0;
   transform: translateZ(0);

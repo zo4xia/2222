@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -690,13 +690,10 @@ function decodeHtmlEntities(t){
 function toBoardLines(v){
   if(Array.isArray(v)){
     return v.map(function(x){return (x&&typeof x==='object')?(x.content??x.text??''):(x??'');})
-            .flatMap(function(x){return normalizeBoardLine(x).split('\n');})
-            .map(function(l){return l.trim();}).filter(function(l){return l.length;});
+            .map(normalizeBoardLine).filter(function(l){return l.length;});
   }
   if(v&&typeof v==='object')return toBoardLines(v.content??v.text??'');
-  return String(v==null?'':v).split('\n')
-        .flatMap(function(l){return normalizeBoardLine(l).split('\n');})
-        .map(function(l){return l.trim();}).filter(function(l){return l.length;});
+  return String(v==null?'':v).split('\n').map(normalizeBoardLine).filter(function(l){return l.length;});
 }
 function normalizeBoardLine(s){
   let t=String(s==null?'':s);
@@ -706,13 +703,6 @@ function normalizeBoardLine(s){
   t=t.replace(/[\t\u0008\u000B\u000C]+/g,' ');      // 控制字符损伤：统一退化为空格，绝不字面落板
   t=decodeHtmlEntities(t);
   t=repairCommonLatexEscapeDamage(t);
-  // LaTeX 环境与定界符剥壳（镜像 src/utils/superFilter.js，改那边必须同步这边）：
-  // \begin{aligned}/\end{aligned}、\\ 换行、& 对齐符、\(\) \[\] —— 没有 KaTeX，剥壳成普通板书行
-  t=t.replace(/\\(?:begin|end)\s*\{[^}]*\}/g,'');
-  t=t.replace(/\\\\/g,'\n');
-  t=t.replace(/\\\(|\\\)/g,'');
-  t=t.replace(/\\\[|\\\]/g,'');
-  t=t.replace(/&/g,'');
   t=t.replace(/\$+/g,'');                     // 安全网：$ 绝不字面落板
   t=t.replace(/\\left\b|\\right\b/g,'');
   for(let i=0;i<GLYPH2COMMON.length;i++)t=t.replace(GLYPH2COMMON[i][0],GLYPH2COMMON[i][1]); // 缺字降级先跑
@@ -906,21 +896,18 @@ function drawWriting(task,p,W,H,stage){
 
 function drawAction(task,p,Q,W,H){
   const a=task.action||{};
-  // CRITICAL 修复: 兼容嵌套 {action:{tool,...}} 和扁平 {tool,...} 两种形状
-  const inner=(a.action&&typeof a.action==='object')?a.action:a;
-  const tool=inner.tool||a.tool||'';
   // ── rough-line / rough-arrow：一期不输出（truth/领地C 只留 circle+underline 两个核心兜底），
   //    渲染分支保留给二期，勿删 ──
+  const tool=a.tool||'';
   if(tool==='rough-line'||tool==='rough-arrow'){
-    const st=inner.start||a.start||[0,0], en=inner.end||a.end||[0,0];
+    const st=a.start||[0,0], en=a.end||[0,0];
     const x1=W*st[0]/100, y1=H*st[1]/100, x2=W*en[0]/100, y2=H*en[1]/100;
-    const style=inner.style||a.style||{};
-    const red=style.colorId==='red';
+    const red=(a.style&&a.style.colorId)==='red';
     ctx.strokeStyle=red?'#dc2626':'#1a1a1a';
-    ctx.lineWidth=style.strokeWidthId==='emphasis'?4:2.5;
+    ctx.lineWidth=(a.style&&a.style.strokeWidthId)==='emphasis'?4:2.5;
     ctx.globalAlpha=0.9;
     const ex=x1+(x2-x1)*p, ey=y1+(y2-y1)*p;      // 逐段生长，p 由上游时长钉死
-    rline(ctx,x1,y1,ex,ey,hashStr(JSON.stringify(st)+JSON.stringify(en)),2.0);
+    rline(ctx,x1,y1,ex,ey,hashStr(JSON.stringify(a.start)+JSON.stringify(a.end)),2.0);
     if(tool==='rough-arrow'&&p>0.9){              // 箭头头部在收笔时出现
       const ang=Math.atan2(y2-y1,x2-x1), L=14;
       ctx.beginPath();
@@ -932,11 +919,11 @@ function drawAction(task,p,Q,W,H){
     return;
   }
   // ── rough-notation：文字标记，锚定 board/题目原文（rough-notation 风：贴字 bbox、双遍手绘）──
-  const tg=inner.target||a.target||{};
+  const tg=a.target||{};
   const rg=findRange(Q.chars,tg.exactText||'',tg.occurrence||1);
   if(!rg){ console.warn('[动作] 找不到文字 "',tg.exactText,'"，该标记被跳过'); return; }
   const seed=hashStr(tg.exactText||'');
-  const act=inner.action||a.action||'underline';
+  const act=a.action||'underline';
   // 字高按题目 30px：顶≈baseline-30，底≈baseline+8；padding 8（对齐 rough-notation 默认）
   const bx1=rg.x1-8, bx2=rg.x2+8, by1=rg.y1-30-8, by2=rg.y1+8+8;
   ctx.strokeStyle='#dc2626'; ctx.lineWidth=2.2; ctx.globalAlpha=0.9;
@@ -1188,43 +1175,24 @@ document.getElementById('btnRec').onclick=toggleRec;
 async function loadFromUrlOrDefault(){
   const params = new URLSearchParams(location.search);
   const url = params.get('deliverable') || params.get('data') || params.get('rows');
-  if (!url) {
-    // 尝试从 localStorage 读取 (B 页 openHanddrawPlayer 用 localStorage 传数据)
-    try {
-      const lsData = localStorage.getItem('agent-b-deliverable');
-      if (lsData) {
-        const json = JSON.parse(lsData);
-        // CRITICAL 修复: 走 normData/normRow 统一字段归一 (audioUrl→mp3 / actionSpec 形状)
-        const nd = normData(json);
-        if (nd.rows && nd.rows.length) {
-          if (nd.projectCode) DATA.projectCode = nd.projectCode;
-          if (nd.problemText) DATA.problemText = nd.problemText;
-          if (nd.boardPlan) DATA.boardPlan = nd.boardPlan;
-          if (nd.problemImage) { DATA.problemImage = nd.problemImage; setProblemImage(nd.problemImage); }
-          DATA.rows = nd.rows;
-          load(DATA);
-          console.info('[row-player] 已从 localStorage 加载:', '(' + nd.rows.length + ' 行)');
-          return;
-        }
-      }
-    } catch(e) { console.warn('[row-player] localStorage 读取失败', e); }
-    load(DATA);
-    return;
-  }
+  if (!url) { load(DATA); return; }
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const json = await res.json();
-    // CRITICAL 修复: 走 normData/normRow 统一字段归一
-    const nd = normData(json);
-    if (!nd.rows || !nd.rows.length) throw new Error('rows 为空或缺失');
-    if (nd.projectCode) DATA.projectCode = nd.projectCode;
-    if (nd.problemText) DATA.problemText = nd.problemText;
-    if (nd.boardPlan) DATA.boardPlan = nd.boardPlan;
-    if (nd.problemImage) { DATA.problemImage = nd.problemImage; setProblemImage(nd.problemImage); }
-    DATA.rows = nd.rows;
+    // 兼容两种 schema: {rows:[...]} 直接放, 或 {deliverable:{rows:[...]}} 双层嵌套
+    let rows = Array.isArray(json.rows) ? json.rows
+             : (json.deliverable && Array.isArray(json.deliverable.rows)) ? json.deliverable.rows
+             : null;
+    if (!rows || !rows.length) throw new Error('rows 为空或缺失');
+    // 同步替换 DATA 关键字段后 load (保留 schema/boardPlan 等元信息)
+    if (json.projectCode) DATA.projectCode = json.projectCode;
+    if (json.problemText) DATA.problemText = json.problemText;
+    if (json.boardPlan) DATA.boardPlan = json.boardPlan;
+    if (json.screenshotUrl) DATA.screenshotUrl = json.screenshotUrl;
+    DATA.rows = rows;
     load(DATA);
-    console.info('[row-player] 已从 URL 参数加载:', url, '(' + nd.rows.length + ' 行)');
+    console.info('[row-player] 已从 URL 参数加载:', url, '(' + rows.length + ' 行)');
   } catch (e) {
     console.warn('[row-player] URL 参数加载失败, 降级用内置示例:', e.message, 'url=' + url);
     load(DATA);

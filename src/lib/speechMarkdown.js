@@ -1,5 +1,16 @@
 // 画布字号/行高唯一真源：src/services/stepHandoff.js
-import { buildCanvasParams } from '../services/stepHandoff.js'
+// ★ Task 10: 引入完整常量避免硬编码 35/30/LikeJianJianTi
+import {
+  buildCanvasParams,
+  QUESTION_FONT_SIZE,
+  BOARD_FONT_SIZE,
+  HANDWRITING_FAMILY,
+  BOARD_FONT_RATIO_TEXT,
+  QUESTION_LINE_HEIGHT,
+  LINE_HEIGHT_RULE,
+  BOARD_SPEED_CHARS_PER_SEC,
+  BOARD_SPEED_JITTER,
+} from '../services/stepHandoff.js'
 
 /**
  * 导出物全局说明参数（真相源与规范基准）
@@ -52,21 +63,21 @@ export function buildStandardExplainParamsSection(meta = {}) {
     `| 画布宽度 | ${hcp.canvasSize?.width ?? 1726}px |`,
     `| 画布高度 | ${hcp.canvasSize?.height ?? 980}px |`,
     `| 坐标系统 | ${hcp.coordinateSystem || '百分比坐标 0-100'} |`,
-    `| 题目区字号 | ${hcp.fontSize?.question?.px ?? 30}px |`,
-    `| 题目区字体 | \`${hcp.fontSize?.question?.family || '微软雅黑（印刷体，30px）'}\` |`,
+    `| 题目区字号 | ${hcp.fontSize?.question?.px ?? QUESTION_FONT_SIZE}px |`,
+    `| 题目区字体 | \`${hcp.fontSize?.question?.family || `微软雅黑（印刷体，${QUESTION_FONT_SIZE}px）`}\` |`,
     `| 题目区颜色 | ${hcp.fontSize?.question?.color || '黑色'} |`,
-    `| 分析区字号 | ${hcp.fontSize?.analysis?.px ?? 35}px |`,
-    `| 分析区字体 | \`${hcp.fontSize?.analysis?.family || 'LikeJianJianTi（手写尖尖体，网络字体 fontSource.handwriting，font-weight: normal，约题目的1.2~1.5倍，推荐35px）'}\` |`,
+    `| 分析区字号 | ${hcp.fontSize?.analysis?.px ?? BOARD_FONT_SIZE}px |`,
+    `| 分析区字体 | \`${hcp.fontSize?.analysis?.family || `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`}\` |`,
     `| 分析区颜色 | ${hcp.fontSize?.analysis?.color || '红色'} |`,
-    `| 解答区字号 | ${hcp.fontSize?.solution?.px ?? 35}px |`,
-    `| 解答区字体 | \`${hcp.fontSize?.solution?.family || 'LikeJianJianTi（手写尖尖体，网络字体 fontSource.handwriting，font-weight: normal，约题目的1.2~1.5倍，推荐35px）'}\` |`,
+    `| 解答区字号 | ${hcp.fontSize?.solution?.px ?? BOARD_FONT_SIZE}px |`,
+    `| 解答区字体 | \`${hcp.fontSize?.solution?.family || `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`}\` |`,
     `| 解答区颜色 | ${hcp.fontSize?.solution?.color || '黑色'} |`,
-    `| 总结区字号 | ${hcp.fontSize?.summary?.px ?? 35}px |`,
-    `| 总结区字体 | \`${hcp.fontSize?.summary?.family || 'LikeJianJianTi（手写尖尖体，网络字体 fontSource.handwriting，font-weight: normal，约题目的1.2~1.5倍，推荐35px）'}\` |`,
+    `| 总结区字号 | ${hcp.fontSize?.summary?.px ?? BOARD_FONT_SIZE}px |`,
+    `| 总结区字体 | \`${hcp.fontSize?.summary?.family || `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`}\` |`,
     `| 总结区颜色 | ${hcp.fontSize?.summary?.color || '黑色'} |`,
-    `| 题目区行高 | ${hcp.lineHeight?.question ?? 1.65} |`,
-    `| 其他区行高 | ${hcp.lineHeight?.others || '自然换行即可；渲染层会对行高做微小随机抖动营造手写感，B 按正常行高估算坐标，不需要自己叠加抖动'} |`,
-    `| 板书速度 | ${hcp.boardSpeed || '下游渲染参数：1秒约2~3个汉字，每行±10%轻微抖动（B 不需要处理速度细节）'} |`,
+    `| 题目区行高 | ${hcp.lineHeight?.question ?? QUESTION_LINE_HEIGHT} |`,
+    `| 其他区行高 | ${hcp.lineHeight?.others || LINE_HEIGHT_RULE} |`,
+    `| 板书速度 | ${hcp.boardSpeed || `下游渲染参数：1秒约${BOARD_SPEED_CHARS_PER_SEC}个汉字，每行±${BOARD_SPEED_JITTER * 100}%轻微抖动；书写时长超出音频窗口时自适应加速压进音频内（音频=行时长唯一主时钟）`} |`,
     `| 动作速度 | ${hcp.actionSpeed || '差不多同样速度（rough-line/rough-arrow/rough-notation绘制速度）'} |`,
     '',
     '| 区域 | 左% | 上% | 宽% | 高% |',

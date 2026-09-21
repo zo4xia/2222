@@ -53,7 +53,19 @@ import { exportElementsMarkdown, exportSpeechMarkdown, exportStoryboardMarkdown 
 import VisualTimeline from '../components/VisualTimeline.vue'
 import { showGlobalLoading, hideGlobalLoading } from '../services/globalLoading.js'
 // 画布参数唯一真源：src/services/stepHandoff.js
-import { QUESTION_FONT_SIZE, QUESTION_LINE_HEIGHT, CANVAS_SIZE, buildCanvasParams } from '../services/stepHandoff.js'
+// ★ Task 10: 引入完整常量避免硬编码字号/字体/行高
+import {
+  QUESTION_FONT_SIZE,
+  QUESTION_LINE_HEIGHT,
+  BOARD_FONT_SIZE,
+  BOARD_FONT_RATIO_TEXT,
+  HANDWRITING_FAMILY,
+  CANVAS_SIZE,
+  LINE_HEIGHT_RULE,
+  BOARD_SPEED_CHARS_PER_SEC,
+  BOARD_SPEED_JITTER,
+  buildCanvasParams,
+} from '../services/stepHandoff.js'
 // ponytail: 拆分 composables (从 AgentBDirect.vue 抽出纯逻辑)
 import { useBCache } from './composables/useBCache.js'
 import { useApiSpecDrawer } from './composables/useApiSpecDrawer.js'
@@ -1262,20 +1274,23 @@ function serializeCurrentDeliverableState() {
     // handoff 画布参数（唯一真相源）
     canvasParams: {
       source: 'handoff (Agent A 根据题目实时判断，为唯一真相源)',
-      canvasWidth: 1726,
-      canvasHeight: 980,
+      canvasWidth: CANVAS_SIZE.width,
+      canvasHeight: CANVAS_SIZE.height,
       coordinateSystem: '百分比坐标 0-100',
       fontSize: {
-        question: { px: 30, family: '微软雅黑（印刷体，30px）', color: '黑色' },
-        analysis: { px: 35, family: 'LikeJianJianTi（手写尖尖体，网络字体 fontSource.handwriting，font-weight: normal，约题目的1.2~1.5倍，推荐35px）', color: '红色' },
-        solution: { px: 35, family: 'LikeJianJianTi（手写尖尖体，网络字体 fontSource.handwriting，font-weight: normal，约题目的1.2~1.5倍，推荐35px）', color: '黑色' },
-        summary: { px: 35, family: 'LikeJianJianTi（手写尖尖体，网络字体 fontSource.handwriting，font-weight: normal，约题目的1.2~1.5倍，推荐35px）', color: '黑色' },
+        question: { px: QUESTION_FONT_SIZE, family: `微软雅黑（印刷体，${QUESTION_FONT_SIZE}px）`, color: '黑色' },
+        // ★ Task 10: 字号 35 → 38 (甲方 2026-09-17 拍板); 字体 LikeJianJianTi → 平方乔木体 (CDN 507)
+        analysis: { px: BOARD_FONT_SIZE, family: `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`, color: '红色' },
+        solution: { px: BOARD_FONT_SIZE, family: `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`, color: '黑色' },
+        summary: { px: BOARD_FONT_SIZE, family: `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`, color: '黑色' },
       },
       lineHeight: {
-        question: 1.65,
-        others: '自然换行即可；渲染层会对行高做微小随机抖动营造手写感，B 按正常行高估算坐标，不需要自己叠加抖动',
+        question: QUESTION_LINE_HEIGHT,
+        // ★ Task 10: 板书行高 1.7±随机（区间 1.55~1.85，下游渲染职责）
+        others: LINE_HEIGHT_RULE,
       },
-      boardSpeed: '下游渲染参数：1秒约2~3个汉字，每行±10%轻微抖动（B 不需要处理速度细节）',
+      // ★ Task 10: 板书速度 1秒2-3字 + ±5% 抖动 + 自适应加速
+      boardSpeed: `下游渲染参数：1秒约${BOARD_SPEED_CHARS_PER_SEC}个汉字，每行±${BOARD_SPEED_JITTER * 100}%轻微抖动；书写时长超出音频窗口时自适应加速压进音频内（音频=行时长唯一主时钟）`,
       actionSpeed: '差不多同样速度（rough-line/rough-arrow/rough-notation绘制速度）',
       ...hcp,
     },

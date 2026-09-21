@@ -37,6 +37,12 @@ import {
 } from '../utils/canvasCoords.js'
 import { BOARD_LAYOUT } from '../utils/boardLayout.js'
 import { renderProblemHtml } from '../utils/mathText.js'
+// ★ Task 10: 引入甲方原始要求常量（板书 38px / 平方乔木体 / 题目 30px）
+import {
+  QUESTION_FONT_SIZE,
+  BOARD_FONT_SIZE,
+  HANDWRITING_FAMILY,
+} from '../services/stepHandoff.js'
 import {
   exportSpeechMarkdown as doExportSpeechMarkdown,
   exportElementsMarkdown as doExportElementsMarkdown,
@@ -318,10 +324,10 @@ const fourZonesCoords = computed(() => {
   }
 
   return [
-    { key: 'topic', name: '题目区 (Topic/Question)', tag: '题', label: '题目', ...toPx(q), desc: '承载题目文本与原图锚定（30px 微软雅黑，印刷体）' },
-    { key: 'analysis', name: '分析区 (Analysis)', tag: '析', label: '分析', ...toPx(an), desc: '引导审题思路与关系拆解（约 35px 手写尖尖体 LikeJianJianTi）' },
-    { key: 'solution', name: '解答区 (Solution)', tag: '解', label: '解答', ...toPx(so), desc: '核心规范算式与步骤推导（约 35px 手写尖尖体 LikeJianJianTi）' },
-    { key: 'summary', name: '总结区 (Summary)', tag: '总', label: '总结', ...toPx(sm), desc: '作答闭环与方法结论沉淀（约 35px 手写尖尖体 LikeJianJianTi）' },
+    { key: 'topic', name: '题目区 (Topic/Question)', tag: '题', label: '题目', ...toPx(q), desc: `承载题目文本与原图锦定（${QUESTION_FONT_SIZE}px 微软雅黑，印刷体）` },
+    { key: 'analysis', name: '分析区 (Analysis)', tag: '析', label: '分析', ...toPx(an), desc: `引导审题思路与关系拆解（约 ${BOARD_FONT_SIZE}px 手写体 ${HANDWRITING_FAMILY}）` },
+    { key: 'solution', name: '解答区 (Solution)', tag: '解', label: '解答', ...toPx(so), desc: `核心规范算式与步骤推导（约 ${BOARD_FONT_SIZE}px 手写体 ${HANDWRITING_FAMILY}）` },
+    { key: 'summary', name: '总结区 (Summary)', tag: '总', label: '总结', ...toPx(sm), desc: `作答闭环与方法结论沉淀（约 ${BOARD_FONT_SIZE}px 手写体 ${HANDWRITING_FAMILY}）` },
   ]
 })
 

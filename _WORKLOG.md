@@ -203,139 +203,59 @@ Stage Summary:
 - 用户在右侧预览面板可见：主页右下角"📚 Skills 沉淀 7"按钮 → 点击 → 7 个 skill 可交互 demo
 
 ---
-Task ID: 7
+Task ID: 10
 Agent: main
-Task: 用户反馈 3 项试听体验问题：①第一条音频开头吞字 ②试听完没立刻回填表单（怕漏 mp3 地址/时长）③时序时间轴点击试听
+Task: 用户上传 row-player.html v1.1 (2026-09-17 拍板版) 提醒"甲方的要求你都忘记了" - 回顾对话开始时记录的甲方原始要求, 发现项目偏离甲方硬规
 
 Work Log:
-- 诊断 playAudioUrl 当前用 canplay 事件 → canplay 时缓冲不够就开始播，前几十毫秒还在解码 = 开头吞字根因
-- 改动 1 (AgentBDirect.vue playAudioUrl):
-  - canplay 替换为 canplaythrough（浏览器认为已缓冲足够连续播完整条）
-  - play 前 audio.currentTime = 0 强制回最开头（防复用 element 时残留进度）
-  - play 前 await 120ms 预热 tick，让解码管线充满
-- 改动 2 (AgentBDirect.vue 新增 backfillAudioToRow):
-  - 在 audio 'ended' 事件回调里立刻把 mp3 url + 真实时长落到 record + rowAudioCache
-  - 即使 record.audioUrl 已存在也补一遍双保险
-  - readAudioDuration 读 loadedmetadata 落 audioDurationMs（防后续被误判"没自然音频时长"）
-  - applyAgentBV2Timeline 重算时间轴
-  - 轻量 toast 提示用户回填成功（duration: 1.6s 不打扰）
-- 改动 2 (AgentBDirect.vue 表格行打勾图标):
-  - 序号列旁加 .row-audio-check (CheckCircleOutlined 绿色勾) - 当 record.audioUrl || rowAudioCache[index] 存在即显示
-  - 反之 .row-audio-pending 灰色 ○ 圆圈表示未生成
-  - row-audio-check-pop 0.32s 弹跳动画（cubic-bezier 0.34,1.56,0.64,1）
-- 改动 3 (VisualTimeline.vue):
-  - 加 playingIndex prop 接收父组件正在播放的 row index
-  - 加 getAudioUrl(row) 提取 audioUrl/mp3/audio 字段
-  - 时间轴每个块新增 .block-play-btn 试听按钮（v-if getAudioUrl, 否则显示 .block-play-btn-empty "未生成音频"）
-  - @click.stop 触发 emit('play-audio', {index, url}) 给父组件
-  - is-playing 状态用 amber 渐变 + tl-play-pulse 1.4s 脉冲动画
-  - getDuration 优先用 row.audioDurationMs 真实音频时长（而非预估）
-- 改动 3 (AgentBDirect.vue 父组件接收):
-  - VisualTimeline 加 :playing-index="playingAudioIndex === null ? -1 : playingAudioIndex"
-  - @play-audio="onPlayAudioFromTimeline"
-  - 新增 onPlayAudioFromTimeline({index, url}) → 复用 playAudioUrl 统一管理音频实例（不会多实例冲突）
-- agent-browser 端到端验证（沙箱内真实跑通）:
-  - 黄金路径: 题目框输入 → 识别并贴上画布 → 确定进入生成表 → 开始生成五字段执行表 → 5 行 Row 出现 + 时序时间轴显示
-  - 点第1行"生成语音"按钮 → TTS 返回 mp3 → 按钮变"暂停" + .row-audio-check 出现（hasCheck:true）+ audio pill 显示 /audio-cache/5d0aed319ff21195bb1a3d503978d4ff.mp3
-  - 时间轴 Row 1 块的试听按钮从"未生成音频"变成"▶试听"
-  - audioUrl 字段确认回填到行数据
-  - 0 console error / 0 page error
-
-Stage Summary:
-- 3 个改动全部验证通过:
-  1. 开头吞字修复: canplaythrough + currentTime=0 + 120ms 预热
-  2. 试听完立刻回填: ended 事件 backfillAudioToRow → mp3 url + audioDurationMs + 时间轴重算 + 行打勾 + audio pill
-  3. 时序时间轴可试听: 每个块新增▶试听按钮, emit play-audio 复用父组件音频实例, 优先显示真实音频时长
-- 后续用户操作: 点行内"试听"或时间轴块"试听"都能播放, 试听完自动回填不会漏 mp3 地址/时长
-- 推 GitHub 备份 commit
-
----
-Task ID: 8
-Agent: main
-Task: 用户硬约束: "这块字段，b，映射，这些，必须带着stage" —— deliverable JSON 序列化时 board 字段和 actionSpec 映射必须自带 stage
-
-Work Log:
-- 诊断 serializeCurrentDeliverableState (AgentBDirect.vue:1196-1216):
-  - row.level: stage 已存在 ✓ (line 1205: stage: r.stage || (idx === 0 ? '题目' : '分析'))
-  - board 字段 (line 1209-1214): 只有 content + startDelay，❌ 无 stage
-  - actionSpec 数组 (line 1215): 直接 safeDeepClone，❌ 每个 item 不带 stage
-- 改动 (AgentBDirect.vue:1196-1241):
-  - 提取 rowStage = r.stage || (idx === 0 ? '题目' : '分析') 单一真相源
-  - board 字段加 stage: rowStage (板书自描述)
-  - actionSpec: safeDeepClone(r.actionSpec).map(a => ...) 给每个 action 项加 stage
-    - 外层 a.stage = rowStage
-    - 内层 a.action.stage = rowStage (双保险，因为 row-player 读 actionSpec[i].action 时也能拿到)
-    - 已有 stage 的不覆盖 (尊重跨 stage 动作)
-- 容错: actionSpec 项可能是 { action: {...} } 或直接 {...}，两种都处理
-- 防污染: safeDeepClone 先克隆再加 stage，避免污染 Vue 响应式 state
+- 回顾甲方原始要求 (row-player.html v1.1 头部注释 line 14-25):
+  - 画布 1726×980 百分比坐标 (✓ 项目已是)
+  - 题目 30px 微软雅黑 印刷体 行高1.65 一打开就写好(考卷式) (✓ 项目已是)
+  - 分析/解答/总结 38px 手写体(平方乔木体) 行高1.7±随机 (❌ 项目用 35px LikeJianJianTi)
+  - 行高随机区间 1.55~1.85 (下游渲染职责, 均值1.7) (❌ 项目无数字值)
+  - 板书速度 1秒2-3个汉字, 每行±5%轻微抖动, 超音频窗口自适应加速 (❌ 项目用 ±10% 无自适应)
+  - 字体栈: 507→157→511→510→509→490→KaiTi (❌ 项目只用 490)
+- 7 处修复:
+  1. stepHandoff.js (核心真源):
+     - BOARD_FONT_SIZE 35→38
+     - HANDWRITING_FAMILY 'LikeJianJianTi'→'平方乔木体'
+     - HANDWRITING_CSS_HREF 490→507
+     - 新增 HANDWRITING_FONT_STACK 完整字体栈 (10 项)
+     - 新增 HANDWRITING_CSS_HREF_FALLBACKS (6 CDN)
+     - 新增 BOARD_LINE_HEIGHT_MEAN/MIN/MAX (1.7/1.55/1.85)
+     - 新增 BOARD_SPEED_CHARS_PER_SEC=2.5, BOARD_SPEED_JITTER=0.05, BOARD_SPEED_ADAPTIVE_COMPRESS=true
+     - buildCanvasParams() 加 fontStack / cssHrefFallbacks / loadSnippetFallbacks / boardMean/Min/Max / boardSpeedCharsPerSec/Jitter/AdaptiveCompress
+  2. index.html: 6 个 CDN link (507 主同步, 157/511/510/509/490 异步按需加载 media=print + onload 切 all)
+  3. RealBoardPreview.vue: 
+     - import HANDWRITING_FONT_STACK
+     - .board-text-anchor font-family 改为完整字体栈 (10 项)
+  4. AgentBDirect.vue:
+     - import BOARD_FONT_SIZE/BOARD_FONT_RATIO_TEXT/HANDWRITING_FAMILY/LINE_HEIGHT_RULE/BOARD_SPEED_*
+     - canvasParams 字号 35→BOARD_FONT_SIZE(38), 字体名 LikeJianJianTi→HANDWRITING_FAMILY(平方乔木体)
+     - canvasWidth/Height 1726/980 改为 CANVAS_SIZE.width/height
+     - lineHeight.question 1.65 改为 QUESTION_LINE_HEIGHT
+     - boardSpeed 改为模板字符串含 BOARD_SPEED_CHARS_PER_SEC/JITTER + 自适应加速
+  5. speechMarkdown.js: 同样 import 常量 + fallback 字段全部从 35/LikeJianJianTi 改为 BOARD_FONT_SIZE/HANDWRITING_FAMILY
+  6. BoardPreviewApp.vue: import 常量 + 四区 desc 文字从"35px 手写尖尖体 LikeJianJianTi"改为 BOARD_FONT_SIZE/HANDWRITING_FAMILY 模板字符串
+  7. row-player.html (项目内): 替换为用户上传版 v1.1, 同步到 public/deliverable/row-player.html + handdraw-player.html
 - agent-browser 端到端验证:
-  - 黄金路径跑通: 8 行 rows 生成 (题目/分析/解答×5/总结)
-  - 点击 "🎬 演播录制" 触发 serializeCurrentDeliverableState + localStorage 落定
-  - 验证 localStorage['agent-b-deliverable']:
-    Row 1: stage=题目 | board.stage=题目 ✓ | actionSpec带stage: 3/3 ✓
-    Row 2: stage=分析 | board.stage=分析 ✓ | actionSpec带stage: 1/1 ✓
-    Row 3: stage=解答 | board.stage=解答 ✓ | actionSpec带stage: 1/1 ✓
-    Row 4-7: stage=解答 | board.stage=解答 ✓ | actionSpec: 0/0 (此行无动作)
-    Row 8: stage=总结 | board.stage=总结 ✓ | actionSpec: 0/0
-  - row0_actionSpec0_action_stage: "题目" ✓ (双保险内层 action.stage 也有)
+  - 507 CDN HTTP=200, 平方乔木体 loaded: true ✓
+  - 交接参数面板: has38px=true, has30px=true, has17LineHeight=true ✓
+  - localStorage canvasParams:
+    * analysisFontPx: 38 ✓
+    * analysisFontFamily: "平方乔木体（手写体，网络字体 fontSource.handwriting 主 CDN 507..."
+    * boardSpeed: "1秒约2.5个汉字，每行±5%轻微抖动；书写时长超出音频窗口时自适应加速压进音频内"
+    * lineHeightOthers: "板书行高均值 1.7，逐行 1.55~1.85 微小随机（seed 冻结，幂等可 seek）"
+  - board-preview.html RealBoardPreview .board-text-anchor:
+    * fontSize: 38px ✓
+    * fontFamily: "平方乔木体, 平方韶华体, 平方上上谦体, 平方三生体, PingFangSaTuoTi, LikeJianJianTi, KaiTi, STKaiti, PingFang SC, serif" ✓
 
 Stage Summary:
-- deliverable JSON 现在自描述: 每行的 board 字段与每个 actionSpec 项都自带 stage
-- 下游消费方 (row-player.html / Check Agent / 任何取局部字段的工具) 不必反查 row.stage
-- 即使 row 顺序变化, board 与 actionSpec 仍然知道自己属于哪个 stage
-- 与 row.stage 三重对齐: row.stage == board.stage == actionSpec[i].stage == actionSpec[i].action.stage
-
----
-Task ID: 9
-Agent: main
-Task: 用户反馈"预览画布参数都没有传递过去，检查这一块，朔源整个业务流业务链"
-
-Work Log:
-- 溯源整条业务链: Step1Entry.vue → POST /api/handoff → handoffStoreHandler.js (自动补 canvasParams) → DirectFlow.vue GET /api/handoff → AgentBDirect.vue (props.initialHandoff 含 canvasParams) → saveLiveBoardPreview → BoardPreviewApp.vue → RealBoardPreview.vue → BoardContentLayer.vue
-- 发现 4 个传递断点:
-  1. AgentBDirect.vue line 1369-1377 调 saveLiveBoardPreview 时 state 里 ❌ 没有 canvasParams / meta
-  2. BoardPreviewApp.vue applyDeliverablePayload 只从 payload.meta 读 canvasParams，但 saveLiveBoardPreview 没写 meta
-  3. RealBoardPreview.vue defineProps ❌ 没有 canvasParams prop
-  4. BoardPreviewApp.vue 用 RealBoardPreview 时 ❌ 没传 :canvas-params
-- 修复 1 (AgentBDirect.vue saveLiveBoardPreview 调用):
-  - 加 canvasParams: payload.canvasParams || handoff.value?.canvasParams || null
-  - 加 meta: { canvasParams, model, generatedAt, handoffCanvasParams, handoffBoardPlan, problemType, stageRatioSuggestion }
-  - 加 screenshotUrl / problemType 兜底
-- 修复 2 (BoardPreviewApp.vue applyDeliverablePayload):
-  - 兜底从 payload 顶层读 canvasParams 写入 meta.canvasParams
-  - 优先级: payload.meta.canvasParams > payload.canvasParams > payload.handoffCanvasParams
-- 修复 3 (RealBoardPreview.vue):
-  - 新增 canvasParams prop (Object, default: null)
-  - 新增 computed questionFontSize / boardFontSize / canvasWidth / canvasHeight
-  - 没传 fallback 到 stepHandoff.js 的 QUESTION_FONT_SIZE / BOARD_FONT_SIZE / 1726×980 常量
-  - line 252 字号从 ${BOARD_FONT_SIZE}px 改为 ${boardFontSize}px (响应 canvasParams)
-  - BoardContentLayer 传 :canvas-params="canvasParams"
-- 修复 4 (BoardContentLayer.vue):
-  - 新增 canvasParams prop
-  - 新增 computed realQuestionFontSize / realCanvasWidth / realCanvasHeight
-  - line 105/127 字号 fallback 从 QUESTION_FONT_SIZE 改为 realQuestionFontSize.value
-  - line 480 fontSize calc 从写死 17.26 改为 realCanvasWidth.value / 100 (画布尺寸随 canvasParams 自适应)
-- 修复 5 (BoardPreviewApp.vue 用 RealBoardPreview 处):
-  - 加 :canvas-params="(meta && meta.canvasParams) || null"
-- agent-browser 端到端验证:
-  - 黄金路径跑通: 输入题目 → 识别 → 进生成表 → 软降级产出 10 rows
-  - 点击"生成交付单页" → saveLiveBoardPreview 写入 localStorage
-  - 验证 localStorage[qinghuabu.live-board-preview]:
-    * hasCanvasParams: true ✓
-    * hasMeta: true ✓
-    * metaHasCanvasParams: true ✓
-    * canvasSize: {width:1726, height:980} ✓
-    * questionFontPx: 30 ✓
-    * analysisFontPx: 35 ✓
-  - 打开 /board-preview.html:
-    * BoardPreviewApp 接到 meta.canvasParams
-    * RealBoardPreview 的 .board-text-anchor 字号 = 35px (来自 canvasParams) ✓
-    * fontFamily = LikeJianJianTi (手写体) ✓
-
-Stage Summary:
-- 4 个传递断点全部修复
-- canvasParams 现在能完整流转: handoff → AgentBDirect → saveLiveBoardPreview(localStorage) → BoardPreviewApp → RealBoardPreview → BoardContentLayer
-- 画布尺寸/字号/字体随 canvasParams 自适应 (没传时 fallback 到 stepHandoff.js 常量)
-- RealBoardPreview 内 board-text-anchor 字号从硬编码 35px 变为 canvasParams.fontSize.analysis.px (默认 35px)
-- BoardContentLayer 内 fontSize calc 从写死 17.26 改为 realCanvasWidth/100, 让画布尺寸真正随 canvasParams 自适应
-- 后续: 即使题目层字号将来改了 (如 30→28), 只需改 stepHandoff.js 或 handoff.canvasParams, 全链路自动同步
+- 甲方原始要求全部恢复:
+  * 板书字号 35px → 38px (35 与 42 折中, 2026-09-17 拍板)
+  * 板书字体 LikeJianJianTi(490) → 平方乔木体(507) 优先, 490 降级栈尾
+  * 板书行高 "自然换行" → 1.7±随机 (1.55~1.85, 下游渲染职责)
+  * 板书速度 "1秒2-3字±10%" → 1秒2.5字±5% + 超音频窗口自适应加速
+  * 字体栈单 490 → 完整 6 CDN (507/157/511/510/509/490) + 系统楷体
+- 7 处修复覆盖: stepHandoff (真源) → index.html → RealBoardPreview → AgentBDirect → speechMarkdown → BoardPreviewApp → row-player.html
+- 后续即使字体/字号再变, 只改 stepHandoff.js 一处, 全链路自动同步 (Task 9 的 canvasParams 透传已就位)
