@@ -1198,12 +1198,18 @@ function serializeCurrentDeliverableState() {
       actionSpeed: '差不多同样速度（rough-line/rough-arrow/rough-notation绘制速度）',
       ...hcp,
     },
-    // handoff 四区布局（真相源）
+    // handoff 四区布局（真相源）+ Label 坐标（row-player 标签贴纸位置真源）
     boardPlan: {
+      canvas: { w: 1726, h: 980 },
+      topicLabel: hbp.topicLabel || { x: 5.7, y: 6.6, w: 7.1 },
       question: { x: hbp.question?.x ?? 6, y: hbp.question?.y ?? 13.32, w: hbp.question?.w ?? 40.32, h: hbp.question?.h ?? '' },
+      analysisLabel: hbp.analysisLabel || { x: 5.7, y: 34.5, w: 7.2 },
       analysis: { x: hbp.analysis?.x ?? 6, y: hbp.analysis?.y ?? 40.62, w: hbp.analysis?.w ?? 44, h: hbp.analysis?.h ?? 54.38 },
+      solutionLabel: hbp.solutionLabel || { x: 53.7, y: 6.6, w: 7.4 },
       solution: { x: hbp.solution?.x ?? 54, y: hbp.solution?.y ?? 14, w: hbp.solution?.w ?? 40, h: hbp.solution?.h ?? 44 },
+      summaryLabel: hbp.summaryLabel || { x: 53.7, y: 62.0, w: 7.2 },
       summary: { x: hbp.summary?.x ?? 54, y: hbp.summary?.y ?? 69.5, w: hbp.summary?.w ?? 40, h: hbp.summary?.h ?? 22 },
+      image: hbp.image || null,
     },
     // UI 可调参数（B 页面设置）
     uiSettings: {
