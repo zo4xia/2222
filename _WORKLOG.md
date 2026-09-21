@@ -324,3 +324,46 @@ Stage Summary:
 - 10 个 v3 升级方向 (附录 A) 供未来扩展
 - 用户可用其他 AI 按 Phase 3 逐项落地, 每完成一项填附录 D 追踪表
 - 后续若有新迭代, 请增量创建 v2.md, 不覆盖本文件
+
+---
+Task ID: 11 (续)
+Agent: main
+Task: 用户执行改进 2 时报 __VUE_HMR_RUNTIME__ is not defined - 追加 P5 阻断 bug 到改进指南
+
+Work Log:
+- 用户反馈: ReferenceError: __VUE_HMR_RUNTIME__ is not defined
+  at /src/components/BoardContentLayer.vue:898:3
+  at /@vite/client:531:53 (HMRClient.notifyListeners)
+- 真实诊断 (curl 实测):
+  - curl http://localhost:3000/src/components/BoardContentLayer.vue 首行:
+    import { createHotContext as __vite__createHotContext } from "/@vite/client";
+    import.meta.hot = __vite__createHotContext("/src/components/BoardContentLayer.vue");
+    import { computed, nextTick, ... } from "https://esm.sh/vue@3.5.39"  ← 生产版无 HMR runtime
+  - curl https://esm.sh/vue@3.5.39 首行:
+    /* esm.sh - vue@3.5.39 */
+    import "/@vue/runtime-dom@3.5.39/es2022/runtime-dom.mjs";
+    export * from "/vue@3.5.39/es2022/vue.mjs";  ← 无 __VUE_HMR_RUNTIME__ 导出
+- 根因 (非推测, 铁证):
+  1. Task 1/6 vite.config.js cdnExternalPlugin 把 vue external 到 https://esm.sh/vue@3.5.39
+  2. @vitejs/plugin-vue dev 模式为每个 .vue 注入 import.meta.hot = __vite__createHotContext(...)
+  3. .vue 文件改动触发 HMR 重建 → 调用 vue 内部 __VUE_HMR_RUNTIME__.rerender(component)
+  4. esm.sh 生产版 vue 不导出 __VUE_HMR_RUNTIME__ → ReferenceError
+  5. 任何 .vue 文件实际代码改动都会触发 (注释改动不会)
+- 影响: 用户用其他 AI 执行改进 2 (去 BOM) 或改进 3 (浏览器实测) 时, 任何 .vue 改动都会报错阻断
+- 追加到改进指南:
+  - 新增痛点 P5 (★ 阻断性 bug, 必须最先修)
+  - 方案 A: dev 模式不 external vue, build 模式才 external (评分 26/30)
+  - 方案 B: esm.sh ?dev 拉开发版 (评分高风险 1/5)
+  - 方案 C: dev 模式 vue 走 vite 预打包 (推荐, 风险最低 5/5)
+  - 新增改进 0 (紧急修复, 必须最先做, 在改进 1-10 前)
+  - 3.3 执行顺序: 改进 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10
+  - 3.4 质量检查点: 新增 Q0 (改进 0 完成后验收)
+  - 附录 D 执行追踪表: 新增改进 0 勾选项
+  - 附录 C 项目现状全景图: 新增 ✗★ __VUE_HMR_RUNTIME__ 报错
+  - 附录 F 引用文件清单: 新增 vite.config.js + BoardContentLayer.vue 引用 + 实测命令证据
+
+Stage Summary:
+- 迭代计划/下一步改进指南.md 从 968 行扩到 1180+ 行
+- P5 阻断 bug 完整诊断 + 3 方案对比 + 推荐方案 C + 紧急修复步骤
+- 改进 0 必须最先做, 否则后续任何 .vue 改动都会触发 HMR 报错
+- 严格执行用户硬要求: 只改文档不改代码 (本次只改 .md)
