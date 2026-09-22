@@ -66,9 +66,24 @@ export function createBoardToolRuntime({
   const scheduler = createHandActionScheduler()
   const preparedPlans = new Set()
 
+  function createNoopPlan(action, type = 'noop') {
+    const tool = action?.tool || 'unknown'
+    const order = Number.isFinite(Number(action?.order)) && Number(action.order) > 0
+      ? Math.round(Number(action.order))
+      : 1
+    return {
+      type,
+      id: `board-action:${type}:${tool}:${order}`,
+      order,
+      durationMs: 1,
+      execute: () => {},
+      remove: () => {},
+    }
+  }
+
   function prepare(action) {
     if (!action || typeof action !== 'object') {
-      return { type: 'noop', execute: () => {}, remove: () => {} }
+      return createNoopPlan(action)
     }
     try {
       if (action?.tool === ROUGH_NOTATION_TOOL_ID) {
@@ -91,15 +106,10 @@ export function createBoardToolRuntime({
       }
     } catch (err) {
       console.warn('[boardToolCatalog] prepare 动作失败降级:', action?.tool, err?.message)
-      return {
-        type: 'fallback-noop',
-        action,
-        execute: () => {},
-        remove: () => {},
-      }
+      return createNoopPlan(action, 'fallback-noop')
     }
     console.warn(`[boardToolCatalog] 未知板书动作工具: ${action?.tool || '空'}`)
-    return { type: 'noop', execute: () => {}, remove: () => {} }
+    return createNoopPlan(action)
   }
 
   return {
