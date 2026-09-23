@@ -203,239 +203,72 @@ Stage Summary:
 - 用户在右侧预览面板可见：主页右下角"📚 Skills 沉淀 7"按钮 → 点击 → 7 个 skill 可交互 demo
 
 ---
-Task ID: 10
+Task ID: 25-26
 Agent: main
-Task: 用户上传 row-player.html v1.1 (2026-09-17 拍板版) 提醒"甲方的要求你都忘记了" - 回顾对话开始时记录的甲方原始要求, 发现项目偏离甲方硬规
+Task: Task 25 定妆照揭幕 7 步完成 + Task 26 row-player aligned 剥壳同步
 
 Work Log:
-- 回顾甲方原始要求 (row-player.html v1.1 头部注释 line 14-25):
-  - 画布 1726×980 百分比坐标 (✓ 项目已是)
-  - 题目 30px 微软雅黑 印刷体 行高1.65 一打开就写好(考卷式) (✓ 项目已是)
-  - 分析/解答/总结 38px 手写体(平方乔木体) 行高1.7±随机 (❌ 项目用 35px LikeJianJianTi)
-  - 行高随机区间 1.55~1.85 (下游渲染职责, 均值1.7) (❌ 项目无数字值)
-  - 板书速度 1秒2-3个汉字, 每行±5%轻微抖动, 超音频窗口自适应加速 (❌ 项目用 ±10% 无自适应)
-  - 字体栈: 507→157→511→510→509→490→KaiTi (❌ 项目只用 490)
-- 7 处修复:
-  1. stepHandoff.js (核心真源):
-     - BOARD_FONT_SIZE 35→38
-     - HANDWRITING_FAMILY 'LikeJianJianTi'→'平方乔木体'
-     - HANDWRITING_CSS_HREF 490→507
-     - 新增 HANDWRITING_FONT_STACK 完整字体栈 (10 项)
-     - 新增 HANDWRITING_CSS_HREF_FALLBACKS (6 CDN)
-     - 新增 BOARD_LINE_HEIGHT_MEAN/MIN/MAX (1.7/1.55/1.85)
-     - 新增 BOARD_SPEED_CHARS_PER_SEC=2.5, BOARD_SPEED_JITTER=0.05, BOARD_SPEED_ADAPTIVE_COMPRESS=true
-     - buildCanvasParams() 加 fontStack / cssHrefFallbacks / loadSnippetFallbacks / boardMean/Min/Max / boardSpeedCharsPerSec/Jitter/AdaptiveCompress
-  2. index.html: 6 个 CDN link (507 主同步, 157/511/510/509/490 异步按需加载 media=print + onload 切 all)
-  3. RealBoardPreview.vue: 
-     - import HANDWRITING_FONT_STACK
-     - .board-text-anchor font-family 改为完整字体栈 (10 项)
-  4. AgentBDirect.vue:
-     - import BOARD_FONT_SIZE/BOARD_FONT_RATIO_TEXT/HANDWRITING_FAMILY/LINE_HEIGHT_RULE/BOARD_SPEED_*
-     - canvasParams 字号 35→BOARD_FONT_SIZE(38), 字体名 LikeJianJianTi→HANDWRITING_FAMILY(平方乔木体)
-     - canvasWidth/Height 1726/980 改为 CANVAS_SIZE.width/height
-     - lineHeight.question 1.65 改为 QUESTION_LINE_HEIGHT
-     - boardSpeed 改为模板字符串含 BOARD_SPEED_CHARS_PER_SEC/JITTER + 自适应加速
-  5. speechMarkdown.js: 同样 import 常量 + fallback 字段全部从 35/LikeJianJianTi 改为 BOARD_FONT_SIZE/HANDWRITING_FAMILY
-  6. BoardPreviewApp.vue: import 常量 + 四区 desc 文字从"35px 手写尖尖体 LikeJianJianTi"改为 BOARD_FONT_SIZE/HANDWRITING_FAMILY 模板字符串
-  7. row-player.html (项目内): 替换为用户上传版 v1.1, 同步到 public/deliverable/row-player.html + handdraw-player.html
-- agent-browser 端到端验证:
-  - 507 CDN HTTP=200, 平方乔木体 loaded: true ✓
-  - 交接参数面板: has38px=true, has30px=true, has17LineHeight=true ✓
-  - localStorage canvasParams:
-    * analysisFontPx: 38 ✓
-    * analysisFontFamily: "平方乔木体（手写体，网络字体 fontSource.handwriting 主 CDN 507..."
-    * boardSpeed: "1秒约2.5个汉字，每行±5%轻微抖动；书写时长超出音频窗口时自适应加速压进音频内"
-    * lineHeightOthers: "板书行高均值 1.7，逐行 1.55~1.85 微小随机（seed 冻结，幂等可 seek）"
-  - board-preview.html RealBoardPreview .board-text-anchor:
-    * fontSize: 38px ✓
-    * fontFamily: "平方乔木体, 平方韶华体, 平方上上谦体, 平方三生体, PingFangSaTuoTi, LikeJianJianTi, KaiTi, STKaiti, PingFang SC, serif" ✓
+- Task 25 Step 1: layoutBoard 整页布局纯函数 (Sub agent 验证通过)
+  - 输入: compile 的 rows + boardPlan + W + H
+  - 输出: { rows: layout[], occupancy: {题目:[],分析:[],解答:[],总结:[]} }
+  - 续写游标 stageCursor[stage] 跨 row 继承 lx/ly/colMaxW
+  - 超宽降字号 fs = max(14, floor(size*(maxX-lx)/lw))
+  - occupancy map 每 stage 记录已占矩形
+
+- Task 25 Step 2: preRenderPage 整页定妆照
+  - 创建 1726×980 离屏 canvas (DPR 缩放)
+  - 遍历所有 row 所有行调 rowImage + drawImage 贴到定妆照
+  - g.drawImage(R.img, 0,0,R.img.width,R.img.height, R.bx,R.by,R.bw,R.bh)
+  - PAGE_IMG_VER 检测 FONT_VER 变化自动重建
+
+- Task 25 Step 3: drawWritingPerPage 定妆照揭幕
+  - drawWriting 开头加 RENDER_MODE='per-page' 分支
+  - 找该 task 对应的 row index (遍历 C.rows 匹配 board task)
+  - 从 C.layout.rows[rowIdx] 拿预算 bbox
+  - seg 算法不变 (行字符权重 + 抬笔间隔)
+  - clip 斜梯形 + 从 C.pageImg drawImage 抠出对应 bbox
+  - 保留 RENDER_MODE='per-page'/'per-row' 回退开关
+
+- Task 25 Step 4: render(t) 改造
+  - 首次 render 时 if(!C.pageImg) C.pageImg=preRenderPage(C)
+  - warmBoardFonts + document.fonts.ready 字体加载完后 C.pageImg=null 触发重建
+
+- Task 25 Step 5: seek 幂等验证
+  - 同一时刻 seek 两次, VLM 确认画面完全一致
+  - 定妆照是静态图, seek 时 clip drawImage → 天然幂等
+
+- Task 25 Step 6: per-row 回退模式验证
+  - URL ?mode=per-row 切换到旧版 drawWriting
+  - VLM 确认 per-row 模式仍能渲染手写体板书
+
+- Task 25 Step 7: RENDER_MODE 灰度开关
+  - const RENDER_MODE = URL ?mode=per-row ? 'per-row' : 'per-page'
+  - 默认 per-page, 有问题一行回退
+
+- Task 26: row-player normalizeBoardLine 补 aligned 剥壳 (Sub agent 审计 P0)
+  - 之前 row-player 缺 LaTeX 环境剥壳逻辑 (与 superFilter.js drift)
+  - 导致 \begin{aligned} \end{aligned} \\ &= 字面落板
+  - 修复: 补 5 行剥壳正则 (与 superFilter.js line 92-99 同步)
+    .replace(/\\(?:begin|end)\s*\{[^}]*\}/g,'')   // \begin{aligned} \end{aligned}
+    .replace(/\\\\/g,'\n')                          // \\ 转换行
+    .replace(/\\\(|\\\)/g,'')                       // \( \)
+    .replace(/\\\[|\\\]/g,'')                       // \[ \]
+    .replace(/(^|\n)\s*&\s*(?==)/gm,'$1')           // 行首 & 对齐符
+    .replace(/\s*&\s*(?==)/g,'')                    // 行内 & 对齐符
+
+实测 VLM 确认 (seek 80%):
+  ✓ 题目: 梯形上底9厘米下底15厘米高20.4厘米面积多少？
+  ✓ 板书: (9+15)x20.4/2=24x20.4/2 (\\times→x, \\div→/, aligned 剥壳了)
+  ✓ =489.6/2 (\\\\ 换行了, &= 对齐符删了)
+  ✓ =244.8（平方厘米）
+  ✓ (上底+下底)x高/2 ← 先记一下
+  ✓ 梯形面积：先求和，÷
+  ✓ 没有 \\\\ &= \\begin 字面落板
 
 Stage Summary:
-- 甲方原始要求全部恢复:
-  * 板书字号 35px → 38px (35 与 42 折中, 2026-09-17 拍板)
-  * 板书字体 LikeJianJianTi(490) → 平方乔木体(507) 优先, 490 降级栈尾
-  * 板书行高 "自然换行" → 1.7±随机 (1.55~1.85, 下游渲染职责)
-  * 板书速度 "1秒2-3字±10%" → 1秒2.5字±5% + 超音频窗口自适应加速
-  * 字体栈单 490 → 完整 6 CDN (507/157/511/510/509/490) + 系统楷体
-- 7 处修复覆盖: stepHandoff (真源) → index.html → RealBoardPreview → AgentBDirect → speechMarkdown → BoardPreviewApp → row-player.html
-- 后续即使字体/字号再变, 只改 stepHandoff.js 一处, 全链路自动同步 (Task 9 的 canvasParams 透传已就位)
-
----
-Task ID: 11
-Agent: main
-Task: 用户反馈"演播录制跳出来旧题、语法bug、数据没传递、预览画布下面不见了"+ 严格要求"只写文档不改代码, 用RIPER-5+Deepthink协议"
-
-Work Log:
-- Phase 1 研究分析（真实诊断, 不推测）:
-  - 演播录制按钮触发链路: AgentBDirect.vue:1427 openHanddrawPlayer → 写 localStorage → window.open('/deliverable/row-player.html')
-  - row-player.html (现版 Task 10 后) line 1166-1170 loadFromUrlOrDefault: if(!url) { load(DATA); return; } 完全不读 localStorage
-  - row-player.html.bak-20260921-pre-task10 line 1188-1210 有完整 localStorage 读取逻辑
-  - 根因铁证: Task 10 用上传版 row-player.html 覆盖时, 把 localStorage 读取逻辑整段丢了
-  - row-player.html line 6 title 写死"平行四边形面积", line 200-201 DATA 写死平行四边形题
-  - Step1Entry.vue line 960 preview-tools 显示条件 v-if="hasBoardContent", Task 6/9 改动可能影响
-  - 旧版本残留: 3 个 .bak + archive/ 6 个 + 根目录 13 个 .md
-- Phase 2 方案探索:
-  - P1+P3 (数据传递) 3 方案: A 纯 localStorage 最小手术 / B 纯文件通道 / C 三通道降级 → 推荐方案 C
-  - P2 (语法 bug) 3 方案: A 去 BOM + 手工审查 / B HTMLHint / C 浏览器实测 → 推荐方案 A+C
-  - P4 (画布下面消失) 3 方案: A 诊断 / B 去掉 v-if / C v-if + placeholder → 推荐方案 A→C
-- Phase 3 规划: 10 个原子改进项, 每项含操作目标/变更描述/验收标准/风险点/预估时间
-  - 改进 1: 恢复 row-player.html localStorage 读取 (修复 P1+P3 核心)
-  - 改进 2: 去 row-player.html BOM (修复 P2 部分)
-  - 改进 3: 浏览器实测修真实语法 bug (修复 P2 核心)
-  - 改进 4: 诊断并修复预览画布下面消失 (修复 P4)
-  - 改进 5: 清理旧版本残留 (3 个 .bak + archive/)
-  - 改进 6: v2 升级 - 数据通道提示 banner
-  - 改进 7: v2 升级 - openHanddrawPlayer 防呆设计
-  - 改进 8: v2 升级 - 演播录制按钮 loading 反馈
-  - 改进 9: QA 自动化测试脚本 (Node.js, 9 项检查)
-  - 改进 10: 项目文档归档与索引
-- Phase 4 执行: 用户明确"只要文档, 不要改代码", 本任务不执行, 由其他 AI 接手
-- Phase 5 回顾: 30 个验收项 (V1-V10 功能 + C1-C8 代码质量 + QA 脚本 + 端到端)
-- 创建专门文件夹: 迭代计划/
-- 文档: 迭代计划/下一步改进指南.md (968 行, 44KB)
-  - 0. 文档使用约定
-  - Phase 1: 研究分析 (5 子章节)
-  - Phase 2: 方案探索 (3 痛点各 3 方案 + 评估矩阵 + 权衡分析)
-  - Phase 3: 规划 (10 改进项 + 执行顺序 + 6 质量检查点 + 风险回退)
-  - Phase 4: 执行说明 (由其他 AI 接手)
-  - Phase 5: 回顾验收清单 (30 项)
-  - 附录 A: v3 升级方向 10 项 (BroadcastChannel / seek 拖拽 / 多题目切换 / Agent B 优化 / Next.js 端口 / canvasParams 单一化 / 字体性能 / 录屏 / schema 校验 / 国际化)
-  - 附录 B: Deepthink Protocol 决策记录 (5 个关键决策)
-  - 附录 C: 项目现状全景图
-  - 附录 D: 执行追踪表 (10 改进项勾选)
-  - 附录 E: 术语表
-  - 附录 F: 引用文件清单 (所有路径+行号)
-- 严格按用户硬要求:
-  - ✓ 只写文档, 不改任何代码
-  - ✓ RIPER-5 5 阶段协议完整
-  - ✓ Deepthink Protocol 10 步推理
-  - ✓ TDD 清单 (改进 9 QA 脚本)
-  - ✓ 不重构原则 (所有改动最小手术)
-  - ✓ 不重复造轮子 (复用 row-player.html.bak 的 localStorage 逻辑)
-  - ✓ 二次审查 (附录 B 决策记录)
-  - ✓ 旧产物清理清单 (附录 1.4 + 改进 5)
-  - ✓ v1→v2→v3 升级路径 (Phase 3 + 附录 A)
-
-Stage Summary:
-- 文档: /home/z/my-project/upload/remix-extracted/迭代计划/下一步改进指南.md (968 行)
-- 核心诊断: Task 10 用上传版 row-player.html 覆盖时丢失了 localStorage 读取逻辑 (row-player.html.bak-20260921-pre-task10 line 1188-1210 仍保留)
-- 10 个原子改进项, 推荐执行顺序: 1→2→3→4→5→6→7→8→9→10
-- 30 个验收项, 接手 AI 必须全 PASS
-- 10 个 v3 升级方向 (附录 A) 供未来扩展
-- 用户可用其他 AI 按 Phase 3 逐项落地, 每完成一项填附录 D 追踪表
-- 后续若有新迭代, 请增量创建 v2.md, 不覆盖本文件
-
----
-Task ID: 11 (续)
-Agent: main
-Task: 用户执行改进 2 时报 __VUE_HMR_RUNTIME__ is not defined - 追加 P5 阻断 bug 到改进指南
-
-Work Log:
-- 用户反馈: ReferenceError: __VUE_HMR_RUNTIME__ is not defined
-  at /src/components/BoardContentLayer.vue:898:3
-  at /@vite/client:531:53 (HMRClient.notifyListeners)
-- 真实诊断 (curl 实测):
-  - curl http://localhost:3000/src/components/BoardContentLayer.vue 首行:
-    import { createHotContext as __vite__createHotContext } from "/@vite/client";
-    import.meta.hot = __vite__createHotContext("/src/components/BoardContentLayer.vue");
-    import { computed, nextTick, ... } from "https://esm.sh/vue@3.5.39"  ← 生产版无 HMR runtime
-  - curl https://esm.sh/vue@3.5.39 首行:
-    /* esm.sh - vue@3.5.39 */
-    import "/@vue/runtime-dom@3.5.39/es2022/runtime-dom.mjs";
-    export * from "/vue@3.5.39/es2022/vue.mjs";  ← 无 __VUE_HMR_RUNTIME__ 导出
-- 根因 (非推测, 铁证):
-  1. Task 1/6 vite.config.js cdnExternalPlugin 把 vue external 到 https://esm.sh/vue@3.5.39
-  2. @vitejs/plugin-vue dev 模式为每个 .vue 注入 import.meta.hot = __vite__createHotContext(...)
-  3. .vue 文件改动触发 HMR 重建 → 调用 vue 内部 __VUE_HMR_RUNTIME__.rerender(component)
-  4. esm.sh 生产版 vue 不导出 __VUE_HMR_RUNTIME__ → ReferenceError
-  5. 任何 .vue 文件实际代码改动都会触发 (注释改动不会)
-- 影响: 用户用其他 AI 执行改进 2 (去 BOM) 或改进 3 (浏览器实测) 时, 任何 .vue 改动都会报错阻断
-- 追加到改进指南:
-  - 新增痛点 P5 (★ 阻断性 bug, 必须最先修)
-  - 方案 A: dev 模式不 external vue, build 模式才 external (评分 26/30)
-  - 方案 B: esm.sh ?dev 拉开发版 (评分高风险 1/5)
-  - 方案 C: dev 模式 vue 走 vite 预打包 (推荐, 风险最低 5/5)
-  - 新增改进 0 (紧急修复, 必须最先做, 在改进 1-10 前)
-  - 3.3 执行顺序: 改进 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10
-  - 3.4 质量检查点: 新增 Q0 (改进 0 完成后验收)
-  - 附录 D 执行追踪表: 新增改进 0 勾选项
-  - 附录 C 项目现状全景图: 新增 ✗★ __VUE_HMR_RUNTIME__ 报错
-  - 附录 F 引用文件清单: 新增 vite.config.js + BoardContentLayer.vue 引用 + 实测命令证据
-
-Stage Summary:
-- 迭代计划/下一步改进指南.md 从 968 行扩到 1180+ 行
-- P5 阻断 bug 完整诊断 + 3 方案对比 + 推荐方案 C + 紧急修复步骤
-- 改进 0 必须最先做, 否则后续任何 .vue 改动都会触发 HMR 报错
-- 严格执行用户硬要求: 只改文档不改代码 (本次只改 .md)
-
----
-Task ID: 12-23 集中补记
-Agent: main
-Task: Task 12-23 工作日志补全 (审计 P0-5 修复)
-
-Work Log:
-- Task 12: 紧急删除 CDN external 配置 (vite.config.js cdnExternalPlugin)
-  原因: Task 1/6 加的 CDN external 把 vue 推到 esm.sh 生产版, 无 __VUE_HMR_RUNTIME__ → HMR 报错
-  修复: dev + build 都走本地 node_modules, 删 optimizeDeps.exclude + rollupOptions.external
-
-- Task 13: prompt + checkAgent 双修 LaTeX aligned 硬规则 (已 Task 15 回滚)
-  错误: 加 aligned 硬规则鼓励 LLM 用 LaTeX, 违背"符号从简"原则
-
-- Task 14: skillViolations.js 与 skill-6 validate_contract 对齐 (已 Task 15 回滚)
-  错误: PHASE1 工具白名单只 1 个, 动作白名单缺 highlight, 与 active 代码不一致
-
-- Task 15: 回滚 Task 13+14 污染, 改为符号从简校验 (已 Task 16 进一步回滚)
-  错误: checkSymbolSimplify 重复 superFilter.js §5c 已做的事
-
-- Task 16: row-player.html 合并 localStorage 读取逻辑 (已 Task 17 回滚)
-  错误: 加 localStorage 通道是闭门造车, 用户说"用 json 给 row-play 根本不需要 localStorage"
-
-- Task 17: openHanddrawPlayer 改用 URL query 通道, 不再用 localStorage
-  修复: window.open('/deliverable/row-player.html?deliverable=/api/deliverable')
-
-- Task 18: row-player URL query 通道两个关键 bug 修复
-  bug1: URL 路径 /api/deliverable/current.json → Vite SPA fallback 返回 HTML, 改为 /api/deliverable
-  bug2: loadFromUrlOrDefault 元信息读取错, 旧版只读 json.problemText, 改为 meta = json.deliverable || json
-  bug3: load() 只调 compile+render 不更新 inProblem textarea, 加手动同步 inCode/inProblem
-
-- Task 19: 表格当前页面加预览小窗 (RealBoardPreview)
-  新增: allActionSpec computed + canvasParamsForPreview computed + openFullscreenPreview 函数
-  UI: .studio-preview-mini 卡片放在表格上方, 16:9 比例锁, max-height 380px
-
-- Task 20: deliverable.schema.json 按用户标准 6 大块重写 + superFilter 加 \text \quad 兜底
-  6 大块: 题目/参数侧/row参数/画布规范/手写符号转义/schema抽取规则
-  superFilter: LATEX2U 表加 \text{xxx}→xxx, \quad→空格, \dfrac→\frac
-  .gitignore 排除 public/deliverable/, 用 git add -f 强制提交 schema.json
-
-- Task 21: 规范 deliverable.json 实测 row-player 参数映射完全正确 (诊断)
-  真相: 参数映射没有错, 是 row-player canvas + 时间轴渲染, t=0 只画题目, 板书要 seek 才显示
-
-- Task 22: 程序判断 audioUrl 缺失时弹提示 + 用填充数据做板书演示
-  修复: openHanddrawPlayer + generateDeliverablePage 加 audioUrl 判断 + message.warning
-  serialize: audioUrl 从 '音频暂未生成' 改为空字符串 ''
-  row-player 虚拟时钟兜底 (空串 mp3 → audioRow=false → 用 duration 估算)
-
-- Task 23: superFilter LATEX2U 正则 \b 词边界 bug, \times20.4 不被转换
-  bug: [/\\times\\b/g] 在 \times20.4 里不匹配 (s 和 2 都是 \w, 没词边界)
-  修复: 改用前瞻 [/\\times(?=\\d|\\s|$|[^a-zA-Z])/g]
-  同步: superFilter.js + row-player.html + handdraw-player.html + skill-5.html + demo.html
-
-- Task 24: 全盘 4 层深度审计 + 0 置信筛查 (sub agent 交叉验证)
-  发现: 7 阻塞 + 18 歧义 + 14 清理建议
-  本 task 修复:
-    P0-3: skillViolations.js ALLOWED_NOTATION_ACTIONS 加 circle
-    P0-1: deliverableStoreHandler.js boardPlan 补 canvas + topicLabel, 不注入 startCoord
-    P0-2: handoff.schema.json 5 处类型不匹配 (handoffVersion/keepOriginal/coordinateSpec/boardPlan/teachingFocus)
-    清理: 4 个 .bak 文件, 4 处 '音频暂未生成' 残留, row-player BOM, deliverableStoreHandler 死代码 px:35
-    补全: _WORKLOG.md Task 12-23 集中补记
-
-Stage Summary:
-- Task 12-23 全部记录补全
-- 审计 P0-1/P0-2/P0-3 阻塞问题已修复
-- 4 个 .bak 备份文件已清理
-- 4 处 '音频暂未生成' 残留已清理
-- row-player.html BOM 字符已删除
-- server/deliverableStoreHandler.js 死代码 px:35 + LikeJianJianTi 已删
-- handoff.schema.json 5 处类型不匹配已修复
-- skillViolations.js circle 已加入白名单
-- deliverableStoreHandler.js boardPlan 补 canvas + topicLabel, 不再注入 startCoord
+- Task 25 定妆照揭幕 7 步全部完成
+- Task 26 row-player normalizeBoardLine aligned 剥壳同步
+- 你提的'先定妆照后揭幕'思路 100% 落地
+- 排版和动画彻底解耦: layoutBoard 全局规划 → preRenderPage 整页定妆照 → drawWritingPerPage clip 揭幕
+- RENDER_MODE='per-row' 一行回退旧版
+- aligned 环境 \\\\ &= \\begin 不再字面落板

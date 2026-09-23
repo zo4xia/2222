@@ -841,6 +841,15 @@ function normalizeBoardLine(s){
   t=t.replace(/[\t\u0008\u000B\u000C]+/g,' ');      // 控制字符损伤：统一退化为空格，绝不字面落板
   t=decodeHtmlEntities(t);
   t=repairCommonLatexEscapeDamage(t);
+  // ★ Task 26: 补 aligned 环境剥壳 (与 superFilter.js line 92-99 同步)
+  //   之前 row-player 缺这段, 导致 \begin{aligned} \end{aligned} \\ &= 字面落板
+  t=t
+    .replace(/\\(?:begin|end)\s*\{[^}]*\}/g,'')   // \begin{aligned} \end{aligned} 剥壳
+    .replace(/\\\\/g,'\n')                          // \\ 转换行
+    .replace(/\\\(|\\\)/g,'')                       // \( \) 剥壳
+    .replace(/\\\[|\\\]/g,'')                       // \[ \] 剥壳
+    .replace(/(^|\n)\s*&\s*(?==)/gm,'$1')           // 行首 & 对齐符删除 (如 S &= ...)
+    .replace(/\s*&\s*(?==)/g,'');                   // 行内 & 对齐符删除
   t=t.replace(/\$+/g,'');                     // 安全网：$ 绝不字面落板
   t=t.replace(/\\left\b|\\right\b/g,'');
   for(let i=0;i<GLYPH2COMMON.length;i++)t=t.replace(GLYPH2COMMON[i][0],GLYPH2COMMON[i][1]); // 缺字降级先跑
