@@ -399,7 +399,85 @@ function compile(data){
     return o;
   });
   const lastGap=rows.length?rows[rows.length-1].gapAfterMs:GAP;
-  return {W:W,H:H,rows:rows,total:Math.max(1,acc-lastGap),data:data,tagAnchor:tagAnchor};
+  // ★ Task 25 Step 1: 整页布局 pass —— 抽出 drawWriting 的布局决策, 全局规划所有 row 所有行
+  //   输入: rows (compile 输出, 含 plan + row.board + row.stage) + boardPlan + W + H
+  //   输出: layout[ rowIndex ] = [ { li, text, x, y, size, lw, color } ] 每行的 bbox
+  //         + occupancy[ stage ] = [ { x1,y1,x2,y2 } ] 该 stage 已占矩形 (跨 row 全局)
+  //   drawWriting 改为读 C.layout[rowIdx] 不再自己布局 (Step 3 改)
+  const layout = layoutBoard(rows, bp, W, H);
+  return {W:W,H:H,rows:rows,total:Math.max(1,acc-lastGap),data:data,tagAnchor:tagAnchor,layout:layout};
+}
+
+/* ============ ★ Task 25 Step 1: layoutBoard 整页布局纯函数 ============
+ * 把每个 row 的 board.content 按行拆, 整页级规划落笔点 + 字号 + 行宽:
+ *  - 落笔点: 第一行用 resolveBoardCoord (row.board.startCoord > boardPlan 区起角+2%/4% > fallback)
+ *           同 stage 后续 row 续在前一 row 末行下方 (跨 row 全局, 解决"不知道下一 row 写哪")
+ *  - 字号: 默认 38px, 超宽自适应降字号 (保号不出界)
+ *  - 行宽: measureLine 真实测量
+ *  - 到底换列: ly+lh > maxY 时 lx += colMaxW + colGap, ly = 该 stage 起始 y
+ *  - occupancy map: 每 stage 维护已占矩形列表, 防 row 间撞 (当前只做记录, Step 3 渲染时用)
+ * 纯函数, 不画 canvas, 不读 ctx, 只算布局 → 幂等可 seek
+ * ===================================================== */
+function layoutBoard(rows, bp, W, H){
+  const size=38;
+  const marginX=10, marginY=10, colGap=Math.round(size*0.9);
+  const maxX=W-marginX, maxY=H-marginY;
+  // 每 stage 维护: { curX, curY, colMaxW, startY } 续写游标
+  const stageCursor={};
+  // occupancy map: 每 stage 的已占矩形列表 (供后续 Step 3 防撞)
+  const occupancy={'题目':[],'分析':[],'解答':[],'总结':[]};
+  // layout[rowIdx] = [ { li, text, x, y, size, lw, color } ]
+  const layout=new Array(rows.length);
+
+  for(let ri=0; ri<rows.length; ri++){
+    const r=rows[ri]; if(!r||!r.row){layout[ri]=[];continue;}
+    const stage=r.row.stage||'分析';
+    const color=STAGE_COLOR[stage]||'#000000';
+    const task=r.plan.find(k=>k.type==='board');
+    if(!task||!task.content){layout[ri]=[];continue;}
+    const lines=toBoardLines(task.content);
+    lines.forEach(l=>{if(STRUCT_MATH.test(l))FORMULA_LINES.add(l);});
+    const seed=hashStr(task.content||'');
+    const lhJ=jit(seed+1,lines.length,0.12).map(d=>1.57+d);
+
+    // 落笔点: 同 stage 续写游标 > resolveBoardCoord (首个 row / 游标重置)
+    let cur=stageCursor[stage];
+    let lx, ly, colMaxW;
+    if(cur && cur.colMaxW>0){
+      // 续写: 继承前一 row 末尾的 lx, ly, colMaxW
+      lx=cur.lx; ly=cur.ly; colMaxW=cur.colMaxW;
+    } else {
+      // 首次进入该 stage: 用 resolveBoardCoord 算起手点
+      const co=resolveBoardCoord(r.row, bp, stage);
+      const px=co.pct?W*co.x/100:co.x, py=co.pct?H*co.y/100:co.y;
+      lx=px; ly=py; colMaxW=0;
+    }
+    const startY=ly;
+
+    const rowLayout=[];
+    for(let li=0; li<lines.length; li++){
+      const baseW=measureLine(lines[li], size, HAND_FONT);
+      // 到底换列: ly+lh > maxY → 换列, ly 回到该 stage 起始 y
+      if(li>0 && ly+size*lhJ[li]>maxY){
+        lx+=colMaxW+colGap; ly=startY; colMaxW=0;
+      }
+      let fs=size, lw=baseW;
+      // 超宽降字号保号不出界
+      if(lx+lw>maxX && lw>0){
+        fs=Math.max(14,Math.floor(size*(maxX-lx)/lw));
+        lw=lw*fs/size;
+      }
+      rowLayout.push({li:li, text:lines[li], x:lx, y:ly, size:fs, lw:lw, color:color});
+      // 记 occupancy (该 stage 已占矩形)
+      occupancy[stage].push({x1:lx, y1:ly, x2:lx+lw, y2:ly+fs*lhJ[li]});
+      colMaxW=Math.max(colMaxW, lw);
+      ly+=fs*lhJ[li];
+    }
+    layout[ri]=rowLayout;
+    // 更新该 stage 续写游标 (供下一 row 续写)
+    stageCursor[stage]={lx:lx, ly:ly, colMaxW:colMaxW, startY:startY};
+  }
+  return {rows:layout, occupancy:occupancy};
 }
 
 /* ============ 4. rough 手绘（纯 Canvas，无外部依赖） ============ */
