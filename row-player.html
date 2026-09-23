@@ -480,6 +480,58 @@ function layoutBoard(rows, bp, W, H){
   return {rows:layout, occupancy:occupancy};
 }
 
+/* ============ ★ Task 25 Step 2: preRenderPage 整页定妆照 ============
+ * 创建 1726×980 离屏 canvas, 遍历所有 row 所有行调 rowImage + drawImage 贴到对应 bbox
+ * 结果挂到 C.pageImg (一张完整定妆照 canvas)
+ * render(t) 时按 row 时间轴只揭对应行 bbox 区域 (Step 4)
+ * 字体加载完 (FONT_VER++) 时 pageImg 整批重建
+ * ===================================================== */
+let PAGE_IMG=null, PAGE_IMG_VER=-1;
+function preRenderPage(C){
+  if(!C||!C.layout||!C.layout.rows)return null;
+  // 字体版本变了 → 重建
+  if(PAGE_IMG && PAGE_IMG_VER===FONT_VER)return PAGE_IMG;
+  const W=C.W, H=C.H;
+  const c=document.createElement('canvas');
+  c.width=Math.ceil(W*DPR); c.height=Math.ceil(H*DPR);
+  const g=c.getContext('2d');
+  g.scale(DPR,DPR);
+  // 透明背景 (只画板书, 题目/标签/动作由 render 主画布画)
+  g.clearRect(0,0,W,H);
+  // 遍历所有 row 所有行, rowImage + drawImage 贴到定妆照
+  for(let ri=0; ri<C.layout.rows.length; ri++){
+    const rowLayout=C.layout.rows[ri];
+    if(!rowLayout||!rowLayout.length)continue;
+    // 找该 row 的 board task (含 content + seed)
+    const rowData=C.rows[ri]; if(!rowData||!rowData.row)continue;
+    const stage=rowData.row.stage||'分析';
+    const task=rowData.plan.find(k=>k.type==='board');
+    if(!task||!task.content)continue;
+    const seed=hashStr(task.content||'');
+    let chIdx0=0;
+    for(const L of rowLayout){
+      const R=rowImage({
+        content:String(task.content||''),
+        li:L.li, text:L.text, x:L.x, y:L.y, size:L.size,
+        font:HAND_FONT, color:L.color, seed:seed, chIdx0:chIdx0, amp:1.2
+      });
+      // 贴到定妆照 (完整贴, 不 clip — clip 在 render 时做)
+      // ★ R.img 是 DPR 缩放的 (width=bw*DPR), 但 g 已经 scale(DPR,DPR), 所以用主画布坐标贴
+      g.drawImage(R.img, 0, 0, R.img.width, R.img.height, R.bx, R.by, R.bw, R.bh);
+      chIdx0+=L.text.length;
+    }
+  }
+  PAGE_IMG=c; PAGE_IMG_VER=FONT_VER;
+  return PAGE_IMG;
+}
+
+/* ============ ★ Task 25 Step 3: drawWriting 改为从定妆照揭幕 ============
+ * 不再调 rowImage (定妆照已预渲染), 改为从 C.pageImg 按 bbox clip+drawImage 揭幕
+ * p 进度映射保持不变 (行字符权重 + 抬笔间隔)
+ * 保留 RENDER_MODE 开关: 'per-page' (新) | 'per-row' (旧, 回退保险)
+ * ===================================================== */
+const RENDER_MODE='per-page';   // ★ Task 25 Step 7: 灰度开关, 有问题改 'per-row' 一行回退
+
 /* ============ 4. rough 手绘（纯 Canvas，无外部依赖） ============ */
 function rline(ctx,x1,y1,x2,y2,seed,amp){
   const n=Math.max(6,Math.round(Math.hypot(x2-x1,y2-y1)/18));
@@ -883,7 +935,100 @@ function drawProblemImage(ctx,W,H){
 const BASE_CHAR_MS=400, HAND_LIFT_MS=600;
 const FEATHER_PX=2;   // 笔尖羽化：纯 clip 切口是硬的，抹一条软边更像笔推进（成本极低）
 
+/* ============ ★ Task 25 Step 3: drawWritingPerPage 定妆照揭幕 ============
+ * 从 C.pageImg (整页定妆照) 按 row 时间轴揭幕对应行
+ * 不再调 rowImage (定妆照已预渲染), 只做 clip + drawImage
+ * p 进度映射: 行字符权重 + 抬笔间隔 (与旧 drawWriting seg 算法一致)
+ * ===================================================== */
+function drawWritingPerPage(task, p, W, H, stage){
+  // 找该 task 对应的 row index (通过 content 匹配, 因为 drawWriting 只拿到 task 不拿 rowIdx)
+  // ★ 更稳: 遍历 C.rows 找 board task === 当前 task
+  let rowIdx=-1;
+  for(let ri=0; ri<C.rows.length; ri++){
+    const t=C.rows[ri].plan.find(k=>k.type==='board');
+    if(t===task){rowIdx=ri;break;}
+  }
+  if(rowIdx<0)return;  // 找不到对应 row, 不画
+  const rowLayout=C.layout.rows[rowIdx];
+  if(!rowLayout||!rowLayout.length)return;
+
+  const lines=toBoardLines(task.content);
+  const seed=hashStr(task.content||'');
+  const spJ=jit(seed+2,lines.length,0.10).map(d=>1+d);
+
+  // seg 算法 (与旧 drawWriting 一致): 行字符权重 + 抬笔间隔
+  const seg=[]; let ci=0;
+  lines.forEach((l,li)=>{
+    seg.push({t:'w',li:li,text:l,ci:ci,w:(isRuleLine(l)?2:Math.max(1,l.length))*spJ[li]});
+    ci+=l.length;
+    if(li<lines.length-1)seg.push({t:'l',w:HAND_LIFT_MS/BASE_CHAR_MS});
+  });
+  const totalW=seg.reduce((a,s)=>a+s.w,0);
+  const shown=p*totalW;
+  let acc=0;
+  const sc=getScratch(W,H), sg=sc.getContext('2d');
+
+  for(const s of seg){
+    const w0=acc; acc+=s.w;
+    if(shown<=w0)break;
+    if(s.t==='l')continue;   // 抬笔期间画面静止
+    if(!s.text)continue;
+    const pr=Math.min(1,(shown-w0)/s.w);
+    const L=rowLayout[s.li]; if(!L)continue;
+    // ★ 从定妆照揭幕: 计算 bbox → clip 斜梯形 → drawImage 从 PAGE_IMG 抠出
+    // 用 rowImage 算 bbox (与定妆照一致, 命中缓存)
+    const R=rowImage({
+      content:String(task.content||''),
+      li:s.li, text:s.text, x:L.x, y:L.y, size:L.size,
+      font:HAND_FONT, color:L.color, seed:seed, chIdx0:s.ci, amp:1.2
+    });
+    const lw=R.w;
+    const rnd=mulberry32(seed+31+s.li);
+    const tilt=(rnd()-0.5)*2*0.0175;
+    const sl=0.02+rnd()*0.03, dir=rnd()<0.5?-1:1;
+    const at=pr+(dir>0?sl:-sl*0.6), ab=pr+(dir>0?-sl*0.6:sl);
+    const xA=R.bx-4, xB=R.bx+R.bw+4, yT=R.by-4, yB=R.by+R.bh+4;
+    const xt=Math.max(xA,Math.min(xB,L.x+lw*at));
+    const xb=Math.max(xA,Math.min(xB,L.x+lw*ab));
+    // 揭示: 清 scratch → clip 斜梯形 → 从定妆照 drawImage 对应区域
+    sg.clearRect(R.bx,R.by,R.bw,R.bh);
+    sg.save();
+    sg.beginPath();
+    sg.moveTo(xA,yT); sg.lineTo(xt,yT); sg.lineTo(xb,yB); sg.lineTo(xA,yB); sg.closePath();
+    sg.clip();
+    // ★ 从 PAGE_IMG (定妆照) 抠出对应 bbox 区域
+    //   PAGE_IMG 尺寸 = W*DPR × H*DPR, 坐标要乘 DPR; 输出到 scratch 用主画布坐标
+    sg.drawImage(C.pageImg,
+      R.bx*DPR, R.by*DPR, R.bw*DPR, R.bh*DPR,   // 源 (定妆照, DPR 坐标)
+      R.bx, R.by, R.bw, R.bh                    // 目标 (scratch, 主画布坐标)
+    );
+    sg.restore();
+    if(FEATHER_PX>0){
+      const dx=xt-xb, dy=yB-yT, L2=Math.hypot(dx,dy)||1;
+      const nx=dy/L2, ny=-dx/L2, mx=(xt+xb)/2, my=(yT+yB)/2, F=FEATHER_PX;
+      const gr=sg.createLinearGradient(mx-nx*F,my-ny*F,mx+nx*F,my+ny*F);
+      gr.addColorStop(0,'rgba(0,0,0,0)');
+      gr.addColorStop(0.5,'rgba(0,0,0,0.55)');
+      gr.addColorStop(1,'rgba(0,0,0,0)');
+      sg.globalCompositeOperation='destination-out';
+      sg.fillStyle=gr; sg.fillRect(R.bx,R.by,R.bw,R.bh);
+      sg.globalCompositeOperation='source-over';
+    }
+    ctx.save();
+    ctx.translate(R.bx,R.by); ctx.rotate(tilt);
+    ctx.drawImage(sc, R.bx,R.by,R.bw,R.bh, 0,0,R.bw,R.bh);
+    ctx.restore();
+  }
+}
+
 function drawWriting(task,p,W,H,stage){
+  // ★ Task 25 Step 3: per-page 定妆照揭幕模式
+  //   如果 RENDER_MODE='per-page' 且 C.pageImg 已预渲染, 走定妆照揭幕
+  //   否则走旧 per-row 逻辑 (回退保险)
+  if(RENDER_MODE==='per-page' && C && C.pageImg && C.layout && C.layout.rows){
+    drawWritingPerPage(task, p, W, H, stage);
+    return;
+  }
   // coord 可能是字符串 "[x%, y%]"（外部 JSON），也可能是 compile 已解析好的对象
   const co=parseCoord(task.coord)
         || (task.coord&&isFinite(+task.coord.x)&&isFinite(+task.coord.y)
@@ -1035,6 +1180,12 @@ function render(t){
   ctx.clearRect(0,0,W,H);
   // 板面色：底图板面区是透明挖空，透出这层浅纸白（规格黑字/红字在此底上成立）
   ctx.fillStyle='#fbfaf6'; ctx.fillRect(0,0,W,H);
+
+  // ★ Task 25 Step 4: per-page 模式下, 首次 render 时生成定妆照
+  //   之后 drawWriting 从定妆照揭幕, 不再调 rowImage
+  if(RENDER_MODE==='per-page' && C && C.layout && !C.pageImg){
+    C.pageImg=preRenderPage(C);
+  }
 
   if(SHOW_GRID){
     const bp=C.data.boardPlan||{};
@@ -1402,6 +1553,8 @@ function warmBoardFonts(){
     document.fonts.load('38px "平方乔木体"',txt)
   ]).catch(function(){}).then(function(){
     FONT_VER++; ROW_CACHE.clear();                   // 字体到位后旧行图全部作废，必须整批重建
+    // ★ Task 25 Step 4: 字体加载完, 定妆照也要重建 (PAGE_IMG_VER 会在 preRenderPage 里检测 FONT_VER 变化)
+    if(C) C.pageImg=null;                             // 清掉旧定妆照, render 时重新 preRenderPage
     if(C){ render(now()); reportFontState(txt); }
   });
 }
@@ -1418,6 +1571,8 @@ function reportFontState(txt){
 warmBoardFonts();
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){
   FONT_VER++; ROW_CACHE.clear();
+  // ★ Task 25 Step 4: 字体 ready 后, 定妆照也要重建
+  if(C)C.pageImg=null;
   if(C)render(now());
 });
 // 调试/分享入口：#t=毫秒 直接定位到任意时刻（render 纯函数保证画面正确）
