@@ -530,7 +530,8 @@ function preRenderPage(C){
  * p 进度映射保持不变 (行字符权重 + 抬笔间隔)
  * 保留 RENDER_MODE 开关: 'per-page' (新) | 'per-row' (旧, 回退保险)
  * ===================================================== */
-const RENDER_MODE='per-page';   // ★ Task 25 Step 7: 灰度开关, 有问题改 'per-row' 一行回退
+// ★ Task 25 Step 7: 灰度开关 - 默认 per-page (新), URL ?mode=per-row 可回退旧版
+const RENDER_MODE = (new URLSearchParams(location.search).get('mode') === 'per-row') ? 'per-row' : 'per-page';
 
 /* ============ 4. rough 手绘（纯 Canvas，无外部依赖） ============ */
 function rline(ctx,x1,y1,x2,y2,seed,amp){
