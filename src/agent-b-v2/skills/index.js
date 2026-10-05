@@ -4,10 +4,12 @@
  */
 import { defaultFallback } from './default-fallback/index.js'
 import { liyongleElementary } from './liyongle-elementary/index.js'
+import { boardLecture } from './board-lecture/index.js'
 
 export const SKILLS = [
   defaultFallback,
   liyongleElementary,
+  boardLecture,
 ]
 
 export const DEFAULT_SKILL_ID = 'default-fallback'
