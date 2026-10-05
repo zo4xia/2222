@@ -12,18 +12,9 @@
  *   lib 函数 import stepHandoff.js 画布参数（唯一真源），
  *   调用方从 boardLayout.js BOARD_LAYOUT 传入实际区域宽高。
  */
-let RULES_MD = ''
-try { RULES_MD = (await import('./rules.md?raw')).default } catch {
-  try {
-    const { readFileSync } = await import('node:fs')
-    const { fileURLToPath } = await import('node:url')
-    const { dirname, resolve } = await import('node:path')
-    const __dirname = dirname(fileURLToPath(import.meta.url))
-    RULES_MD = readFileSync(resolve(__dirname, 'rules.md'), 'utf8')
-  } catch { RULES_MD = '' }
-}
+import { RULES } from './rules.js'
 
-const INLINE_RULES = `# 板书排版标准化规范（内联兜底）
+const INLINE_FALLBACK = `# 板书排版标准化规范（内联兜底）
 ## 6 步流程
 1. 符号规范化（20 条替换，长匹配优先）
 2. 容量估算（floor/ceil 公式）
@@ -52,7 +43,7 @@ export const boardLecture = {
       '',
       '---',
       '',
-      RULES_MD || INLINE_RULES,
+      RULES || INLINE_FALLBACK,
     ].join('\n')
   },
 }
