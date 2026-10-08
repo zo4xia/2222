@@ -1314,6 +1314,7 @@ function serializeCurrentDeliverableState() {
     apiSpecVersion: '2.0.0',
     apiDocUrl: '/deliverable/DELIVERABLE_API_SPEC.md',
     specificationSummary: '每个 row 为一组原子单元；语音全程；板书与动作二者绝对互斥；动作时长定量 1~2 秒作为标点停顿。供下游课件制作与画布 Agent 直接消费。',
+    specAnnotation: '画布规格批注：尺寸 1726x980、比例、题目/板书字号、stage 四区坐标落座区间、越界与手稿风格。',
     projectCode: code,
     problemText: handoff.value?.problemText || '',
     sourceImageUrl: handoff.value?.sourceImageDataUrl || handoff.value?.sourceImageUrl || '',
@@ -1700,7 +1701,7 @@ function isRefineFieldEqual(original, refined) {
                   <a-descriptions
                     bordered
                     size="small"
-                    :column="{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }"
+                    :column="2"
                     class="handoff-descriptions"
                   >
                     <a-descriptions-item label="题型分类">
@@ -1728,7 +1729,7 @@ function isRefineFieldEqual(original, refined) {
                 <a-descriptions
                   bordered
                   size="small"
-                  :column="{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }"
+                  :column="2"
                   class="handoff-descriptions"
                   style="margin-top: 10px;"
                 >
@@ -1804,7 +1805,7 @@ function isRefineFieldEqual(original, refined) {
                 <a-descriptions
                   bordered
                   size="small"
-                  :column="{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }"
+                  :column="2"
                   class="handoff-descriptions"
                 >
                   <a-descriptions-item label="交接来源">
@@ -1864,7 +1865,7 @@ function isRefineFieldEqual(original, refined) {
                 <a-descriptions
                   bordered
                   size="small"
-                  :column="{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }"
+                  :column="2"
                   :class="['handoff-descriptions', { 'refine-applied-fields': refineAppliedAt }]"
                 >
                   <a-descriptions-item label="知识分析">

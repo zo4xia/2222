@@ -1,6 +1,31 @@
 # 工程日志
 
-## 2026-09-16 录屏交付按钮增加题目识别与 TTS 音轨状态预检查及 Ant Design 引导 Modal
+## 2026-10-08 交付物 Schema 完整性、手写符号规范与 row-player 契约彻底压实
+
+**背景与口径**：
+- 用户要求恢复夏夏自研设计：清理外部 Agent 强加的锁机制与死约束，保证 Agent B 生成的 deliverable 产物与 `public/deliverable/deliverable.schema.json` 以及 `public/row-player.html` 的入参规范完全匹配。
+- 坚决落实手写字体符号转义规范：能用常用标点符号画出来的数学公式，绝对不使用复杂 LaTeX 拆坏手写字体（如：乘号用英文字母 `x`、除号用 `.-.` 或长横线配括号 `)`、加减用 `±`、箭头用 `->`、三角形用中文 `三角形`、因为所以用点 `.` 等）。
+- 补全 `deliverable.schema.json` 中的 `specAnnotation` 描述字段以及 `boardPlan` 四区完整配置。
+
+**改动项**：
+1. `server/deliverableStoreHandler.js`：
+   - 补齐 `payload` 顶层 `specAnnotation` 字段，确保符合 JSON Schema 规范定义；
+   - 补全持久化 `boardPlan` 必填及关键字段（`canvas` 宽1726高980、`layoutMode`、`topicLabel`、`analysisLabel`、`solutionLabel`、`summaryLabel`、`image` 等）。
+2. `src/agent-b-v2/serializeDeliverableState.js` & `src/agent-b-v2/AgentBDirect.vue`：
+   - 序列化生成器补齐 `specAnnotation` 字段；
+   - 消除 Ant Design Vue `a-descriptions` 的 `:column` 响应式对象告警（静态设置为 `2`）。
+3. `src/agent-b-v2/prompt.js`：
+   - 完善手写体数学符号规范指令，明确严禁使用 TeX 环境拆坏板书，保护手写字体兼容性与夏夏原始设计意图。
+4. `src/board-tools/boardToolCatalog.js`：
+   - 补齐动作 fallback/noop 返回对象的 `id`、`order`、`durationMs`、`gapAfterMs` 和 `execute` 方法，彻底根除“手部动作缺少 id 或 execute”运行时异常。
+
+**验证**：
+- Ajv 编译 `deliverable.schema.json` 并对真实 payload 运行验证：全部通过（`Result: true`）。
+- `compile_applet`：构建成功（`Build succeeded`）。
+- `/api/health`：正常在线响应（200 OK）。
+
+---
+
 
 **背景与口径**：
 - 用户要求在录屏交付按钮中添加预检查逻辑：如果题目识别状态或 TTS 音轨状态未就绪，点击时弹出一个 Ant Design Modal，展示当前未就绪的模块列表，并指引用户完成。

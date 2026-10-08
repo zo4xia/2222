@@ -72,6 +72,16 @@ export function normalizeBoard(board) {
   return { content: '', startDelay: 0 }
 }
 
+export function normalizeBoardsField(boards, legacyBoard) {
+  if (Array.isArray(boards) && boards.length > 0) {
+    return boards.map(b => normalizeBoard(b))
+  }
+  if (legacyBoard !== undefined && legacyBoard !== null) {
+    return [normalizeBoard(legacyBoard)]
+  }
+  return []
+}
+
 // ponytail: JSON 解析唯一真源已抽到 src/lib/parseLLMJson.js，本地实现全部删除
 // 6 处手搓 parser (contract / check-agent / 4 个 server handler) 统一 import parseLLMJson
 import { parseLLMJson } from '../lib/parseLLMJson.js'

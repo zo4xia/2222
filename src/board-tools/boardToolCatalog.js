@@ -68,7 +68,15 @@ export function createBoardToolRuntime({
 
   function prepare(action) {
     if (!action || typeof action !== 'object') {
-      return { type: 'noop', execute: () => {}, remove: () => {} }
+      return {
+        id: `noop:empty:${Date.now()}`,
+        order: 1,
+        durationMs: 100,
+        gapAfterMs: MIN_HAND_LIFT_GAP_MS,
+        type: 'noop',
+        execute: () => {},
+        remove: () => {},
+      }
     }
     try {
       if (action?.tool === ROUGH_NOTATION_TOOL_ID) {
@@ -92,6 +100,10 @@ export function createBoardToolRuntime({
     } catch (err) {
       console.warn('[boardToolCatalog] prepare 动作失败降级:', action?.tool, err?.message)
       return {
+        id: `fallback:${action?.tool || 'unknown'}:${action?.order || 1}:${Date.now()}`,
+        order: action?.order || 1,
+        durationMs: 100,
+        gapAfterMs: MIN_HAND_LIFT_GAP_MS,
         type: 'fallback-noop',
         action,
         execute: () => {},
@@ -99,7 +111,15 @@ export function createBoardToolRuntime({
       }
     }
     console.warn(`[boardToolCatalog] 未知板书动作工具: ${action?.tool || '空'}`)
-    return { type: 'noop', execute: () => {}, remove: () => {} }
+    return {
+      id: `noop:${action?.tool || 'unknown'}:${action?.order || 1}:${Date.now()}`,
+      order: action?.order || 1,
+      durationMs: 100,
+      gapAfterMs: MIN_HAND_LIFT_GAP_MS,
+      type: 'noop',
+      execute: () => {},
+      remove: () => {},
+    }
   }
 
   return {
