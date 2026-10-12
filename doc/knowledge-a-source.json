@@ -1,0 +1,10 @@
+{
+  "role": "Agent A Knowledge-A canonical cloud snapshot",
+  "url": "https://paste.fastmirror.net/?5cfeebb80cd2ac21#2HyzUypLXYao8TvCfd3EsC7HCtin1jfrCDPyBiJpMhN1",
+  "updateCadence": "about 3 months",
+  "checkedAt": "2026-08-11",
+  "rows": 247,
+  "compactSha256": "cf9d364941b0118fa3db892844f033fc155594a7b63435a73c2d1dc87f30d7f2",
+  "sourceSha256": "de5d0ff0ae234b08091226f7d7287e9474ad82f86e564adf20499cef8882109f",
+  "runtimePolicy": "Use the verified bundled compact snapshot at request time. Refresh it from this cloud source during the quarterly knowledge maintenance window, never fetch the encrypted paste per user request."
+}

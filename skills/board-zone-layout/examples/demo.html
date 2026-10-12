@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>board-zone-layout · 四区布局可视化示例</title>
+<style>
+  :root{--bg:#0f172a;--surface:#1e293b;--surface-2:#334155;--ink:#f1f5f9;--muted:#94a3b8;
+        --brand:#22d3ee;--warn:#fbbf24;--ok:#4ade80;--err:#f87171;--line:#334155}
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;background:var(--bg);color:var(--ink);
+       font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;line-height:1.6}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+  .grid{display:grid;grid-template-columns:280px 1fr;gap:16px}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+  .panel h2{font-size:14px;margin:0 0 10px;color:var(--brand)}
+  .modes{display:flex;flex-direction:column;gap:8px}
+  .mode-btn{background:var(--surface-2);color:var(--ink);border:1px solid var(--line);
+            border-radius:6px;padding:10px;cursor:pointer;text-align:left;
+            font-family:inherit;font-size:13px}
+  .mode-btn:hover{border-color:var(--brand)}
+  .mode-btn.active{background:var(--brand);color:#0b1220;border-color:var(--brand);font-weight:600}
+  .mode-btn .desc{display:block;font-size:11px;opacity:.8;margin-top:3px;font-weight:normal}
+  .canvas-wrap{position:relative;width:100%;
+               aspect-ratio:1726/980;background:#fbfaf6;border:1px solid #cbd5e1;
+               border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .zone{position:absolute;border:2px dashed;opacity:.7;font-size:11px;
+        font-weight:600;color:#fff;display:flex;align-items:center;justify-content:center;
+        text-align:center;padding:4px}
+  .zone.q{background:rgba(34,211,238,.18);border-color:#22d3ee}
+  .zone.a{background:rgba(248,113,113,.18);border-color:#f87171}
+  .zone.s{background:rgba(74,222,128,.18);border-color:#4ade80}
+  .zone.u{background:rgba(251,191,36,.18);border-color:#fbbf24}
+  .label{position:absolute;background:rgba(15,23,42,.9);color:#fff;
+         padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap}
+  .image-zone{position:absolute;background:rgba(148,163,184,.25);
+              border:2px dotted #94a3b8;display:flex;align-items:center;justify-content:center;
+              color:#475569;font-size:12px;font-weight:600}
+  .table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px}
+  .table th,.table td{border:1px solid var(--line);padding:6px 8px;text-align:left}
+  .table th{background:var(--surface-2);color:var(--muted);font-weight:600;width:90px}
+  .table td.val{font-family:"JetBrains Mono","Consolas",monospace;color:var(--ok)}
+  .note{color:var(--muted);font-size:11px;margin-top:8px;line-height:1.5}
+  .safe{position:absolute;background:rgba(248,113,113,.08);border:1px dashed #f87171}
+</style>
+</head>
+<body>
+<h1>board-zone-layout · 四区布局可视化</h1>
+<p class="sub">画布 1726×980px · 坐标 0—100% 原点左上 · 三种布局自适应题目形态 · 安全区 左6 / 右94 / 底95</p>
+
+<div class="grid">
+  <div class="panel">
+    <h2>布局模式</h2>
+    <div class="modes" id="modes"></div>
+    <p class="note">点切换布局模式。虚线区=参考区间（可越界），实线框=安全区（硬约束不出画布）。</p>
+    <h2 style="margin-top:16px">坐标真值</h2>
+    <table class="table" id="table"></table>
+  </div>
+  <div class="panel">
+    <h2>画布渲染（1726×980 比例）</h2>
+    <div class="canvas-wrap" id="canvas">
+      <div class="safe" style="left:6%;top:0;width:88%;height:95%;border-color:#f87171"></div>
+    </div>
+    <p class="note">红色虚线=安全区（左6 右94 底95）· 四区颜色：青=question 红=analysis 绿=summary 黄=solution · 安全区内可越界到邻区，但不得溢出画布。</p>
+  </div>
+</div>
+
+<script>
+// ─── 真实布局常量（与 src/utils/boardLayout.js 对齐） ─────────
+const SAFE_X=6,RIGHT_LIMIT=94,BOTTOM_LIMIT=95,GAP=4,SECTION_GAP=2;
+const LEFT_W=44,RIGHT_X=SAFE_X+LEFT_W+GAP,RIGHT_W=RIGHT_LIMIT-RIGHT_X;
+const STRIP_W=(RIGHT_LIMIT-SAFE_X-GAP*2)/3;
+
+const MODES=[
+  {key:'portrait',name:'纯文字竖版',
+   desc:'无图: 左列题+分析, 右列解答+总结',
+   zones:{
+     topicLabel:{x:5.7,y:6.6,w:7.1},
+     question:{x:6.0,y:13.2,w:44,h:18,label:'题目区'},
+     analysisLabel:{x:5.7,y:34.5,w:7.2},
+     analysis:{x:6.0,y:41.0,w:44,h:48,label:'分析区'},
+     solutionLabel:{x:53.7,y:6.6,w:7.4},
+     solution:{x:54.0,y:14.0,w:40,h:44,label:'解答区'},
+     summaryLabel:{x:53.7,y:62.0,w:7.2},
+     summary:{x:54.0,y:69.5,w:40,h:22,label:'总结区'}
+   }},
+  {key:'portrait-left-image',name:'竖图左右版',
+   desc:'图高>宽: 左半图, 右半三区纵排',
+   zones:{
+     image:{x:6.0,y:6.6,w:44,h:88.4,label:'原题图（高>宽）'},
+     analysisLabel:{x:53.7,y:6.6,w:7.2},
+     analysis:{x:54.0,y:12.6,w:40,h:23.47,label:'分析区'},
+     solutionLabel:{x:53.7,y:36.07,w:7.4},
+     solution:{x:54.0,y:42.07,w:40,h:23.47,label:'解答区'},
+     summaryLabel:{x:53.7,y:65.54,w:7.2},
+     summary:{x:54.0,y:71.54,w:40,h:23.47,label:'总结区'}
+   }},
+  {key:'landscape-top-image',name:'横图上下版',
+   desc:'图宽>高: 图贴顶, 三区并排底部',
+   zones:{
+     image:{x:6.0,y:6.6,w:88,h:40,label:'原题图（宽>高）'},
+     analysisLabel:{x:5.7,y:50,w:7.2},
+     analysis:{x:6.0,y:56,w:26.67,h:39,label:'分析区'},
+     solutionLabel:{x:36.67,y:50,w:7.4},
+     solution:{x:36.67,y:56,w:26.67,h:39,label:'解答区'},
+     summaryLabel:{x:67.34,y:50,w:7.2},
+     summary:{x:67.34,y:56,w:26.67,h:39,label:'总结区'}
+   }}
+];
+
+const COLORS={question:'q',analysis:'a',solution:'s',summary:'u'};
+const LABEL_KEYS=['topicLabel','analysisLabel','solutionLabel','summaryLabel'];
+
+function render(mode){
+  const canvas=document.getElementById('canvas');
+  // 清掉除安全区外的元素
+  [...canvas.children].forEach(c=>{if(!c.classList.contains('safe'))c.remove();});
+  const zones=mode.zones;
+  // 先画图
+  if(zones.image){
+    const d=document.createElement('div');
+    d.className='image-zone';
+    d.style.left=zones.image.x+'%';d.style.top=zones.image.y+'%';
+    d.style.width=zones.image.w+'%';d.style.height=zones.image.h+'%';
+    d.textContent=zones.image.label;
+    canvas.appendChild(d);
+  }
+  // 画区
+  Object.entries(zones).forEach(([key,z])=>{
+    if(LABEL_KEYS.includes(key)){
+      const l=document.createElement('div');
+      l.className='label';
+      l.style.left=z.x+'%';l.style.top=(z.y-1)+'%';
+      l.textContent=key.replace('Label','')+' 标签';
+      canvas.appendChild(l);
+    } else if(key!=='image'){
+      const d=document.createElement('div');
+      d.className='zone '+(COLORS[key.replace('Label','')]||'');
+      d.style.left=z.x+'%';d.style.top=z.y+'%';
+      d.style.width=z.w+'%';
+      if(z.h)d.style.height=z.h+'%';
+      d.textContent=z.label||key;
+      canvas.appendChild(d);
+    }
+  });
+  // 填表
+  const table=document.getElementById('table');
+  table.innerHTML='<tr><th>区域</th><th>x%</th><th>y%</th><th>w%</th><th>h%</th></tr>';
+  Object.entries(zones).forEach(([key,z])=>{
+    if(LABEL_KEYS.includes(key))return;
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td>'+(z.label||key)+'</td>'+
+      '<td class="val">'+z.x+'</td><td class="val">'+z.y+'</td>'+
+      '<td class="val">'+z.w+'</td><td class="val">'+(z.h||'—')+'</td>';
+    table.appendChild(tr);
+  });
+}
+
+const modesEl=document.getElementById('modes');
+MODES.forEach((m,i)=>{
+  const b=document.createElement('button');
+  b.className='mode-btn'+(i===0?' active':'');
+  b.textContent=m.name;
+  b.appendChild(document.createElement('span')).className='desc';
+  b.querySelector('.desc').textContent=m.desc;
+  b.onclick=()=>{
+    document.querySelectorAll('.mode-btn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    render(m);
+  };
+  modesEl.appendChild(b);
+});
+render(MODES[0]);
+</script>
+</body>
+</html>

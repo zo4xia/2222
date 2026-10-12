@@ -1,0 +1,18 @@
+# 本地 / 服务器编排：docker compose up -d --build
+# 端口映射 + 数据卷（public 为运行时数据区：audio-cache / deliverable / handoff / pic / board-result）
+services:
+  clean-package:
+    build: .
+    container_name: clean-package
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      - NODE_ENV=production
+    volumes:
+      - app-data:/app/public
+
+volumes:
+  app-data:

@@ -1,0 +1,36 @@
+{
+  "name": "teaching-board",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "小学数学讲题视频生成工作台 — 基于 LLM 的题目识别、分步口播、板书动作生成与音画微课演播",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 3000",
+    "build": "vite build",
+    "start": "node server/productionServer.js",
+    "lint": "eslint .",
+    "preview": "vite preview --host 0.0.0.0 --port 3000",
+    "test": "node scripts/run-all-tests.mjs",
+    "test:json": "node scripts/test-parseLLMJson.mjs",
+    "test:timing": "node scripts/test-timing-computeRowGroup.mjs",
+    "test:skills": "node scripts/smoke-test-skills.mjs",
+    "test:contract": "node skills/board-lecture-player/scripts/validate_contract.cjs skills/board-lecture-player/assets/sample-rows.json",
+    "check:proxy": "node server/proxySelfCheck.js",
+    "check:knowledge": "node server/agentAKnowledgeSelfCheck.js"
+  },
+  "dependencies": {
+    "@ant-design/icons-vue": "^7.0.1",
+    "ant-design-vue": "^4.2.6",
+    "katex": "^0.18.4",
+    "rough-notation": "^0.5.1",
+    "roughjs": "^4.6.6",
+    "vue": "^3.5.39"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "eslint": "^10.8.1",
+    "eslint-plugin-vue": "^10.10.0",
+    "vite": "^8.1.1"
+  }
+}

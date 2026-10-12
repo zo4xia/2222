@@ -1,0 +1,46 @@
+{
+  "name": "speech-board-timing",
+  "version": "1.0.0",
+  "archetype": "workflow",
+  "description": "口播语速与板书书写时间节奏技巧蒸馏。160 cpm 语速，中文标点停顿，板书 400ms/字抖动，Row 间 1500ms，口播发音硬规范。",
+  "created": "2026-09-19",
+  "updated": "2026-09-19",
+  "sources": [
+    "src/agent-b-v2/timing.js",
+    "src/services/speechTiming.js"
+  ],
+  "distillation_contract": "Distill [口播语速与板书书写时间节奏] as a [workflow] pack so it can help with [Agent B 写口播+板书节奏 / 渲染层估算总时长 / Check Agent 校验口播发音合规], using [src/agent-b-v2/timing.js + src/services/speechTiming.js], while respecting [B 不输出时间字段 / 时间由下游动态算 / 口播发音硬规范].",
+  "core_sections": [
+    "口播语速（160 cpm + 标点停顿）",
+    "板书书写节奏（400ms/字 + 抖动）",
+    "单动作时长估算",
+    "Row 组时间线（1D 单手串行）",
+    "口播发音硬规范（分数/符号/小数）",
+    "与 handoff JSON 的对接"
+  ],
+  "key_rules": [
+    "语速 160 cpm = 375ms/字 (60000/160)",
+    "字数计算去掉空白和中英文标点",
+    "中文标点停顿: 。700ms / ，500ms / ……1000ms",
+    "口播时长 = max(1200, 字数*375 + 标点停顿), 空口播=1500ms",
+    "板书书写 400ms/字, 抖动 360—440ms (周期7步), 下限 320ms",
+    "板书起手延迟 = min(2000, max(1000, speechDurationMs*0.2)), 可被 startDelay 覆盖",
+    "抬笔间隔 600ms (与 hand-action-control 共用)",
+    "Row 间停顿 1500ms (AGENT_B_V2_ROW_GAP_MS)",
+    "Row 总耗时 = max(speechDurationMs, handWorkEndMs)",
+    "单动作估算: notation 1200 / line 800 / arrow 900 / 其他 1000 ms",
+    "B 不输出 duration/startAt/endAt/durationMs/estimatedDurationMs",
+    "口播分数: 分母分之分子, 阿拉伯数字, 不得用斜杠",
+    "口播未知数: 艾克斯, 不得保留 x/X/×",
+    "口播乘号: 乘以, 加号: 加",
+    "口播小数: 逐位汉字 (3点一四), 不得保留小数点/合并数位",
+    "口播不得包含 KaTeX 命令或 $ 定界符"
+  ],
+  "confidence": "high",
+  "boundaries": [
+    "本 skill 只覆盖语速/标点/书写节奏/发音规范, 不覆盖动作工具白名单 (见 hand-action-control)",
+    "不覆盖布局坐标 (见 board-zone-layout)",
+    "不覆盖字体加载 (见 handwriting-font-policy)",
+    "真实时长待 TTS 跑完回填, B 输出 timingStatus=estimated"
+  ]
+}

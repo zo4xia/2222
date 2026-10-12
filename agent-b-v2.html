@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      (function() {
+        var origDefineProperty = Object.defineProperty;
+        var initialNativeFetch = window.fetch;
+        var customFetch;
+        var hasCustomSet = false;
+        Object.defineProperty = function(obj, prop, desc) {
+          if (obj === window && prop === 'fetch') {
+            var origGet = desc && desc.get;
+            return origDefineProperty.call(Object, obj, prop, {
+              configurable: true,
+              enumerable: true,
+              get: function() {
+                if (hasCustomSet) return customFetch;
+                return origGet ? origGet.call(window) : (customFetch || initialNativeFetch);
+              },
+              set: function(val) {
+                customFetch = val;
+                hasCustomSet = true;
+              }
+            });
+          }
+          return origDefineProperty.apply(this, arguments);
+        };
+        try {
+          var desc = Object.getOwnPropertyDescriptor(window, 'fetch');
+          if (desc && desc.configurable && !desc.set) {
+            Object.defineProperty(window, 'fetch', desc);
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>板书 · Agent B 七列表</title>
+    <!-- 板书手写字体（分析/解答/总结区）；题目层用印刷体，不使用此字体 -->
+    <link href="https://fontsapi.zeoseven.com/490/main/result.css" onload="this.rel='stylesheet'" rel="preload" as="style" crossorigin />
+    <noscript><link rel="stylesheet" href="https://fontsapi.zeoseven.com/490/main/result.css" /></noscript>
+  </head>
+  <body>
+    <div id="agent-b-v2-app"></div>
+    <script type="module" src="/src/agent-b-v2/main.js"></script>
+  </body>
+</html>

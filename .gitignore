@@ -1,0 +1,32 @@
+# 依赖
+node_modules
+
+# 构建产物
+dist
+.vite
+
+# 大文件资源（不推送到 git）
+public/katex
+public/audio-cache
+public/audio
+public/pic
+public/board-result
+public/handoff
+public/deliverable
+public/fonts/*.ttf
+truth/_extracted
+truth/src.zip
+truth/_reference
+archive
+k4-clean-install-20260816.zip
+RTK.zip
+
+# 本地环境与日志
+.env
+.env.local
+*.log
+.tool-results
+
+# 系统垃圾
+.DS_Store
+Thumbs.db

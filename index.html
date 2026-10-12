@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      (function() {
+        var origDefineProperty = Object.defineProperty;
+        var initialNativeFetch = window.fetch;
+        var customFetch;
+        var hasCustomSet = false;
+        Object.defineProperty = function(obj, prop, desc) {
+          if (obj === window && prop === 'fetch') {
+            var origGet = desc && desc.get;
+            return origDefineProperty.call(Object, obj, prop, {
+              configurable: true,
+              enumerable: true,
+              get: function() {
+                if (hasCustomSet) return customFetch;
+                return origGet ? origGet.call(window) : (customFetch || initialNativeFetch);
+              },
+              set: function(val) {
+                customFetch = val;
+                hasCustomSet = true;
+              }
+            });
+          }
+          return origDefineProperty.apply(this, arguments);
+        };
+        try {
+          var desc = Object.getOwnPropertyDescriptor(window, 'fetch');
+          if (desc && desc.configurable && !desc.set) {
+            Object.defineProperty(window, 'fetch', desc);
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="基于大模型的小学数学题识别、分步口播与板书动作生成的教学视频工作台" />
+    <meta property="og:title" content="小学数学讲解视频生成工作台" />
+    <meta property="og:description" content="基于大模型的小学数学题识别、分步口播与板书动作生成的教学视频工作台" />
+    <!-- ★ Task 12: 删除 esm.sh preconnect (CDN external 已移除, vendor 走本地打包) -->
+    <!-- 历史: Task 1 加的 preconnect 在 CDN external 删除后无意义, 移除以减少无效请求 -->
+    <!-- 快照：本地存档用，存 public/pic/shot-时间戳.png，不发给 B -->
+    <script defer src="/snapdom.js"></script>
+    <title>小学数学讲解视频生成工作台</title>
+    <!--
+      ★ Task 10 修复: 板书手写字体（甲方 2026-09-17 拍板版）
+      主字体 = 平方乔木体 (CDN 507)，降级栈与 row-player.html line 116-122 同步镜像：
+        507 平方乔木体（主）→ 157 平方韶华体 → 511 平方上上谦体 → 510 平方三生体 → 509 平方韶拓体 → 490 栗壳坚坚体 → 系统楷体
+      加载策略：主 507 同步加载（onload 切 stylesheet），其余 5 个异步按需加载（media=print + onload 切 all）不阻塞首屏。
+      题目层用印刷体，不使用此字体。
+    -->
+    <link href="https://fontsapi.zeoseven.com/507/main/result.css" onload="this.rel='stylesheet'" onerror="console.warn('[Font] 平方乔木体(507) 加载异常，按字体栈降级');" rel="preload" as="style" crossorigin />
+    <link rel="stylesheet" href="https://fontsapi.zeoseven.com/157/main/result.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="https://fontsapi.zeoseven.com/511/main/result.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="https://fontsapi.zeoseven.com/510/main/result.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="https://fontsapi.zeoseven.com/509/main/result.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="https://fontsapi.zeoseven.com/490/main/result.css" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://fontsapi.zeoseven.com/507/main/result.css" /></noscript>
+    <style>
+      #skills-fab{position:fixed;right:18px;bottom:18px;z-index:9999;
+        background:#1d4ed8;color:#fff;border:0;border-radius:28px;
+        padding:11px 18px;font-size:13px;font-weight:600;cursor:pointer;
+        box-shadow:0 4px 14px rgba(29,78,216,.4);font-family:inherit;
+        text-decoration:none;display:inline-flex;align-items:center;gap:6px;
+        transition:transform .18s,box-shadow .18s}
+      #skills-fab:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(29,78,216,.5)}
+      #skills-fab .badge{background:#22d3ee;color:#0b1220;border-radius:10px;
+        padding:1px 7px;font-size:11px;font-weight:700}
+    </style>
+    <meta property="og:image" content="https://bolt.new/static/og_default.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://bolt.new/static/og_default.png">
+</head>
+  <body>
+    
+    <div id="app"></div>
+    <a id="skills-fab" href="/skills-hub/index.html" target="_blank" rel="noopener">
+      📚 Skills 沉淀 <span class="badge">7</span>
+    </a>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

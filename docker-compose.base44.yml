@@ -1,0 +1,23 @@
+services:
+  web:
+    image: node:22-slim
+    working_dir: /app
+    # Bind-mount the cloned source so edits hot-reload without rebuilding.
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      # Vite allowedHosts is already `true` in vite.config.js; this also helps
+      # older Vite versions append the preview origin to the allowlist.
+      __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS: ${BASE44_PUBLIC_HOST_SUFFIX}
+      BASE44_PUBLIC_HOST_SUFFIX: ${BASE44_PUBLIC_HOST_SUFFIX}
+      BASE44_SANDBOX_HOST_DOMAIN: ${BASE44_SANDBOX_HOST_DOMAIN}
+    command: sh -c "npm install && npm run dev"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
