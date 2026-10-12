@@ -1,9 +1,9 @@
 import { reactive } from 'vue'
 
-const STORAGE_KEY = 'qinghuabu.agentBApiConfig.v3'
+const STORAGE_KEY = 'qinghuabu.agentBApiConfig.v4'
 const DEFAULT_AGENT_B_API_CONFIG = Object.freeze({
-  endpoint: 'https://newapi.prorisehub.com/v1/chat/completions',
-  apiKey: 'sk-Wy5cJ9xD0ZnQKGGon0pzuhcGibe29LJArmItW4bwnzPBQJiM',
+  endpoint: 'https://www.loomex.space/v1/chat/completions',
+  apiKey: 'sk-eVlHvx23VVyNGqSytiEC3YiJ1QaZnh5RZq1NOJ1EljrE4M3z',
   model: 'gemini-2.5-flash-lite',
 })
 

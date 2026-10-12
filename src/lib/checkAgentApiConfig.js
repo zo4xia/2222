@@ -1,10 +1,10 @@
 import { reactive } from 'vue'
 
-const STORAGE_KEY = 'qinghuabu.checkAgentApiConfig.v3'
+const STORAGE_KEY = 'qinghuabu.checkAgentApiConfig.v4'
 const DEFAULT_CHECK_AGENT_API_CONFIG = Object.freeze({
-  endpoint: 'https://newapi.prorisehub.com/v1/chat/completions',
-  apiKey: 'sk-Wy5cJ9xD0ZnQKGGon0pzuhcGibe29LJArmItW4bwnzPBQJiM',
-  model: 'gemini-3.1-flash-lite',
+  endpoint: 'https://www.loomex.space/v1/chat/completions',
+  apiKey: 'sk-eVlHvx23VVyNGqSytiEC3YiJ1QaZnh5RZq1NOJ1EljrE4M3z',
+  model: 'gemini-2.5-flash-lite',
 })
 
 function isChatCompletionsEndpoint(endpoint = '') {

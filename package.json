@@ -15,6 +15,7 @@
     "test:timing": "node scripts/test-timing-computeRowGroup.mjs",
     "test:skills": "node scripts/smoke-test-skills.mjs",
     "test:contract": "node skills/board-lecture-player/scripts/validate_contract.cjs skills/board-lecture-player/assets/sample-rows.json",
+    "test:refine-degrade": "node scripts/test-refine-degrade.mjs",
     "check:proxy": "node server/proxySelfCheck.js",
     "check:knowledge": "node server/agentAKnowledgeSelfCheck.js"
   },

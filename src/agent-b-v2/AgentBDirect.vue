@@ -1545,6 +1545,8 @@ async function refineKnowledge() {
     })
     const result = await resp.json()
     if (result.ok && result.handoff) {
+      // ★ 2026-10-13：降级响应（refineOk=false）时透出 warning，用户能看到"已保留原知识库"的原因
+      if (result.warning) message.warning(result.warning)
       refineResult.value = result
       refineResultOpen.value = true
     } else {

@@ -150,9 +150,20 @@ export async function handleKnowledgeRefineRequest(req, res) {
     })
 
     if (!response.ok) {
-      return sendJson(req, res, response.status, {
-        ok: false,
-        error: data?.error?.message || data?.message || `上游失败 ${response.status}`,
+      // ★ 2026-10-13：上游异常不再透传 502 弹崩前端（对齐 checkAgentHandler 的降级模式）
+      // 保留原 handoff 返回 200，"优化确认"按钮永远可用；特征识别 Gemini 原生协议直通型中转站
+      const upstreamMessage = data?.error?.message || data?.message || `上游失败 ${response.status}`
+      const protocolMismatch = /Unknown name .{0,2}(messages|response_format|stream|temperature).{0,2}/i.test(String(upstreamMessage))
+      return sendJson(req, res, 200, {
+        ok: true,
+        model: credentials.model,
+        filename: current.filename,
+        handoff,
+        refineOk: false,
+        usage: null,
+        warning: protocolMismatch
+          ? '上游中转站该模型为 Gemini 原生协议直通，不认 OpenAI 格式字段；已保留原知识库，请换有协议转换的接口地址或模型后重试'
+          : `上游模型接口返回 ${response.status}（${upstreamMessage}），已保留原知识库，可重试`,
       })
     }
 

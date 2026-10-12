@@ -20,15 +20,17 @@
 
 import { reactive } from 'vue'
 
-const STORAGE_KEY = 'qinghuabu.userApiConfig.v2'
+const STORAGE_KEY = 'qinghuabu.userApiConfig.v3'
 const EVENT_NAME = 'qinghuabu:user-api-config-change'
 
 /**
- * 默认测试配置 — 免费测试 API，用户可直接试用，也可在前端覆盖。
+ * 默认测试配置 — loomex 中转站（国内直连可用，Gemini 渠道带 OpenAI 协议转换）。
+ * ★ 2026-10-13：从 prorisehub 切换到 loomex——prorisehub 的 Gemini 渠道是原生协议直通，
+ * 不认 OpenAI 格式字段（messages/response_format/stream/temperature），会报 400。
  */
 export const DEFAULT_USER_API_CONFIG = Object.freeze({
-  endpoint: 'https://newapi.prorisehub.com/v1/chat/completions',
-  apiKey: 'sk-Wy5cJ9xD0ZnQKGGon0pzuhcGibe29LJArmItW4bwnzPBQJiM',
+  endpoint: 'https://www.loomex.space/v1/chat/completions',
+  apiKey: 'sk-eVlHvx23VVyNGqSytiEC3YiJ1QaZnh5RZq1NOJ1EljrE4M3z',
   model: 'gemini-2.5-flash-lite',
 })
 
