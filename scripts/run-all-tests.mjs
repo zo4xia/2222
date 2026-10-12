@@ -12,6 +12,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = resolve(__dirname, '..')
 
 const tests = [
+  { name: 'superFilter v2 (93 用例)',     cmd: 'node scripts/test-superFilter.mjs' },
   { name: 'parseLLMJson (16 用例)',     cmd: 'node scripts/test-parseLLMJson.mjs' },
   { name: 'timing fix (5 用例)',         cmd: 'node scripts/test-timing-fix.mjs' },
   { name: 'timing computeRowGroup (7+6)', cmd: 'node scripts/test-timing-computeRowGroup.mjs' },
@@ -28,10 +29,11 @@ console.log('══════════════════════�
 for (const t of tests) {
   try {
     const output = execSync(t.cmd, { cwd: root, encoding: 'utf-8', timeout: 15000 })
-    const lastLine = output.trim().split('\n').pop()
-    const ok = /通过|PASS|已统一/.test(lastLine)
-    console.log(`${ok ? '✓' : '✗'} ${t.name}: ${lastLine}`)
-    if (ok) pass++; else fail++
+    // execSync 非零退出码会抛异常（= 测试失败）；这里只需从输出中挑摘要行展示
+    const lines = output.trim().split('\n')
+    const summaryLine = lines.filter(l => /通过|PASS|已统一/.test(l)).pop() || lines.pop()
+    console.log(`✓ ${t.name}: ${summaryLine}`)
+    pass++
   } catch (e) {
     console.log(`✗ ${t.name}: FAILED (${e.message.slice(0, 80)})`)
     fail++

@@ -1,46 +1,40 @@
 {
   "name": "field-char-escape-filter",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "archetype": "workflow",
-  "description": "板书字段字符转义与规范化技巧蒸馏（车同轨·书同文超级过滤器）。模型输出经 JSON/LLM 转义后的损伤修复、HTML 实体解码、手写体缺字降级、LaTeX→Unicode、除号转 \\frac、$ 绝不字面落板、ESC 安全输出。",
+  "description": "板书字段字符转义与规范化技巧蒸馏（车同轨·书同文超级过滤器 v2 字库实测校准版）。模型输出损伤修复、HTML 实体解码、板书安全白名单、Unicode 缺字凑法降级（-> 约 度 角 根号）、LaTeX → 板书安全凑法、全角归半角、除号一律转 \\frac、² ³ 渲染层代画、三路渲染分派（画布 tokenizeLine / DOM renderBoardTextHtml / 纯文本 boardTextToPlain）保证跨环境不错乱。",
   "created": "2026-09-19",
-  "updated": "2026-09-19",
+  "updated": "2026-10-13",
   "sources": [
-    "public/lite-player.html (§5c normalizeBoardLine / §6 esc / §2 visualLen / §6 tokenizeLine/readBrace)",
-    "src/utils/superFilter.js (HANDWRITE_GLYPH_DEGRADATION 镜像源, 改那边必须同步)"
+    "src/utils/superFilter.js (v2 唯一真源, 2026-10-12 字库实测校准版)",
+    "row-player.html / public/row-player.html / lite-player.html (三镜像, 哨兵 scripts/test-superFilter.mjs)",
+    "字体实测: fontTools 解析本地 TTF cmap + ZeoSeven CDN unicode-range (5/5 可选字体)"
   ],
-  "distillation_contract": "Distill [板书字段字符转义与规范化] as a [workflow] pack so it can help with [渲染层 textContent/innerHTML 安全输出 / Check Agent 校验字段是否过过滤器 / 字幕与板书落板前的统一清洗], using [public/lite-player.html §5c normalizeBoardLine + §6 esc + §2 visualLen + §6 tokenizeLine/readBrace], while respecting [LaTeX 转义损伤先修再规范化 / HTML 实体 &amp; 最后解 / $ 绝不字面落板 / 控制字符绝不字面落板 / 手写体缺字降级优先 / 除号一律 \frac / 输出 DOM 前 esc].",
+  "distillation_contract": "Distill [板书字段字符转义与规范化] as a [workflow] pack so it can help with [渲染层安全输出 / Check Agent 白名单校验 / 板书落板前统一清洗 / 跨环境纯文本兜底], using [src/utils/superFilter.js v2 + row-player.html tokenizeLine + renderBoardTextHtml + boardTextToPlain], while respecting [输出落在板书安全白名单内 / 白名单外凑法降级绝不回退印刷体 / &amp; 最后解 / $ 绝不字面落板 / 除号一律 \frac / ² ³ 渲染层代画不取字形 / 输出 DOM 前 esc].",
   "core_sections": [
-    "为什么需要 superFilter (模型输出两类损伤 + 手写体缺字)",
-    "过滤器流水线 (normalizeBoardLine 10 步)",
-    "四张关键表 (GLYPH2COMMON / LATEX2U / STRUCT_MATH / decodeHtmlEntities)",
+    "为什么需要 superFilter v2 (两类损伤 + 字库实测 5/5 缺字清单 + V1.0 冲突裁决)",
+    "12 步流水线 (normalizeBoardLine, 顺序不能倒)",
+    "五张关键表 (UNICODE2SAFE / LATEX2SAFE / FW_KEEP / BOARD_SAFE_RE+findUnsafeChars / STRUCT_MATH)",
     "LaTeX 转义损伤修复 (repairCommonLatexEscapeDamage 三种损伤)",
-    "\\frac 视觉字数与排版 (visualLen + tokenizeLine + readBrace)",
-    "除号转 \\frac 硬规范",
-    "ESC (DOM 安全输出最后闸)",
+    "\\frac 视觉字数与排版 (visualLen + tokenizeLine + readBrace + ²³ 代画)",
+    "除号转 \\frac 硬规范 (三护不误伤)",
+    "渲染分派三路 (画布真排版 / DOM inline style / 纯文本降级) —— 跨环境不错乱",
     "toBoardLines (数组/字符串/对象统一入口)",
     "与现有 skill 的协同"
   ],
   "key_rules": [
-    "过滤器流水线 10 步, 顺序不能倒: \\n还原 → 控制字符退化 → HTML实体解码 → LaTeX损伤修复 → 删$\\left\\right → 缺字降级 → LaTeX→Unicode → x²³角标 → 除号转\\frac → 压行内空白",
-    "字面量 \\n 只在后面不跟字母时还原为换行, 否则把 \\neq \\not \\nabla 打断",
-    "控制字符 \\t \\b \\v \\f 统一退化为空格, 绝不字面落板",
-    "HTML 实体 &amp; 必须最后解, 否则 &amp;lt; 二次解成 <",
-    "LaTeX 损伤修复 3 种: \\u000c+rac→\\frac / 前缀非\\w\\的 rac→\\frac / frac→\\frac",
-    "$ 绝不字面落板, \\left \\right 绝不字面落板",
-    "手写体缺字降级 GLYPH2COMMON 先于 LATEX2U 跑",
-    "GLYPH2COMMON: ×→x ÷→/ ∴→因此 ∵→因为 −→-",
-    "LATEX2U: \\times→x \\sqrt{x}→√x \\pi→π \\to→→ \\angle→∠ \\pm→± \\perp→⊥ \\parallel→∥",
-    "顺序坑: ^\\circ 先于 \\circ / \\sqrt{x} 先于 \\sqrt",
-    "x^2→x² x^3→x³ (角标只吞^与数字, 不吞后续空格)",
-    "除号 a/b → \\frac{a}{b} (禁用 ÷ 与平铺斜杠)",
-    "压行内空白绝不碰 \\n (旧作 \\s+/g 含 \\n 把多行压成一行的坑)",
-    "visualLen(\\frac{3}{4}) = 3+4+1 = 8 (横线算 1, 不是字面 8 字符)",
-    "readBrace 支持嵌套花括号 (depth 计数)",
-    "STRUCT_MATH 检测结构数学 → 手写体写不了 → 公式图或原样写+告警 (不静默丢)",
-    "esc(s) = s.replace(/[&<>]/, &→&amp; <→&lt; >→&gt;), 只用于 innerHTML 字幕, canvas 不需要",
-    "toBoardLines 统一处理数组/字符串/对象三种形态, filter 掉空行",
-    "formFieldFilter 与 src/utils/superFilter.js 镜像, 改那边必须同步"
+    "12 步流水线顺序不能倒: \\r\\n统一 → \\n还原 → 控制字符退化 → 实体解码 → LaTeX损伤修复 → 标签剥除 → 环境剥壳 → 全角归半角 → Unicode缺字凑法 → LaTeX凑法 → ²³ → 纯整数frac → 压空白 → 压换行",
+    "输出必须落在板书安全白名单 BOARD_SAFE_RE 内, 白名单外一律凑法降级, 绝不静默回退印刷体混排",
+    "字库实测 5/5 全缺: → ⇒ ≤ ≥ ≠ ≈ × ÷ − ± · √ ° ∠ ⊥ ∥ π ∞ ∵ ∴ ℃ 及全部全角字母数字变体",
+    "凑法原则: 数学符号用 ASCII 键盘符凑 (-> => <= //), 语义符号用中文凑 (约度角根号因为因此)",
+    "² ³ 保留输出, 渲染层代画不取字形: 画布小字号上标 / DOM sup span / 纯文本 ^2 ^3",
+    "除号一律 \\frac{分子}{分母} (÷ 缺字 + 小学分数板书规范); 三护不误伤 183.6/9 与 a/b",
+    "HTML 实体 &amp; 必须最后解; decodeHtmlEntities 只解码到标准 Unicode, 凑法统一交给 ⑦",
+    "剥标签用白名单标签 (b/i/u/em/...), 防误吃 3 < x 不等式文本",
+    "跨环境不错乱 = DSL 字面 \\frac{}{} + 三路分派: 画布 tokenizeLine 真排版 / DOM renderBoardTextHtml 全 inline style 零外部 CSS / 纯文本 boardTextToPlain",
+    "findUnsafeChars(text) 空数组 = 手写安全; 非空 = 告警清单 (不静默丢)",
+    "V1.0 旧规约已废止: ÷ 保留/²³ 组件/HTML span+CSS 体系均废弃, 冲突裁决见 SKILL.md §1.4",
+    "唯一真源 src/utils/superFilter.js, 三镜像 row-player/public/lite-player, 哨兵 node scripts/test-superFilter.mjs (93 用例)"
   ],
   "confidence": "high",
   "boundaries": [
@@ -49,6 +43,7 @@
     "不覆盖动作控制 (见 hand-action-control)",
     "不覆盖语速节奏 (见 speech-board-timing)",
     "esc 只用于 DOM 字幕, canvas 板书不需要 HTML 转义",
-    "STRUCT_MATH 命中后当前降级为原样写+告警, 公式图能力暂无 KaTeX"
+    "STRUCT_MATH 命中后当前降级为原样写+告警, 公式图能力暂无 KaTeX",
+    "字体覆盖结论基于 2026-10-12 实测 (fontTools + CDN unicode-range), 新增字体需重测 GLYPH 清单"
   ]
 }
