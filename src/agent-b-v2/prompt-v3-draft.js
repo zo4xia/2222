@@ -6,7 +6,11 @@
  *   - 单手串行：本 row 所有 boards 写完 → 才按 order 执行 actionSpec
  */
 
-export const AGENT_B_V2_SYSTEM_PROMPT = `
+/* ★ 2026-10-13 归一化：改名 AGENT_B_V3_DRAFT_PROMPT，消除与 prompt.js 正式版
+ * 同名导出 AGENT_B_V2_SYSTEM_PROMPT 的“抢设置”歧义（两份同名，生效看 import 路径 = 坑）
+ */
+
+export const AGENT_B_V3_DRAFT_PROMPT = `
 
 ## 你是谁
 

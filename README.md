@@ -168,8 +168,7 @@ node skills/board-lecture-player/scripts/validate_contract.cjs assets/sample-row
 ├── row-player.html           单文件播放器 (133KB, 含 superFilter)
 ├── PONYTAIL_DEBT.md          技术债追踪
 ├── SYSTEM_MAP.md             系统全景图
-├── CONSTRUCTION_LOG.md       施工进展图
-└── DIAGNOSIS_REPORT.md       问题摸底报告
+└── CONSTRUCTION_LOG.md       施工进展图
 ```
 
 ## 核心约束 (truth/)

@@ -2,6 +2,8 @@
 // 2026-09-17 契约定案：row = { stage, mp3, speech, boards:[{startDelay,content}], actionSpec }
 // speech 内 **加粗锚点** 按序映射 boards[i]；单手串行 = boards 全部写完 → 再执行 actionSpec。
 import { normalizeBoardsField } from './contract.js'
+// ★ 2026-10-13 归一化：画布字面值改真源插值（stepHandoff.CANVAS_SIZE），与 server/deliverableStoreHandler 同口径
+import { CANVAS_SIZE } from '../services/stepHandoff.js'
 
 export function serializeDeliverableState({
   rows,
@@ -61,7 +63,7 @@ export function serializeDeliverableState({
     apiSpecVersion: '2.0.0',
     apiDocUrl: '/deliverable/DELIVERABLE_API_SPEC.md',
     specificationSummary: '每个 row 为一组原子单元（五字段：stage/mp3/speech/boards/actionSpec）；语音全程；speech 内 **加粗** 按序映射 boards[i] 触发落笔；单手串行：本 row 所有 boards 写完才按 order 执行 actionSpec；动作时长定量 1~2 秒作为标点停顿。供下游课件制作与画布 Agent 直接消费。',
-    specAnnotation: '画布规格批注：尺寸 1726x980、比例、题目/板书字号、stage 四区坐标落座区间、越界与手稿风格。',
+    specAnnotation: `画布规格批注：尺寸 ${CANVAS_SIZE.width}x${CANVAS_SIZE.height}、比例、题目/板书字号、stage 四区坐标落座区间、越界与手稿风格。`,
     projectCode,
     problemText,
     sourceImageUrl,

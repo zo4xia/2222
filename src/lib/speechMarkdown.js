@@ -2,6 +2,7 @@
 // ★ Task 10: 引入完整常量避免硬编码 35/30/LikeJianJianTi
 import {
   buildCanvasParams,
+  CANVAS_SIZE,
   QUESTION_FONT_SIZE,
   BOARD_FONT_SIZE,
   HANDWRITING_FAMILY,
@@ -60,8 +61,8 @@ export function buildStandardExplainParamsSection(meta = {}) {
     '',
     '| 参数 | 值 |',
     '| --- | --- |',
-    `| 画布宽度 | ${hcp.canvasSize?.width ?? 1726}px |`,
-    `| 画布高度 | ${hcp.canvasSize?.height ?? 980}px |`,
+    `| 画布宽度 | ${hcp.canvasSize?.width ?? CANVAS_SIZE.width}px |`,
+    `| 画布高度 | ${hcp.canvasSize?.height ?? CANVAS_SIZE.height}px |`,
     `| 坐标系统 | ${hcp.coordinateSystem || '百分比坐标 0-100'} |`,
     `| 题目区字号 | ${hcp.fontSize?.question?.px ?? QUESTION_FONT_SIZE}px |`,
     `| 题目区字体 | \`${hcp.fontSize?.question?.family || `微软雅黑（印刷体，${QUESTION_FONT_SIZE}px）`}\` |`,

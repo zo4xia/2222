@@ -11,7 +11,7 @@ import { isOptions, readJsonBody, sendJson } from './http.js'
 import { renderDeliverableHtml } from './renderDeliverableHtml.js'
 import { computeRowGroupTimeline } from '../src/agent-b-v2/timing.js'
 import { layoutBoardRows } from '../src/utils/boardLayout.js'
-import { buildCanvasParams } from '../src/services/stepHandoff.js'
+import { buildCanvasParams, CANVAS_SIZE, QUESTION_FONT_SIZE } from '../src/services/stepHandoff.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const projectRoot = resolve(__dirname, '..')
@@ -181,32 +181,22 @@ export function writeDeliverableFile(data) {
     summary: { x: 54, y: 69.5, w: 40, h: 22 },
   }
   const hbp = data.boardPlan || data.zoneAnchors || fallbackBoardPlan
+  // ★ 2026-10-13 归一化：删掉历史手写 fontSize/lineHeight/boardSpeed 副本
+  // （曾为“被 ...defaultHcp 覆盖的死值”，px:35+尖尖体是陷阱；真源唯一 = stepHandoff.buildCanvasParams）
+  // canvasWidth/canvasHeight 为下游消费的异名键，改由 CANVAS_SIZE 插值，不再写字面值
   const defaultHcp = buildCanvasParams()
   const rawCanvasParams = data.canvasParams || {}
   const canvasParams = {
     source: 'handoff (Agent A 根据题目实时判断，为唯一真相源)',
-    canvasWidth: 1726,
-    canvasHeight: 980,
-    coordinateSystem: '百分比坐标 0-100',
-    fontSize: {
-      question: { px: 30, family: '微软雅黑（印刷体，30px）', color: '黑色' },
-      analysis: { px: 35, family: 'LikeJianJianTi（手写尖尖体，网络字体 fontSource.handwriting，font-weight: normal，约题目的1.2~1.5倍，推荐35px）', color: '红色' },
-      solution: { px: 35, family: 'LikeJianJianTi（手写尖尖体，网络字体 fontSource.handwriting，font-weight: normal，约题目的1.2~1.5倍，推荐35px）', color: '黑色' },
-      summary: { px: 35, family: 'LikeJianJianTi（手写尖尖体，网络字体 fontSource.handwriting，font-weight: normal，约题目的1.2~1.5倍，推荐35px）', color: '黑色' },
-    },
-    lineHeight: {
-      question: 1.65,
-      others: '自然换行即可；渲染层会对行高做微小随机抖动营造手写感，B 按正常行高估算坐标，不需要自己叠加抖动',
-    },
-    boardSpeed: '下游渲染参数：1秒约2~3个汉字，每行±10%轻微抖动（B 不需要处理速度细节）',
-    actionSpeed: '差不多同样速度（rough-line/rough-arrow/rough-notation绘制速度）',
+    canvasWidth: CANVAS_SIZE.width,
+    canvasHeight: CANVAS_SIZE.height,
     ...defaultHcp,
     ...rawCanvasParams,
   }
 
   const uiSettings = {
     coordinateMode: '百分比',
-    questionFontSize: '30px',
+    questionFontSize: `${QUESTION_FONT_SIZE}px`,
     questionFontFamily: '"Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
     audioSpeedPolicy: '（若有音频url的，以音频自然播放时间为时间，一组一组自然播放即可，如果没有音频url信息的，用填充演示数据占位，）速度计算 160字/分',
     ...(data.uiSettings || {}),
@@ -235,11 +225,11 @@ export function writeDeliverableFile(data) {
     apiSpecVersion: '2.0.0',
     apiDocUrl: '/deliverable/DELIVERABLE_API_SPEC.md',
     specificationSummary: '每个 row 为一组原子单元；语音全程；板书与动作二者绝对互斥；动作时长定量 1~2 秒作为标点停顿。供下游课件制作与画布 Agent 直接消费。',
-    specAnnotation: '画布规格批注：尺寸 1726x980、比例、题目/板书字号、stage 四区坐标落座区间、越界与手稿风格。',
+    specAnnotation: `画布规格批注：尺寸 ${CANVAS_SIZE.width}x${CANVAS_SIZE.height}、比例、题目/板书字号、stage 四区坐标落座区间、越界与手稿风格。`,
     ...data,
     canvasParams,
     boardPlan: {
-      canvas: hbp.canvas || { w: 1726, h: 980 },
+      canvas: hbp.canvas || { w: CANVAS_SIZE.width, h: CANVAS_SIZE.height },
       layoutMode: hbp.layoutMode || 'portrait',
       ...(hbp.topicBottomPct !== undefined ? { topicBottomPct: hbp.topicBottomPct } : {}),
       topicLabel: hbp.topicLabel || { x: 5.7, y: 6.6, w: 7.1 },
