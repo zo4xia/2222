@@ -26,6 +26,7 @@ const tests = [
   { name: 'b cache (R8-⑤ 缓存键盲区 7 用例)', cmd: 'node scripts/test-b-cache.mjs' },
   { name: 'check ratio (R8-③ 配比盲视 10 用例)', cmd: 'node scripts/test-check-ratio.mjs' },
   { name: 'deliverable doctype (病头修复 10 用例)', cmd: 'node scripts/test-deliverable-doctype.mjs' },
+  { name: 'speech regen button (按钮消失修复 6 用例)', cmd: 'node scripts/test-speech-regen-button.mjs' },
   { name: 'validate_contract',          cmd: 'node skills/board-lecture-player/scripts/validate_contract.cjs skills/board-lecture-player/assets/sample-rows.json' },
 ]
 

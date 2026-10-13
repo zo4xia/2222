@@ -2306,7 +2306,7 @@ function isRefineFieldEqual(original, refined) {
                         <span>{{ playingAudioIndex === index ? '暂停' : (record.audioUrl || rowAudioCache[index] ? '试听' : '生成语音') }}</span>
                       </a-button>
 
-                      <!-- 2. 音频URL记录后切换为“播放预览”，未记录时为“重新生成” -->
+                      <!-- 2. 播放预览（仅音频URL已记录时）与重新生成（常驻）共存 -->
                       <a-button
                         v-if="record.audioUrl"
                         size="small"
@@ -2321,12 +2321,15 @@ function isRefineFieldEqual(original, refined) {
                         </template>
                         <span>{{ playingAudioIndex === index ? '暂停预览' : '播放预览' }}</span>
                       </a-button>
+                      <!-- ★ 修复：原 v-else 排他——audioUrl 一记录（含小喇叭首次生成成功 L730
+                           即回填），"重新生成"就被顶掉，用户失去重合成入口（speech 改稿后/
+                           合成不满意时无路可走）。重新生成走 forceRefresh: true 强制刷新
+                           （handleRegenerateSpeech L762），与已有音频不冲突，常驻共展示。 -->
                       <a-button
-                        v-else
                         size="small"
                         class="speech-btn-regen"
                         :loading="regeneratingRowIndex === index"
-                        title="重新请求 Fish Audio 接口合成当前最新口播内容"
+                        title="重新请求 Fish Audio 接口合成当前最新口播内容（已有音频也会强制刷新重合成）"
                         @click="handleRegenerateSpeech(index, record)"
                       >
                         <template #icon><ReloadOutlined /></template>
