@@ -1242,12 +1242,9 @@ function serializeCurrentDeliverableState() {
   }
   const hbp = handoff.value?.boardPlan || handoff.value?.zoneAnchors || fallbackBoardPlan
   const ratioData = handoff.value?.stageRatioSuggestion || handoff.value?.['环节配比占比'] || null
-  const suggestedRatio = ratioData?.suggestedRatio || {
-    analysis: '35%',
-    solution: '40%',
-    summary: '15%',
-    introAndClosing: '10%',
-  }
+  // ★ 第八轮关联性归一：配比随题型动态判断（detectStageRatio 五类 a/b/c/d/e），
+  // 缺数据时逐字段"未提供"，不臆造固定比例污染导出产物（旧值 35/40/15/10 为臆造）
+  const suggestedRatio = ratioData?.suggestedRatio || {}
 
   // 逐行深层清洗并计算单手互斥执行计划（动作定量 1-2 秒作为标点停顿，绝不与板书重叠）
   const cleanRows = (rows.value || []).map((r, idx) => {
@@ -1357,10 +1354,10 @@ function serializeCurrentDeliverableState() {
         summary: { x: 54, y: 69.5, w: 40, h: 22 },
       },
       stageRatios: {
-        analysis: suggestedRatio.analysis || '35%',
-        solution: suggestedRatio.solution || '40%',
-        summary: suggestedRatio.summary || '15%',
-        introAndClosing: suggestedRatio.introAndClosing || '10%',
+        analysis: suggestedRatio.analysis || '未提供',
+        solution: suggestedRatio.solution || '未提供',
+        summary: suggestedRatio.summary || '未提供',
+        introAndClosing: suggestedRatio.introAndClosing || '未提供',
       },
       stageRatioSuggestion: ratioData,
     },

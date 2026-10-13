@@ -88,8 +88,8 @@ const HANDOFF_FIELD_NOTES = {
   suggestedGrade: '【建议年级】建议学段（1~3年级注重启蒙温柔引导与短问题链；4~6年级加深逻辑探究与问题链深度）',
   suggestedLayout: '建议布局，仅参考，以 boardPlan 为准',
   essence: '【核心精髓与教学灵魂】整道题的讲解主线与灵魂定位（如：解答绝对主体、分析≈解答试错链、边画边讲等），必须贯穿全题始终',
-  stageRatioSuggestion: '【环节配比占比（重要！）】各 stage（读题、分析、解答、总结）时间与行数占比建议，必须严格依此安排讲解深度与行数规模',
-  '环节配比占比': '【环节配比占比（重要！）】各 stage（读题、分析、解答、总结）时间与行数占比建议，必须严格依此安排讲解深度与行数规模',
+  stageRatioSuggestion: '【环节配比占比（重要！）】题型分类配比建议（含 cuCode、置信度与题型分类；四槽=分析、解答、总结、开收场，随题型 a/b/c/d/e 动态不同，每题一套），必须严格依本题 handoff 真实值安排讲解深度与行数规模，禁止套用固定比例',
+  '环节配比占比': '【环节配比占比（重要！）】题型分类配比建议（含 cuCode、置信度与题型分类；四槽=分析、解答、总结、开收场，随题型 a/b/c/d/e 动态不同，每题一套），必须严格依本题 handoff 真实值安排讲解深度与行数规模，禁止套用固定比例',
   topicLayout: '【冗余兼容字段】题目区布局，优先用 boardPlan.question 和 zoneAnchors.question',
 }
 
@@ -190,7 +190,11 @@ export async function handleAgentBV2Request(req, res) {
     const ratioData = promptHandoff['环节配比占比'] || promptHandoff.stageRatioSuggestion
     if (ratioData) {
       const sr = ratioData.suggestedRatio || ratioData
-      stageSummary.push(`- 环节配比占比(重要！)：分析 ${sr.analysis || '35%'}，解答 ${sr.solution || '40%'}，总结 ${sr.summary || '15%'}，开收场 ${sr.introAndClosing || '10%'}（类型：${ratioData.type || ratioData.category || '综合题'}）`)
+      // ★ 第八轮关联性归一：配比随题型动态判断（detectStageRatio 五类 a/b/c/d/e 各不同），
+      // 摘要带 cuCode 与置信度，字段缺失诚实写"未提供"，禁止臆造固定比例（旧值 35/40/15/10 为臆造）
+      const confidenceText = ratioData.confidence === 'high' ? '高置信' : ratioData.confidence === 'medium' ? '中置信' : ''
+      const typeText = `${ratioData.cuCode || ''}·${ratioData.type || ratioData.category || '未分类'}${confidenceText ? `（${confidenceText}）` : ''}`
+      stageSummary.push(`- 环节配比占比(重要！)：题型分类 ${typeText}，分析 ${sr.analysis || '未提供'}，解答 ${sr.solution || '未提供'}，总结 ${sr.summary || '未提供'}，开收场 ${sr.introAndClosing || '未提供'}。配比随题型动态变化，严格遵守本题实际值，禁止套用任何固定比例`)
     }
     stageSummary.push(`- 板书排版：只提供本教学时刻要写的内容；真实渲染层按 stage、自然换行和内容高度自由排版，允许超出所属领地但不得与其他板书重叠。`)
     stageSummary.push(`- 板书风格：像老师上课草算演示，带自然留白和轻微手写感，不套用固定坐标、行高或横向错位规则。`)

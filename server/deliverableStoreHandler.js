@@ -210,11 +210,13 @@ export function writeDeliverableFile(data) {
     teachingFocus: rawProblemInfo.teachingFocus || '',
     keyFormulaList: rawProblemInfo.keyFormulaList || [],
     zoneAnchors: rawProblemInfo.zoneAnchors || data.zoneAnchors || hbp,
+    // ★ 第八轮关联性归一：配比随题型动态判断（detectStageRatio 五类 a/b/c/d/e 各不同），
+    // 缺数据诚实写"未提供"，禁止臆造固定比例污染 deliverable 存档（旧值 35/40/15/10 为臆造）
     stageRatios: rawProblemInfo.stageRatios || {
-      analysis: '35%',
-      solution: '40%',
-      summary: '15%',
-      introAndClosing: '10%',
+      analysis: '未提供',
+      solution: '未提供',
+      summary: '未提供',
+      introAndClosing: '未提供',
     },
     stageRatioSuggestion: rawProblemInfo.stageRatioSuggestion || null,
     ...rawProblemInfo,

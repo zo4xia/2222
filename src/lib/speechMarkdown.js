@@ -51,10 +51,13 @@ export function buildStandardExplainParamsSection(meta = {}) {
   const stageRatioData = meta.stageRatioSuggestion || meta['环节配比占比'] || null
   const suggestedRatio = stageRatioData?.suggestedRatio || meta.stageRatios || {}
 
-  const analysisPct = suggestedRatio.analysis || '35%'
-  const solutionPct = suggestedRatio.solution || '40%'
-  const summaryPct = suggestedRatio.summary || '15%'
-  const introPct = suggestedRatio.introAndClosing || suggestedRatio.intro || '10%'
+  // ★ 第八轮关联性归一（2026-10-13）：配比唯一真源 = handoff.stageRatioSuggestion
+  // （detectStageRatio 按题型动态判断，五类 a/b/c/d/e 各不同，cuCode+置信度随行）
+  // 缺数据时诚实写"未提供"，禁止臆造固定比例（旧值 35/40/15/10 与五类真值均对不上）
+  const analysisPct = suggestedRatio.analysis || '未提供'
+  const solutionPct = suggestedRatio.solution || '未提供'
+  const summaryPct = suggestedRatio.summary || '未提供'
+  const introPct = suggestedRatio.introAndClosing || suggestedRatio.intro || '未提供'
 
   return [
     '',
