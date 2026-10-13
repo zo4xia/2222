@@ -97,7 +97,7 @@
 
 ---
 
-## 4. actionSpec（一期收口）
+## 4. actionSpec（动作白名单，与真源对齐）
 
 结构：`{ "action": { "tool": ..., "order": N, ... } }`，`order` 写在 action **内部**，全表唯一正整数。
 
@@ -134,11 +134,11 @@
 - [ ] 没有任何 keyword 字段
 - [ ] 没有出现 `字/160` 之类估算产物写进 `duration` 并被当真
 - [ ] `stage` 取值合法
-- [ ] actionSpec 只有 circle / underline，且 `order` 全表唯一递增
+- [ ] actionSpec 工具只 rough-notation（underline/highlight/circle）/ rough-line / rough-arrow，且 `order` 全表唯一递增
 - [ ] exactText 能在对应 region 文本中原样命中
 - [ ] content 中分数均为 `\frac{}{}`
 
-然后跑：`node scripts/validate_contract.js <rows.json>`
+然后跑：`node scripts/validate_contract.cjs <rows.json>`
 
 ---
 
@@ -147,3 +147,4 @@
 | 时间 | 版本 | 更新人 | 变更 |
 |---|---|---|---|
 | 2026-09-18 23:55 | v2.0 | 小阿星 | 首次成文：坐标退场(board v3.0 无坐标)、零 keyword、真实音频唯一时长真相源、一期动作收口为 circle+underline |
+| 2026-10-13 | v2.1 | Super Z（代表夏夏） | 动作白名单对齐真源 boardToolCatalog（第七轮全链接通后补齐本档）：notation 三动作 + rough-line/rough-arrow 进白名单；自检清单同步；校验器 PHASE1 白名单同步（曾拒绝 highlight/line/arrow 与本表打架）；补指回 .cjs（.js 双胞胎已删） |

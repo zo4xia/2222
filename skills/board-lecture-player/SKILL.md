@@ -27,7 +27,7 @@ row = { stage, mp3|audioBase64, duration(仅占位), speech, board:{startDelay, 
 ```
 
 - `duration` 允许存在但**仅作占位**，渲染时必须被真实音频 duration 覆盖，不得参与排期
-- `actionSpec` 一期**只有** `rough-notation` 的 `circle` / `underline`，且必须锚定 `target.exactText`（引用线的 rough-line / rough-arrow 属二期）
+- `actionSpec` 动作白名单与真源 `src/board-tools/boardToolCatalog.js` 对齐：`rough-notation` 的 `underline` / `highlight` / `circle` 三动作（必须锚定 `target.exactText`）+ `rough-line` / `rough-arrow`（region + start/end 百分比锚定）。2026-10-13 第七轮起全链统一，不再有「一期只有 circle/underline」收口
 - 完整字段表、自检清单 → `references/contract-upstream.md`
 
 ## 12 条硬规矩（渲染时必须遵守）
@@ -40,7 +40,7 @@ row = { stage, mp3|audioBase64, duration(仅占位), speech, board:{startDelay, 
 6. 板书速度别太慢；样式要像手写（逐字位移/旋转抖动、整行轻微倾斜、行距抖动），不要板板正正。
 7. 分数用 `\frac{num}{den}` 渲染上下结构；`^2`/`_x` → 上下标；`\begin{aligned}`/`\\`/`&` → 分行/对齐。口播念「分母分之分子」（上游稿已处理）。
 8. 字母 x 在复合式里念「艾克斯」（上游稿已写谐音，代码不动）。
-9. 动作一期只有 `circle` / `underline`（见 §输入契约），**可操作区域是整个画布**（SVG overlay 覆盖全画布）。
+9. 动作白名单 `underline` / `highlight` / `circle` + `rough-line` / `rough-arrow`（见 §输入契约，与 boardToolCatalog 真源对齐），**可操作区域是整个画布**（SVG overlay 覆盖全画布）。
 10. 动作排期由音频时钟推导，**不读数据中任何时间字段**（`durationMs`/`startMs`/`triggerAt` 一律忽略或报错）。
 11. 板书**坐标退场**：`region` 是软提示，写不下就往外溢写到空白区，弹性调整，绝不溢出画布。
 12. 松门槛：格式硬约束，内容软引导，不把题型卡成唯一答案。
@@ -161,7 +161,7 @@ assets/sample-rows.json             合法样例（跑 validate 应为 ERROR 0 /
 | 6. 板书手写感（位移/旋转/行倾抖动） | handwriting-font-policy §三 |
 | 7. 分数 \frac / ^2 _x / \begin{aligned} | field-char-escape-filter §五 + §六 |
 | 8. 字母 x 念艾克斯 | speech-board-timing §五 |
-| 9. 动作一期 circle / underline | hand-action-control §二（白名单收口为本播放器的 circle+underline 子集） |
+| 9. 动作白名单 underline/highlight/circle + rough-line/rough-arrow | hand-action-control §二（白名单与 boardToolCatalog 真源对齐） |
 | 10. 动作排期由音频时钟推算（不读 durationMs/startMs/triggerAt） | hand-action-control §一（generation-based cancel）+ speech-board-timing §四 |
 | 11. board 坐标退场，写不下外溢到空白区 | board-zone-layout §四（硬约束不出画布 / 软约束不严重叠字） |
 | 12. 松门槛：格式硬约束，内容软引导 | （5 个 skill 共同松门槛原则） |

@@ -1,8 +1,8 @@
 {
   "meta": {
     "contract": "board-lecture-player v2.0",
-    "note": "示范：[真实音频唯一时长真相] + [board 零坐标] + [零 keyword] + [一期动作只 circle/underline]。duration 按真人语速约 5 字/秒取值，仅占位，渲染时被真实音频覆盖",
-    "updated_at": "2026-09-19 00:02 GMT+8",
+    "note": "示范：[真实音频唯一时长真相] + [board 零坐标] + [零 keyword] + [动作白名单 circle/underline/highlight + rough-line/rough-arrow，与 boardToolCatalog 真源对齐]。duration 按真人语速约 5 字/秒取值，仅占位，渲染时被真实音频覆盖",
+    "updated_at": "2026-10-13 GMT+8",
     "updated_by": "小阿星 ✦（代表夏夏）"
   },
   "rows": [
@@ -14,7 +14,8 @@
       "board": { "startDelay": 0, "region": "question", "content": "" },
       "actionSpec": [
         { "action": { "tool": "rough-notation", "action": "circle", "target": { "region": "question", "exactText": "9", "occurrence": 1 }, "options": { "multiline": false }, "order": 1 } },
-        { "action": { "tool": "rough-notation", "action": "underline", "target": { "region": "question", "exactText": "20.4厘米", "occurrence": 1 }, "options": { "multiline": false }, "order": 2 } }
+        { "action": { "tool": "rough-notation", "action": "highlight", "target": { "region": "question", "exactText": "15", "occurrence": 1 }, "options": { "multiline": false }, "order": 2 } },
+        { "action": { "tool": "rough-notation", "action": "underline", "target": { "region": "question", "exactText": "20.4厘米", "occurrence": 1 }, "options": { "multiline": false }, "order": 3 } }
       ]
     },
     {
@@ -24,7 +25,7 @@
       "speech": "嗯，咱们先看这道题哈。梯形面积怎么求呢？是上底加下底，乘高，再除以2，对吧？那这题上底9、下底15，加起来是24，再乘高20.4，最后除以2就好啦。",
       "board": { "startDelay": 1.8, "region": "analysis", "content": "梯形面积 =（上底+下底）x 高 ÷ 2\\n上底+下底 = 9+15 = 24" },
       "actionSpec": [
-        { "action": { "tool": "rough-notation", "action": "underline", "target": { "region": "analysis", "exactText": "9", "occurrence": 1 }, "options": { "multiline": false }, "order": 3 } }
+        { "action": { "tool": "rough-notation", "action": "underline", "target": { "region": "analysis", "exactText": "9", "occurrence": 1 }, "options": { "multiline": false }, "order": 4 } }
       ]
     },
     {

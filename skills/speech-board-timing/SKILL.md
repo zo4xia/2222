@@ -290,7 +290,7 @@ validateSpeechDecimalReading(speech)
 口播时长: max(1200, 字数*375 + 标点停顿)  空口播=1500ms
 板书: 400ms/字 + 360—440 抖动 (1秒2.5字)
 板书起手: max(1000, min(2000, speech*0.2))，可被 startDelay 覆盖
-动作估算: notation underline 1200 / highlight 1400 / line 1000 / arrow 1200 / 其他 1200 ms（timing.js 真源）
+动作估算: notation underline 1200 / highlight 1400 / circle 1500 / line 1000 / arrow 1200 / 其他 1200 ms（timing.js 真源）
 动作间隔: MIN_HAND_LIFT_GAP_MS = 1000ms（与动作调度共用，真源 boardToolTiming.js；2026-10-13 勘误：曾标 600ms，估算偏快致长板书音画漂移）
 Row 间: 1500ms (AGENT_B_V2_ROW_GAP_MS)
 Row 总: max(speechDurationMs, handWorkEndMs)

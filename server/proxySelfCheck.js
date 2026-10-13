@@ -5,7 +5,7 @@ import { handleRecognitionRequest } from './recognitionHandler.js'
 import { buildSpeechMarkdown } from '../src/lib/speechMarkdown.js'
 import { validateAgentBV2Rows } from '../src/agent-b-v2/contract.js'
 import { getAgentBDirectorView, getAgentBoardToolCatalog } from '../src/board-tools/boardToolCatalog.js'
-import { validateRoughNotationAction } from '../src/board-tools/roughNotationTool.js'
+import { validateRoughNotationAction, ROUGH_NOTATION_ENABLED_ACTIONS } from '../src/board-tools/roughNotationTool.js'
 import { buildStep1Handoff } from '../src/services/stepHandoff.js'
 
 function mockResponse() {
@@ -273,8 +273,11 @@ assert.deepEqual(
 )
 assert.deepEqual(
   directorCatalog.tools[0].actions.map((item) => item.action),
-  ['underline', 'highlight', 'box', 'circle', 'bracket', 'strike-through', 'crossed-off'],
+  [...ROUGH_NOTATION_ENABLED_ACTIONS],
 )
+// ★ 白名单唯一真源 = roughNotationTool.ROUGH_NOTATION_ENABLED_ACTIONS（2026-10-13 第七轮收敛为
+// underline/highlight/circle 三动作）。本断言直接 import 真源派生期望值，不再平行抄写清单——
+// 曾因抄写 7 动作旧清单（含 box/bracket/strike-through/crossed-off）与真源漂移导致 check:proxy 必炸。
 assert.equal(directorCatalog.tools[0].actionSchema.options.colorId, undefined)
 assert.equal(directorCatalog.tools[1].actionSchema.style.colorId, 'ink|red')
 assert.equal(boardToolCatalog.tools[1].coordinateSystem.unit, 'percent')

@@ -366,7 +366,7 @@ function boardCharPool(L){
 function actionDurationMs(a){
   const inner=(a&&a.action)||a||{}, tool=inner.tool||'', sub=inner.action||'';
   if(tool==='rough-notation'){
-    if(sub==='circle'||sub==='box')return 1500;
+    if(sub==='circle')return 1500;
     if(sub==='highlight')return 1400;
     if(sub==='bracket')return 1300;
     if(sub==='strike-through'||sub==='crossed-off')return 1100;

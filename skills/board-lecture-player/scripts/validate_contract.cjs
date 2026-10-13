@@ -2,7 +2,7 @@
 /**
  * validate_contract.cjs — board-lecture-player 上游产出端合同校验
  *
- * 零依赖（仅 Node 标准库）。检查三条非协商修订 + 一期动作收口。
+ * 零依赖（仅 Node 标准库）。检查三条非协商修订 + 动作白名单收口。
  *
  * 用法：
  *   node validate_contract.cjs <rows.json>
@@ -10,11 +10,13 @@
  *
  * 退出码：0 = PASS（无 ERROR），1 = 有 ERROR，2 = 用法/解析错误
  *
- * 更新时间：2026-09-18 23:59 GMT+8
- * 更新人：小阿星 ✦（代表夏夏）
+ * 更新时间：2026-10-13 GMT+8
+ * 更新人：Super Z（代表夏夏）
  * 来源：references/contract-upstream.md（该文件的机器执行版）
  * 本项目定位：board-lecture-player/scripts/validate_contract.cjs（.js 双胞胎已删：ESM 下 require 必崩）
- * 版本：v1.0
+ * 版本：v1.1（动作白名单对齐真源 src/board-tools/boardToolCatalog.js：notation 三动作
+ *       + rough-line/rough-arrow。v1.0 曾只认 circle/underline 并拒 line/arrow，与
+ *       contract-upstream.md 动作表同文档内自相矛盾）
  */
 
 'use strict';
@@ -22,8 +24,11 @@
 const fs = require('fs');
 
 const VALID_STAGES = ['题目', '分析', '解答', '总结'];
-const PHASE1_TOOLS = ['rough-notation'];
-const PHASE1_ACTIONS = ['circle', 'underline'];
+// 动作白名单与真源 src/board-tools/boardToolCatalog.js 对齐（2026-10-13 第七轮全链接通）。
+// rough-notation 三动作 + rough-line/rough-arrow；draw 属 R6 待拍板半孤岛，不进本播放器契约。
+const PHASE1_TOOLS = ['rough-notation', 'rough-line', 'rough-arrow'];
+const PHASE1_ACTIONS = ['underline', 'highlight', 'circle'];
+const VALID_REGIONS = ['question', 'analysis', 'solution', 'summary'];
 const ILLEGAL_COORD_KEYS = ['startCoord', 'coord', 'x', 'y', 'left', 'top', 'position'];
 const ILLEGAL_SYNC_KEYS = ['keyword', 'keywords', 'cue', 'triggerAtWords'];
 
@@ -148,11 +153,11 @@ function main() {
         orderSeen.add(a.order);
       }
       if (typeof a.tool !== 'string' || !PHASE1_TOOLS.includes(a.tool)) {
-        err(`${sat}.action.tool=${JSON.stringify(a.tool)} 不在一期白名单 ${JSON.stringify(PHASE1_TOOLS)}（rough-line/rough-arrow 属二期）`);
+        err(`${sat}.action.tool=${JSON.stringify(a.tool)} 不在白名单 ${JSON.stringify(PHASE1_TOOLS)}（draw 属上游待拍板能力，不进本契约）`);
       }
       if (a.tool === 'rough-notation') {
         if (!PHASE1_ACTIONS.includes(a.action)) {
-          err(`${sat}.action.action=${JSON.stringify(a.action)} 不在一期白名单 ${JSON.stringify(PHASE1_ACTIONS)}`);
+          err(`${sat}.action.action=${JSON.stringify(a.action)} 不在白名单 ${JSON.stringify(PHASE1_ACTIONS)}`);
         }
         const t = a.target || {};
         if (!t.exactText) {
@@ -161,6 +166,20 @@ function main() {
           const hay = questionText.join(' ');
           if (hay && !hay.includes(t.exactText)) {
             warn(`${sat} exactText="${t.exactText}" 未在题目文本中命中，检查错别字/空格`);
+          }
+        }
+      }
+      if (a.tool === 'rough-line' || a.tool === 'rough-arrow') {
+        // 几何工具：region + start/end 百分比坐标（0—100，原点左上）
+        if (!VALID_REGIONS.includes(a.region)) {
+          err(`${sat} ${a.tool} 需要 region（question/analysis/solution/summary），得到: ${JSON.stringify(a.region)}`);
+        }
+        for (const key of ['start', 'end']) {
+          const v = a[key];
+          if (!Array.isArray(v) || v.length !== 2 || v.some((n) => typeof n !== 'number' || !Number.isFinite(n))) {
+            err(`${sat} ${a.tool}.${key} 必须是 [x, y] 数字对，得到: ${JSON.stringify(v)}`);
+          } else if (v.some((n) => n < 0 || n > 100)) {
+            err(`${sat} ${a.tool}.${key} 百分比坐标越界（0—100），得到: ${JSON.stringify(v)}`);
           }
         }
       }

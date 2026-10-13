@@ -22,7 +22,7 @@
 
 | # | Skill | 用途 | 核心硬约束 |
 |---|---|---|---|
-| 6 | [board-lecture-player](./board-lecture-player/SKILL.md) | 把 deliverable JSON 渲染成单文件 HTML 讲学页 | **真实音频唯一时长真相源**（160 cpm 估算列黑名单），零 keyword 同步，board v3.0 零坐标 + occupancy map 自动排版，一期动作 circle+underline，验证四件套 |
+| 6 | [board-lecture-player](./board-lecture-player/SKILL.md) | 把 deliverable JSON 渲染成单文件 HTML 讲学页 | **真实音频唯一时长真相源**（160 cpm 估算列黑名单），零 keyword 同步，board v3.0 零坐标 + occupancy map 自动排版，动作白名单 underline/highlight/circle + rough-line/rough-arrow（对齐 boardToolCatalog 真源），验证四件套 |
 | 7 | [blingbling小眼睛](./blingbling小眼睛/SKILL.md) | 浏览器侧轻量 DOM 观察子技能 | DOM-first 不是 screenshot-first，结构化页面（表单/后台/文档）先于自动化；输出 compact JSON 观察，建议下一步安全动作 |
 
 ---
@@ -99,7 +99,8 @@
         ┌────────────────────────────────────────────┐
         │ 6. board-lecture-player (下游渲染端)           │
         │    真实音频时钟 + occupancy map 自动排版      │
-        │    一期动作 circle+underline + 验证四件套       │
+        │    动作白名单 underline/highlight/circle          │
+        │    + rough-line/rough-arrow + 验证四件套       │
         └────────────────────────────────────────────┘
                         ↓
                   单文件 HTML 讲学页 (?audit=1 自报布局)

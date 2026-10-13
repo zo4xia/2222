@@ -325,8 +325,8 @@ Row 2: estimatedStartMs = T1 + ROW_GAP_MS, estimatedEndMs = ...
 
 ```
 互斥: teacher-hand-exclusive, 任意时刻只一笔
-工具白名单: rough-notation(underline/highlight) / rough-line / rough-arrow / draw(意图绘图)
-颜色锁定: underline=red #d64545 / highlight=yellow #f8e58c
+工具白名单: rough-notation(underline/highlight/circle) / rough-line / rough-arrow / draw(意图绘图)
+颜色锁定: underline=red #d64545 / highlight=yellow #f8e58c / circle=red #d64545
 笔宽: normal=2 / emphasis=3
 坐标: 百分比 0—100, 原点左上
 抬笔间隔: MIN_HAND_LIFT_GAP_MS = 1000ms (硬下限; 2026-10-13 勘误: 曾误标 600ms)

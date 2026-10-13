@@ -28,7 +28,7 @@
     "动作间隔 MIN_HAND_LIFT_GAP_MS = 1000ms (真源 boardToolTiming.js; 2026-10-13 勘误: 曾标 600ms)",
     "Row 间停顿 1500ms (AGENT_B_V2_ROW_GAP_MS)",
     "Row 总耗时 = max(speechDurationMs, handWorkEndMs)",
-    "单动作估算: notation underline 1200 / highlight 1400 / line 1000 / arrow 1200 / 其他 1200 ms (timing.js 真源)",
+    "单动作估算: notation underline 1200 / highlight 1400 / circle 1500 / line 1000 / arrow 1200 / 其他 1200 ms (timing.js 真源)",
     "B 不输出 duration/startAt/endAt/durationMs/estimatedDurationMs",
     "口播分数: 分母分之分子, 阿拉伯数字, 不得用斜杠",
     "口播未知数: 艾克斯, 不得保留 x/X/×",
