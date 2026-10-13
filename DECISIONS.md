@@ -1,5 +1,15 @@
 # 重要决策
 
+## 2026-10-13 内容源档案与运行时注入的定性分界
+- **决策**：`doc/speech-board-guide.md` / `doc/self-check.md` / `doc/建议提示.md` / `doc/起始语-过渡-总结-兜底话术.md` 定性为**内容源档案**（方法已蒸馏进对应 prompt.js，文件作为方法论真源保留）；PROJECT_STATE.md 中"运行时输入""服务端读取并注入"等表述全部修正为真实行为。删除 13 项垃圾与误导文件，自检-必读.md 6 行红线归并入 self-check.md。
+- **背景**：运行时扫描发现代码只读 doc/knowledge-a.compact.json，但 PROJECT_STATE.md 4 处声称 speech-board-guide/self-check 参与运行时注入——典型误导文件（文档说谎）。
+- **考虑的方案**：A) 实现文档承诺，让 handler 真去读这些 md 注入 prompt；B) 删掉这些 md（视为死文件）；C) 保留文件修正表述（内容源档案模式）。
+- **最终决策**：C。验证发现固定开场语、运算符读法、四环特征均已在 prompt 中（内容早已蒸馏）；A 会让 prompt 双源化违反真源唯一原则；B 会丢失方法论真源（建议提示.md 模式已被 AGENTS.md 认证多年）。
+- **理由**：真源唯一 + 档案不骗人。运行时行为以代码为准（docReferences.js 只读 compact.json），文档如实记录。
+- **风险**：后续维护者若不看修正后的表述，可能误以为改 md 就能改 prompt 行为（实际需同步蒸馏进 prompt）。
+- **验证**：server/api/vite 全部 readFile 扫描 + prompt 内容特征比对（开场语/运算符/四环）+ run-all-tests 6/6。
+- **关联文件**：`PROJECT_STATE.md`（3 处表述）、`doc/self-check.md`（归一接收方）、删除清单见 ENGINEERING_LOG 2026-10-13 第二轮条目。
+
 ## 2026-10-13 根目录文档链收敛为 8 份活文档
 - **决策**：仓库根目录 md 从 23 份收敛为 8 份（README / AGENTS / RTK / SYSTEM_MAP / PROJECT_STATE / ENGINEERING_LOG / DECISIONS / PONYTAIL_DEBT），其余 24 项噪音（含 15 份停更或重叠文档、9 项平台/本地残留）零引用复核后物理删除。
 - **背景**：夏夏指出根目录有噪音味；审计发现 CHANGELOG 停 09-20、CONTINUITY 停 08-19、CONSTRUCTION_LOG 停 09-19 完结、KNOWN_ISSUES 零命中新特性；backup/ 内 1.1MB tar.gz 直接进 git；metadata.json + .base44/ + docker-compose.base44.yml 为 base44 平台残留；reasonix.toml 为本地 AI 工具权限沉淀（含 Windows 路径）。

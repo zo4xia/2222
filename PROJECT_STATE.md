@@ -17,10 +17,10 @@ Agent A 知识边界：夏夏提供的云端 Knowledge-A 是规范来源，地�
 A/B 是必要主链；Check Agent C 是可选后处理。C 未配置、失败或未点击时，A/B 仍必须独立完成生成。
 产品原则：系统放权，不绑死。题目事实和四区骨架负责锚定，Agent A 的题型、知识、公式、策略与布局均是给 Agent B 的软建议，不是门槛、评分清单或强制输出项；面对多样题型，Agent B 可以取用、改写、补充或舍弃。用户可修改生成内容、决定是否触发 C，并以点击时的当前文本作为审计真相；检查不是审批门槛。
 A/B 两页的知识关联点统一使用浅蓝胶囊标签，点击后显示完整单列详情表。布局百分比在 A→B handoff 边界统一四舍五入至最多两位小数，页面显示和 Agent B 输入均不得传播循环长小数。
-Agent B 的运行时输入收敛为核心合同、`doc/speech-board-guide.md`、`doc/self-check.md` 与 Agent A handoff。知识、公式与题目事实由 Knowledge-A handoff 提供，Check Agent 的独立参考链保持隔离。
+Agent B 的运行时输入收敛为核心合同（`prompt.js` + skills 动态加载）与 Agent A handoff；`doc/speech-board-guide.md` / `doc/self-check.md` / `doc/建议提示.md` 是内容源档案（方法已蒸馏进对应 prompt，不参与运行时注入）。知识、公式与题目事实由 Knowledge-A handoff 提供，Check Agent 的独立参考链保持隔离。
 Agent B 实链审查已修复：板书数学软校验改查真实 `board` 字段；Check 保留现有 duration；服务端按题型传递几何合同校验；B 页面补回 `notes` 列；每行口播新增手动语音合成喇叭、重新生成、本地持久化与记录下载 URL。
 Agent B 后续压实：Agent A 到 B handoff 过滤文本字段，彻底停止向 B 发送原图、Base64 或画布快照；用户修改口播或环节后立即重算时间线；缺少真画布预览时给用户可见降级提示。
-Agent B 提示真相已收敛：系统 Prompt 支持 Skill 动态加载与自定义注入；`prompt.js` 保留核心合同；口播和板书方法收敛至 `speech-board-guide.md`；机器合同负责工具 schema、全局 order 和输出字段。
+Agent B 提示真相已收敛：系统 Prompt 支持 Skill 动态加载与自定义注入；`prompt.js` 保留核心合同；口播和板书方法源档案为 `speech-board-guide.md`（内容已蒸馏进 prompt.js）；机器合同负责工具 schema、全局 order 和输出字段。
 BoardPreview 与交付物收口压实：录屏前置弹窗预检查拦截未就绪项并放权放行；BoardPreview 全量复用 `speechMarkdown.js` 标准导出，板书呈现增加格式容错，四区基准统一收拢至 1726×980 达芬奇手稿风格；已彻底物理删除 7 个孤儿文件与全部废弃历史换算函数。
 
 ## 业务边界
@@ -101,6 +101,8 @@ agentBDraftResult.js / agentBContract.js
   / metadata.json / docker-compose.base44.yml / AGENTS.local.md / 迭代计划/ (9 项)
 ```
 
+第二轮（同日）：doc/skills/public 根深化清理 13 项——空文件 knowledge-list.md（0字节）、旧主键数据三件套（knowledge_points.json kp_主键 / CSV csvId时代 / 知识点列表大全.md）、过时快照（XRAY-全局图谱 / 08-16诊断单 / 责任表v1）、误导文件 public/README.md（描述的主程序 handdraw-whiteboard.html 从未存在于仓库）、零引用副本（skills/fish-tts-proxy.py ≡ public/、skills/demo.html、public/fish-tts-proxy.py）、无操作配置 .npmrc；自检-必读.md 6 行红线归并入 self-check.md。
+
 已知问题并入 `SYSTEM_MAP.md` 第五节；收尾流程见 `AGENTS.md`「收尾流程」；git 历史可回溯（`git revert 38b9777`）。
 
 ## API 唯一真相
@@ -120,10 +122,10 @@ agentBDraftResult.js / agentBContract.js
 system prompt       src/agent-b-v2/skills/ (动态加载) -> server/agentBV2Handler.js
 Agent A 情报         src/agent-b-v2/service.js 组装为 userPayload
 Agent A 知识库        doc/knowledge-a.compact.json (运行时快照, docReferences.js 读取)
-Agent B 必读资料      doc/speech-board-guide.md
+Agent B 必读资料      doc/speech-board-guide.md + doc/self-check.md + doc/建议提示.md (内容源档案，已蒸馏进 prompt)
 ```
 
-前端不持有 Agent B system prompt。生成请求沿用既有 prompt；自检请求由服务端读取并注入上述三份规范，不复用生成 prompt。
+前端不持有 Agent B system prompt。生成请求沿用既有 prompt；Check 自检请求使用独立的 `src/check-agent/prompt.js`（含 self-check 润色规则的蒸馏内容）+ handoff 知识，不复用生成 prompt，不读取 doc/ 规范文件。
 
 ## Check Agent C 唯一真相
 
@@ -181,7 +183,7 @@ Preview 已启用 Vercel Deployment Protection；登录 `xiaxia` 账号后访问
 ## 下一步
 
 使用独立 Check Agent C 配置手动点击一次“Check Agent”，确认上游模型按当前账号返回结构化修正结果。
-doc/ 知识点三件套重叠（knowledge_points.json / knowledge-list.md / 知识点列表大全.md）待评估归一（见 ENGINEERING_LOG 2026-10-13 接力棒）。
+doc/ 剩余观察项：起始语-过渡-总结-兜底话术.md 与 speech-board-guide.md 话术段内容重叠度待评估；board 勘察三件套（initial_state/risk_matrix/resource_list）待 R2/R4/R5 处置后一并评估归档。
 
 ## Vercel 部署
 

@@ -1,5 +1,38 @@
 # 工程日志
 
+## 2026-10-13 第二轮深化清理：doc/skills/public 垃圾与误导文件
+
+**背景与口径**：
+- 夏夏令"继续清理垃圾和误导文件"；上一轮接力棒指向 doc/ 知识点三件套重叠。
+- 方法沿用：零引用复核 + 主键时代 + 内容源甄别（是否已蒸馏进 prompt）三重验证，不凭文件名猜测。
+
+**执行步骤**：
+1. 扫描 server/api/vite 全部运行时 readFile 调用，摸清代码真正读取的 doc/ 文件（仅 knowledge-a.compact.json）。
+2. 甄别 PROJECT_STATE.md 声称的"运行时注入"规范文件是否真被读取 → 实锤 speech-board-guide.md / self-check.md / key.md 三者零代码读取。
+3. 内容源验证：固定开场语、运算符读法、四环特征均已在 prompt.js / check-agent/prompt.js 中找到对应 → 定性为内容源档案（同 建议提示.md 模式），文件保留、误导表述修正。
+4. 逐项判定 doc/ 20 文件 + skills 待定项 + public 待定项，删 13 项 + 归一 1 项。
+
+**代码变更**：
+- 删除 13 项：doc/ 8 项（0 字节空文件 knowledge-list.md、旧主键数据三件套 knowledge_points.json/知识点列表大全.md/关联知识表.csv、过时快照 XRAY-全局图谱.md/2026-08-16-诊断单.md/责任表.md、孤儿自检-必读.md）、skills/ 2 项（demo.html 零引用、fish-tts-proxy.py 与 public/ 份 md5 全同的纯副本）、public/ 2 项（README.md 误导文件——描述的主程序 handdraw-whiteboard.html 从未存在于仓库、fish-tts-proxy.py 零引用旧本地 TTS 方案）、根 .npmrc（1 行=registry 默认值，无操作配置）。
+- 归一：自检-必读.md 的 6 行质量红线（Badcase 规避清单）并入 doc/self-check.md 顶部，注明归一来源。
+- 修正 PROJECT_STATE.md 误导表述 3 处：L20"运行时输入"改为"核心合同 + skills 动态加载，内容源档案不参与运行时注入"；L126"自检请求由服务端读取并注入上述三份规范"改为"Check 用独立 prompt.js（含蒸馏内容），不读取 doc/ 规范文件"；L125"必读资料"标注内容源档案性质。
+
+**发现和确认**：
+- 运行时 doc/ 依赖全景：代码只读 knowledge-a.compact.json（docReferences.js）；speech-board-guide/self-check/建议提示/起始语话术 = 内容源档案（内容已蒸馏进 prompt，文件作为方法论真源保留）。
+- knowledge_points.json（5980 行）主键为 kp_N 中间代格式（_meta.source=knowledge_base_full.json，源头文件不在仓库）；CSV 为 csvId 时代；现行主键 knowledgeId 只存在于 knowledge-a.compact.json。
+- public/README.md 与 public/fish-tts-proxy.py 是"手写板书 DSL 播放器"单文件时代的配套残留（主程序早已不存在）。
+
+**验证结果**：
+- run-all-tests 6/6（superFilter 93/93）。
+- 13 个被删名全仓引用复核：仅 PROJECT_STATE.md「已移除噪音」清单与历史表述两处正当坐标，无活引用。
+- fish-tts-proxy 双副本同 md5（eca636e...）确认，删 skills/ 与 public/ 两份均无代码引用（TTS 主链路走 server/fishAudioHandler.js）。
+
+**接力棒**：
+- doc/ 剩余观察：起始语-过渡-总结-兜底话术.md 与 speech-board-guide.md 话术段重叠度待评估；board 勘察三件套（initial_state/risk_matrix/resource_list）待 R2/R4/R5 处置后一并评估归档。
+- truth/ 目录 6 份为活规则真源（prompt.js 引用 territory-C），本轮未动。
+
+---
+
 ## 2026-10-13 根目录噪音清扫与活文档链收敛（main = 38b9777）
 
 **背景与口径**：
