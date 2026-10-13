@@ -8,7 +8,8 @@ export const boardRules = `
 - 嘴里说的和板上写的对得上，但不是逐字复制；
 - 板书简洁，抓关键词、算式、结论，不写整段话；
 - 一行一个要点，多要点分行写；
-- 没有新内容要写时 board 就为空字符串，不要重复写前面的内容。
+- board 是结构化对象 \`{ "startDelay": 起手延时秒数, "content": "板书文字" }\`：startDelay 表示这行口播开始几秒后落笔（读题行为 0，其他行一般 1.0~2.5 秒）；
+- 没有新内容要写时 content 就为空字符串，不要重复写前面的内容。
 
 ### 常用内容类型
 - **关键词**：题目里的关键条件，用下划线或高亮标出来；
@@ -32,7 +33,7 @@ actionSpec 是一个数组，每一项的结构是：
 
 ### 1. rough-notation —— 给已有文字加标记
 
-**用途**：在已经写在板书上的文字下方画手绘下划线，或给文字加荧光高亮。
+**用途**：在已有文字下方画手绘下划线、加荧光高亮，或圈出关键词（圈关键数字或条件是核心兑底动作）。
 
 **参数结构：**
 \`\`\`json
@@ -51,13 +52,13 @@ actionSpec 是一个数组，每一项的结构是：
 \`\`\`
 
 **字段说明：**
-- \`action\`：只支持 \`underline\`（红色下划线）或 \`highlight\`（黄色荧光高亮），二选一；
+- \`action\`：支持 \`underline\`（固定红色下划线）、\`highlight\`（固定浅黄高亮）、\`circle\`（固定红色画圈）三选一；颜色由程序固定，不要传 color 之类的字段；
 - \`target.region\`：在哪个区域找文字，只能是 \`question / analysis / solution / summary\` 之一；
-- \`target.exactText\`：要标记的**精确文字**，必须和 board 里写的一模一样，差一个字都找不到；
+- \`target.exactText\`：要标记的**精确文字**：region 为 question 时必须逐字匹配题目区展示的原文，其他区域必须和 board 里写的一模一样，差一个字都找不到；
 - \`target.occurrence\`：第几次出现，默认 1（同一个词出现多次时用）；
 - \`order\`：动作顺序，正整数，从 1 开始。
 
-**重要：** 必须先在 board 里写出文字，才能用 rough-notation 标记它。没写过的文字标不了。
+**重要：** 标记的文字必须已经存在——question 区标记题目原文，其他区必须先在 board 里写出来才能标。
 
 ---
 
@@ -86,7 +87,7 @@ actionSpec 是一个数组，每一项的结构是：
 - \`region\`：这条线属于哪个区域，只能是 \`question / analysis / solution / summary\` 之一；
 - \`start\`：起点坐标 \`[x%, y%]\`，百分比 0-100，原点左上角；
 - \`end\`：终点坐标 \`[x%, y%]\`；
-- \`style.colorId\`：颜色，只能是 \`ink\`（深灰黑）或 \`red\`（红色）；
+- \`style.colorId\`：颜色，只能是 \`ink\`（墨黑）或 \`red\`（红色）；
 - \`style.strokeWidthId\`：粗细，只能是 \`normal\`（细）或 \`emphasis\`（粗）；
 - \`order\`：动作顺序，正整数，从 1 开始。
 
@@ -125,5 +126,5 @@ actionSpec 是一个数组，每一项的结构是：
 4. 笔画粗细用 \`strokeWidthId\`，只有 \`normal\` 和 \`emphasis\` 两种；
 5. \`order\` 必须是正整数，从 1 开始；
 6. 不要自己加 \`durationMs / gapAfterMs / seed\` 这些时间字段，程序会自动算；
-7. rough-notation 只有 \`underline\` 和 \`highlight\`，没有 box / circle / 其他。
+7. rough-notation 只有 \`underline / highlight / circle\`（与程序侧 boardToolCatalog 白名单对齐），没有 box / strike-through / 其他。
 `

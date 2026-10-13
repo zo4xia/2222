@@ -126,6 +126,18 @@ export function hasUsableAgentAKnowledge(analysis) {
   return Array.isArray(analysis?.coreKnowledge) && analysis.coreKnowledge.length > 0
 }
 
+/* relatedKnowledge 每项取可读文本的唯一真源读取口（第八轮 2026-10-13 契约归一）
+ * A 链真源形状 = 中文字段对象（Step1Entry 从 coreKnowledge 映射：知识点/考点/策略方法/易错点/总结归纳/_formula）
+ * 历史兼容：字符串（旧档/人工编辑）与英文字段（knowledgePoint/name/title）
+ * 全仓读 relatedKnowledge 项文本一律 import 此函数，禁止再写 k.xxx || k.yyy 的局部猜测链 */
+export function knowledgeItemText(item) {
+  if (typeof item === 'string') return item
+  if (item && typeof item === 'object') {
+    return String(item['知识点'] ?? item.knowledgePoint ?? item.name ?? item.title ?? '').trim()
+  }
+  return ''
+}
+
 /* 题型比例判断（SK-06 绑定CU）
  * 根据题型、知识点、题目文本判断属于 a/b/c/d/e 哪类，给出各stage时间占比建议
  * a 计算确定：整数/小数/分数计算、竖式、口算 → 解答50-78%为主
@@ -193,7 +205,7 @@ const STAGE_RATIO_TABLE = {
 }
 
 export function detectStageRatio(problemType, relatedKnowledge, problemText) {
-  const text = `${problemType || ''} ${(relatedKnowledge || []).map(k => typeof k === 'string' ? k : (k.knowledgePoint || k.name || '')).join(' ')} ${problemText || ''}`
+  const text = `${problemType || ''} ${(relatedKnowledge || []).map(knowledgeItemText).join(' ')}` + ` ${problemText || ''}`
   let bestMatch = null
   let bestScore = 0
   for (const [key, rule] of Object.entries(STAGE_RATIO_TABLE)) {

@@ -72,7 +72,7 @@ const HANDOFF_FIELD_NOTES = {
   problemText: '题目原文，一字不改，所有分析的基础',
   problemType: '【题目类型】分类指南（计算确定/方法确定/答案不确定/建模推导/概念确定等），指导解题策略',
   boardFocus: '【板书侧重点】本题板书必须重点书写的核心步骤、关键算式与推导结论',
-  relatedKnowledge: '【参考】关联知识点+解题思路，按需取用，不要硬塞不要照抄；和本题无关的不用；用的时候用自己的话讲出来',
+  relatedKnowledge: '【参考】关联知识点清单（每项含「知识点/考点/策略方法/易错点/总结归纳」等中文字段，知识点字段是名称），按需取用，不要硬塞不要照抄；和本题无关的不用；用的时候用自己的话讲出来',
   knowledgeAnalysis: '【重要】A 侧深度知识点分析\n' +
     '  · teachingFocus：教学方向锚点，整道题的讲解和总结围绕这个核心展开，别因为口语化就把重点讲散了\n' +
     '  · keyFormulaList：关键公式清单，解题真正用到的公式，分析区至少写一次\n' +
@@ -244,7 +244,7 @@ export async function handleAgentBV2Request(req, res) {
             ...userContent,
             {
               type: 'text',
-              text: `【上一次输出解析失败，请修正后重新输出完整结果】错误：${parsed.error}。硬性要求：顶层必须是 JSON 对象 {"rows":[...]}；每行必须含 stage/speech/board/actionSpec 五字段；stage 仅限"题目""分析""解答""总结"四种值，禁止使用"思路""讲解""过程""步骤""方法""计算""答案"等同义词。`,
+              text: `【上一次输出解析失败，请修正后重新输出完整结果】错误：${parsed.error}。硬性要求：顶层必须是 JSON 对象 {"rows":[...]}；每行必须含 stage/speech/board/actionSpec 四字段；stage 仅限"题目""分析""解答""总结"四种值，禁止使用"思路""讲解""过程""步骤""方法""计算""答案"等同义词。`,
             },
           ]
 

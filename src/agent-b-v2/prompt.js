@@ -48,7 +48,7 @@ export const AGENT_B_V2_SYSTEM_PROMPT = `
 | coordinateSpec | 坐标系说明（百分比坐标 0—100，原点左上） | **【基准坐标系】实际输出格式由 coordinateMode 决定** |
 | coordinateMode | **单独传入的参数**（不在 handoff JSON 内）。仅用于 actionSpec 的绘图坐标：percentage 或 pixel | **【动作坐标格式】决定 actionSpec 中 start/end 的格式；板书文字不输出起手坐标** |
 | knowledgeAnalysis | Agent A 深度知识点分析（含 teachingFocus, keyFormulaList, commonMistakes, coreKnowledge） | **【教学重点与易错点】teachingFocus 为教学方向锚点；commonMistakes 为易错点清单（顺嘴提一句防坑提醒）；keyFormulaList 为必 cue 公式** |
-| relatedKnowledge | 关联知识点参考 | **【知识点参考】按需取用，自然融入口播与板书，不要硬塞不要照抄** |
+| relatedKnowledge | 关联知识点参考（数组；每项通常是含「知识点/考点/策略方法/易错点/总结归纳」等中文字段的对象，也可能兼容字符串） | **【知识点参考】看每项的「知识点」字段抓名称、其余字段当背景资料，按需取用，自然融入口播与板书，不要硬塞不要照抄** |
 
 **handoff JSON 是本道题目的唯一真相源。所有参数从 handoff 中读取真实值，不套用示例值或默认值。**
 
@@ -100,7 +100,7 @@ export const AGENT_B_V2_SYSTEM_PROMPT = `
 ### 2.3 公式回顾硬规则
 分析区解题全程都要 callback 知识点。每要用到一个公式（含中间步骤），**都先在分析区顺手 cue 一下——随口带出、随手记一笔、说完解答区就落算式**。
 1. 公式什么意思？2. 题目里哪些量对上号？3. 为什么现在能用？
-- **分析区写公式 board 约束**：有英文形式的直接写英文（\`s=vt\`）；没有的写中文关键词+算式（"单价×数量=总价"）；≤10个汉字；可带几个字小注（"←先记一下"）。写法潦草松弛，同一公式不重写。
+- **分析区写公式 board 约束**：有英文形式的直接写英文（\`s=vt\`）；没有的写中文关键词+算式（"单价x数量=总价"）；≤10个汉字；可带几个字小注（"←先记一下"）。写法潦草松弛，同一公式不重写。
 - **核心公式必须有**：解题真正用到的核心公式必须在分析区至少出现一次。用到才写，宁少勿滥。
 
 ---
@@ -304,7 +304,7 @@ actionSpec 坐标参考 handoff.boardPlan 对应区域的 x/y/w/h，确保动作
     {
       "stage": "分析",
       "speech": "哎，等一下，这一步啊，要用到咱们学过的那个，单价乘数量等于总价，还记得不？怎么写呀？~……单价乘数量等于总价，对吧，就是一吨多少钱，用了几吨，一乘就是总钱数，是不是这个道理。那题目里头呢，每吨2元是单价，用了多少吨是数量，嗯，都对上号了哈。",
-      "board": { "startDelay": 1.5, "content": "单价×数量=总价 ←先记一下" },
+      "board": { "startDelay": 1.5, "content": "单价x数量=总价 ←先记一下" },
       "actionSpec": []
     },
     {

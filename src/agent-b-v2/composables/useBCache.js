@@ -6,6 +6,8 @@
  *
  * @qh-core LANE=COMPOSABLE POINT=USE_B_CACHE
  */
+import { knowledgeItemText } from '../../services/stepHandoff.js'
+
 export function useBCache({ getHandoff, getSelectedSkillId, getCustomSystemPrompt }) {
   const B_CACHE_PREFIX = 'b-gen:'
   const B_CACHE_TTL = 24 * 60 * 60 * 1000
@@ -13,7 +15,8 @@ export function useBCache({ getHandoff, getSelectedSkillId, getCustomSystemPromp
   const bCacheKey = () => {
     const h = getHandoff() || {}
     const knowledgeDigest = Array.isArray(h.relatedKnowledge)
-      ? h.relatedKnowledge.slice(0, 3).map(k => typeof k === 'string' ? k : (k.knowledgePoint || k.name || '')).join(',')
+      // ★ 第八轮契约归一：读取口唯一真源 knowledgeItemText（中文字段对象优先，旧 miss 丢摘要）
+      ? h.relatedKnowledge.slice(0, 3).map(knowledgeItemText).filter(Boolean).join(',')
       : ''
     const analysisDigest = h.knowledgeAnalysis?.teachingFocus
       ? String(h.knowledgeAnalysis.teachingFocus).slice(0, 80)

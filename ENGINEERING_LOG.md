@@ -1,5 +1,20 @@
 # 工程日志
 
+## 2026-10-13 第八轮：提示词契约归一（关联性内容 relatedKnowledge/commonMistakes 链 + liyongle 平行提示词旧契约整包对齐）
+
+- **背景**：夏夏令"咱们还有提示词里面也要修！里面有涉及到关联性内容"。以提示词层为手术面，对全链五份活提示词（B 主 prompt / Check prompt / 校准 prompt / Agent A 识别 prompt / liyongle 平行 skill）逐条对照真实契约核谎。
+- **关联性大病实锤 1（relatedKnowledge 形状四方分裂）**：A 链真源形状 = 中文字段对象数组（Step1Entry 从 coreKnowledge 映射：编号/知识点/考点/策略方法/易错点/总结归纳/_formula，便签盒 UI 读同款字段）；但①校准提示词教"每项是字符串"→ 校准后对象被降级成字符串；②speechMarkdown 导出读 `k.title||k.name` 全 miss → **JSON.stringify 裸串直接污染导出的完整要素表/分镜表**；③detectStageRatio/useBCache 同 miss → 配比检测与缓存摘要丢知识信号；④B prompt 与 handler 字段注释不说形状，模型拿到一坨中文字段无引导。
+- **关联性大病实锤 2（commonMistakes 位置分裂）**：唯一真位置 = `knowledgeAnalysis.commonMistakes`（buildStep1Handoff 生产端、B/Check 消费端全在此）；但校准提示词把 commonMistakes 列为顶层独立字段 + knowledgeRefineHandler `REFINE_TOP_FIELDS` 顶层 merge → 校准后 handoff 冒出幽灵顶层字段、真值滞留旧档，Check 仍读嵌套旧值，AgentBDirect 五处 UI 读顶层（新鲜 handoff 永不显示易错点）。
+- **大病实锤 3（liyongle 平行提示词整包停留在旧契约时代）**：examples.js few-shot 全部教旧版 actionSpec schema（`type`/`text`/hex `color` 字段——现行 validateRoughNotationAction 必拒、动作全被丢弃）+ board 纯字符串（现行结构化对象）+ 板书教 `×`（军规严禁）+ `⚠️` emoji（superFilter 白名单必滤）+ speech 教中文数字（与 B prompt 4.4 和 Check 1.1 **方向相反**）；board-rules 明文"没有 box / circle"（第七轮 circle 已接通全链，平行 skill 与真源 boardToolCatalog 白名单直接打架）；黑名单词"说白了"出现在自家毛料示例。这正是"按钮按进去几百年前的产物"的提示词版。
+- **手术 1（形状契约归一）**：stepHandoff.js 新增 `knowledgeItemText()` 唯一真源读取口（中文字段优先，兼容字符串/英文字段旧档）；speechMarkdown/detectStageRatio/useBCache 三消费端全部接真源（导出产物净化）；B prompt 字段表 + agentBV2Handler 字段注释补形状说明（教模型读「知识点」字段）。
+- **手术 2（位置契约归一）**：校准提示词 §1 改教"保持输入时的每项结构不变"（对象进对象出、只精炼内容）+ §5 归位 knowledgeAnalysis.commonMistakes + 严格规则补键结构不变约束 + 示例公式 ×÷ 归一为 x//；handler `REFINE_TOP_FIELDS` 删 commonMistakes、`REFINE_NESTED_FIELDS` 加 commonMistakes（校准结果落真位置）；AgentBDirect 五处顶层读改嵌套读（易错点描述区 + 校准对比弹窗）。
+- **手术 3（liyongle 契约对齐，风格保留）**：board-rules circle 入白名单 ×3 处 + question 区 exactText 匹配题目原文例外 + board 对象 startDelay 教学；speech-rules 数字口径改真源（阿拉伯保留、TTS 自然读）；output-format board 字段说明改结构化对象 + 自检清单 3 处修正 + 新增第 15 条；examples.js 六段 few-shot 全部重写为现行 schema（action/target/occurrence/order、board 对象、x 乘号、阿拉伯数字、去 emoji/Markdown、修坏标题"费曼式概括（"）；four-rings 黑名单词替换。
+- **手术 4（小噪音）**：agentBV2Handler 重试反馈"五字段"数错改"四字段"；checkAgentHandler 头注释"只做 4 件事"对齐 prompt 实际 7 项；check prompt 内部编号 4.2/4.3/4.4/4.5/五、 归一为 1.2~1.6 + 删孤行"- 。" + "######以下仅仅在没有音频urlmp3…"烂标题修复；prompt.js 自家示例里的 `单价×数量` 改 `单价x数量`（军规自洽）。
+- **手术 5（死端点砍除）**：`/api/mock/problem` 双份（vite.config.js + productionServer.js）——前端零消费者 + relatedKnowledge 错误形状（字符串数组）与真契约相反，正是"误导说明"式牛鬼蛇神；插件改名 healthAndMockPlugin→healthPlugin；ENGINEERING_LOG 历史条目留档不动。
+- **验证**：新增 `scripts/test-knowledge-contract.mjs`（37 用例：真源读取口 7 形状/导出净化 3/配比命中 2/校准提示词 5/handler merge 表 3/liyongle 契约 10/默认 skill 真源直引 2/消费端接线 4）挂 run-all-tests（套件 7→8）；run-all-tests 8/8（superFilter 92/92 等）；npm run build 1.44s 成功；productionServer health 200 / index 200 / **mock 404**（死端点生效）；lint 新增问题 0（3293 存量不变）；套件标签 93→92 勘误。
+- **新发现（记录不扩刀）**：R7 提示词间打架——Check prompt"分析 stage 撑死最多 3 行"硬上限 vs B prompt stageRatioSuggestion（c 类分析 25-40%）与"分析区逐步生长五步"教学冲突：B 按配比产 7 行分析、Check 强制砍到 3 行。疑似夏夏反啰嗦偏好（"撑死"口吻），未单方面裁决，入风险矩阵待拍板。
+- **接力棒**：R6/R7 两拍板项 + R5 残余/R3/R1 残余三 P3 维持；doc/ 起始语话术重叠度评估仍待下轮。⚠️ PAT 聊天明文累计 11 次，强烈建议本轮结束后撤销重建。
+
 ## 2026-10-13 第七轮：业务流爬线清剿（circle 契约全链接通 + 过期文件乱世重典）
 
 - **背景**：夏夏令"超级坑，好多过期文件，还有输入输出契约，预览到底是哪个，页面按钮和实际也对不上……业务流顺着线爬下去，我们唯一的走线就是业务流……除了 checkagent、导出产出、校准、播放页生成之外的，都是什么牛鬼蛇神，按钮按进去几百年前的产物居然还混在里面，测试文件，误导说明"。以业务流为唯一走线，逐页按钮对账 + 契约面核对 + 过期档清剿。

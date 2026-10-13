@@ -12,12 +12,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = resolve(__dirname, '..')
 
 const tests = [
-  { name: 'superFilter v2 (93 用例)',     cmd: 'node scripts/test-superFilter.mjs' },
+  { name: 'superFilter v2 (92 用例)',     cmd: 'node scripts/test-superFilter.mjs' },
   { name: 'parseLLMJson (16 用例)',     cmd: 'node scripts/test-parseLLMJson.mjs' },
   { name: 'timing fix (5 用例)',         cmd: 'node scripts/test-timing-fix.mjs' },
   { name: 'timing computeRowGroup (7+6)', cmd: 'node scripts/test-timing-computeRowGroup.mjs' },
   { name: 'skillViolations (11 用例)',  cmd: 'node scripts/smoke-test-skills.mjs' },
   { name: 'boardToolCatalog 降级隔离 (8 用例)', cmd: 'node scripts/test-board-tool-catalog.mjs' },
+  { name: 'knowledge contract (知识关联链契约)', cmd: 'node scripts/test-knowledge-contract.mjs' },
   { name: 'validate_contract',          cmd: 'node skills/board-lecture-player/scripts/validate_contract.cjs skills/board-lecture-player/assets/sample-rows.json' },
 ]
 

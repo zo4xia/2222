@@ -111,6 +111,8 @@ agentBDraftResult.js / agentBContract.js
 
 第七轮（同日，业务流爬线清剿）：以业务流为唯一走线逐页对账——实锤 **circle 契约四方分裂**（prompt 教三动作/播放端渲染 circle/生成白名单拒/check 报违规/估算无值，B 产的圈被静默丢弃+误报违规），手术 = 生成（roughNotationTool）/校验（skillViolations）/估算（timing.js circle:1500）三面向夏夏规格与播放端归一，契约真源收敛 boardToolCatalog；砍 16 文件 -3391 行（truth/ 叙事层 7、SYSTEM_MAP/RTK/PONYTAIL/api_spec 四过期档、lite-player 孤儿播放器【推翻第四轮保留裁决，git 历史即档案】、agent-b-v2.html+main.js 重复入口【vite/Dockerfile 同步摘除，业务流唯一入口=index.html】、validate/verify .js 死双胞胎、icons.svg）；引用面修复 20+ 处（truth 引用改真源/三镜像→双镜像/幽灵路径 speechTiming·public-lite·cjs 同名）；test-refine-degrade 毁指针 bug 修复（双备份双恢复）；README 结构图与约束表重写（真源列指向代码）。**新发现 R6（draw 半孤岛：注册+可渲但 prompt 不教+播放端跳过）待拍板**。
 
+第八轮（同日，提示词契约归一）：夏夏令"提示词里面也要修！里面有涉及到关联性内容"——实锤 **relatedKnowledge 形状四方分裂**（A 链产中文字段对象 / 校准提示词教字符串 / speechMarkdown·detectStageRatio·useBCache 读英文字段全 miss → JSON.stringify 裸串污染导出产物）与 **commonMistakes 位置分裂**（校准链顶层 merge 造幽灵字段，真值滞留 knowledgeAnalysis 内）；手术 = stepHandoff 新增 knowledgeItemText() 唯一真源读取口 + 三消费端接线 + 校准提示词/handler/AgentBDirect UI 归位嵌套 + B prompt 与 handler 字段注释补形状。**liyongle 平行提示词整包旧契约对齐**（few-shot 六段重写为现行 schema：action/target/order、board 对象、circle、x 乘号、阿拉伯数字、去 emoji/黑名单词）；小噪音：agentBV2Handler 五字段数错、Check 头注释 4→7 项、Check prompt 编号 4.2~五、归一 1.2~1.6、prompt 自家示例 × 归一；砍 /api/mock/problem 死端点双份（零消费者+错误形状示范）。新增 test-knowledge-contract.mjs 37 用例挂主套件（7→8）。**新发现 R7（Check"分析≤3 行" vs B stageRatio 25-40% 提示词打架）待拍板**。
+
 已知问题与风险归 PROJECT_STATE 本节与 doc/board_risk_matrix.md（SYSTEM_MAP 第七轮退役，职责归并）；收尾流程见 `AGENTS.md`「收尾流程」；git 历史可回溯（`git revert 38b9777`）。
 
 ## API 唯一真相
@@ -192,6 +194,7 @@ Preview 已启用 Vercel Deployment Protection；登录 `xiaxia` 账号后访问
 
 使用独立 Check Agent C 配置手动点击一次“Check Agent”，确认上游模型按当前账号返回结构化修正结果。
 R6（新，第七轮）：draw 意图工具半孤岛——catalog 注册 + 工作台可渲染 + prompt 不教 + row-player 无渲染分支（drawAction 落 notation 分支即跳过）+ check 白名单无 draw，业务流不触达；方向二选一待夏夏拍板：A) prompt 补教 + 播放端实现（feature 级）；B) catalog 摘除收敛为三工具（反向归一）。
+R7（新，第八轮）：提示词间打架——Check prompt L117-119"【分析】stage 的行数不能超过总步骤数的 1/2，撑死最多 3 行"硬上限 vs B prompt stageRatioSuggestion（c 类分析 25-40%）与"分析区逐步生长（条件→关系→公式→试算→结论五步）"教学冲突：B 按配比产 5-7 行分析、Check 强制砍到 3 行。疑似反啰嗦偏好（保留观感），方向二选一待夏夏拍板：A) Check 上限改锚定 handoff 配比（跟随 stageRatioSuggestion）；B) 维持 3 行硬上限并在 B prompt 同步收紧（生成侧就少产）。
 残余 P3：R5 全量断点续播（进度持久化+恢复 UI，后续 feature）、R3（L4 用户画笔层空壳，归 Agent C）、R1 残余（L2/L3 双区表达并行）。地图在 doc/board_risk_matrix.md（第七轮已勘误：新增 R6）。
 doc/ 剩余观察项：起始语-过渡-总结-兜底话术.md 与 speech-board-guide.md 话术段内容重叠度待评估；board 勘察三件套待下轮一并评估归档（R5 已处置）。
 技术债（自 PONYTAIL_DEBT 折叠，原账本第七轮退役）：①AgentBDirect.vue 5426 行巨石拆分（10 子组件 + 7 composables，高风险单独排期）；②katex/rough-notation/roughjs 三依赖原生替代评估（小学数学场景可简化）；③computeRowGroupTimeline 三大分支抽 helper；④circle 接入后的浏览器级四区 exactText 点击验收（与 R1 残余同游）。
@@ -234,6 +237,15 @@ Vercel 首次创建项目时自动把首次部署标成 Production；随后已�
 │  ├─ R5 ~~[P2] 调度器无断点续播/单步隔离~~ → 第六轮降级 P3（降级工厂 + 单步隔离落地）。
 │  └─ R6 [P3] draw 意图工具半孤岛（第七轮新增）：注册+可渲但 prompt 不教+播放端跳过，
 │           业务流不触达；方向 A 补教实现 / B 摘除收敛，待夏夏拍板。
+│  └─ R7 [P3] 提示词间打架（第八轮新增）：Check"分析撑死 3 行" vs B stageRatio 25-40%，
+│           方向 A 配比锚定 / B 双向收紧，待夏夏拍板。
+├─ 第八轮提示词契约归一（关联性内容）
+│  ├─ relatedKnowledge 形状：真源 = A 链中文字段对象 + knowledgeItemText() 唯一读取口
+│  │  （speechMarkdown/detectStageRatio/useBCache 三消费端接线，导出产物净化）
+│  ├─ commonMistakes 位置：唯一真位 = knowledgeAnalysis.commonMistakes
+│  │  （校准 prompt/handler merge 表/AgentBDirect 五处 UI 归位嵌套）
+│  └─ liyongle 平行 skill 契约对齐（风格保留）：six few-shot 重写 + circle/startDelay/
+│     exactText 教学补齐，旧 type/text/color schema、×、emoji、中文数字口播清零。
 ├─ 第七轮契约修复（circle 全链接通）
 │  └─ 动作白名单四方分裂（prompt 教/播放端渲染 vs 生成拒/校验报违规/估算缺值）
 │     → 生成·校验·估算三面归一（roughNotationTool + skillViolations + timing.js circle:1500），

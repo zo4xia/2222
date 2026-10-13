@@ -43,19 +43,6 @@ async function dispatchApi(req, res) {
       timestamp: new Date().toISOString(),
     })
   }
-  if (pathname === '/api/mock/problem') {
-    return sendJson(req, res, 200, {
-      ok: true,
-      data: {
-        problemText: '一块平行四边形菜地，底是 30 米，高是 15 米。如果每平方米种 6 棵白菜，这块菜地一共可以种多少棵白菜？',
-        problemType: '计算应用题',
-        suggestedGrade: '四年级',
-        boardFocus: '列式计算、四区排版、平行四边形面积公式',
-        relatedKnowledge: ['平行四边形的面积', '乘法运算应用'],
-      },
-    })
-  }
-
   if (pathname === '/api/recognition/problem') return handleRecognitionRequest(req, res, knowledge)
   if (pathname === '/api/agent-b-v2/generate') return handleAgentBV2Request(req, res)
   if (pathname === '/api/check-agent/check') return handleCheckAgentRequest(req, res)

@@ -30,9 +30,9 @@ const projectRoot = dirname(fileURLToPath(import.meta.url))
 //  - 后续优化: 如果需要 CDN 减小体积, 用 importmap + vite-plugin-cdn-import (v3 升级)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function healthAndMockPlugin() {
+function healthPlugin() {
   return {
-    name: 'health-and-mock-plugin',
+    name: 'health-plugin',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const url = new URL(req.url, 'http://localhost')
@@ -46,20 +46,6 @@ function healthAndMockPlugin() {
           }))
           return
         }
-        if (url.pathname === '/api/mock/problem') {
-          res.setHeader('Content-Type', 'application/json; charset=utf-8')
-          res.end(JSON.stringify({
-            ok: true,
-            data: {
-              problemText: '一块平行四边形菜地，底是 30 米，高是 15 米。如果每平方米种 6 棵白菜，这块菜地一共可以种多少棵白菜？',
-              problemType: '计算应用题',
-              suggestedGrade: '四年级',
-              boardFocus: '列式计算、四区排版、平行四边形面积公式',
-              relatedKnowledge: ['平行四边形的面积', '乘法运算应用'],
-            },
-          }))
-          return
-        }
         next()
       })
     },
@@ -69,7 +55,7 @@ function healthAndMockPlugin() {
 export default defineConfig({
   plugins: [
     vue(),
-    healthAndMockPlugin(),
+    healthPlugin(),
     createRecognitionProxyPlugin({ knowledgeBase: AGENT_A_KNOWLEDGE_BASE }),
     agentBV2ProxyPlugin(),
     checkAgentProxyPlugin(),

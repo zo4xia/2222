@@ -1,5 +1,13 @@
 # 重要决策
 
+## 2026-10-13 第八轮：知识关联链契约锚定 A 链真源 + 平行 skill 契约对齐（风格保留）
+- **决策一（relatedKnowledge 形状锚定）**：形状唯一真源 = A 链生产端（Step1Entry 从 coreKnowledge 映射的**中文字段对象数组**：知识点/考点/策略方法/易错点/总结归纳等）；读取口唯一真源 = `stepHandoff.js#knowledgeItemText()`（兼容字符串与英文字段历史档），全仓读 relatedKnowledge 项文本一律 import，禁止局部 `k.xxx || k.yyy` 猜测链。校准提示词必须教"保持每项结构不变"（对象进对象出），不教转换形状。
+- **决策二（commonMistakes 位置锚定）**：唯一真位置 = `knowledgeAnalysis.commonMistakes`（与生产端 buildStep1Handoff、B/Check 消费端同位）。校准链 merge 字段表修正：顶层只收 relatedKnowledge，commonMistakes 进嵌套字段表——顶层 merge 会制造幽灵字段且真值滞留旧档（校准"成功"但下游读不到）。
+- **决策三（平行 skill 契约对齐）**：liyongle-elementary 是可选项风格变体，**风格叙事保留、机器合同必须与唯一真源对齐**——工具 schema（action/target/occurrence/order）、board 结构化对象、circle 白名单、乘号 x、阿拉伯数字口径、无 emoji/Markdown。判据：skill 教出的输出若会被 validateRoughNotationAction/normalizeBoard/superFilter 拒绝或过滤，即为"教模型产废品"的过期提示词，与过期文件同罪。
+- **决策四（mock 死端点）**：`/api/mock/problem` 前端零消费者 + relatedKnowledge 形状与真契约相反——展示"错误示范"的活端点比没有更糟（误导调试者以为字符串数组是合同），双份砍除。
+- **风险**：旧 localStorage 存档中的顶层 commonMistakes 幽灵字段不再被 UI 读取（本来也只在校准后出现）；校准模型若仍违反形状指令，merge 后 UI 标签降级为"未命名知识点"（string 兼容分支仍在）。
+- **验证**：test-knowledge-contract.mjs 37 用例（形状/净化/配比/提示词/merge 表/skill 对齐/真源直引/接线复核）挂主套件；run-all-tests 8/8；build + health 200 + mock 404；lint 存量 3293 不变（新增 0）。
+
 ## 2026-10-13 第七轮：契约四方分裂以"用户规格+播放端"为锚 + 乱世重典砍除过期档
 - **决策一（circle 契约拍板）**：动作白名单四方分裂（prompt 教三动作/播放端渲染 circle/生成白名单拒/check 报违规/估算无值）时，**锚定顺序 = 用户钦定规格 > 播放端事实 > 生成侧白名单**。夏夏原话#33 钦定 underline+circle 为两大核心兜底，row-player 完整渲染 circle——生成侧（roughNotationTool）、校验侧（skillViolations）、估算侧（timing.js NOTATION_DURATION_MS 1500ms 对齐播放端）三面向其归一。契约真源 = `src/board-tools/boardToolCatalog.js`，文档层一律引用代码真源而非平行叙事档。
 - **决策二（lite-player 裁决推翻）**：第四轮"带防护声明的孤儿档案按自声明处置（保留）"本轮推翻——夏夏乱世重典令下，URL 可达的自声明孤儿正是"预览到底是哪个"的困惑源；**git 历史即档案**，工作树不留第二播放器。镜像链从三镜像收敛为双镜像（row-player 真相源 + public 构建镜像），哨兵测试同步（93→92）。

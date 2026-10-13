@@ -1925,7 +1925,7 @@ function isRefineFieldEqual(original, refined) {
                     </div>
                   </a-descriptions-item>
                   <a-descriptions-item
-                    v-if="handoff?.commonMistakes?.length"
+                    v-if="handoff?.knowledgeAnalysis?.commonMistakes?.length"
                     label="易错点"
                     :span="2"
                   >
@@ -1933,7 +1933,7 @@ function isRefineFieldEqual(original, refined) {
                       <div class="field-val-main">
                         <a-space wrap size="small">
                           <a-tag
-                            v-for="(mistake, mi) in handoff.commonMistakes"
+                            v-for="(mistake, mi) in handoff.knowledgeAnalysis.commonMistakes"
                             :key="mi"
                             color="red"
                           >
@@ -3044,14 +3044,14 @@ function isRefineFieldEqual(original, refined) {
                 <div class="refine-compare-label">
                   机筛原文
                 </div>
-                <pre class="refine-compare-content">{{ formatRefineField(handoff?.commonMistakes) }}</pre>
+                <pre class="refine-compare-content">{{ formatRefineField(handoff?.knowledgeAnalysis?.commonMistakes) }}</pre>
               </div>
               <div class="refine-compare-col refine-col-refined">
                 <div class="refine-compare-label">
                   教研修缮
-                  <a-tag v-if="!isRefineFieldEqual(handoff?.commonMistakes, refineResult?.handoff?.commonMistakes)" color="green" size="small" style="margin-left: 6px">已优化</a-tag>
+                  <a-tag v-if="!isRefineFieldEqual(handoff?.knowledgeAnalysis?.commonMistakes, refineResult?.handoff?.knowledgeAnalysis?.commonMistakes)" color="green" size="small" style="margin-left: 6px">已优化</a-tag>
                 </div>
-                <pre class="refine-compare-content">{{ formatRefineField(refineResult?.handoff?.commonMistakes) }}</pre>
+                <pre class="refine-compare-content">{{ formatRefineField(refineResult?.handoff?.knowledgeAnalysis?.commonMistakes) }}</pre>
               </div>
             </div>
           </a-descriptions-item>

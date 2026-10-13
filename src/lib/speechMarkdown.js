@@ -11,6 +11,7 @@ import {
   LINE_HEIGHT_RULE,
   BOARD_SPEED_CHARS_PER_SEC,
   BOARD_SPEED_JITTER,
+  knowledgeItemText,
 } from '../services/stepHandoff.js'
 
 /**
@@ -37,8 +38,10 @@ export function buildStandardExplainParamsSection(meta = {}) {
   const screenshotUrl = meta.screenshotUrl || '无'
   const problemType = meta.problemType || '未指定'
   const relatedKnowledge = Array.isArray(meta.relatedKnowledge) ? meta.relatedKnowledge : []
+  // ★ 第八轮契约归一：relatedKnowledge 项文本读取口唯一真源 = knowledgeItemText（中文字段对象优先）
+  // 旧实现 k.title || k.name || JSON.stringify(k) 对 A 链中文字段全 miss，裸 JSON 会直接污染导出产物
   const knowledgeText = relatedKnowledge.length
-    ? relatedKnowledge.map(k => typeof k === 'string' ? k : (k.title || k.name || JSON.stringify(k))).join('、')
+    ? relatedKnowledge.map(knowledgeItemText).filter(Boolean).join('、')
     : '无'
   const teachingFocus = meta.teachingFocus || '未指定'
   const keyFormulaList = Array.isArray(meta.keyFormulaList) ? meta.keyFormulaList : []

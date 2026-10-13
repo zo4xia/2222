@@ -23,8 +23,10 @@ function extractJsonFromText(text) {
 }
 
 // 字段级 merge：只覆盖知识点相关字段，其他字段保持原样（防上游乱改）
-const REFINE_TOP_FIELDS = ['relatedKnowledge', 'commonMistakes']
-const REFINE_NESTED_FIELDS = ['teachingFocus', 'keyFormulaList', 'formulaHints']
+// ★ 第八轮契约归一 (2026-10-13)：commonMistakes 唯一真位置 = knowledgeAnalysis.commonMistakes
+// （与 buildStep1Handoff 生产端、B/Check 消费端同位；旧顶层 merge 会造出幽灵字段且真值滞留旧档）
+const REFINE_TOP_FIELDS = ['relatedKnowledge']
+const REFINE_NESTED_FIELDS = ['teachingFocus', 'keyFormulaList', 'formulaHints', 'commonMistakes']
 
 function mergeKnowledgeFields(original, refined) {
   if (!refined || typeof refined !== 'object') return original
