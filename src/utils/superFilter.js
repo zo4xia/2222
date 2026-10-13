@@ -23,7 +23,8 @@
  *   ⑫ 连续 3+ 换行压成 2 个
  *
  * 接入点: RealBoardPreview.vue (B 页画布预览) + AgentBDirect.vue (表格板书列, KaTeX)
- * 镜像副本（改这里必须同步）: row-player.html / public/row-player.html / lite-player.html
+ * 镜像副本（改这里必须同步）: row-player.html / public/row-player.html
+ * （lite-player.html 孤儿档案已于 2026-10-13 第七轮退役，git 历史可溯）
  * 一致性哨兵: scripts/test-superFilter.mjs 内含镜像同步检查
  *
  * @qh-core LANE=SHARED POINT=SUPER_FILTER
@@ -253,7 +254,7 @@ export function boardTextToPlain(text) {
     .replace(/²/g, '^2').replace(/³/g, '^3')
 }
 
-// ===== DOM 渲染段（RealBoardPreview / lite-player 镜像共用逻辑）=====
+// ===== DOM 渲染段（RealBoardPreview v-html 共用逻辑；lite-player 已退役）=====
 // 全部 inline style，不依赖任何外部 CSS —— 换环境不会错。
 // ² ³ 转为小字号上标 span（内画 ASCII 数字，不取 ² ³ 字形）。
 const FRAC_HTML = '<span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 2px;line-height:1.05;font-size:.82em"><span style="padding:0 3px">$1</span><span style="padding:0 3px;border-top:1.5px solid currentColor">$2</span></span>'
@@ -282,5 +283,5 @@ export function renderBoardTextHtml(text) {
     .join('<br>')
 }
 
-// ponytail: 唯一真源 — row-player.html / public/row-player.html / lite-player.html 镜像此文件，
-// scripts/test-superFilter.mjs 里有镜像一致性哨兵，改这里必须跑测试同步三处副本。
+// ponytail: 唯一真源 — row-player.html / public/row-player.html 镜像此文件，
+// scripts/test-superFilter.mjs 里有镜像一致性哨兵，改这里必须跑测试同步两处副本。

@@ -94,10 +94,11 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      // 2026-10-13 第七轮：agent-b-v2.html 重复入口退役（与 index.html 挂同一 DirectFlow，
+      // 业务流唯一入口 = index.html；board-preview.html 为全屏预览按钮直连页）
       input: {
         main: resolve(projectRoot, 'index.html'),
         'board-preview': resolve(projectRoot, 'board-preview.html'),
-        'agent-b-v2': resolve(projectRoot, 'agent-b-v2.html'),
       },
       // ★ Task 12: 不再 external 任何包, rollup 把 vendor 全部打包进 chunk
       // 浏览器原生 ESM 不需要解析 bare import, 部署到任何静态服务器都能跑

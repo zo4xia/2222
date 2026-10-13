@@ -28,10 +28,10 @@ Before project work starts:
    - Keep raw bytes out of conversation.
    - Derive answers in sandbox when output would be large.
 
-5. Keep hooks and RTK on.
+5. Keep hooks on.
    - `hooks = true` must stay enabled in Codex config.
-   - `rtk` stays available for compact shell/git/npm/test output.
    - Do not disable tokless/context-mode hooks to gain speed; reduce output and batch commands instead.
+   - （rtk 代理工具及其说明已于 2026-10-13 第七轮随过期文件退役）
 
 ## Project Principle
 
@@ -85,23 +85,23 @@ Before project work starts:
 5. **🎨 精装验收**：数据驱动UI改造、本地化合规、自动化修复、冒烟测试、固化规范、最终交付。
 
 ### 必维护核心记录
-- `PROJECT_STATE.md`：实时真相
+- `PROJECT_STATE.md`：实时真相 + 已知问题 + 接力棒（2026-10-13 第七轮起承接 SYSTEM_MAP 职责）
 - `ENGINEERING_LOG.md`：自包含工作单元
 - `DECISIONS.md`：决策溯源、坑点、踩坑经验
-- `SYSTEM_MAP.md`：系统全景图（上下文、施工路线以图承载，实时更新）
+- `README.md`：结构全景与业务流图（架构变化时同步）
 
 ### 收尾流程（每个任务完结强制执行）
 1. `PROJECT_STATE.md`：同步当前状态；架构有变时更新运行主链。
 2. `ENGINEERING_LOG.md` 加新条目：背景（为什么做）→ 思路（怎么想）→ 执行步骤（具体做了什么）→ 代码变更（改了什么文件）→ 发现和确认（新发现了什么）→ 验证结果（怎么验证的）→ 接力棒（下轮继续点）。
 3. `DECISIONS.md` 加新决策（如有）：决策内容 → 背景 → 考虑的方案 → 最终决策 → 理由 → 风险 → 验证。
-4. 新坑记录进 `SYSTEM_MAP.md`「已知问题」章节；架构变化同步 `SYSTEM_MAP.md` 全景图。
+4. 新坑记录进 `PROJECT_STATE.md` 已知问题/风险段；架构变化同步 `README.md` 结构图。
 5. 清缓存：删除 AI 工具侧 `project:state` / `project:decisions` / `project:architecture` / `project:issues` 等项目上下文缓存 key（如当前会话提供此类缓存）。
 6. 检查清单：
    - [ ] PROJECT_STATE.md 更新了吗
    - [ ] ENGINEERING_LOG.md 加了新条目吗
    - [ ] 有重要决策吗，DECISIONS.md 更新了吗
-   - [ ] 发现新坑吗，SYSTEM_MAP.md 已知问题更新了吗
-   - [ ] 架构有变吗，SYSTEM_MAP.md 全景图更新了吗
+   - [ ] 发现新坑吗，PROJECT_STATE.md 已知问题更新了吗
+   - [ ] 架构有变吗，README.md 结构图更新了吗
    - [ ] 所有信息都落档了吗（图 + 变更树，不依赖会话记忆）
    - [ ] 接力棒清楚吗
 
@@ -139,8 +139,6 @@ Before project work starts:
 
 - B 负责第一次完整生成；Check 是用户主动触发的第二双眼睛，用独立模型分担一次性生成的波动。它不是通过/拦截机制，不能阻断 B 的结果。
 - Check 固定保留行数、顺序、`duration`、`stage`。它优先润色 `speech`：守住四环一体和知识 callback，优化自然断句与标点节奏（不输出 TTS 控制标签，长停顿由 B 拆行实现），消除机械/产品说明腔，保住固定开收场和反例黑名单；口播中的全部数字改为中文发音。仅在与口播不一致时才动 `board` 或 `actionSpec`。
-
-@RTK.md
 
 ## Runtime Environment
 

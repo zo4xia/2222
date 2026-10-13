@@ -151,7 +151,7 @@
           <tr><td>board.startDelay</td><td>这一段开始后几秒才下笔，如 <code>1.5</code></td></tr>
           <tr><td>board.startCoord</td><td>（<b>可选</b>，不写也行）下笔位置，格式 <code>"[8%, 44%]"</code>（横%, 竖%）。不给的话自动落在本环节区域左上角，四区照样板开</td></tr>
           <tr><td>board.content</td><td>板书写什么。一行一个，写完一个再写一个（可直接给数组，或用 <code>\n</code> 换行）。乘写 x、除写分数 <code>\frac{3}{4}</code>（不写 ÷）、平方写 ²、立方写 ³、三角形写"三角形"三个字</td></tr>
-          <tr><td>actionSpec</td><td>这一段要强调就放这里。<b>一期只有 2 个动作</b>：圈字 <code>{tool:"rough-notation",action:"circle",target:{exactText:"要圈的字"}}</code>；划线同理改 <code>"underline"</code>。必须锚定已写出的文字（exactText），波浪线/箭头等二期再放</td></tr>
+          <tr><td>actionSpec</td><td>这一段要强调就放这里。标记三动作：圈字 <code>{tool:"rough-notation",action:"circle",target:{exactText:"要圈的字"}}</code>、划线同理改 <code>"underline"</code>、高亮改 <code>"highlight"</code>；另有画线 <code>rough-line</code> / 画箭头 <code>rough-arrow</code>（白名单真源 boardToolCatalog）。必须锚定已写出的文字（exactText）</td></tr>
         </table>
       </div>
     </div>
@@ -233,7 +233,7 @@ const DATA = {
       speech: "首先，我们观察图形，平行四边形沿高分割后，会形成一个直角三角形和一个梯形。",
       board: { startDelay: 1.8, startCoord: "[8%, 44%]",
                content: "1. 分析分割特征\n沿高 DE 分割成 三角形ADE 和 梯形DEBC" },
-      actionSpec: []   /* 一期动作白名单 = circle + underline（truth/领地C），波浪线 rough-line 二期再放 */
+      actionSpec: []   /* 动作白名单 = underline|highlight|circle + rough-line/rough-arrow（真源 boardToolCatalog；circle 2026-10-13 第七轮接通全链） */
     },
     {
       stage: "解答",
@@ -242,7 +242,7 @@ const DATA = {
       speech: "接下来我们列式计算。平行四边形面积公式是底乘以高，也就是 9 乘以 20.4，算得面积为 183.6 平方厘米。",
       board: { startDelay: 1.5, startCoord: "[56%, 16%]",
                content: "方法一：面积公式\nS = 底 x 高\n  = 9 x 20.4\n  = 183.6 (cm²)\n平方：9² = 81\n分数：\\frac{3}{4} x 20.4 = 15.3" },
-      actionSpec: []   /* 一期：rough-arrow 也不输出，见 truth/领地C 两个核心兜底 */
+      actionSpec: []   /* rough-arrow 在白名单内（真源 boardToolCatalog），本示例未用到 */
     },
     {
       stage: "总结",
@@ -989,8 +989,7 @@ function drawWriting(task,p,W,H,stage){
 
 function drawAction(task,p,Q,W,H){
   const a=task.action||{};
-  // ── rough-line / rough-arrow：一期不输出（truth/领地C 只留 circle+underline 两个核心兜底），
-  //    渲染分支保留给二期，勿删 ──
+  // ── rough-line / rough-arrow：渲染分支完整支持（与 boardToolCatalog 白名单、prompt §5.2 工具 2/3 教学对齐）──
   const tool=a.tool||'';
   if(tool==='rough-line'||tool==='rough-arrow'){
     const st=a.start||[0,0], en=a.end||[0,0];

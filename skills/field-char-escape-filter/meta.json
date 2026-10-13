@@ -7,7 +7,7 @@
   "updated": "2026-10-13",
   "sources": [
     "src/utils/superFilter.js (v2 唯一真源, 2026-10-12 字库实测校准版)",
-    "row-player.html / public/row-player.html / lite-player.html (三镜像, 哨兵 scripts/test-superFilter.mjs)",
+    "row-player.html / public/row-player.html (双镜像, 哨兵 scripts/test-superFilter.mjs; lite-player 2026-10-13 退役)",
     "字体实测: fontTools 解析本地 TTF cmap + ZeoSeven CDN unicode-range (5/5 可选字体)"
   ],
   "distillation_contract": "Distill [板书字段字符转义与规范化] as a [workflow] pack so it can help with [渲染层安全输出 / Check Agent 白名单校验 / 板书落板前统一清洗 / 跨环境纯文本兜底], using [src/utils/superFilter.js v2 + row-player.html tokenizeLine + renderBoardTextHtml + boardTextToPlain], while respecting [输出落在板书安全白名单内 / 白名单外凑法降级绝不回退印刷体 / &amp; 最后解 / $ 绝不字面落板 / 除号一律 \frac / ² ³ 渲染层代画不取字形 / 输出 DOM 前 esc].",
@@ -34,7 +34,7 @@
     "跨环境不错乱 = DSL 字面 \\frac{}{} + 三路分派: 画布 tokenizeLine 真排版 / DOM renderBoardTextHtml 全 inline style 零外部 CSS / 纯文本 boardTextToPlain",
     "findUnsafeChars(text) 空数组 = 手写安全; 非空 = 告警清单 (不静默丢)",
     "V1.0 旧规约已废止: ÷ 保留/²³ 组件/HTML span+CSS 体系均废弃, 冲突裁决见 SKILL.md §1.4",
-    "唯一真源 src/utils/superFilter.js, 三镜像 row-player/public/lite-player, 哨兵 node scripts/test-superFilter.mjs (93 用例)"
+    "唯一真源 src/utils/superFilter.js, 双镜像 row-player/public, 哨兵 node scripts/test-superFilter.mjs (93 用例)"
   ],
   "confidence": "high",
   "boundaries": [

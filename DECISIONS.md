@@ -1,5 +1,14 @@
 # 重要决策
 
+## 2026-10-13 第七轮：契约四方分裂以"用户规格+播放端"为锚 + 乱世重典砍除过期档
+- **决策一（circle 契约拍板）**：动作白名单四方分裂（prompt 教三动作/播放端渲染 circle/生成白名单拒/check 报违规/估算无值）时，**锚定顺序 = 用户钦定规格 > 播放端事实 > 生成侧白名单**。夏夏原话#33 钦定 underline+circle 为两大核心兜底，row-player 完整渲染 circle——生成侧（roughNotationTool）、校验侧（skillViolations）、估算侧（timing.js NOTATION_DURATION_MS 1500ms 对齐播放端）三面向其归一。契约真源 = `src/board-tools/boardToolCatalog.js`，文档层一律引用代码真源而非平行叙事档。
+- **决策二（lite-player 裁决推翻）**：第四轮"带防护声明的孤儿档案按自声明处置（保留）"本轮推翻——夏夏乱世重典令下，URL 可达的自声明孤儿正是"预览到底是哪个"的困惑源；**git 历史即档案**，工作树不留第二播放器。镜像链从三镜像收敛为双镜像（row-player 真相源 + public 构建镜像），哨兵测试同步（93→92）。
+- **决策三（入口归一）**：业务流唯一 HTML 入口 = `index.html`；`agent-b-v2.html`（与主入口挂同一 DirectFlow 的重复入口）退役，vite rollup input 与 Dockerfile COPY 同步摘除；`board-preview.html` 保留（全屏预览按钮直连 vite 入口）。生产验证 /agent-b-v2.html 已 404。
+- **决策四（truth 叙事层退役 + 契约文档单一化）**：truth/ 领地叙事与活文档链（PROJECT_STATE/DECISIONS/ENGINEERING_LOG/README）三重复述且引用幽灵路径——平行真相层本身就是"到底信哪个"的坑，整目录退役；api_spec.yaml 零消费者且路径全错，下游契约唯一入口 = `/api/deliverable/api-spec`（DELIVERABLE_API_SPEC.md 链路）；SYSTEM_MAP/RTK/PONYTAIL_DEBT 职责归并（已知问题→PROJECT_STATE，全景图→README，未完债务→PROJECT_STATE 下一步，外部工具说明→删除）。
+- **决策五（测试的测试）**：测试脚本自身也按"会污染运行态"审计——test-refine-degrade 原版删 handoff 指针不恢复（跑一次毁用户会话）+ ESM 下 require 被吞（清理从未生效），修复为双备份双恢复；网络型测试（真实上游依赖）不入离线主套件。
+- **风险**：circle 接入后 B 产出的圈会真实执行——若 exactText 失配走既有降级（第六轮已保证不炸）；播放端 circle 时序 1500ms 与估算器同值，无音画漂移引入。
+- **验证**：validateRoughNotationAction(circle) ok:true；run-all-tests 7/7；smoke 违规语义 fixture 改 box 保持 11/11；build + health + 404 入口复核 + 三对镜像 md5 + 被删名 grep 清零。
+
 ## 2026-10-13 降级路径必须自身可执行（防 booby-trap）+ 估算器/执行器常量同源
 - **决策一**：容错降级代码（catch 块 / noop 工厂 / fallback 路径）本身必须零依赖未验证假设。boardToolCatalog 三处降级路径引用未导入常量，导致"单步隔离"自身 ReferenceError 炸整批播放——修复方式是降级工厂归一 + prepare() 永不抛错（内部全兜底），并把该行为锁进回归测试（test-board-tool-catalog.mjs 8 用例挂主套件）。
 - **决策二**：同名概念单一真源——动作抬笔间隔唯一真源 = `src/board-tools/boardToolTiming.js` 的 `MIN_HAND_LIFT_GAP_MS`（执行器带 throw 守卫=运行时事实）。估算器 `agent-b-v2/timing.js` 的 `HAND_LIFT_GAP_MS` 改 import 派生（600→1000），估算对齐执行；档案层（skills/*/SKILL.md、meta.json、demo 镜像）同步勘误。裁决依据：消费链事实优先——执行器是真正跑的代码，估算器必须预测执行器。

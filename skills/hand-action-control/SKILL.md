@@ -88,7 +88,7 @@ function cancelAll() {
 
 | tool id | 用途 | actions |
 |---|---|---|
-| `rough-notation` | 只用于给已存在文字划重点，不画几何图形 | `underline` / `highlight` |
+| `rough-notation` | 只用于给已存在文字划重点，不画几何图形 | `underline` / `highlight` / `circle` |
 | `rough-line` | 画辅助线、边线、高线 | — |
 | `rough-arrow` | 画带箭头的关系连线 | — |
 | `draw` | 意图绘图（半结构化 startCoord + intent，Agent C 解析执行） | — |
@@ -113,7 +113,7 @@ createBoardToolRuntime({ resolveTarget, resolveRegion, resolveCanvas, resolveReg
 
 | 禁止 | 原因 |
 |---|---|
-| 自造工具名（如 `circle`, `box`, `text`） | 不在白名单 → `validateBoardToolAction` 报 `未支持的板书工具` |
+| 自造工具名（如 `box`, `text`） | 不在白名单 → `validateBoardToolAction` 报 `未支持的板书工具`；注意 `circle` 是 `rough-notation` 的合法 action（2026-10-13 第七轮接入），不是自造工具 |
 | 填 `durationMs` / `estimatedDurationMs` | 时长由程序算，Agent 填了报 `Agent 不得覆盖` |
 | 填 `gapAfterMs` < 1000ms | 抬笔间隔硬下限，<1000 抛错 |
 | 填 `seed` | roughjs 随机种子由程序生成，避免 Agent 控制笔触 |
@@ -130,6 +130,7 @@ createBoardToolRuntime({ resolveTarget, resolveRegion, resolveCanvas, resolveReg
 |---|---|---|
 | `underline` | **红色** `#d64545`（固定，不可改） | 在关键词/数字下方画手绘下划线 |
 | `highlight` | **黄色** `#f8e58c`（固定，不可改） | 在关键词/数字上画荧光高亮 |
+| `circle` | **红色** `#d64545`（固定，不可改） | 在关键词/数字外画手绘圈（夏夏指定的两大核心兜底之一，2026-10-13 第七轮接入，估算 1500ms 对齐播放端） |
 
 > Agent 传 `options.colorId` 与锁定值不符 → 抛 `颜色固定为 xxx`。
 
@@ -272,7 +273,7 @@ Row 2: estimatedStartMs = T1 + ROW_GAP_MS, estimatedEndMs = ...
 ```js
 {
   tool: 'rough-notation' | 'rough-line' | 'rough-arrow' | 'draw',
-  action: 'underline' | 'highlight',  // 仅 rough-notation 需要
+  action: 'underline' | 'highlight' | 'circle',  // 仅 rough-notation 需要
   region: 'question' | 'analysis' | 'solution' | 'summary',
   order: 正整数,                       // 单手队列顺序
   target: { region, exactText, occurrence },  // rough-notation 方式 B
@@ -309,7 +310,7 @@ Row 2: estimatedStartMs = T1 + ROW_GAP_MS, estimatedEndMs = ...
 
 | 反模式 | 现象 | 修正 |
 |---|---|---|
-| 自造工具 | `tool: 'circle'` | 白名单只有 4 个，返回缺口给 Check Agent |
+| 自造工具 | `tool: 'box'` | 白名单只有 4 个，返回缺口给 Check Agent；注：`action: 'circle'`（rough-notation 内）是合法动作，勿混淆 |
 | 改下划线颜色 | `options.colorId: 'blue'` | 颜色锁定，抛 `颜色固定为 red` |
 | 填 durationMs | `action.durationMs: 2000` | 抛 `Agent 不得覆盖` |
 | 抬笔间隔过短 | `gapAfterMs: 300` | 抛 `抬笔间隔不得小于 1000ms` |

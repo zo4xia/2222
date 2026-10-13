@@ -12,7 +12,7 @@ trigger: "写口播稿/估算口播时长/校验口播发音合规/板书书写�
 
 ## 蒸馏合同
 
-`Distill [口播语速与板书书写时间节奏] as a [workflow] pack so it can help with [Agent B 写口播+板书节奏 / 渲染层估算总时长 / Check Agent 校验口播发音合规], using [src/agent-b-v2/timing.js + src/services/speechTiming.js], while respecting [B 不输出时间字段 / 时间由下游动态算 / 口播发音硬规范].`
+`Distill [口播语速与板书书写时间节奏] as a [workflow] pack so it can help with [Agent B 写口播+板书节奏 / 渲染层估算总时长 / Check Agent 校验口播发音合规], using [src/agent-b-v2/timing.js (ponytail 唯一真源)], while respecting [B 不输出时间字段 / 时间由下游动态算 / 口播发音硬规范].`
 
 ---
 

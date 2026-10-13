@@ -44,13 +44,10 @@
   src/board-tools/roughDrawingTool.js     → hand-action-control
   src/agent-b-v2/timing.js (timeline)     → hand-action-control
 
-  src/agent-b-v2/timing.js (speech)  → speech-board-timing
-  src/services/speechTiming.js       → speech-board-timing
+  src/agent-b-v2/timing.js (speech, ponytail 唯一真源)  → speech-board-timing
 
-  public/lite-player.html §5c normalizeBoardLine / visualLen / readBrace  → field-char-escape-filter
-  public/lite-player.html §5c tokenizeLine                                → field-char-escape-filter
-  public/lite-player.html §6 esc                                          → field-char-escape-filter
-  src/utils/superFilter.js (镜像)                                          → field-char-escape-filter
+  src/utils/superFilter.js (唯一真源, DOM 渲染段 RealBoardPreview v-html 消费)  → field-char-escape-filter
+  （lite-player.html 三条 §5c/§6 引用已随其 2026-10-13 退役移除，git 历史可溯）
 ```
 
 ---
@@ -125,7 +122,7 @@
 3. **再读 hand-action-control** → 写 actionSpec 时只用 3 个工具，不填时长
 4. **再读 speech-board-timing** → 写口播时遵守发音硬规范，不填 duration
 5. **最后读 field-char-escape-filter** → 知道自己写的 `\frac` `×` `$` 等符号在下游会被清洗，避免叠加双清洗
-6. **产出后跑 board-lecture-player 的 validate_contract.js** → 校验 rows.json 是否满足三条非协商修订（真实音频/零 keyword/board v3.0 零坐标）
+6. **产出后跑 board-lecture-player 的 validate_contract.cjs** → 校验 rows.json 是否满足三条非协商修订（真实音频/零 keyword/board v3.0 零坐标）
 
 ### 渲染层执行时（参考 board-lecture-player 的 12 条硬规矩）
 
@@ -144,7 +141,7 @@
 3. **hand-action-control** → 工具白名单校验 + 时长覆盖校验（Agent 不得填 durationMs）
 4. **speech-board-timing** → 口播发音校验（分数/符号/小数）
 5. **field-char-escape-filter** → 字段是否含字面 `$` `\left` `\right` 控制字符；`&amp;` 是否漏解；`\frac` 是否被吃成 `rac`/`frac`；除号是否写了 `÷` 或平铺 `a/b`
-6. **board-lecture-player** → 跑 `validate_contract.js`（机器执行三条修订：坐标退场/零 keyword/真实音频）+ `verify_layout_report.js`（浏览器实测复核：自报 vs 真实偏差 ≤0.3%、rect 两两重叠、溢出画布、字号降级）
+6. **board-lecture-player** → 跑 `validate_contract.cjs`（机器执行三条修订：坐标退场/零 keyword/真实音频）+ `verify_layout_report.cjs`（浏览器实测复核：自报 vs 真实偏差 ≤0.3%、rect 两两重叠、溢出画布、字号降级）
 7. **blingbling小眼睛** → 用 DOM 观察代替肉眼复核结构化页面（验证四件套第 4 条辅助眼睛）
 
 ---
@@ -202,8 +199,8 @@ skills/
 │   │   ├── contract-upstream.md        产出端契约：三条修订 + row 字段表 + board v3.0
 │   │   └── render-downstream.md        渲染端：音频时钟 + occupancy map + 坑表
 │   ├── scripts/
-│   │   ├── validate_contract.js        校验音频/坐标/keyword/动作/语速合理性
-│   │   └── verify_layout_report.js     解析 dump-dom 四项布局检测
+│   │   ├── validate_contract.cjs        校验音频/坐标/keyword/动作/语速合理性（.js 双胞胎已删：ESM 下 require 必崩）
+│   │   └── verify_layout_report.cjs     解析 dump-dom 四项布局检测
 │   └── assets/sample-rows.json         合法样例
 ├── blingbling小眼睛/                    ← skill 7（浏览器侧 DOM 观察）
 │   ├── SKILL.md
@@ -222,6 +219,6 @@ skills/
 
 - **当前版本**：前 5 个 skill v1.0.0 / board-lecture-player v2.0 / blingbling小眼睛 v1.0.0
 - **创建日期**：2026-09-19
-- **源码版本**：基于当前项目 `src/board-tools/*` + `src/agent-b-v2/timing.js` + `src/services/speechTiming.js` + `src/utils/{boardLayout,canvasCoords}.js` + `public/lite-player.html`
+- **源码版本**：基于当前项目 `src/board-tools/*` + `src/agent-b-v2/timing.js` + `src/utils/{boardLayout,canvasCoords,superFilter}.js` + `row-player.html`
 - **升级触发**：源码关键常量变更（如 CANVAS_W 改尺寸、MIN_HAND_LIFT_GAP_MS 调整、语速变化）→ 升对应 skill 版本号
 - **置信度**：前 5 个 skill `high`（直接从已运行代码蒸馏）/ board-lecture-player v2.0 来自夏夏拍板 + projectCode 实测 / blingbling小眼睛 v1.0 是成熟浏览器观察子技能

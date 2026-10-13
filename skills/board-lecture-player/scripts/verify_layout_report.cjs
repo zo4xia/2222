@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * verify_layout_report.js — 浏览器实测产物复核
+ * verify_layout_report.cjs — 浏览器实测产物复核
  *
  * 输入：msedge --dump-dom "file:///.../board-lecture-XXX.html?audit=1" > dom.txt
  *
@@ -14,14 +14,14 @@
  *   ③ 溢出画布检测（画布百分比 0~100）
  *
  * 用法：
- *   node verify_layout_report.js dom.txt [--tol 0.3] [--json]
+ *   node verify_layout_report.cjs dom.txt [--tol 0.3] [--json]
  *
  * 退出码：0 = PASS，1 = FAIL，2 = 用法/解析错误
  *
  * 更新时间：2026-09-19 00:03 GMT+8
  * 更新人：小阿星 ✦（代表夏夏）
  * 来源：references/render-downstream.md §3 + v1.3「验证三件套」第 3 条
- * 本项目定位：board-lecture-player/scripts/verify_layout_report.js
+ * 本项目定位：board-lecture-player/scripts/verify_layout_report.cjs
  * 版本：v1.0
  */
 

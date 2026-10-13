@@ -50,8 +50,9 @@ const cases = [
     expectAtLeast: 1,
   },
   {
+    // 2026-10-13 第七轮：circle 已接入白名单，非法动作 fixture 改用 box 保持违规语义
     name: 'skill 3 违规: rough-notation 动作非法',
-    row: { stage: '分析', speech: '解', board: { region: 'analysis', content: '' }, actionSpec: [{ action: { tool: 'rough-notation', action: 'circle', order: 1 } }] },
+    row: { stage: '分析', speech: '解', board: { region: 'analysis', content: '' }, actionSpec: [{ action: { tool: 'rough-notation', action: 'box', order: 1 } }] },
     expectAtLeast: 1,
   },
   {

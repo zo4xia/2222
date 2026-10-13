@@ -181,7 +181,7 @@ assets/sample-rows.json             合法样例（跑 validate 应为 ERROR 0 /
 
 > **更新时间**：2026-09-19 00:05 GMT+8
 > **更新人**：小阿星 ✦（代表夏夏）
-> **来源**：v1.3 本体（projectCode 20260917-035129-059 实测）+ Agent B v2 系统提示词 + `truth/territory-C-actions-and-anchors.md` + 2026-09-16/18 row-player 排障
+> **来源**：v1.3 本体（projectCode 20260917-035129-059 实测）+ Agent B v2 系统提示词 + 契约真源 boardToolCatalog.js + 2026-09-16/18 row-player 排障
 > **本项目定位**：`~/.workbuddy/skills/board-lecture-player/`（本仓库内 `skills/board-lecture-player/`）
 > **版本**：v2.0
 

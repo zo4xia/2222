@@ -200,7 +200,7 @@ actionSpec 是动作数组，每个动作是一个对象，结构为：\`{ "acti
 
 - **坐标规则**：\`percentage\` 模式输出如 \`[10, 20]\`（数字即百分比数值，不含 % 号），\`pixel\` 模式输出如 \`[173, 196]\`。必须严格落在 region 对应区域范围内，不得跨区域画线。没有可用布局信息时，宁可返回 \`[]\`。
 
-**工具 1：rough-notation — 文字标记（下划线 / 高亮）**
+**工具 1：rough-notation — 文字标记（下划线 / 高亮 / 画圈）**
 用于给已有的文字标重点。只能标记 board 上已经存在的原文（region 为 question 时匹配题目区展示的原文）。
 \`\`\`json
 {
@@ -218,7 +218,7 @@ actionSpec 是动作数组，每个动作是一个对象，结构为：\`{ "acti
 }
 \`\`\`
 - action: \`underline\`（下划线，固定红色 #d64545） / \`highlight\`（高亮，固定浅黄色 #f8e58c） / \`circle\`（圈出关键词，固定红色 #d64545）；不得传 \`options.colorId\`。
-  - underline 和 circle 是核心兜底动作（truth/territory-C 契约），underline 用于划重点词，circle 用于圈关键数字或条件。
+  - underline 和 circle 是核心兜底动作（契约真源：boardToolCatalog 白名单，与播放端 row-player 时序对齐），underline 用于划重点词，circle 用于圈关键数字或条件。
   - highlight 用于整段文字底色高亮。
 
 **工具 2：rough-line — 画直线**

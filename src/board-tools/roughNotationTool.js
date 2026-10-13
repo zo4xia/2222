@@ -4,9 +4,14 @@ import { MIN_HAND_LIFT_GAP_MS } from './boardToolTiming.js'
 export { MIN_HAND_LIFT_GAP_MS } from './boardToolTiming.js'
 
 export const ROUGH_NOTATION_TOOL_ID = 'rough-notation'
+// 2026-10-13 第七轮：circle 接入白名单。
+// 契约拍板依据（四方对齐）：夏夏原话#33（underline+circle 两大核心兜底）、
+// prompt.js §5.2 教学（circle 固定红 #d64545）、row-player 播放端 L1029 渲染分支 + 1500ms 时序、
+// README 核心约束表。此前生成侧拒绝 circle → B 产的圈被静默降级丢弃 + check 误报违规 —— 契约分裂修复。
 export const ROUGH_NOTATION_ENABLED_ACTIONS = Object.freeze([
   'underline',
   'highlight',
+  'circle',
 ])
 export const MARK_DURATION_PER_HAN_WIDTH_MS = 400
 
@@ -18,6 +23,7 @@ export const BOARD_MARK_COLORS = Object.freeze({
 const TYPE_DESCRIPTIONS = Object.freeze({
   underline: '在已存在的关键词或数字下方画手绘下划线',
   highlight: '在已存在的关键词或数字上画荧光高亮',
+  circle: '在已存在的关键词或数字外画手绘圈（固定红色，粗圈关键词/关键数字）',
 })
 
 function requireElement(element) {

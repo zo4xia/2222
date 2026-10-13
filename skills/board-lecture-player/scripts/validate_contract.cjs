@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 /**
- * validate_contract.js — board-lecture-player 上游产出端合同校验
+ * validate_contract.cjs — board-lecture-player 上游产出端合同校验
  *
  * 零依赖（仅 Node 标准库）。检查三条非协商修订 + 一期动作收口。
  *
  * 用法：
- *   node validate_contract.js <rows.json>
- *   node validate_contract.js <rows.json> --json      # 机读输出
+ *   node validate_contract.cjs <rows.json>
+ *   node validate_contract.cjs <rows.json> --json      # 机读输出
  *
  * 退出码：0 = PASS（无 ERROR），1 = 有 ERROR，2 = 用法/解析错误
  *
  * 更新时间：2026-09-18 23:59 GMT+8
  * 更新人：小阿星 ✦（代表夏夏）
  * 来源：references/contract-upstream.md（该文件的机器执行版）
- * 本项目定位：board-lecture-player/scripts/validate_contract.js
+ * 本项目定位：board-lecture-player/scripts/validate_contract.cjs（.js 双胞胎已删：ESM 下 require 必崩）
  * 版本：v1.0
  */
 
@@ -53,7 +53,7 @@ function main() {
   const file = argv.find((a) => !a.startsWith('--'));
 
   if (!file) {
-    console.error('用法: node validate_contract.js <rows.json> [--json]');
+    console.error('用法: node validate_contract.cjs <rows.json> [--json]');
     process.exit(2);
   }
 

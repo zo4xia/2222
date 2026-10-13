@@ -109,7 +109,9 @@ agentBDraftResult.js / agentBContract.js
 
 第六轮（同日，播放链大病理疗）：实锤 boardToolCatalog.prepare() 三处降级路径引用未导入的 MIN_HAND_LIFT_GAP_MS → 降级自身 ReferenceError 炸死整批播放（复现脚本三路径证据，Agent B 自造工具名/exactText 失配均触发）；手术 = 补 import + 三份内联降级副本归一 degradedPlan() 工厂（prepare 永不抛）+ RealBoardPreview per-task catch 隔离（unhandled rejection 清零）；估算器/执行器抢设置归一——timing.js HAND_LIFT_GAP_MS 600→import 派生 1000（估算对齐执行，长板书音画漂移修复），砍 NOTATION_DURATION_MS 五个白名单外死条目；新增 test-board-tool-catalog.mjs 8 用例挂主套件（6→7），不变量 6 改真源常量追踪；skills 档案勘误 600ms→1000ms、白名单 3→4 工具补 draw、目录版本 v1.4.0、skill 版本 bump 1.1.0，skills-hub 镜像同步；row-player 伪冲突拍板注释 + public 镜像 md5 一致。**R5 降级 P3（单步隔离已落地），活 P2 清零**。
 
-已知问题并入 `SYSTEM_MAP.md` 第五节；收尾流程见 `AGENTS.md`「收尾流程」；git 历史可回溯（`git revert 38b9777`）。
+第七轮（同日，业务流爬线清剿）：以业务流为唯一走线逐页对账——实锤 **circle 契约四方分裂**（prompt 教三动作/播放端渲染 circle/生成白名单拒/check 报违规/估算无值，B 产的圈被静默丢弃+误报违规），手术 = 生成（roughNotationTool）/校验（skillViolations）/估算（timing.js circle:1500）三面向夏夏规格与播放端归一，契约真源收敛 boardToolCatalog；砍 16 文件 -3391 行（truth/ 叙事层 7、SYSTEM_MAP/RTK/PONYTAIL/api_spec 四过期档、lite-player 孤儿播放器【推翻第四轮保留裁决，git 历史即档案】、agent-b-v2.html+main.js 重复入口【vite/Dockerfile 同步摘除，业务流唯一入口=index.html】、validate/verify .js 死双胞胎、icons.svg）；引用面修复 20+ 处（truth 引用改真源/三镜像→双镜像/幽灵路径 speechTiming·public-lite·cjs 同名）；test-refine-degrade 毁指针 bug 修复（双备份双恢复）；README 结构图与约束表重写（真源列指向代码）。**新发现 R6（draw 半孤岛：注册+可渲但 prompt 不教+播放端跳过）待拍板**。
+
+已知问题与风险归 PROJECT_STATE 本节与 doc/board_risk_matrix.md（SYSTEM_MAP 第七轮退役，职责归并）；收尾流程见 `AGENTS.md`「收尾流程」；git 历史可回溯（`git revert 38b9777`）。
 
 ## API 唯一真相
 
@@ -189,8 +191,10 @@ Preview 已启用 Vercel Deployment Protection；登录 `xiaxia` 账号后访问
 ## 下一步
 
 使用独立 Check Agent C 配置手动点击一次“Check Agent”，确认上游模型按当前账号返回结构化修正结果。
-R5 已最小修复降级 P3（第六轮：单步降级隔离 + unhandled rejection 清零 + 估算/执行常量归一 1000ms，回归测试 8 用例挂主套件）；残余均 P3：R5 全量断点续播（进度持久化+恢复 UI，后续 feature）、R3（L4 用户画笔层空壳，归 Agent C）、R1 残余（L2/L3 双区表达并行）。地图在 doc/board_risk_matrix.md（第六轮已勘误：R5 降级 P3，活 P2 清零）。
+R6（新，第七轮）：draw 意图工具半孤岛——catalog 注册 + 工作台可渲染 + prompt 不教 + row-player 无渲染分支（drawAction 落 notation 分支即跳过）+ check 白名单无 draw，业务流不触达；方向二选一待夏夏拍板：A) prompt 补教 + 播放端实现（feature 级）；B) catalog 摘除收敛为三工具（反向归一）。
+残余 P3：R5 全量断点续播（进度持久化+恢复 UI，后续 feature）、R3（L4 用户画笔层空壳，归 Agent C）、R1 残余（L2/L3 双区表达并行）。地图在 doc/board_risk_matrix.md（第七轮已勘误：新增 R6）。
 doc/ 剩余观察项：起始语-过渡-总结-兜底话术.md 与 speech-board-guide.md 话术段内容重叠度待评估；board 勘察三件套待下轮一并评估归档（R5 已处置）。
+技术债（自 PONYTAIL_DEBT 折叠，原账本第七轮退役）：①AgentBDirect.vue 5426 行巨石拆分（10 子组件 + 7 composables，高风险单独排期）；②katex/rough-notation/roughjs 三依赖原生替代评估（小学数学场景可简化）；③computeRowGroupTimeline 三大分支抽 helper；④circle 接入后的浏览器级四区 exactText 点击验收（与 R1 残余同游）。
 
 ## Vercel 部署
 
@@ -227,12 +231,19 @@ Vercel 首次创建项目时自动把首次部署标成 Production；随后已�
 │  ├─ R3 [P3] L4 用户画笔层未实现：RealBoardPreview L4 仅空 div aria-hidden。
 │  ├─ R4 ~~[P2] 手写字体范围断言分裂~~ → 已关闭：boardTypography.js 从未存在（臆造），
 │  │        boardTypography.css 死链已于第五轮连根砍除；现行层级校验 = skillViolations.js。
-│  └─ R5 [P2] 调度器无断点续播/单步隔离，长板书中途异常整体失败。
+│  ├─ R5 ~~[P2] 调度器无断点续播/单步隔离~~ → 第六轮降级 P3（降级工厂 + 单步隔离落地）。
+│  └─ R6 [P3] draw 意图工具半孤岛（第七轮新增）：注册+可渲但 prompt 不教+播放端跳过，
+│           业务流不触达；方向 A 补教实现 / B 摘除收敛，待夏夏拍板。
+├─ 第七轮契约修复（circle 全链接通）
+│  └─ 动作白名单四方分裂（prompt 教/播放端渲染 vs 生成拒/校验报违规/估算缺值）
+│     → 生成·校验·估算三面归一（roughNotationTool + skillViolations + timing.js circle:1500），
+│       契约真源 = boardToolCatalog.js；B 产的圈不再被静默丢弃。
 ├─ 纠正旧结论
-│  └─ drawIntentTool.js 非文件空壳（有 schema+校验+真实执行，见 R2 已失效）。
+│  └─ drawIntentTool.js 非文件空壳（有 schema+校验+真实执行，见 R2 已失效；但其业务流触达见 R6）。
 └─ 处置建议
    ├─ R1 已执行最小修复：RealBoardPreview.vue L3 按 rows 渲染 analysis/solution/summary 真实文本锚点，并兼容百分比/像素 startCoord；BoardPreviewApp.vue 汇总并传递 rows.actionSpec。
-   └─ R5 待夏夏确认后单独清理（唯一活跳蚤 P2；R3 为后续能力规划）
+   ├─ R5 第六轮已处置（降级隔离 + 常量同源，残余断点续播归 feature）。
+   └─ R6 待夏夏拍板方向（A 补教+实现 / B 摘除收敛）。
 ```
 
 状态：R1 代码修复已落地；Vite 实际编译通过、diff check 通过；尚缺浏览器级四区 exactText 点击验收，不能标记为完全收口。

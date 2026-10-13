@@ -80,7 +80,7 @@
 const TOOLS=['rough-notation','rough-line','rough-arrow'];
 const REGIONS=['question','analysis','solution','summary'];
 const MIN_GAP_MS=1000;   // = MIN_HAND_LIFT_GAP_MS（真源 src/board-tools/boardToolTiming.js）
-const NOTATION_COLORS={underline:'red',highlight:'yellow'};
+const NOTATION_COLORS={underline:'red',highlight:'yellow',circle:'red'};  // circle 2026-10-13 第七轮接入
 const LOCKED_COLORS={red:'#d64545',yellow:'#f8e58c'};
 const DRAW_COLORS={ink:'#263238',red:'#d64545'};
 const STROKE_W={normal:2,emphasis:3};
@@ -88,7 +88,7 @@ const STROKE_W={normal:2,emphasis:3};
 function validateAction(a){
   if(!a||!TOOLS.includes(a.tool))return{ok:false,err:`未支持的板书工具: ${a?.tool||'空'}`};
   if(a.tool==='rough-notation'){
-    if(!['underline','highlight'].includes(a.action))return{ok:false,err:`action 只支持 underline|highlight`};
+    if(!['underline','highlight','circle'].includes(a.action))return{ok:false,err:`action 只支持 underline|highlight|circle`};
     if(!a.targetId&&!a.target?.region)return{ok:false,err:'需要 targetId 或 target.region'};
     if(a.durationMs!=null||a.gapAfterMs!=null)return{ok:false,err:'标记时长与抬笔间隔由程序工具计算，Agent 不得覆盖'};
     if(a.options?.colorId&&NOTATION_COLORS[a.action]!==a.options.colorId)
@@ -107,7 +107,7 @@ function validateAction(a){
 }
 
 function estimateDuration(a){
-  if(a.tool==='rough-notation')return 1200;
+  if(a.tool==='rough-notation')return ({underline:1200,highlight:1400,circle:1500})[a.action]||1200;  // 与 src/agent-b-v2/timing.js 对齐
   if(a.tool==='rough-line')return 800;
   if(a.tool==='rough-arrow')return 900;
   return 1000;
@@ -187,9 +187,11 @@ const PRESETS=[
     target:{region:'question',exactText:'长方形',occurrence:1},order:1},null,2)},
   {name:'合法 highlight', s:JSON.stringify({tool:'rough-notation',action:'highlight',
     target:{region:'analysis',exactText:'9 × 20.4',occurrence:1},order:2},null,2)},
-  {name:'合法 rough-line', s:JSON.stringify({tool:'rough-line',region:'analysis',order:3,
+  {name:'合法 circle（核心兜底·第七轮接入）', s:JSON.stringify({tool:'rough-notation',action:'circle',
+    target:{region:'question',exactText:'15 米',occurrence:1},order:3},null,2)},
+  {name:'合法 rough-line', s:JSON.stringify({tool:'rough-line',region:'analysis',order:4,
     start:[10,45],end:[50,45],style:{colorId:'red',strokeWidthId:'emphasis'}},null,2)},
-  {name:'合法 rough-arrow', s:JSON.stringify({tool:'rough-arrow',region:'solution',order:4,
+  {name:'合法 rough-arrow', s:JSON.stringify({tool:'rough-arrow',region:'solution',order:5,
     start:[10,40],end:[40,60],style:{colorId:'ink',strokeWidthId:'normal'}},null,2)},
   {name:'错误: 自造工具', s:JSON.stringify({tool:'circle',region:'analysis',start:[10,10],end:[50,50]},null,2)},
   {name:'错误: 改颜色', s:JSON.stringify({tool:'rough-notation',action:'underline',

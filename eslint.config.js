@@ -46,7 +46,7 @@ export default [
     },
   },
   {
-    ignores: ['dist/**', 'node_modules/**', 'public/**', 'truth/**', 'skills/**'],
+    ignores: ['dist/**', 'node_modules/**', 'public/**', 'skills/**'],
   },
   // server/ 和 api/ 目录是 Node.js 环境，使用 Node 全局变量
   {

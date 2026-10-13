@@ -5,7 +5,7 @@
  * 期望 = 不再透传 502 弹崩，改为 200 + 原样 handoff + refineOk:false + warning。
  */
 import { spawn } from 'node:child_process'
-import { mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs'
+import { mkdirSync, writeFileSync, rmSync, existsSync, readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
@@ -13,6 +13,11 @@ const handoffDir = resolve(root, 'public/handoff')
 const pointer = resolve(handoffDir, 'current.json')
 const testFile = resolve(handoffDir, 'handoff-20261013-999999-999.json')
 
+// 2026-10-13 第七轮修复：原版测试结束后直接删 current.json 指针且不恢复——
+// 跑一次就毁掉用户当前会话状态（真 handoff 文件还在但指针没了）。
+// 现改为：指针与手写件双备份 → 测试 → 双恢复；原本不存在才允许删除。
+const pointerBackup = existsSync(pointer) ? readFileSync(pointer, 'utf-8') : null
+const testFileBackup = existsSync(testFile) ? readFileSync(testFile, 'utf-8') : null
 const originalHandoff = {
   problemText: '测试题：3+5=?',
   knowledgeAnalysis: { coreKnowledge: [{ knowledgeId: 'K1', knowledgePoint: '加法' }] },
@@ -30,8 +35,18 @@ server.stderr.on('data', (d) => serverLog.push(String(d)))
 
 const cleanup = () => {
   try { server.kill('SIGKILL') } catch {}
-  for (const f of [pointer, testFile]) { try { rmSync(f) } catch {} }
-  try { if (existsSync(handoffDir) && !require('node:fs').readdirSync(handoffDir).length) rmSync(handoffDir, { recursive: true }) } catch {}
+  // 恢复指针优先：有备份写回备份，无备份（原本就不存在）才允许删除
+  try {
+    if (pointerBackup != null) writeFileSync(pointer, pointerBackup, 'utf-8')
+    else rmSync(pointer, { force: true })
+  } catch {}
+  // 测试手写件：有备份写回备份，无备份才删（不碰用户同名真实存档）
+  try {
+    if (testFileBackup != null) writeFileSync(testFile, testFileBackup, 'utf-8')
+    else rmSync(testFile, { force: true })
+  } catch {}
+  // 目录清空判断：原版 require() 在 ESM 下 ReferenceError 被 catch 吞掉，从未生效
+  try { if (existsSync(handoffDir) && readdirSync(handoffDir).length === 0) rmSync(handoffDir, { recursive: true }) } catch {}
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))

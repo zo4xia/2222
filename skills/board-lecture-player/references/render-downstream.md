@@ -2,7 +2,7 @@
 
 > **更新时间**：2026-09-18 23:58 GMT+8
 > **更新人**：小阿星 ✦（代表夏夏）
-> **来源**：本技能 v1.3 布局三条硬规矩（projectCode 20260917-035129-059 实测）+ 2026-09-16 row-player 排障（drawImage 5 参数误用）+ `truth/territory-C-actions-and-anchors.md`
+> **来源**：本技能 v1.3 布局三条硬规矩（projectCode 20260917-035129-059 实测）+ 2026-09-16 row-player 排障（drawImage 5 参数误用）+ 契约真源 boardToolCatalog.js
 > **本项目定位**：`board-lecture-player/references/render-downstream.md` — 做播放器的那一侧怎么实现「自动感知布局 + 音画同步」
 > **版本**：v2.0（2026-09-18 新增：音频时钟 + occupancy map 自动布局）
 

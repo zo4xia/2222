@@ -343,7 +343,7 @@ t.replace(/(^|[^\w.])(?<!\.)(\d+)\s*\/\s*(\d+)(?!\.)(?=$|[^\w.])/g, '$1\\frac{$2
 | 环境 | 入口函数 | \frac{a}{b} | ² ³ | 依赖 |
 |---|---|---|---|---|
 | 画布（row-player / RealBoardPreview） | tokenizeLine + rowImage | 真排版：分子上、rough 横线、分母下 | 小字号「2」「3」画上标位 | canvas 2d |
-| DOM（lite-player / RealBoardPreview v-html） | renderBoardTextHtml | inline-flex 上下分数 span | `font-size:.65em; vertical-align:super` span（内画 ASCII 数字） | **零外部 CSS**（全 inline style） |
+| DOM（RealBoardPreview v-html；lite-player 已退役） | renderBoardTextHtml | inline-flex 上下分数 span | `font-size:.65em; vertical-align:super` span（内画 ASCII 数字） | **零外部 CSS**（全 inline style） |
 | 纯文本（导出/日志/检索/兜底） | boardTextToPlain | `a/b` | `^2 ^3` | 零 |
 
 ```js
@@ -411,8 +411,8 @@ rowImage / renderBoardTextHtml / boardTextToPlain   ← 本 skill（三路分派
 scheduler.enqueue / hand-action-control / speech-board-timing（400ms/视觉字）
 ```
 
-镜像副本（改 superFilter.js 必须四处同步，`scripts/test-superFilter.mjs` 哨兵把关）：
-`src/utils/superFilter.js`（唯一真源）→ `row-player.html` / `public/row-player.html` / `lite-player.html`
+镜像副本（改 superFilter.js 必须三处同步，`scripts/test-superFilter.mjs` 哨兵把关）：
+`src/utils/superFilter.js`（唯一真源）→ `row-player.html` / `public/row-player.html`（lite-player 2026-10-13 退役）
 
 ---
 
@@ -474,8 +474,8 @@ Check Agent:
 视觉字数:
   visualLen("\frac{3}{4}") = 3+4+1 = 8
 
-镜像同步 (改 superFilter.js 必须四处同步):
-  src/utils/superFilter.js → row-player.html / public/row-player.html / lite-player.html
+镜像同步 (改 superFilter.js 必须三处同步):
+  src/utils/superFilter.js → row-player.html / public/row-player.html
   哨兵: node scripts/test-superFilter.mjs (93 用例)
 
 V1.0 旧规约: 已废止, 冲突裁决见 §1.4 (÷ 一律 frac / ²³ 渲染层代画 / HTML 组件体系废弃)

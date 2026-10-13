@@ -142,11 +142,10 @@ const out = normalizeBoardLine('小明有24 × \\frac{3}{8}颗糖，a \\ne 0，5
 eq(out, '小明有24 x \\frac{3}{8}颗糖，a != 0，5 - 3，x²，A => B，角ABC -> 角DEF', '旧规约 V1.0 示例的 v2 输出')
 ok(findUnsafeChars(out).length === 0, '端到端输出全部手写安全')
 
-console.log('━━ 12. 四处副本镜像一致性哨兵')
+console.log('━━ 12. 副本镜像一致性哨兵（lite-player 2026-10-13 退役，剩两处）')
 const mirrors = [
   ['row-player.html', 'row-player.html'],
   ['public/row-player.html', 'public/row-player.html'],
-  ['lite-player.html', 'lite-player.html'],
 ]
 const sentinels = ['UNICODE2SAFE', 'LATEX2SAFE', 'FW_KEEP']
 for (const [name, path] of mirrors) {

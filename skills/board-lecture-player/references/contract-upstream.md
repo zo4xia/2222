@@ -2,7 +2,7 @@
 
 > **更新时间**：2026-09-18 23:55 GMT+8
 > **更新人**：小阿星 ✦（代表夏夏）
-> **来源**：Agent B v2 系统提示词（LANE=B-V2）+ `G:\vedio\remix-remix-copy-of--googel (1)\row-player.html` 实测 + `truth/territory-C-actions-and-anchors.md`
+> **来源**：Agent B v2 系统提示词（LANE=B-V2）+ row-player.html 实测（契约真源 boardToolCatalog.js）
 > **本项目定位**：`board-lecture-player/references/contract-upstream.md` — 产出端（写 JSON 的那一侧）必须遵守的数据契约
 > **版本**：v2.0（2026-09-18 修订：坐标退场 + 零 keyword + 真实音频唯一时长真相）
 
@@ -101,12 +101,15 @@
 
 结构：`{ "action": { "tool": ..., "order": N, ... } }`，`order` 写在 action **内部**，全表唯一正整数。
 
-一期**只有两个兜底动作**（`truth/territory-C` 契约，波浪线/箭头不在一期）：
+动作白名单（契约真源：`src/board-tools/boardToolCatalog.js`，2026-10-13 第七轮 circle 接通全链）：
 
 | tool | 用途 | 必须锚定 |
 |---|---|---|
-| `rough-notation` · `circle` | 圈关键词 | `target.exactText` |
-| `rough-notation` · `underline` | 划关键词 | `target.exactText` |
+| `rough-notation` · `circle` | 圈关键词（核心兜底） | `target.exactText` |
+| `rough-notation` · `underline` | 划关键词（核心兜底） | `target.exactText` |
+| `rough-notation` · `highlight` | 荧光高亮 | `target.exactText` |
+| `rough-line` | 画辅助线 | region + start/end 百分比 |
+| `rough-arrow` | 画带箭头连线 | region + start/end 百分比 |
 
 ```json
 { "action": {
@@ -118,7 +121,7 @@
 ```
 
 - `rough-notation` **必须锚定 `target.exactText` 文字**，否则会飘（禁止用具数坐标代替命名锚点）
-- 一期**不产出** `rough-line` / `rough-arrow`（保留渲染分支，注释标二期）
+- `rough-line` / `rough-arrow` 已在白名单内（prompt §5.2 工具 2/3，播放端渲染分支完整支持）
 
 ---
 

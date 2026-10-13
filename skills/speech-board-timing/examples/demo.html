@@ -115,8 +115,8 @@ function calcBoardMs(content){
   return d;
 }
 function estimateActionMs(tool){
-  // 与 timing.js 真源对齐（2026-10-13 勘误）：notation 分动作、line 1000、arrow 1200、兑底 1200
-  if(tool==='rough-notation')return 1200;  // underline=1200 / highlight=1400（本 demo 取基准 1200）
+  // 与 timing.js 真源对齐（2026-10-13 勘误）：notation 分动作、line 1000、arrow 1200、兜底 1200
+  if(tool==='rough-notation')return 1200;  // underline=1200 / highlight=1400 / circle=1500（本 demo 取基准 1200）
   if(tool==='rough-line')return 1000;
   if(tool==='rough-arrow')return 1200;
   return 1200;

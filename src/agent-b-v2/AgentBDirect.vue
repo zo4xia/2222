@@ -213,6 +213,7 @@ const checkFieldLabels = {
 const toolLabels = {
   underline: '下划线',
   highlight: '高亮',
+  circle: '画圈', // 2026-10-13 第七轮：circle 接入白名单后的弹层中文标签
   'rough-line': '辅助线',
   'rough-arrow': '箭头',
 }

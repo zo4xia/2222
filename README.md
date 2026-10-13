@@ -26,7 +26,7 @@
 | 层 | 技术 |
 |---|---|
 | 前端框架 | Vue 3.5.39 (Composition API + `<script setup>`) |
-| 构建工具 | Vite 8.3.0 (dev server + production build) |
+| 构建工具 | Vite 8 (dev server + production build) |
 | UI 组件库 | Ant Design Vue 4.2.6 |
 | 图标库 | @ant-design/icons-vue 7.0.1 |
 | 数学渲染 | KaTeX 0.18.4 |
@@ -34,7 +34,7 @@
 | 手写字体 | ZeoSeven FontsAPI (平方乔木体 / 栗壳坚坚体 / 平方韶华等 5 种) |
 | 后端代理 | Vite server middleware (9 个 API handler) |
 | 生产部署 | Node.js productionServer (独立 HTTP) / Vercel serverless (5 个 api/ thin wrapper) |
-| 测试 | Node.js assert/strict (4 套测试 + 1 套冒烟) |
+| 测试 | Node.js assert/strict（run-all-tests 统一入口，7 套件；另有网络型 test:refine-degrade 独立跑） |
 
 ## 架构模式
 
@@ -60,7 +60,7 @@ Check Agent C (可选)
   → POST /api/check-agent/apply → 写回 handoff
     ↓
 演播录制
-  → openHanddrawPlayer → /row-player.html?deliverable=Blob URL
+  → openHanddrawPlayer → /row-player.html?deliverable=/api/deliverable
   → row-player normData/normRow 消费 deliverable JSON
   → Canvas 1726×980 渲染 + 手写体 + 音画同步 + 录制
     ↓
@@ -133,15 +133,20 @@ CMD ["node", "server/productionServer.js"]
 ## 测试
 
 ```bash
-# 全部测试
+# 全部测试（离线 7 套件）
 node scripts/run-all-tests.mjs
 
 # 单独跑
-node scripts/test-parseLLMJson.mjs        # 16 用例
-node scripts/test-timing-fix.mjs            # 5 用例
-node scripts/test-timing-computeRowGroup.mjs  # 7 用例 + 6 不变量
-node scripts/smoke-test-skills.mjs          # 11 用例
-node skills/board-lecture-player/scripts/validate_contract.cjs assets/sample-rows.json
+node scripts/test-superFilter.mjs              # 92 用例 + 镜像哨兵
+node scripts/test-parseLLMJson.mjs             # 16 用例
+node scripts/test-timing-fix.mjs               # 5 用例
+node scripts/test-timing-computeRowGroup.mjs   # 7 用例 + 6 不变量
+node scripts/smoke-test-skills.mjs             # 11 用例
+node scripts/test-board-tool-catalog.mjs       # 8 用例（降级隔离）
+node skills/board-lecture-player/scripts/validate_contract.cjs skills/board-lecture-player/assets/sample-rows.json
+
+# 网络型独立测试（真实上游降级链路，含外网依赖，不入主套件）
+npm run test:refine-degrade
 ```
 
 ## 项目结构
@@ -149,7 +154,7 @@ node skills/board-lecture-player/scripts/validate_contract.cjs assets/sample-row
 ```
 ├── src/
 │   ├── agent-b-v2/          Agent B 核心 (prompt/contract/timing/service/composables)
-│   ├── board-tools/         板书工具 (rough-notation/drawing/scheduler/stableHash)
+│   ├── board-tools/         板书工具 (rough-notation/drawing/drawIntent/scheduler/stableHash)
 │   ├── check-agent/         Check Agent C (contract/skillViolations/asrPolish)
 │   ├── components/          Vue 组件 (Step1Entry/BoardContentLayer/RealBoardPreview等)
 │   ├── lib/                 公共库 (parseLLMJson/agentBApiConfig/speechMarkdown等)
@@ -159,26 +164,29 @@ node skills/board-lecture-player/scripts/validate_contract.cjs assets/sample-row
 ├── api/                      Vercel serverless (5 个 thin wrapper)
 ├── public/
 │   ├── skills-hub/           7 个 skill 可交互 demo + integration-guide
-│   ├── canvas.png            画布底图 1726×980
-│   └── fonts/                本地字体
-├── skills/                   7 个 skill 沉淀 (SKILL.md + meta.json)
-├── truth/                    真相基线 (00-TRUTH-BASE + 5 领地分章)
-├── doc/                      教学文档 + 知识库
+│   ├── canvas.png            画布底图 1726×980（四区图 question/analysis/solution/summary/topic.png）
+│   ├── row-player.html       播放页镜像（与根目录真相源逐字节同步，哨兵把关）
+│   ├── snapdom.js / rough.js 播放页与快照功能依赖的本地库
+├── skills/                   7 个 skill 沉淀 (SKILL.md + meta.json + demo)
+├── doc/                      教学文档 + 知识库 + 施工索引
 ├── scripts/                  测试脚本
-├── row-player.html           单文件播放器 (133KB, 含 superFilter)
-├── PONYTAIL_DEBT.md          技术债追踪
-├── SYSTEM_MAP.md             系统全景图
-└── PROJECT_STATE.md / ENGINEERING_LOG.md / DECISIONS.md   活文档链 (AGENTS.md 管辖)
+├── row-player.html           演播单页播放器（真相源，含 superFilter 镜像）
+├── board-preview.html        全屏画布预览（按钮直连 vite 入口）
+└── PROJECT_STATE.md / ENGINEERING_LOG.md / DECISIONS.md / AGENTS.md   活文档链
 ```
 
-## 核心约束 (truth/)
+> 2026-10-13 第七轮：入口归一——业务流唯一入口 = `index.html`（agent-b-v2.html 重复入口退役）；
+> 过期档 truth/ / SYSTEM_MAP.md / PONYTAIL_DEBT.md / RTK.md / api_spec.yaml / lite-player.html 已砍，git 历史可溯。
 
-| 领地 | 约束 |
-|---|---|
-| A (Agent B) | board 只输出 {content, startDelay}，不输出 startCoord |
-| B (Contract) | parseLLMJson 唯一真源，6 处合并为 1 |
-| C (Actions) | underline + circle 两个核心兜底，锚定 exactText |
-| E (Render) | 微抖动/微倾斜是渲染层职责，B 不算 |
+## 核心约束（契约真源 = 代码，非文档）
+
+| 域 | 约束 | 真源 |
+|---|---|---|
+| Agent B 输出 | board 只输出 {content, startDelay}，不输出 startCoord | src/agent-b-v2/contract.js |
+| 解析 | parseLLMJson 唯一真源 | src/lib/parseLLMJson.js |
+| 动作 | rough-notation 三动作 underline/highlight/circle（underline+circle 为夏夏钦定两大核心兜底）+ rough-line + rough-arrow，锚定 exactText | src/board-tools/boardToolCatalog.js |
+| 渲染 | 微抖动/微倾斜是渲染层职责，B 不算 | row-player.html + RealBoardPreview.vue |
+| 下游契约 | 交付物 JSON 规范 | /api/deliverable/api-spec（DELIVERABLE_API_SPEC.md） |
 
 ## 常见问题
 

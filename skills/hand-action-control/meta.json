@@ -1,6 +1,6 @@
 {
   "name": "hand-action-control",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "archetype": "workflow",
   "description": "板书手部动作互斥调度与一维单手时间线技巧蒸馏。teacher-hand-exclusive 互斥，4 个注册工具白名单（rough-notation/rough-line/rough-arrow/draw，2026-10-13 勘误曾漏计 draw），时长由程序算，Agent 不得填秒数。",
   "created": "2026-09-19",
@@ -25,7 +25,7 @@
   "key_rules": [
     "互斥模式: teacher-hand-exclusive, 任意时刻只一笔",
     "L4 用户透明层不进互斥队列",
-    "工具白名单: rough-notation(underline/highlight) / rough-line / rough-arrow / draw(意图绘图)",
+    "工具白名单: rough-notation(underline/highlight/circle) / rough-line / rough-arrow / draw(意图绘图)",
     "Agent 不得自造工具名, 不在白名单 → 校验失败",
     "Agent 不得填 durationMs / estimatedDurationMs / gapAfterMs / seed",
     "时长由程序按汉字宽度 400ms/字自动算 (rough-notation)",

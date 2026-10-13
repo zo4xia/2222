@@ -39,7 +39,8 @@ const SPEECH_RULES = [
 
 // ─── skill 3: hand-action-control 工具白名单 + Agent 不得填时长 ─────────
 const ALLOWED_TOOLS = new Set(['rough-notation', 'rough-line', 'rough-arrow'])
-const ALLOWED_NOTATION_ACTIONS = new Set(['underline', 'highlight'])
+// 2026-10-13 第七轮：circle 接入（契约拍板见 roughNotationTool.js 同日注释）
+const ALLOWED_NOTATION_ACTIONS = new Set(['underline', 'highlight', 'circle'])
 
 // ─── skill 2: handwriting-font-policy L1 题目层永久印刷体 ─────────
 // board.region === 'question' 时, 不应该有手写体标记 (本题代码层不直接判字体, 留软提示)
@@ -98,7 +99,7 @@ export function checkSkillViolations(row, rowIdx = 0) {
     }
 
     if (tool === 'rough-notation' && action.action && !ALLOWED_NOTATION_ACTIONS.has(action.action)) {
-      v.push({ path: sat + '.action', from: 'hand-action-control §三', msg: `rough-notation 动作 ${action.action} 不在白名单 (underline/highlight)` })
+      v.push({ path: sat + '.action', from: 'hand-action-control §三', msg: `rough-notation 动作 ${action.action} 不在白名单 (underline/highlight/circle)` })
     }
 
     // Agent 不得填时长
