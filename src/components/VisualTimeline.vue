@@ -21,6 +21,10 @@
           <span class="pill-dot board-dot"></span>
           板书 <strong>{{ boardRowCount }}</strong> 处（平均起手 <strong>+{{ avgStartDelay }}s</strong>）
         </span>
+        <span class="summary-pill" v-if="actionCount > 0">
+          <span class="pill-dot action-dot"></span>
+          标注动作 <strong>{{ actionCount }}</strong> 个
+        </span>
       </div>
 
       <div class="timeline-legend">
@@ -31,11 +35,14 @@
         <span class="legend-divider">|</span>
         <span class="legend-item"><span class="legend-icon">🎵</span>MP3音频</span>
         <span class="legend-item"><span class="legend-icon">✍️</span>+n秒板书起手</span>
+        <span class="legend-item"><span class="legend-icon">🎭</span>标注动作(下划线/高亮/圈)</span>
+        <span class="legend-item"><span class="legend-icon">🎯</span>动作触发时点</span>
       </div>
     </div>
 
     <!-- 核心横向时间轴轨道：每个 Row 组映射为一个独立区块 -->
-    <div class="timeline-track-container" ref="trackRef">
+    <!-- ★ 滚轮横滚：鼠标滚轮直接横向滑动（无需 shift+滚轮，用户才“看得到”后面的行） -->
+    <div class="timeline-track-container" ref="trackRef" @wheel="onWheel">
       <div class="timeline-track">
         <div
           v-for="(row, idx) in rows"
@@ -95,6 +102,27 @@
             </div>
           </div>
 
+          <!-- 核心指标3：标注动作（underline/highlight/circle）——动作在时间轴上的容身之地 -->
+          <div
+            :class="['block-metric-row', 'action-row', { 'no-action-row': !getActions(row).length }]"
+            :title="getActionTitle(row)"
+          >
+            <div class="metric-label-group">
+              <span class="metric-icon">🎭</span>
+              <span class="metric-name">标注动作</span>
+            </div>
+            <div class="action-badges">
+              <span v-if="!getActions(row).length" class="metric-val zero-offset">0 个（仅写字）</span>
+              <span
+                v-for="t in getActionTypeCounts(row)"
+                :key="t.type"
+                :class="['action-badge', `act-${t.type}`]"
+              >
+                {{ ACTION_LABELS[t.type] || t.type }} {{ t.count }}
+              </span>
+            </div>
+          </div>
+
           <!-- 块内部微观时序分段条：直观展示口播铺垫期与落笔书写期的比例关系 -->
           <div class="mini-timeline-track" :title="getMiniTimelineTitle(row)">
             <div
@@ -110,6 +138,16 @@
               title="板书开始落笔时间点"
             >
               <span class="pin-marker">✍️</span>
+            </div>
+            <!-- ★ 动作触发时点钉：每个标注动作按 startDelay 在微观条上打点（动作容身之地之二） -->
+            <div
+              v-for="(act, ai) in getActions(row)"
+              :key="'act-pin-' + ai"
+              class="mini-action-pin"
+              :style="{ left: getActionPinPercent(row, act) + '%' }"
+              :title="`+${getActionStartDelay(act).toFixed(1)}s 触发 ${ACTION_LABELS[getActionType(act)] || getActionType(act)}（${getActionTargetDesc(act)}）`"
+            >
+              <span class="pin-marker">🎯</span>
             </div>
             <div
               class="mini-bar-board-writing"
@@ -139,7 +177,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 
 const props = defineProps({
   rows: {
@@ -161,6 +199,87 @@ const props = defineProps({
 const emit = defineEmits(['select-row', 'play-audio'])
 
 const trackRef = ref(null)
+
+// ★ 标注动作类型标签（underline/highlight/circle 三大动作，白名单见 roughNotationTool）
+const ACTION_LABELS = { underline: '下划线', highlight: '高亮', circle: '圈' }
+
+// ★ 提取本行的合法标注动作（actionSpec 数组，排除 capabilityGap 缺口项）
+function getActions(row) {
+  if (!Array.isArray(row?.actionSpec)) return []
+  return row.actionSpec.filter((e) => e && e.action && !e.capabilityGap)
+}
+
+// 动作类型（entry.action 是工具对象 { tool, action: 'underline'|... }）
+function getActionType(entry) {
+  return entry?.action?.action || ''
+}
+
+// 动作触发延时（秒，entry.startDelay；无值时默认 0 = 口播一开就触发）
+function getActionStartDelay(entry) {
+  const v = Number(entry?.startDelay)
+  return Number.isFinite(v) && v >= 0 ? v : 0
+}
+
+// 动作目标描述（target.exactText 或 targetId）
+function getActionTargetDesc(entry) {
+  const t = entry?.action?.target
+  if (typeof t === 'string' && t.trim()) return t
+  if (t && typeof t === 'object') return t.exactText ? `“${t.exactText}”` : (t.region || '')
+  return '目标未描述'
+}
+
+// 按类型统计（徽章用）
+function getActionTypeCounts(row) {
+  const counts = {}
+  for (const a of getActions(row)) {
+    const type = getActionType(a)
+    if (!type) continue
+    counts[type] = (counts[type] || 0) + 1
+  }
+  return Object.entries(counts).map(([type, count]) => ({ type, count }))
+}
+
+// 动作指标行 tooltip
+function getActionTitle(row) {
+  const acts = getActions(row)
+  if (!acts.length) return '本 Row 无标注动作（仅写字）'
+  return acts.map((a, i) =>
+    `动作${i + 1}：+${getActionStartDelay(a).toFixed(1)}s ${ACTION_LABELS[getActionType(a)] || getActionType(a)} ${getActionTargetDesc(a)}`
+  ).join('\n')
+}
+
+// 动作钉在微观条上的百分比位置（2%~95% 防溢出）
+function getActionPinPercent(row, entry) {
+  const dur = getDuration(row)
+  if (dur <= 0) return 2
+  const pct = (getActionStartDelay(entry) / dur) * 100
+  return Math.min(95, Math.max(2, Math.round(pct)))
+}
+
+// ★ 滚轮横滚：滚轮 deltaY 直接映射为横向滚动——不用 shift+滚轮，
+// 用户一滚滚轮就能看到后面的行（“行数超过就没了听都不能听”的直接解药）
+function onWheel(e) {
+  const el = trackRef.value
+  if (!el) return
+  // 容器未溢出时不拦截（垂直滚动不受影响）
+  if (el.scrollWidth <= el.clientWidth) return
+  e.preventDefault()
+  el.scrollLeft += (e.deltaY || 0) + (e.deltaX || 0)
+}
+
+// ★ 播放/选中跟随：正在播放或编辑中的行块自动滚进视野（横向居中）
+watch(() => [props.playingIndex, props.activeIndex], ([p, a]) => {
+  const idx = p >= 0 ? p : a
+  if (idx < 0 || !trackRef.value) return
+  nextTick(() => {
+    const el = trackRef.value
+    if (!el) return
+    const block = el.querySelector(`.timeline-row-block:nth-child(${idx + 1})`)
+    if (block instanceof HTMLElement) {
+      block.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+    }
+  })
+})
 
 // ★ 提取 row 的音频 URL（优先 audioUrl，兜底缓存 rowAudioCache，再兜底 audio.mp3）
 //  注意：父组件传入的 row 已含 audioUrl 与 audioDurationMs 字段（若已生成）
@@ -263,6 +382,11 @@ const boardRowCount = computed(() => {
   return props.rows.filter(hasBoard).length
 })
 
+// ★ 标注动作总数（header 统计）
+const actionCount = computed(() => {
+  return props.rows.reduce((sum, r) => sum + getActions(r).length, 0)
+})
+
 // 平均起手延时
 const avgStartDelay = computed(() => {
   const boardRows = props.rows.filter(hasBoard)
@@ -353,6 +477,7 @@ function onBlockClick(index) {
 .total-dot { background: var(--blue, #5c88b8); }
 .audio-dot { background: var(--positive, #16856f); }
 .board-dot { background: var(--warning, #9a6a18); }
+.action-dot { background: var(--danger, #d95f5f); }
 
 /* 图例 */
 .timeline-legend {
@@ -400,11 +525,18 @@ function onBlockClick(index) {
   gap: 12px;
   align-items: stretch;
   min-width: 100%;
+  /* ★ 滚动修复：track 宽 = 内容宽（行块总基准宽超出容器时必然溢出 →
+     overflow-x: auto 出滚动条；min-width:100% 保底行数少时铺满） */
+  width: max-content;
+  box-sizing: border-box;
 }
 
 /* 单个 Row 组映射的独立区块 */
 .timeline-row-block {
-  flex: 1 0 auto;
+  /* ★ 滚动修复：flex: 0 0 auto 定宽不拉伸不收缩——块宽严格按时长基准
+     （160~260px），行数多时总宽溢出容器触发横向滚动；旧的 grow=1 写法
+     与 min-width:100% 组合在部分布局下滚动不可达 */
+  flex: 0 0 auto;
   background: var(--surface, #fffdf7);
   border: 1.5px solid var(--line, #d7ded5);
   border-radius: var(--control-radius, 12px);
@@ -530,6 +662,34 @@ function onBlockClick(index) {
   background: var(--sun-pale, #fff2c7);
   border: 1px solid #fae69e;
 }
+
+/* ★ 标注动作指标行（动作容身之地） */
+.action-row {
+  background: var(--danger-pale, #ffe7e1);
+  border: 1px solid #fecdd3;
+}
+.no-action-row {
+  background: var(--surface-soft, #edf7f0);
+  border: 1px solid var(--line, #d7ded5);
+  opacity: 0.8;
+}
+.action-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.action-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+.act-underline { background: #cfe8ff; color: #0369a1; }
+.act-highlight { background: #fde68a; color: #b45309; }
+.act-circle { background: #fecdd3; color: #be123c; }
 .no-board-offset {
   background: var(--surface-soft, #edf7f0);
   border: 1px solid var(--line, #d7ded5);
@@ -632,6 +792,14 @@ function onBlockClick(index) {
   top: -2px;
   transform: translateX(-50%);
   z-index: 3;
+  pointer-events: none;
+}
+/* ★ 动作触发时点钉（微观条下半沿，与顶部 ✍️ 板书钉错层不重叠） */
+.mini-action-pin {
+  position: absolute;
+  top: 3px;
+  transform: translateX(-50%);
+  z-index: 4;
   pointer-events: none;
 }
 .pin-marker {
