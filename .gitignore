@@ -26,6 +26,11 @@ RTK.zip
 .env.local
 *.log
 .tool-results
+AGENTS.local.md
+reasonix.toml
+memory/
+backup/
+.base44/
 
 # 系统垃圾
 .DS_Store

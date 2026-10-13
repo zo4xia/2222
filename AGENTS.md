@@ -88,7 +88,7 @@ Before project work starts:
 - `PROJECT_STATE.md`：实时真相
 - `ENGINEERING_LOG.md`：自包含工作单元
 - `DECISIONS.md`：决策溯源、坑点、踩坑经验
-- `项目实时架构模块图.md`：上下文、施工路线、todolist、项目节奏反馈，实时更新
+- `SYSTEM_MAP.md`：系统全景图（上下文、施工路线以图承载，实时更新）
 
 ## Agent A -> B Handoff
 
@@ -127,10 +127,9 @@ Before project work starts:
 
 @RTK.md
 
-## Base44 Dev Environment
+## Runtime Environment
 
-- The app runs via `docker-compose.base44.yml` (single `web` service, `node:22-slim`, bind-mounted source at `/app`).
-- Dev command: `npm run dev` → Vite dev server on port 3000, `host: 0.0.0.0`, `allowedHosts: true` (already in `vite.config.js`).
+- Dev command: `npm run dev` → Vite dev server on port 3000, `host: 0.0.0.0`, `allowedHosts: true` (already in `vite.config.js`). Production: `server/productionServer.js` (Node HTTP on `$PORT`) or Docker (`Dockerfile` + `docker-compose.yml`).
 - Single-origin: Vite serves both frontend and API. All API routes are Vite middleware plugins defined in `server/*.js` and wired in `vite.config.js`. No separate backend process, no database.
 - AI provider credentials (apiKey/endpoint/model) are entered by the user at runtime through the frontend "Agent 配置" panel — they are NOT env vars and NOT required to boot.
 - `FISH_AUDIO_API_KEY` is optional (built-in default key exists). `UPSTREAM_HOSTS` and `CORS_ORIGINS` are optional whitelists; empty = allow all / no CORS headers.
