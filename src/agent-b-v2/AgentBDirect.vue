@@ -1015,6 +1015,8 @@ function actionContent(entry) {
 const { bCacheKey, bCacheGet, bCacheSet } = useBCache({
   getHandoff: () => handoff.value,
   getSelectedSkillId: () => selectedSkillId.value,
+  // ★ R8-⑤：模型进缓存键——env 预设/用户改配置后旧缓存失效（bCacheGet 另有比对防御）
+  getModel: () => agentBApiConfig.model || '',
 })
 
 async function generateRows(force = false) {

@@ -4,11 +4,26 @@
  * ponytail: 从 AgentBDirect.vue 956-1031 行抽出，纯逻辑无模板依赖。
  * 调用方传 handoff / selectedSkillId 的 getter，避免双向耦合。
  *
+ * ★ Task 24 = R8-⑤ 缓存键盲区修复：
+ *   refine（知识修缮环，R8-① 确认后原地覆写活档）白名单六字段中
+ *   keyFormulaList / formulaHints / commonMistakes 原先不进缓存键——
+ *   修缮这三项后 B 缓存照旧命中旧 rows，静默吐修缮前内容。
+ *   现在三字段摘要 + 生成模型全部纳入键；bCacheGet 另加模型比对防御层。
+ *
  * @qh-core LANE=COMPOSABLE POINT=USE_B_CACHE
  */
 import { knowledgeItemText } from '../../services/stepHandoff.js'
 
-export function useBCache({ getHandoff, getSelectedSkillId }) {
+/** 稳定摘要：数组按元素逗号连接，字符串直取，统一截断防键超长 */
+function fieldDigest(value, max = 120) {
+  if (value == null) return ''
+  const s = Array.isArray(value)
+    ? value.map((x) => String(x ?? '')).filter(Boolean).join(',')
+    : String(value)
+  return s.slice(0, max)
+}
+
+export function useBCache({ getHandoff, getSelectedSkillId, getModel }) {
   const B_CACHE_PREFIX = 'b-gen:'
   const B_CACHE_TTL = 24 * 60 * 60 * 1000
 
@@ -21,12 +36,23 @@ export function useBCache({ getHandoff, getSelectedSkillId }) {
     const analysisDigest = h.knowledgeAnalysis?.teachingFocus
       ? String(h.knowledgeAnalysis.teachingFocus).slice(0, 80)
       : ''
+    // ★ R8-⑤：refine 白名单三个嵌套字段进键——修缮任一项缓存即失效
+    const ka = h.knowledgeAnalysis || {}
+    const refinedDigest = [
+      fieldDigest(ka.keyFormulaList),
+      fieldDigest(ka.formulaHints),
+      fieldDigest(ka.commonMistakes),
+    ].join('/')
+    // ★ R8-⑤（env 化补丁）：生成模型进键——换 key/换模型/换预设后旧缓存不再命中
+    const modelDigest = fieldDigest(getModel ? getModel() : '', 60)
     return B_CACHE_PREFIX + [
       h.problemText?.slice(0, 80) || '',
       h.problemType || '',
       h.boardFocus || '',
       knowledgeDigest,
       analysisDigest,
+      refinedDigest,
+      modelDigest,
       h.stageRatioSuggestion?.type || '',
       h.boardPlan?.question?.x || '',
       getSelectedSkillId() || '',
@@ -39,6 +65,12 @@ export function useBCache({ getHandoff, getSelectedSkillId }) {
       if (!raw) return null
       const data = JSON.parse(raw)
       if (Date.now() - data.timestamp > B_CACHE_TTL) {
+        localStorage.removeItem(bCacheKey())
+        return null
+      }
+      // ★ R8-⑤ 防御层：缓存里的生成模型与当前模型不符 → 视为过期（键已含模型，
+      // 此层兜底 getModel 未传/模型中途切换等边缘场景）
+      if (getModel && data.model && getModel() && data.model !== getModel()) {
         localStorage.removeItem(bCacheKey())
         return null
       }
