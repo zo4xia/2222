@@ -765,6 +765,7 @@ function getStageTagColor(stage) {
             :action-spec="actionSpec"
             :interactive="false"
             :canvas-params="(meta && meta.canvasParams) || null"
+            :background-image-url="screenshotUrl"
             @update:topic-layout="onTopicLayoutUpdated"
             @update:problem-text="onProblemTextUpdated"
           />

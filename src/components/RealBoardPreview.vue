@@ -22,6 +22,13 @@ const props = defineProps({
   interactive: { type: Boolean, default: true },
   sourceImageUrl: { type: String, default: '' },
   keepOriginal: { type: Boolean, default: false },
+  /**
+   * ★ Task 22 夏夏拍板：AgentA 排版成品截图 = 画布底图原装引用。
+   * 传入后 L1 层直接显示截图（题目/四标签/分区已在图内），
+   * BoardContentLayer 题目二次排版整层退位，本组件专注 L3 板书动作+音频配合。
+   * 不传（如 Step1Entry 生产方）则维持原有排版行为。
+   */
+  backgroundImageUrl: { type: String, default: '' },
   /** Agent B 输出的动作数组，自动在 L3 层播放 */
   actionSpec: { type: Array, default: () => [] },
   /** 当前交付物的五字段行，供 L3 板书文本和 exactText 锚点使用 */
@@ -214,10 +221,13 @@ function onClick() {
       @click="onClick"
     >
       <div class="board-layer board-layer-l1" data-board-layer="L1">
-        <img class="board-paper" :src="canvasImageUrl" alt="甲方画布" draggable="false" />
+        <!-- ★ Task 22: AgentA 排版截图原装引用优先（与画布同源同比例，铺满零变形）；无截图回退纸张底图 -->
+        <img class="board-paper" :src="backgroundImageUrl || canvasImageUrl" alt="甲方画布" draggable="false" />
       </div>
 
+      <!-- ★ Task 22: 有背景截图时题目排版层退位（截图内已含 AgentA 排版成品） -->
       <BoardContentLayer
+        v-if="!backgroundImageUrl"
         :problem-text="problemText"
         :board-plan="boardPlan"
         :topic-layout="topicLayout"
