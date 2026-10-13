@@ -90,6 +90,19 @@ agentBDraftResult.js / agentBContract.js
 
 当前唯一入口是 `DirectFlow -> Step1Entry -> AgentBDirect`。
 
+## 已移除噪音（2026-10-13, main=38b9777）
+
+```text
+根目录文档 23→8：删 CONSTRUCTION_LOG/CONTINUITY/CHANGELOG/KNOWN_ISSUES/ARCHITECTURE
+  /TOOLKIT/PROJECT_TREE/risk_matrix/resource_list/dataflow_diagram
+  /module_dependency_graph/decoupling_strategy/diagnostic_report/calibrated_prd
+  /项目实时架构模块图 (15 份停更或重叠)
+平台/本地残留：backup/(tar.gz) / .md / reasonix.toml / memory/ / .base44/
+  / metadata.json / docker-compose.base44.yml / AGENTS.local.md / 迭代计划/ (9 项)
+```
+
+已知问题并入 `SYSTEM_MAP.md` 第五节；收尾流程见 `AGENTS.md`「收尾流程」；git 历史可回溯（`git revert 38b9777`）。
+
 ## API 唯一真相
 
 ```text
@@ -106,8 +119,8 @@ agentBDraftResult.js / agentBContract.js
 ```text
 system prompt       src/agent-b-v2/skills/ (动态加载) -> server/agentBV2Handler.js
 Agent A 情报         src/agent-b-v2/service.js 组装为 userPayload
-Agent A 知识库        doc/knowledge-list.md
-Agent B 必读资料      doc/key.md + doc/knowledge-list.md + doc/speech-board-guide.md
+Agent A 知识库        doc/knowledge-a.compact.json (运行时快照, docReferences.js 读取)
+Agent B 必读资料      doc/speech-board-guide.md
 ```
 
 前端不持有 Agent B system prompt。生成请求沿用既有 prompt；自检请求由服务端读取并注入上述三份规范，不复用生成 prompt。
@@ -115,7 +128,6 @@ Agent B 必读资料      doc/key.md + doc/knowledge-list.md + doc/speech-board-
 ## Check Agent C 唯一真相
 
 ```text
-检查范围主人        doc/key.md（坐标排版、口播稿、公式板书）
 检查细化依据        doc/self-check.md (润色规则) + doc/speech-board-guide.md (口播板书规则)
 前端调用            src/check-agent/service.js
 服务端提示与解析    server/checkAgentHandler.js + src/check-agent/contract.js
@@ -169,6 +181,7 @@ Preview 已启用 Vercel Deployment Protection；登录 `xiaxia` 账号后访问
 ## 下一步
 
 使用独立 Check Agent C 配置手动点击一次“Check Agent”，确认上游模型按当前账号返回结构化修正结果。
+doc/ 知识点三件套重叠（knowledge_points.json / knowledge-list.md / 知识点列表大全.md）待评估归一（见 ENGINEERING_LOG 2026-10-13 接力棒）。
 
 ## Vercel 部署
 

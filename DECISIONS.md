@@ -1,5 +1,15 @@
 # 重要决策
 
+## 2026-10-13 根目录文档链收敛为 8 份活文档
+- **决策**：仓库根目录 md 从 23 份收敛为 8 份（README / AGENTS / RTK / SYSTEM_MAP / PROJECT_STATE / ENGINEERING_LOG / DECISIONS / PONYTAIL_DEBT），其余 24 项噪音（含 15 份停更或重叠文档、9 项平台/本地残留）零引用复核后物理删除。
+- **背景**：夏夏指出根目录有噪音味；审计发现 CHANGELOG 停 09-20、CONTINUITY 停 08-19、CONSTRUCTION_LOG 停 09-19 完结、KNOWN_ISSUES 零命中新特性；backup/ 内 1.1MB tar.gz 直接进 git；metadata.json + .base44/ + docker-compose.base44.yml 为 base44 平台残留；reasonix.toml 为本地 AI 工具权限沉淀（含 Windows 路径）。
+- **考虑的方案**：A) 归档到 docs/legacy-md/（迭代计划 L10 原案）；B) 全部保留不动；C) 直接删除，git 历史即档案。
+- **最终决策**：C。归档目录只是让噪音换个地方住，与"少即是多"冲突；git 历史天然可回溯，需要找回时 `git revert 38b9777` 即可。
+- **理由**：夏夏原则"能用图就不要一堆 md"，上下文 = SYSTEM_MAP 图 + ENGINEERING_LOG 变更树；文档链按依赖分诊——被 AGENTS.md「必维护核心记录」或 README 引用的留，其余停更快照删。
+- **风险**：外部有人依赖旧文档路径（如 CONSTRUCTION_LOG.md）会 404；已知问题清单并入 SYSTEM_MAP 第五节，职能无损失。
+- **验证**：run-all-tests 6/6；24 个被删名在活文件链引用清零；远程 main HEAD = 38b9777。
+- **关联文件**：`.gitignore`（防再生 5 条目）、`README.md`、`AGENTS.md`、`SYSTEM_MAP.md`、`PROJECT_STATE.md`。
+
 ## 2026-09-16 录屏交付前置就绪检查与模块完成引导 Modal
 - **决策**：在录屏交付按钮（`btn-vue-record`）中增加前置就绪状态检查，针对“题目识别状态”与“TTS 音轨状态”进行实时双重校验。若任意模块未就绪，阻止直接录屏并弹出 Ant Design Modal 展示未就绪模块清单、诊断详情与操作引导。
 - **放权设计**：弹窗底部提供“刷新就绪状态”重新探测，同时保留“仍要测试录屏”选项，允许开发者在调试阶段绕过音频/题文强依赖，贯彻“系统放权，不绑死”原则。

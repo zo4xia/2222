@@ -1,5 +1,35 @@
 # 工程日志
 
+## 2026-10-13 根目录噪音清扫与活文档链收敛（main = 38b9777）
+
+**背景与口径**：
+- 夏夏指出"main 下面好多文件，有一股噪音味"；仓库自带《迭代计划/下一步改进指南.md》L10 早已授权"项目根 13 个 md 评估有效性，过时的归档"，本次一并执行后该计划文件使命完成。
+- 原则：噪音不删都是挖坑；"能用图就不要一堆 md"，上下文收敛为 图（SYSTEM_MAP）+ 变更树（本日志）。
+
+**执行步骤**：
+1. 全景审计根目录 23 份 md + 5 杂项 + 4 目录：逐一跑代码引用扫描（src/server/scripts/api/vite.config）+ 文档链交叉引用（README/AGENTS.md）+ 内容时效性（是否含 2026-10 新特性）。
+2. 时效实锤：仅 ENGINEERING_LOG.md 是活的；CHANGELOG 停 09-20、CONTINUITY 停 08-19、CONSTRUCTION_LOG 停 09-19 完结快照、KNOWN_ISSUES 零命中新特性。
+3. 零引用复核通过后 `git rm` 24 项，连带修复 4 处交叉引用。
+
+**代码变更**：
+- 删除（24 项，净删 2863 行）：平台残留 9 项（backup/ 内 1.1MB tar.gz 进 git、`.md` 旧副本、reasonix.toml 本地工具权限、memory/ 会话沉淀、.base44/、metadata.json、docker-compose.base44.yml、AGENTS.local.md、迭代计划/）；过时快照/重叠文档 15 项（项目实时架构模块图、ARCHITECTURE、diagnostic_report、calibrated_prd、decoupling_strategy、dataflow_diagram、module_dependency_graph、risk_matrix、resource_list、CONSTRUCTION_LOG、CONTINUITY、CHANGELOG、TOOLKIT、PROJECT_TREE、KNOWN_ISSUES）。
+- 修复 4 处：README 结构图末行；AGENTS.md 必维护记录（SYSTEM_MAP 补位）+ Base44 章节改写为 Runtime Environment；SYSTEM_MAP 已知问题标题；.gitignore 补防再生 5 条目（AGENTS.local.md/reasonix.toml/memory//backup//.base44/）。
+
+**发现和确认**：
+- `doc/key.md` 是臆造引用：PROJECT_STATE.md L110/L118 声称 B/Check 依赖它，但该文件 git 全历史不存在、无任何代码读取；Check 实际只读 handoff.knowledgeBasePath（doc/knowledge-a.compact.json）。已修正 PROJECT_STATE 两处。
+- truth/00-夏夏原话汇总.md 里的 CONTINUITY.md 行号 = 历史溯源坐标（档案性质），保留不动。
+- 夏夏 10 条核心原则已在 AGENTS.md L69-78 完整覆盖，AGENTS.local.md 删除无信息损失。
+
+**验证结果**：
+- run-all-tests 6/6（含 superFilter 93/93）；被删 24 项在活文件链中引用清零（.gitignore 防再生条目与 truth 档案坐标除外）。
+- 提交 38b9777（30 文件 +10/-2863）已推送 main，API 验证远程 HEAD 一致。
+
+**接力棒**：
+- doc/ 内部知识点三件套重叠（knowledge_points.json / knowledge-list.md / 知识点列表大全.md）与 doc/ 其余零引用资料，下轮可评估归一。
+- 收尾流程已沉淀进 AGENTS.md「收尾流程」小节，后续任务按此执行。
+
+---
+
 ## 2026-10-08 交付物 Schema 完整性、手写符号规范与 row-player 契约彻底压实
 
 **背景与口径**：

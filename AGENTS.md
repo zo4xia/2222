@@ -90,6 +90,21 @@ Before project work starts:
 - `DECISIONS.md`：决策溯源、坑点、踩坑经验
 - `SYSTEM_MAP.md`：系统全景图（上下文、施工路线以图承载，实时更新）
 
+### 收尾流程（每个任务完结强制执行）
+1. `PROJECT_STATE.md`：同步当前状态；架构有变时更新运行主链。
+2. `ENGINEERING_LOG.md` 加新条目：背景（为什么做）→ 思路（怎么想）→ 执行步骤（具体做了什么）→ 代码变更（改了什么文件）→ 发现和确认（新发现了什么）→ 验证结果（怎么验证的）→ 接力棒（下轮继续点）。
+3. `DECISIONS.md` 加新决策（如有）：决策内容 → 背景 → 考虑的方案 → 最终决策 → 理由 → 风险 → 验证。
+4. 新坑记录进 `SYSTEM_MAP.md`「已知问题」章节；架构变化同步 `SYSTEM_MAP.md` 全景图。
+5. 清缓存：删除 AI 工具侧 `project:state` / `project:decisions` / `project:architecture` / `project:issues` 等项目上下文缓存 key（如当前会话提供此类缓存）。
+6. 检查清单：
+   - [ ] PROJECT_STATE.md 更新了吗
+   - [ ] ENGINEERING_LOG.md 加了新条目吗
+   - [ ] 有重要决策吗，DECISIONS.md 更新了吗
+   - [ ] 发现新坑吗，SYSTEM_MAP.md 已知问题更新了吗
+   - [ ] 架构有变吗，SYSTEM_MAP.md 全景图更新了吗
+   - [ ] 所有信息都落档了吗（图 + 变更树，不依赖会话记忆）
+   - [ ] 接力棒清楚吗
+
 ## Agent A -> B Handoff
 
 - Do not change existing Agent A upload, recognition, image-type/original-image decision, knowledge, layout, or coordinate logic.
