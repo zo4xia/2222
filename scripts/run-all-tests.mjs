@@ -24,6 +24,7 @@ const tests = [
   { name: 'board background (Task 22 截图底图 6 用例)', cmd: 'node scripts/test-board-background.mjs' },
   { name: 'cleanup keep (R8-② 误删修复 6 用例)', cmd: 'node scripts/test-cleanup-keep.mjs' },
   { name: 'b cache (R8-⑤ 缓存键盲区 7 用例)', cmd: 'node scripts/test-b-cache.mjs' },
+  { name: 'check ratio (R8-③ 配比盲视 10 用例)', cmd: 'node scripts/test-check-ratio.mjs' },
   { name: 'validate_contract',          cmd: 'node skills/board-lecture-player/scripts/validate_contract.cjs skills/board-lecture-player/assets/sample-rows.json' },
 ]
 

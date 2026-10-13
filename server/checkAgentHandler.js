@@ -50,6 +50,31 @@ function formatChangeValue(value) {
   return typeof value === 'string' ? value : JSON.stringify(value ?? '')
 }
 
+// ★ R8-③：Check 配比盲视修复——环节配比占比（B 生成时的唯一配比政策源）
+// 此前 handoff 对象在 handler 里已读到（problemText/commonMistakes 等都拼进了 userContent），
+// 唯独 stageRatioSuggestion 没拼 → Check 只能拿系统提示词里的静态死规则（撑死 3 行）
+// 去砍 B 按 c 类题型配比（分析 25-35%）合规生成的分析行。
+// 双键名兼容与 AgentBDirect 一致（stageRatioSuggestion / 环节配比占比）。
+export function buildStageRatioGuidance(ratioData) {
+  const sr = ratioData && typeof ratioData === 'object' && !Array.isArray(ratioData)
+    ? ratioData.suggestedRatio
+    : null
+  // 无区间数据（null/空对象/数组脏数据/缺 suggestedRatio）一律按数据缺失兜底：
+  // 没有区间就没有可核对的政策，退保守规则
+  if (!sr || typeof sr !== 'object' || Array.isArray(sr)) {
+    return '【本题环节配比占比 (stageRatioSuggestion)】\n未提供（数据缺失）：按系统提示词的保守兜底规则执行（分析不超过总步骤数的 1/2，撑死最多 3 行）。'
+  }
+  const line = (label, v) => `- ${label}：${String(v ?? '') || '未提供'}`
+  const typeLine = [ratioData.cuCode, ratioData.type].filter(Boolean).join(' · ') || '未提供'
+  return '【本题环节配比占比 (stageRatioSuggestion)】（B 生成时的唯一配比政策源，只按它核对，禁用一切固定比例）\n' +
+    `- 题型：${typeLine}（置信度：${ratioData.confidence || '未提供'}）\n` +
+    line('分析 (analysis)', sr.analysis) + '\n' +
+    line('解答 (solution)', sr.solution) + '\n' +
+    line('总结 (summary)', sr.summary) + '\n' +
+    line('开收场 (introAndClosing)', sr.introAndClosing) + '\n' +
+    '核对口径：分析区允许行数上限 = 总行数 × 分析区间上限（百分比换算）。区间内完全合规，不得以任何固定数字为由砍行；确实超标时优先合并进解答而不是删除。'
+}
+
 // ---------- 解析 Check Agent 返回 ----------
 const ALLOWED_FIELDS = new Set(['speech', 'board', 'board_timing', 'actionSpec', 'answer_error', 'common_mistake'])
 
@@ -251,6 +276,11 @@ export async function handleCheckAgentRequest(req, res) {
       {
         type: 'text',
         text: `【参考 boardPlan】\n${JSON.stringify(boardPlan, null, 2)}\n\n（仅用于理解 stage 区域与动作边界；板书文字由真实渲染层自然排版，不修改 stage 顺序）`,
+      },
+      {
+        // ★ R8-③：配比政策源随题注入——有配比按配比核对，无配比退保守兜底（文本由纯函数构造，可测）
+        type: 'text',
+        text: buildStageRatioGuidance(handoff?.stageRatioSuggestion || handoff?.['环节配比占比'] || null),
       },
       {
         type: 'text',
