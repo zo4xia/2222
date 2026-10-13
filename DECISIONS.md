@@ -1,5 +1,15 @@
 # 重要决策
 
+## 2026-10-13 孤岛死模块的判定标准：消费链事实 > 注释/文档声称
+- **决策**：删除 13 项零消费死模块（canvas 死链簇 4 + 未接线半成品簇 4 + services 假封装簇 5），判定唯一依据是**消费链事实**（跨文件 import/引用计数 + npm scripts 挂载 + vite/HTML 入口 + 施工索引登记四重验证），注释和文档声称的职能一律不作为存活证据。
+- **背景**：`docs/canvas-board-text.md` 声称 canvasBoardField.js 是"画布板书唯一入口"，实际板书主链走 contract.js#normalizeBoard + superFilter，该模块代码消费者为零；`dualStore.js` 注释声称"消除 AgentBDirect 重复模式"从未接线；`verifyDeliverableTruthSource.mjs` 头部声称"可复跑"，实跑 SyntaxError（import 了 speechMarkdown.js 不存在的导出）——四份"说谎的注释/文档"是本轮最大共性。
+- **考虑的方案**：A) 把半成品接线扶正（工厂真收敛三 config、dualStore 真接进 persist、service 层真替换手写 fetch）；B) 全部保留待将来接线；C) 零消费复核后删除，git 历史可回溯。
+- **最终决策**：C。A 属于功能开发不是清理（且三 config 各自实现运行稳定，重排收益低风险高）；B 正是夏夏"噪音不删都是挖坑"反对的——说谎的注释比没有注释更危险，下一个维护者会按声称的职能去信任它们。
+- **理由**：写代码时的"计划"若从未接线，留在仓库里只会以三重方式骗人：声称已收敛（实际没收敛）、声称可复跑（实际跑不通）、声称唯一入口（实际零消费）。死模块的正确归宿是 git 历史。
+- **风险**：若未来真要做前端 API 层收敛或 IndexedDB 热备，需重新设计而非找回旧半成品——已在 ENGINEERING_LOG 接力棒注明"以消费链现状为准重新设计，勿参考已删半成品"。
+- **验证**：孤岛扫描判活三关保护了 proxySelfCheck（check:proxy）、agentAKnowledgeSelfCheck（check:knowledge）、recognitionClient/stepHandoff（最小闭环登记）、board-preview/main.js（vite 入口）均未被误删；run-all-tests 6/6 + build 成功 + health 200。
+- **关联文件**：`README.md`（结构图 dualStore→speechMarkdown）、删除清单见 ENGINEERING_LOG 2026-10-13 第三轮条目。
+
 ## 2026-10-13 内容源档案与运行时注入的定性分界
 - **决策**：`doc/speech-board-guide.md` / `doc/self-check.md` / `doc/建议提示.md` / `doc/起始语-过渡-总结-兜底话术.md` 定性为**内容源档案**（方法已蒸馏进对应 prompt.js，文件作为方法论真源保留）；PROJECT_STATE.md 中"运行时输入""服务端读取并注入"等表述全部修正为真实行为。删除 13 项垃圾与误导文件，自检-必读.md 6 行红线归并入 self-check.md。
 - **背景**：运行时扫描发现代码只读 doc/knowledge-a.compact.json，但 PROJECT_STATE.md 4 处声称 speech-board-guide/self-check 参与运行时注入——典型误导文件（文档说谎）。

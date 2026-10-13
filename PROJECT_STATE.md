@@ -103,6 +103,8 @@ agentBDraftResult.js / agentBContract.js
 
 第二轮（同日）：doc/skills/public 根深化清理 13 项——空文件 knowledge-list.md（0字节）、旧主键数据三件套（knowledge_points.json kp_主键 / CSV csvId时代 / 知识点列表大全.md）、过时快照（XRAY-全局图谱 / 08-16诊断单 / 责任表v1）、误导文件 public/README.md（描述的主程序 handdraw-whiteboard.html 从未存在于仓库）、零引用副本（skills/fish-tts-proxy.py ≡ public/、skills/demo.html、public/fish-tts-proxy.py）、无操作配置 .npmrc；自检-必读.md 6 行红线归并入 self-check.md。
 
+第三轮（同日，孤岛死模块簇 13 项）：全模块消费链孤岛扫描实锤——`docs/canvas-board-text.md`（虚构 canvasBoardField 唯一入口地位）+ `src/utils/canvasBoardField.js`（零消费者、superCleanBoardField 与 superFilter 真源同名双定义）+ `src/utils/canvasText.js`（唯一消费者是死物）+ `scripts/verifyDeliverableTruthSource.mjs`（import 不存在导出、从未跑通）为 canvas 死链簇；`src/lib/apiConfigStoreFactory.js`、`dualStore.js`、`simpleIndexedDb.js`、`src/utils/lectureRecorder.js` 为未接线半成品簇（注释声称的收敛职能从未落地）；`src/services/` 四份 fetch 封装（deliverable/cleanup/knowledgeRefine/tts）被前端直接 fetch 绕过；`server/smokeTest.js` 无 npm 挂载无锚点登记。判活三关（vite 入口 / npm scripts 挂载 / 施工索引登记）保护了 proxySelfCheck、agentAKnowledgeSelfCheck、recognitionClient、stepHandoff 等活模块。`docs/` 目录清空移除。
+
 已知问题并入 `SYSTEM_MAP.md` 第五节；收尾流程见 `AGENTS.md`「收尾流程」；git 历史可回溯（`git revert 38b9777`）。
 
 ## API 唯一真相
@@ -183,7 +185,8 @@ Preview 已启用 Vercel Deployment Protection；登录 `xiaxia` 账号后访问
 ## 下一步
 
 使用独立 Check Agent C 配置手动点击一次“Check Agent”，确认上游模型按当前账号返回结构化修正结果。
-doc/ 剩余观察项：起始语-过渡-总结-兜底话术.md 与 speech-board-guide.md 话术段内容重叠度待评估；board 勘察三件套（initial_state/risk_matrix/resource_list）待 R2/R4/R5 处置后一并评估归档。
+下潜业务流抓跳蚤（地表已扫清）：R1（rough-notation 仅 question 区可标记，analysis/solution/summary 圈画必崩，P1）、R3（L4 用户画笔层空壳，P3 归 Agent C）、R5（播放无断点续播，P2）为活跳蚤，地图在 doc/board_risk_matrix.md；R2/R4 已失效（drawIntentTool 有实质实现、assertHandwritingScope 已不存在），跳蚤轮处置时勘误。
+doc/ 剩余观察项：起始语-过渡-总结-兜底话术.md 与 speech-board-guide.md 话术段内容重叠度待评估；board 勘察三件套待跳蚤处置后一并评估归档。
 
 ## Vercel 部署
 

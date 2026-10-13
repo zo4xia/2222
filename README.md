@@ -152,7 +152,7 @@ node skills/board-lecture-player/scripts/validate_contract.cjs assets/sample-row
 │   ├── board-tools/         板书工具 (rough-notation/drawing/scheduler/stableHash)
 │   ├── check-agent/         Check Agent C (contract/skillViolations/asrPolish)
 │   ├── components/          Vue 组件 (Step1Entry/BoardContentLayer/RealBoardPreview等)
-│   ├── lib/                 公共库 (parseLLMJson/agentBApiConfig/dualStore等)
+│   ├── lib/                 公共库 (parseLLMJson/agentBApiConfig/speechMarkdown等)
 │   ├── services/            业务服务 (stepHandoff/recognitionClient/agentAKnowledge)
 │   └── utils/               工具 (superFilter/boardLayout/canvasCoords/mathText)
 ├── server/                   Vite server middleware (9 个 API handler)

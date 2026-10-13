@@ -1,5 +1,40 @@
 # 工程日志
 
+## 2026-10-13 第三轮清理：孤岛死模块簇 13 项（写了没接线的坑）
+
+**背景与口径**：
+- 夏夏令"先清理明显的文件，扫清之后下潜业务流抓跳蚤"；上轮接力棒指向 doc/ 剩余资料评估。
+- 方法升级：对 src/server/scripts/docs 全模块跑**消费链孤岛扫描**（每个模块的跨文件 import/引用计数），不凭文件名和注释声称的职能猜测——本轮最大实锤全部来自"注释/文档声称的职能与消费链事实不符"。
+
+**执行步骤**：
+1. 发现根目录 `doc/` 与 `docs/` 并存 → `docs/canvas-board-text.md` 声称 canvasBoardField.js 是"画布板书唯一入口"。
+2. 消费链反查实锤：真实板书主链走 `contract.js#normalizeBoard`（speechMarkdown.js 薄包装）+ superFilter；canvasBoardField.js 代码消费者为零，其唯一"引用者"是一份声称其地位的小说明文档。
+3. 连坐链挖穿：canvasText.js 唯一消费者是 canvasBoardField.js（死）；`scripts/verifyDeliverableTruthSource.mjs` import speechMarkdown.js 不存在的导出 `parseBoardField`（该函数是模块私有，无 export）→ SyntaxError 实跑从未通过，"可复跑"注释为谎言。
+4. 孤岛扫描扩全仓（src/utils / src/lib / src/services / src/board-tools / src/components / server / api），低引用候选逐一精确验证 npm scripts 挂载与 vite/HTML 入口（防止误删入口模块与 check:proxy 挂载的自检脚本）。
+
+**代码变更**：
+- 删除 13 项死物（三坑簇）：
+  - 簇 A canvas 板书死链 4 项：`docs/canvas-board-text.md`（虚构唯一入口地位，doc/key.md 同款臆造模式升级版——API 签名真实但地位虚构）、`src/utils/canvasBoardField.js`（零消费者 + `superCleanBoardField` 与 superFilter.js 真源同名双定义）、`src/utils/canvasText.js`（唯一消费者是死物）、`scripts/verifyDeliverableTruthSource.mjs`（import 不存在导出，从未跑通）。
+  - 簇 B 未接线半成品 4 项：`src/lib/apiConfigStoreFactory.js`（151 行"通用配置工厂"，三 config 实际各自实现）、`src/lib/dualStore.js`（注释声称"消除 AgentBDirect 重复模式"，从未接线）、`src/lib/simpleIndexedDb.js`（唯一消费者是 dualStore）、`src/utils/lectureRecorder.js`（137 行 MediaRecorder 类零引用）。
+  - 簇 C services 假封装 + 无主冒烟 5 项：`src/services/{deliverableService,cleanupService,knowledgeRefineService,ttsService}.js`（前端组件直接 fetch 绕过，四份封装零调用）、`server/smokeTest.js`（无 npm 挂载、锚点图无登记，`@qh-core LANE=TEST` 为无主孤儿锚点）。
+- 修复 1 处：README.md 结构图 lib 行 `dualStore` → `speechMarkdown`。
+- 消除隐患 1 处：canvasBoardField.js 删除后 `superCleanBoardField` 全仓只剩 superFilter.js 唯一真源导出，同名双定义坑物理消失。
+
+**发现和确认**：
+- 本轮 13 项全部带误导性：4 份注释/文档声称的职能是假的（唯一入口/可复跑/消除重复/通用工厂），9 份是零消费死代码。它们不删，下一个维护者会按注释的声称去信任和使用它们。
+- 孤岛扫描判活防误删三关：① vite rollup input + HTML script 入口（board-preview/main.js 等入口模块无需被 import）；② package.json scripts 挂载（proxySelfCheck=check:proxy、agentAKnowledgeSelfCheck=check:knowledge 均为活自检，不删）；③ 施工索引登记（minimal-runtime-loop 登记 recognitionClient/stepHandoff 为最小闭环成员，不删）。
+- doc/ 勘察三件套 + agent-b-control-responsibility + anchor-marking-map 本轮**保留**：R1（question 单区标记）/R3（L4 空层）仍成立，是下潜业务流抓跳蚤的活地图；R2（draw 空壳）已失效——drawIntentTool.js 已有 220+ 行实质实现走 prepareDrawIntentAction；R4（boardTypography 断言）失效——assertHandwritingScope 全仓零命中，仅 CSS 存活。风险矩阵内容已部分过时，待跳蚤轮处置后一并评估归档。
+
+**验证结果**：
+- run-all-tests 6/6（superFilter 93/93）；npm run build 成功（三入口无损）；productionServer /api/health 200 healthy。
+- 13 个被删名全仓引用复核清零（README dualStore 一处连带修复）。
+
+**接力棒**：
+- 地表扫清，下一轮下潜业务流抓跳蚤：R1（rough-notation 仅 question 区可标记，analysis/solution/summary 圈画必崩，P1）、R3（L4 用户画笔层空壳，P3 归 Agent C）、R5（播放无断点续播，P2）为活跳蚤；R2/R4 已失效待勘误。
+- 前端组件直接手写 fetch 的模式与四份已删 service 封装的对照：若后续要做前端 API 层收敛，以消费链现状为准重新设计，勿参考已删半成品。
+
+---
+
 ## 2026-10-13 第二轮深化清理：doc/skills/public 垃圾与误导文件
 
 **背景与口径**：
