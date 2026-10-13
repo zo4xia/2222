@@ -1218,7 +1218,7 @@ function pct(style) {
         <a-form-item label="API Key">
           <a-input-password
             v-model:value="userApiConfig.apiKey"
-            placeholder="输入 API Key（多个用英文逗号,隔开轮询）"
+            placeholder="输入 API Key（多个用逗号,或，隔开轮询）"
             autocomplete="off"
             :visibility-toggle="false"
           />
@@ -1262,7 +1262,7 @@ function pct(style) {
         <a-form-item label="API Key">
           <a-input-password
             v-model:value="agentBApiConfig.apiKey"
-            placeholder="输入 API Key（多个用英文逗号,隔开轮询）"
+            placeholder="输入 API Key（多个用逗号,或，隔开轮询）"
             autocomplete="off"
             :visibility-toggle="false"
           />
@@ -1301,7 +1301,7 @@ function pct(style) {
         <a-form-item label="API Key">
           <a-input-password
             v-model:value="checkAgentApiConfig.apiKey"
-            placeholder="输入 API Key（多个用英文逗号,隔开轮询）"
+            placeholder="输入 API Key（多个用逗号,或，隔开轮询）"
             autocomplete="off"
             :visibility-toggle="false"
           />

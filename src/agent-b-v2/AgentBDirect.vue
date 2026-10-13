@@ -2999,7 +2999,7 @@ function isRefineFieldEqual(original, refined) {
           />
         </a-form-item>
 
-        <a-form-item label="API Key（支持多个密钥用英文逗号,隔开）">
+        <a-form-item label="API Key（支持多个密钥用逗号,或，隔开）">
           <a-input-password
             v-model:value="agentBApiConfig.apiKey"
             placeholder="输入 API Key，多填用英文小写逗号,隔开"

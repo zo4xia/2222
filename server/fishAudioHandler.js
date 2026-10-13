@@ -39,13 +39,16 @@ function maskKey(key) {
   return `${key.slice(0, 11)}...${key.slice(-6)}`
 }
 
+// ★ Task 20: 分隔符宽容——半角","与全角"，"都认（用户从中文聊天工具粘贴配置是高频场景）
+function parseKeyList(raw) {
+  return String(raw || '').split(/[,，]/).map((s) => s.trim()).filter(Boolean)
+}
+
 export function getApiKeys() {
-  const envKeys = process.env.FISH_AUDIO_API_KEYS
-    ? process.env.FISH_AUDIO_API_KEYS.split(',').map((s) => s.trim()).filter(Boolean)
-    : []
-  if (process.env.FISH_AUDIO_API_KEY && !envKeys.includes(process.env.FISH_AUDIO_API_KEY)) {
-    envKeys.unshift(process.env.FISH_AUDIO_API_KEY)
-  }
+  // 单数与复数都过同一分割器；单数容错多 key（粘贴串里带逗号也能正确切开）
+  const pluralKeys = parseKeyList(process.env.FISH_AUDIO_API_KEYS)
+  const singularKeys = parseKeyList(process.env.FISH_AUDIO_API_KEY)
+  const envKeys = [...singularKeys.filter((k) => !pluralKeys.includes(k)), ...pluralKeys]
   // ★ Task 18: env 设了任一 key（单数或复数）即完全替代内置 key 池，不再混入默认池
   if (envKeys.length > 0) return envKeys
   return DEFAULT_API_KEYS

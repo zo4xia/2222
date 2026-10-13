@@ -59,8 +59,9 @@ let globalKeyRoundRobinCounter = 0
 
 export function parseApiKeys(apiKeyInput) {
   if (!apiKeyInput) return []
+  // ★ Task 20: 半角","与全角"，"都认（中文输入法粘贴场景），否则整串变一枚废 key
   return String(apiKeyInput)
-    .split(',')
+    .split(/[,，]/)
     .map((k) => k.trim())
     .filter(Boolean)
 }
@@ -75,7 +76,7 @@ export function resolveUserCredentials(body) {
   const apiKeyRaw = String(body?.apiKey || '').trim()
   const endpoint = String(body?.endpoint || '').trim()
   const model = String(body?.model || '').trim()
-  if (!apiKeyRaw) throw Object.assign(new Error('缺少 apiKey：请在前端「Agent 配置」里填写用户自己的 API Key（支持多个以英文逗号,隔开轮询）'), { code: 'MISSING_API_KEY' })
+  if (!apiKeyRaw) throw Object.assign(new Error('缺少 apiKey：请在前端「Agent 配置」里填写用户自己的 API Key（支持多个以逗号,或，隔开轮询）'), { code: 'MISSING_API_KEY' })
   if (!endpoint) throw Object.assign(new Error('缺少 endpoint：请在前端「Agent 配置」里填写完整接口 URL'), { code: 'MISSING_ENDPOINT' })
   if (!model) throw Object.assign(new Error('缺少 model：请在前端「Agent 配置」里填写支持多模态的模型名'), { code: 'MISSING_MODEL' })
 

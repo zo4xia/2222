@@ -52,7 +52,7 @@ export function saveAgentBApiConfig() {
 export function parseApiKeys(apiKeyInput) {
   if (!apiKeyInput) return []
   return String(apiKeyInput)
-    .split(',')
+    .split(/[,，]/)   // ★ Task 20: 全角"，"兼容（粘贴场景整串废 key 防护）
     .map((k) => k.trim())
     .filter(Boolean)
 }

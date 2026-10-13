@@ -47,7 +47,7 @@ export const DEFAULT_USER_API_CONFIG = Object.freeze({
 export function parseApiKeys(apiKeyInput) {
   if (!apiKeyInput) return []
   return String(apiKeyInput)
-    .split(',')
+    .split(/[,，]/)   // ★ Task 20: 全角"，"兼容（粘贴场景整串废 key 防护）
     .map((k) => k.trim())
     .filter(Boolean)
 }
@@ -59,7 +59,7 @@ export function parseApiKeys(apiKeyInput) {
 export const USER_API_PLACEHOLDERS = Object.freeze({
   endpoint: DEFAULT_USER_API_CONFIG.endpoint,
   model: DEFAULT_USER_API_CONFIG.model,
-  apiKey: 'sk-...（支持多个密钥，用英文逗号,隔开轮询）',
+  apiKey: 'sk-...（支持多个密钥，用逗号,或，隔开轮询）',
 })
 
 function isChatCompletionsEndpoint(endpoint = '') {

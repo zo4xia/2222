@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { loadDotEnvFile } from '../server/loadDotEnv.js'
 import { getApiKeys, getFishModel, getFishReferenceId, getFishBaseUrl } from '../server/fishAudioHandler.js'
+import { parseApiKeys as parseHttpApiKeys } from '../server/http.js'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const root = join(__dirname, '..')
@@ -82,6 +83,28 @@ ok('单数 env 旧名兼容（单数优先，去重合并）', () => {
 })
 delete process.env.FISH_AUDIO_API_KEY
 
+// ── 2.5 全角逗号宽容（Task 20：中文粘贴场景） ──
+console.log('── 全角逗号宽容 ──')
+ok('getApiKeys：全角，分隔 → 正确切多枚', () => {
+  process.env.FISH_AUDIO_API_KEYS = 'k-一，k-二， k-三'
+  assert.deepEqual(getApiKeys(), ['k-一', 'k-二', 'k-三'])
+})
+ok('getApiKeys：半全角混合 → 正确切多枚', () => {
+  process.env.FISH_AUDIO_API_KEYS = 'k-a,k-b，k-c'
+  assert.deepEqual(getApiKeys(), ['k-a', 'k-b', 'k-c'])
+})
+ok('getApiKeys：单数变量内多 key 也容错切开', () => {
+  delete process.env.FISH_AUDIO_API_KEYS
+  process.env.FISH_AUDIO_API_KEY = 's-1，s-2'
+  assert.deepEqual(getApiKeys(), ['s-1', 's-2'])
+})
+ok('http.parseApiKeys：全角，分隔 → 正确切多枚（AI 链轮询分割器）', () => {
+  assert.deepEqual(parseHttpApiKeys('a-1，a-2， a-3'), ['a-1', 'a-2', 'a-3'])
+  assert.deepEqual(parseHttpApiKeys('a-1,a-2'), ['a-1', 'a-2'])
+})
+delete process.env.FISH_AUDIO_API_KEY
+delete process.env.FISH_AUDIO_API_KEYS
+
 // ── 3. 三惰性函数 ──
 console.log('── 惰性 getter ──')
 ok('getFishModel：env 未设回退内置 s2.1-pro-free', () => {
@@ -138,6 +161,12 @@ ok('vite.config: define 桥四项 + process.env 回写', () => {
 ok('productionServer: loadDotEnv 首位 import', () => {
   const s = readFileSync(join(root, 'server/productionServer.js'), 'utf-8')
   assert.ok(s.startsWith("import './loadDotEnv.js'"))
+})
+ok('五处 key 分割器全角，兼容（fish×1 + http×1 + 前端 config×3）', () => {
+  for (const f of ['server/fishAudioHandler.js', 'server/http.js', 'src/lib/userApiConfig.js', 'src/lib/agentBApiConfig.js', 'src/lib/checkAgentApiConfig.js']) {
+    const s = readFileSync(join(root, f), 'utf-8')
+    assert.ok(s.includes('split(/[,，]/)'), `${f} 缺全角逗号兼容`)
+  }
 })
 
 rmSync(dir, { recursive: true, force: true })
