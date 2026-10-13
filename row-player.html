@@ -885,8 +885,9 @@ function drawProblemImage(ctx,W,H){
   ctx.drawImage(PROBLEM_IMG,r.x,r.y,w,h);
 }
 
-// 时间真相源（991/timing.js）：板书 BASE_CHAR_MS/字 · 行间抬笔 HAND_LIFT_MS
-// ⚠ 冲突待拍板：boardToolTiming.js 的 MIN_HAND_LIFT_GAP_MS=1000（此处取 timing.js 的 600）
+// 时间常量：板书 BASE_CHAR_MS/字 · 行间抬笔 HAND_LIFT_MS（板书换行节奏，本文件私有）
+// 2026-10-13 拍板消解伪冲突：HAND_LIFT_MS(行间)=600 与 boardToolTiming.js 的
+// MIN_HAND_LIFT_GAP_MS(动作换手硬下限)=1000 量纲不同、互不约束；原"991/timing.js"路径已不存在。
 const BASE_CHAR_MS=400, HAND_LIFT_MS=600;
 const FEATHER_PX=2;   // 笔尖羽化：纯 clip 切口是硬的，抹一条软边更像笔推进（成本极低）
 

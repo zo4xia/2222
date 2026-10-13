@@ -1,7 +1,7 @@
 ---
 name: hand-action-control
-description: "板书手部动作互斥调度与一维单手时间线技巧蒸馏。teacher-hand-exclusive 互斥模式（任意时刻只允许一笔），generation-based cancelAll 防越界残留，3 个已注册工具（rough-notation/rough-line/rough-arrow）白名单，Agent 不得自造调用，时长由程序按汉字宽度自动计算（Agent 不得填秒数），order 正整数顺序入队，抬笔间隔 MIN_HAND_LIFT_GAP_MS。用于 Agent B 写 actionSpec / 渲染层动作调度 / Check Agent 校验工具合法性。"
-version: "1.0.0"
+description: "板书手部动作互斥调度与一维单手时间线技巧蒸馏。teacher-hand-exclusive 互斥模式（任意时刻只允许一笔），generation-based cancelAll 防越界残留，4 个已注册工具（rough-notation/rough-line/rough-arrow/draw）白名单（2026-10-13 勘误：曾漏计 draw），Agent 不得自造调用，时长由程序按汉字宽度自动计算（Agent 不得填秒数），order 正整数顺序入队，抬笔间隔 MIN_HAND_LIFT_GAP_MS=1000ms（真源 boardToolTiming.js）。用于 Agent B 写 actionSpec / 渲染层动作调度 / Check Agent 校验工具合法性。"
+version: "1.1.0"
 archetype: workflow
 trigger: "写 actionSpec/调度手部动作/校验工具合法性/手部互斥控制/抬笔间隔/动作时长估算"
 ---
@@ -48,7 +48,7 @@ scheduler.subscribe((state) => { /* { activeActionId, nextAllowedAt, minimumGapM
 
 | 约束 | 值 | 说明 |
 |---|---|---|
-| `minimumGapMs` | `MIN_HAND_LIFT_GAP_MS`（600ms） | 抬笔换手间隔硬下限，<600ms 直接抛错 |
+| `minimumGapMs` | `MIN_HAND_LIFT_GAP_MS`（1000ms） | 抬笔换手间隔硬下限，<1000ms 直接抛错（2026-10-13 勘误：曾误标 600ms，与 boardToolTiming.js 真源不符） |
 | `plan.id` | 必填 | 唯一标识，用于 cancel / 互斥冲突报错 |
 | `plan.durationMs` | 必填正数 | 由程序算（见 §四），Agent 不得填 |
 | `plan.execute` | 必填函数 | 真正执行动作（DOM 写入 / canvas 绘制） |
@@ -82,22 +82,23 @@ function cancelAll() {
 
 ---
 
-## 二、工具白名单（只有 3 个，不得自造）
+## 二、工具白名单（注册 4 个，不得自造）
 
-### 2.1 工具清单（boardToolCatalog v1.3.0）
+### 2.1 工具清单（boardToolCatalog v1.4.0）
 
 | tool id | 用途 | actions |
 |---|---|---|
 | `rough-notation` | 只用于给已存在文字划重点，不画几何图形 | `underline` / `highlight` |
 | `rough-line` | 画辅助线、边线、高线 | — |
 | `rough-arrow` | 画带箭头的关系连线 | — |
+| `draw` | 意图绘图（半结构化 startCoord + intent，Agent C 解析执行） | — |
 
 ### 2.2 注册与校验
 
 ```js
 // 注册表
 getAgentBoardToolCatalog()
-// → { version, rule, tools: [roughNotation, roughLine, roughArrow] }
+// → { version, rule, tools: [roughNotation, roughLine, roughArrow, drawIntent] }
 
 // 校验单个 action
 validateBoardToolAction(action)
@@ -114,7 +115,7 @@ createBoardToolRuntime({ resolveTarget, resolveRegion, resolveCanvas, resolveReg
 |---|---|
 | 自造工具名（如 `circle`, `box`, `text`） | 不在白名单 → `validateBoardToolAction` 报 `未支持的板书工具` |
 | 填 `durationMs` / `estimatedDurationMs` | 时长由程序算，Agent 填了报 `Agent 不得覆盖` |
-| 填 `gapAfterMs` < 600ms | 抬笔间隔硬下限，<600 抛错 |
+| 填 `gapAfterMs` < 1000ms | 抬笔间隔硬下限，<1000 抛错 |
 | 填 `seed` | roughjs 随机种子由程序生成，避免 Agent 控制笔触 |
 | 跨区画图 | rough 图形只能画在 question/analysis/solution/summary 区域内 |
 | 坐标超 0—100 | rough-line/rough-arrow 的 start/end 必须是百分比 0—100 |
@@ -247,7 +248,7 @@ rowTotalDurationMs = max(speechDurationMs, handWorkEndMs) ──┘
 |---|---|---|
 | `boardStartDelayMs` | `min(2000, max(1000, speechDurationMs * 0.2))` | 板书起手延迟（口播念到关键词再落笔），可被 `row.board.startDelay`（秒）覆盖 |
 | `handCursorMs` | 累加 | 动作串行游标，每个动作 end + HAND_LIFT_GAP_MS |
-| `HAND_LIFT_GAP_MS` | 600ms | 动作间抬笔间隔 |
+| `HAND_LIFT_GAP_MS` | 1000ms | 动作间抬笔间隔（= MIN_HAND_LIFT_GAP_MS，真源 boardToolTiming.js；2026-10-13 归一，曾平行写死 600ms） |
 | `rowTotalDurationMs` | `max(speech, hand)` | Row 总耗时 |
 
 ### 5.3 跨 Row 全局时间线
@@ -270,7 +271,7 @@ Row 2: estimatedStartMs = T1 + ROW_GAP_MS, estimatedEndMs = ...
 
 ```js
 {
-  tool: 'rough-notation' | 'rough-line' | 'rough-arrow',
+  tool: 'rough-notation' | 'rough-line' | 'rough-arrow' | 'draw',
   action: 'underline' | 'highlight',  // 仅 rough-notation 需要
   region: 'question' | 'analysis' | 'solution' | 'summary',
   order: 正整数,                       // 单手队列顺序
@@ -296,7 +297,7 @@ Row 2: estimatedStartMs = T1 + ROW_GAP_MS, estimatedEndMs = ...
 
 | 字段 | 要求 |
 |---|---|
-| `tool` | 白名单三选一 |
+| `tool` | 白名单四选一 |
 | `order` | 正整数，单手队列顺序 |
 | `target` 或 `targetId` | rough-notation 二选一 |
 | `region` | rough-line/rough-arrow 必填，限定绘图不跨区 |
@@ -308,10 +309,10 @@ Row 2: estimatedStartMs = T1 + ROW_GAP_MS, estimatedEndMs = ...
 
 | 反模式 | 现象 | 修正 |
 |---|---|---|
-| 自造工具 | `tool: 'circle'` | 白名单只有 3 个，返回缺口给 Check Agent |
+| 自造工具 | `tool: 'circle'` | 白名单只有 4 个，返回缺口给 Check Agent |
 | 改下划线颜色 | `options.colorId: 'blue'` | 颜色锁定，抛 `颜色固定为 red` |
 | 填 durationMs | `action.durationMs: 2000` | 抛 `Agent 不得覆盖` |
-| 抬笔间隔过短 | `gapAfterMs: 300` | 抛 `抬笔间隔不得小于 600ms` |
+| 抬笔间隔过短 | `gapAfterMs: 300` | 抛 `抬笔间隔不得小于 1000ms` |
 | 跨区画线 | region=analysis 但 end 落在 solution 区 | region 校验 + bounds clamp |
 | 坐标越界 | `start: [150, 50]` | 抛 `必须是 0—100 的百分比坐标` |
 | 未取消残留 | 用户切题后老动作继续写画布 | `cancelAll()` 立即 `generation += 1` |
@@ -323,11 +324,11 @@ Row 2: estimatedStartMs = T1 + ROW_GAP_MS, estimatedEndMs = ...
 
 ```
 互斥: teacher-hand-exclusive, 任意时刻只一笔
-工具白名单: rough-notation(underline/highlight) / rough-line / rough-arrow
+工具白名单: rough-notation(underline/highlight) / rough-line / rough-arrow / draw(意图绘图)
 颜色锁定: underline=red #d64545 / highlight=yellow #f8e58c
 笔宽: normal=2 / emphasis=3
 坐标: 百分比 0—100, 原点左上
-抬笔间隔: MIN_HAND_LIFT_GAP_MS = 600ms (硬下限)
+抬笔间隔: MIN_HAND_LIFT_GAP_MS = 1000ms (硬下限; 2026-10-13 勘误: 曾误标 600ms)
 时长: 程序按汉字宽度 400ms/字 / 几何长度 180px/s 自动算, Agent 不得填
 箭头: 程序自动生成, Agent 只给 start/end
 取消: cancelAll() → generation += 1, 在途任务抛 "已取消"

@@ -17,6 +17,7 @@ const tests = [
   { name: 'timing fix (5 用例)',         cmd: 'node scripts/test-timing-fix.mjs' },
   { name: 'timing computeRowGroup (7+6)', cmd: 'node scripts/test-timing-computeRowGroup.mjs' },
   { name: 'skillViolations (11 用例)',  cmd: 'node scripts/smoke-test-skills.mjs' },
+  { name: 'boardToolCatalog 降级隔离 (8 用例)', cmd: 'node scripts/test-board-tool-catalog.mjs' },
   { name: 'validate_contract',          cmd: 'node skills/board-lecture-player/scripts/validate_contract.cjs skills/board-lecture-player/assets/sample-rows.json' },
 ]
 

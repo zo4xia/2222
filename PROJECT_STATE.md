@@ -107,6 +107,8 @@ agentBDraftResult.js / agentBContract.js
 
 第五轮（同日，宪法外乱点归一）：连根砍 `src/board-tools/boardTypography.css` 死链簇（@font-face 指向已删除的 /fonts/pingfang-qiaomu.ttf + family "Qinghuabu Qiaomu" 全仓渲染零引用）+ 两个 vite 入口 import（src/main.js、src/board-preview/main.js）；砍 AgentBDirect.vue 手写 canvasParams 死值块 22 行（fontSize/lineHeight/boardSpeed 等被 `...hcp` 覆盖 + canvasWidth/Height 异名键零消费）与 import 五常量瘦身；砍 deliverableStoreHandler.js canvasWidth/Height 死键（"下游消费的异名键"注释经属性读取 grep 证伪）；展示镜像 public/skills-hub/skill-2.html 对齐 demo.html 6 项 ZeoSeven 字体清单（删 qiaomu-local 死链项与错误 family 名）；风险地图勘误——R1 降级 P3（已最小修复，残余 L2/L3 双区表达）、R2/R4 关闭，**活跳蚤只剩 R5（P2）与 R3（P3）**。颜色域三套色板（BOARD_MARK_COLORS/ROUGH_DRAWING_COLORS/drawIntent COLOR_MAP）判定为平行真源非重复，不动。
 
+第六轮（同日，播放链大病理疗）：实锤 boardToolCatalog.prepare() 三处降级路径引用未导入的 MIN_HAND_LIFT_GAP_MS → 降级自身 ReferenceError 炸死整批播放（复现脚本三路径证据，Agent B 自造工具名/exactText 失配均触发）；手术 = 补 import + 三份内联降级副本归一 degradedPlan() 工厂（prepare 永不抛）+ RealBoardPreview per-task catch 隔离（unhandled rejection 清零）；估算器/执行器抢设置归一——timing.js HAND_LIFT_GAP_MS 600→import 派生 1000（估算对齐执行，长板书音画漂移修复），砍 NOTATION_DURATION_MS 五个白名单外死条目；新增 test-board-tool-catalog.mjs 8 用例挂主套件（6→7），不变量 6 改真源常量追踪；skills 档案勘误 600ms→1000ms、白名单 3→4 工具补 draw、目录版本 v1.4.0、skill 版本 bump 1.1.0，skills-hub 镜像同步；row-player 伪冲突拍板注释 + public 镜像 md5 一致。**R5 降级 P3（单步隔离已落地），活 P2 清零**。
+
 已知问题并入 `SYSTEM_MAP.md` 第五节；收尾流程见 `AGENTS.md`「收尾流程」；git 历史可回溯（`git revert 38b9777`）。
 
 ## API 唯一真相
@@ -187,8 +189,8 @@ Preview 已启用 Vercel Deployment Protection；登录 `xiaxia` 账号后访问
 ## 下一步
 
 使用独立 Check Agent C 配置手动点击一次“Check Agent”，确认上游模型按当前账号返回结构化修正结果。
-下潜业务流抓跳蚤（宪法与死链/死值已全部归一）：**R5（播放无断点续播/单步隔离，P2）是唯一活 P2**，入口 boardToolTiming.js + handActionScheduler.js，方案候选=订阅态持久化或步骤级 try/catch 隔离；R3（L4 用户画笔层空壳，P3 归 Agent C）；R1 残余（L2/L3 双区表达并行，P3）。地图在 doc/board_risk_matrix.md（第五轮已勘误：R1 降级 P3、R2/R4 关闭）。
-doc/ 剩余观察项：起始语-过渡-总结-兜底话术.md 与 speech-board-guide.md 话术段内容重叠度待评估；board 勘察三件套待 R5 处置后一并评估归档。
+R5 已最小修复降级 P3（第六轮：单步降级隔离 + unhandled rejection 清零 + 估算/执行常量归一 1000ms，回归测试 8 用例挂主套件）；残余均 P3：R5 全量断点续播（进度持久化+恢复 UI，后续 feature）、R3（L4 用户画笔层空壳，归 Agent C）、R1 残余（L2/L3 双区表达并行）。地图在 doc/board_risk_matrix.md（第六轮已勘误：R5 降级 P3，活 P2 清零）。
+doc/ 剩余观察项：起始语-过渡-总结-兜底话术.md 与 speech-board-guide.md 话术段内容重叠度待评估；board 勘察三件套待下轮一并评估归档（R5 已处置）。
 
 ## Vercel 部署
 

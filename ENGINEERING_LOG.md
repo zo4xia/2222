@@ -1,5 +1,25 @@
 # 工程日志
 
+## 2026-10-13 第六轮：播放链大病理疗（降级路径 booby-trap 连根 + 估算器/执行器 600vs1000 归一）
+
+- **背景**：夏夏令"继续下潜，有大病，代码里面"。接力棒指向 R5（P2 播放无单步隔离），下潜 boardToolCatalog → handActionScheduler → 三个工具 → RealBoardPreview 播放链五脏。
+- **病理实锤（复现脚本证据，非猜测）**：
+  1. `boardToolCatalog.js` prepare() 三处降级/noop 路径（L75/L106/L118 原行号）引用**未导入**的 `MIN_HAND_LIFT_GAP_MS` → ReferenceError。最毒的是 L106 位于 catch 降级块内——"单步失败不阻断后续"的隔离设计被自己 undefined 的变量 booby-trap。
+  2. 触发面：Agent B 自造工具名（LLM 手滑）走 unknown 分支；合法工具 exactText 失配（R1 类高频失败）走 catch 分支；两者都炸 → `enqueueAll` 整批抛 → `playActionSpec` 抛 → **整场板书播放死透**。contract 层 validateBoardToolAction 过滤可挡住直生成路径，但 localStorage 存档回读、ASR polish 透传（原样传不过校验）可绕过直达 prepare。
+  3. **估算器/执行器抢设置**：`agent-b-v2/timing.js` `HAND_LIFT_GAP_MS = 600`（估算）vs `boardToolTiming.js` `MIN_HAND_LIFT_GAP_MS = 1000`（执行硬下限，带 throw 守卫）——同名概念两套真源两个值，估算系统性偏快 400ms/动作，长板书音画漂移。测试不变量 6 还把 600 锁死成"正确答案"。
+  4. skills 档案层三份教 600ms（hand-action-control SKILL/meta、speech-board-timing SKILL/meta），demo 镜像（skill-3/skill-4）同毒；白名单漏计 draw（说 3 个实际 4 个）；目录版本 v1.3.0 vs 实际 v1.4.0。
+  5. `enqueueAll` 返回的 Promise 数组被 RealBoardPreview 丢弃 → cancelAll 的"已取消"拒绝全部变成 unhandled rejection。
+- **手术**：
+  1. boardToolCatalog.js：补 `import { MIN_HAND_LIFT_GAP_MS } from './boardToolTiming.js'`；三份内联 noop/fallback 副本归一为 `degradedPlan()` 工厂（prepare 永不抛错，单步失败真正隔离）。
+  2. RealBoardPreview.vue playActionSpec：enqueueAll 返回的每个 task 挂 `.catch` → console.warn 隔离，unhandled rejection 清零。
+  3. timing.js：`HAND_LIFT_GAP_MS` 改为 import MIN_HAND_LIFT_GAP_MS 派生（估算对齐执行）；顺手砍 NOTATION_DURATION_MS 五个死条目（circle/box/bracket/strike-through/crossed-off 不在白名单，估算永远走不到）。
+  4. 测试：新增 `scripts/test-board-tool-catalog.mjs`（8 用例：未知工具降级/catch 自身可执行/混批存活/硬下限真源/clear 后重入队/取消可捕获）挂入 run-all-tests（套件 6→7）；不变量 6 改 import 常量追踪（不再锁漂移值）。
+  5. 档案勘误：hand-action-control 与 speech-board-timing（SKILL.md/meta.json/demo.html）600ms→1000ms、白名单 3→4 工具补 draw、估算数对齐 timing.js（line 1000/arrow 1200/兜底 1200）、目录版本 v1.4.0、skill 版本 1.0.0→1.1.0（常量变更触发升级，per skills/README L226）；skills-hub 镜像 skill-3/skill-4/index.html 同步。
+  6. row-player.html L888 伪冲突拍板落注释：HAND_LIFT_MS(行间)=600 与 MIN_HAND_LIFT_GAP_MS(动作换手)=1000 量纲不同互不约束，原"991/timing.js"死路径清除；public 镜像逐字节同步（md5 一致）。
+- **验证**：复现脚本三路径全部转降级存活（不再炸）；run-all-tests **7/7**（含 superFilter 93/93、新增 boardToolCatalog 8/8）；timing 套件 7/7 通过（间隔=1000ms 真源）；npm run build 成功；productionServer /api/health 200。
+- **风险边界**：估算时长显示会变长（每动作 +400ms）——这是修正而非回归，显示值从"偏快假象"变为贴近真实执行；`plan.action`/`plan.type` 字段砍除经 grep 证实零外部消费者。
+- **接力棒**：R5 降级 P3（单步隔离已落地，全量断点续播=进度持久化+恢复 UI 归后续 feature）；R3（L4 用户画笔）、R1 残余（L2/L3 双区表达）维持 P3；活 P2 清零。
+
 ## 2026-10-13 第五轮：字体字号宪法外的乱点归一（死链 CSS 簇 + 手写死值簇 + 风险地图勘误）
 
 **背景与口径**：

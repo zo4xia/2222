@@ -54,7 +54,7 @@
 </head>
 <body>
 <h1>hand-action-control · 工具白名单与互斥队列</h1>
-<p class="sub">3 工具白名单校验 · teacher-hand-exclusive 互斥 · 时长由程序算 Agent 不得填 · 抬笔间隔 600ms 硬下限</p>
+<p class="sub">rough 工具家族白名单校验（另: draw 意图工具见 boardToolCatalog）· teacher-hand-exclusive 互斥 · 时长由程序算 Agent 不得填 · 抬笔间隔 1000ms 硬下限（2026-10-13 勘误：曾误标 600ms）</p>
 
 <div class="presets" id="presets"></div>
 
@@ -71,15 +71,15 @@
     <div id="queue" class="queue"></div>
     <div id="timeline" class="timeline"></div>
     <div id="axis" class="axis"></div>
-    <p class="note">任意时刻只允许一笔。动作按 order 串行，每个动作后加 600ms 抬笔间隔。</p>
+    <p class="note">任意时刻只允许一笔。动作按 order 串行，每个动作后加 1000ms 抬笔间隔（MIN_HAND_LIFT_GAP_MS，真源 boardToolTiming.js）。</p>
   </div>
 </div>
 
 <script>
-// ─── 工具白名单与时长算法（与 src/board-tools/* 对齐） ──────
+// ─── 工具白名单与时长算法（本 demo 聚焦 rough 家族三工具；完整白名单含 draw 见 boardToolCatalog.js）────
 const TOOLS=['rough-notation','rough-line','rough-arrow'];
 const REGIONS=['question','analysis','solution','summary'];
-const MIN_GAP_MS=600;
+const MIN_GAP_MS=1000;   // = MIN_HAND_LIFT_GAP_MS（真源 src/board-tools/boardToolTiming.js）
 const NOTATION_COLORS={underline:'red',highlight:'yellow'};
 const LOCKED_COLORS={red:'#d64545',yellow:'#f8e58c'};
 const DRAW_COLORS={ink:'#263238',red:'#d64545'};

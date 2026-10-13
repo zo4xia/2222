@@ -1,8 +1,12 @@
 /* @qh-core LANE=B-V2 POINT=TIMING 160cpm + 1D single-hand row-group timeline */
+// 2026-10-13 归一：动作抬笔间隔唯一真源 = boardToolTiming.js（调度器硬下限）。
+// 此前本文件平行写死 600ms，与执行器强制 ≥1000ms 打架，估算系统性偏快、长板书音画漂移。
+import { MIN_HAND_LIFT_GAP_MS } from '../board-tools/boardToolTiming.js'
+
 export const AGENT_B_V2_SPEECH_RATE = 160
 export const AGENT_B_V2_ROW_GAP_MS = 1500
 export const BASE_CHAR_WRITE_MS = 400 // 1秒2~3字（基准 2.5 字/秒 = 400ms/字）
-export const HAND_LIFT_GAP_MS = 600   // 动作抬笔换手间隔
+export const HAND_LIFT_GAP_MS = MIN_HAND_LIFT_GAP_MS // 动作抬笔换手间隔（真源 boardToolTiming.js）
 
 function normalizeSpeech(speech) {
   return String(speech || '').trim()
@@ -59,9 +63,10 @@ export function calculateBoardWritingDuration(content) {
  * 单个动作的基准时长定量（严格控制在 1.0 ~ 2.0 秒内，好计算，作为标点停顿）
  */
 // ponytail: 嵌套 if/else 改表驱动（shrink -3 行）
+// 2026-10-13 砍死条目：circle/box/bracket/strike-through/crossed-off 不在
+// roughNotationTool 白名单（underline|highlight），估算永远走不到 → 删。
 const NOTATION_DURATION_MS = {
-  circle: 1500, box: 1500, highlight: 1400, bracket: 1300,
-  'strike-through': 1100, 'crossed-off': 1100, underline: 1200,
+  highlight: 1400, underline: 1200,
 }
 const TOOL_DURATION_MS = { 'rough-line': 1000, 'rough-arrow': 1200 }
 

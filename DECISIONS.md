@@ -1,5 +1,12 @@
 # 重要决策
 
+## 2026-10-13 降级路径必须自身可执行（防 booby-trap）+ 估算器/执行器常量同源
+- **决策一**：容错降级代码（catch 块 / noop 工厂 / fallback 路径）本身必须零依赖未验证假设。boardToolCatalog 三处降级路径引用未导入常量，导致"单步隔离"自身 ReferenceError 炸整批播放——修复方式是降级工厂归一 + prepare() 永不抛错（内部全兜底），并把该行为锁进回归测试（test-board-tool-catalog.mjs 8 用例挂主套件）。
+- **决策二**：同名概念单一真源——动作抬笔间隔唯一真源 = `src/board-tools/boardToolTiming.js` 的 `MIN_HAND_LIFT_GAP_MS`（执行器带 throw 守卫=运行时事实）。估算器 `agent-b-v2/timing.js` 的 `HAND_LIFT_GAP_MS` 改 import 派生（600→1000），估算对齐执行；档案层（skills/*/SKILL.md、meta.json、demo 镜像）同步勘误。裁决依据：消费链事实优先——执行器是真正跑的代码，估算器必须预测执行器。
+- **决策三（伪冲突拍板）**：row-player `HAND_LIFT_MS=600`（板书行间换行节奏）与 `MIN_HAND_LIFT_GAP_MS=1000`（动作换手硬下限）**量纲不同、互不约束**，原"冲突待拍板"挂账注销；"991/timing.js" 死路径引用清除。
+- **测试纪律**：不变量断言不得锁平行值——test-timing-computeRowGroup 不变量 6 原硬编码 600，改为 import 常量追踪真源，防止测试把漂移值认证成"正确答案"。
+- **回滚**：单文件级 git revert 即可；估算显示变长（+400ms/动作）是修正不是回归。
+
 ## 2026-10-13 死链 CSS 与零消费键的连根判定：属性读取为准 + 死值陷阱全灭
 - **决策**：连根砍除三类"活着进 bundle 但内容无效"的乱点——① `src/board-tools/boardTypography.css`（@font-face 指向已被第四轮删除的 `/fonts/pingfang-qiaomu.ttf`，family `Qinghuabu Qiaomu` 全仓渲染代码零引用）连同两个 vite 入口 import；② AgentBDirect.vue 手写 canvasParams 死值块 22 行（fontSize/lineHeight/boardSpeed 等字段全被 `...hcp` 展开覆盖 + canvasWidth/Height 异名键零消费）；③ deliverableStoreHandler.js 的 canvasWidth/Height 死键及其"下游消费的异名键"注释。
 - **背景**：夏夏令"先归一化乱七八糟的地方，砍删归一整理统一"。第四轮归一了字面值，但三类结构性乱点漏网：死链 CSS（源头文件已删，CSS 指向虚空）、被展开覆盖的手写副本（Task 5 在 deliverableStoreHandler 修过同款，AgentBDirect 是漏网之鱼）、异名键（Task 5 只换了字面值没查消费，注释还谎称"下游消费"）。

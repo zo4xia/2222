@@ -11,15 +11,15 @@
 | **R2** | ~~draw 意图工具是执行空壳~~ → **已失效（2026-10-13 复核）**：boardToolCatalog.js L95-99 现挂 `prepareDrawIntentAction(action, { resolveCanvas })`；drawIntentTool.js L99 起有 220+ 行真实 prepare/execute（rough.js 几何绘制） | 无 | 无 | **已关闭** | — |
 | **R3** | L4 用户画笔层未实现 | `RealBoardPreview.vue` L4 仅空 div aria-hidden，注释「交互由下一步 Agent C 实现」 | 当前板书不可由用户手绘/擦除，仅 Agent B 单向播放 | **P3** | 属已声明的后续能力，不在本次范围；记录以备 Agent C 接入 |
 | **R4** | ~~手写字体范围断言约束与板书区不一致~~ → **已关闭（2026-10-13 复核）**：`boardTypography.js` 从未存在于仓库（臆造引用），`assertHandwritingScope` 全仓零命中；`boardTypography.css`（@font-face 死链 /fonts/pingfang-qiaomu.ttf + family 零消费）已于第五轮连根砍除 | 无 | 无 | **已关闭** | 现行层级校验真源 = `src/check-agent/skillViolations.js` |
-| **R5** | 时序全程序控制、seed 确定性，但无失败重放/断点续播 | `boardToolTiming.js` + `handActionScheduler.js` 串行互斥，无持久化播放进度 | 播放中途异常无法从断点恢复，长板书易整体失败 | **P2** | 调度器补订阅态持久化或步骤级 try/catch 隔离，单步失败不阻断后续 |
+| **R5** | ~~时序全程序控制、seed 确定性，但无失败重放/断点续播~~ → **已最小修复（2026-10-13 第六轮）**：实锤更深病理——boardToolCatalog.prepare() 三处降级路径引用未导入的 MIN_HAND_LIFT_GAP_MS，降级自身 ReferenceError 炸死整批播放（Agent B 自造工具名 / exactText 失配均触发，复现脚本三路径证据）；修复 = 补 import + 降级工厂归一 degradedPlan()（prepare 永不抛）+ RealBoardPreview per-task catch 隔离 + 估算器/执行器常量归一（timing.js HAND_LIFT_GAP_MS 600→真源 1000），回归测试 8 用例挂主套件 | 残余：单步失败已隔离不阻断；全量断点续播（进度持久化+恢复 UI）归后续 feature | 单步隔离落地，估算与执行同源 | **P3（降级）** | 断点续播作为独立 feature 规划（需存储设计与 UI 入口决策） |
 
 ## 二、止血优先级（三板斧）
 
-> 2026-10-13 第五轮复核更新：R1 已最小修复降级 P3，R2/R4 已关闭，活跳蚤只剩 R5（P2）与 R3（P3）。
+> 2026-10-13 第六轮复核更新：R1 已最小修复降级 P3，R2/R4 已关闭，R5 已最小修复降级 P3（单步隔离落地）——**活跳蚤仅剩三个 P3，活 P2 清零**。
 
 1. ~~**立即止血（P1）**：R1~~ → 已最小修复（RealBoardPreview L3 三区真实文本锚点）。
-2. **下一轮清理（P2）**：R5（无断点续播）—— 不影响主链但积累技术债。
-3. **规划中（P3）**：R1 残余（L2/L3 双区表达并行）、R3（L4 用户画笔）—— 已声明归属后续迭代。
+2. ~~**下一轮清理（P2）**：R5~~ → 已最小修复（降级路径防 booby-trap + per-task 隔离 + 估算/执行常量同源；回归测试 scripts/test-board-tool-catalog.mjs 8 用例挂主套件）。
+3. **规划中（P3）**：R5 残余（断点续播 feature）、R1 残余（L2/L3 双区表达并行）、R3（L4 用户画笔）—— 已声明归属后续迭代。
 
 ## 三、跨模块耦合热点
 

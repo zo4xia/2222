@@ -2,7 +2,7 @@
 // 按 cs-board 学习经验: 重构前先跑 baseline 全 PASS, 重构后跑应仍全 PASS
 // 覆盖三大分支 (纯板书 / 纯动作 / 板书+动作) + 题目区前置 + 自定义 startDelay + 实测音频
 import assert from 'node:assert/strict'
-import { computeRowGroupTimeline } from '../src/agent-b-v2/timing.js'
+import { computeRowGroupTimeline, HAND_LIFT_GAP_MS } from '../src/agent-b-v2/timing.js'
 
 let pass = 0, fail = 0
 function check(name, got, expect) {
@@ -152,16 +152,16 @@ const inv5 = allCases.every(c => {
 console.log(`${inv5 ? '✓' : '✗'} 不变量5: plan.action 数量 = actionTimeline.length`)
 if (inv5) pass++; else fail++
 
-// 不变量 6: 动作间间隔 = HAND_LIFT_GAP_MS (600ms)
+// 不变量 6: 动作间间隔 = HAND_LIFT_GAP_MS（真源 boardToolTiming.js；2026-10-13 归一后=1000ms）
 const inv6 = allCases.every(c => {
   if (c.actionTimeline.length < 2) return true
   for (let i = 1; i < c.actionTimeline.length; i++) {
     const gap = c.actionTimeline[i].startOffsetMs - c.actionTimeline[i-1].endOffsetMs
-    if (gap !== 600) return false
+    if (gap !== HAND_LIFT_GAP_MS) return false
   }
   return true
 })
-console.log(`${inv6 ? '✓' : '✗'} 不变量6: 动作间隔 = 600ms (HAND_LIFT_GAP_MS)`)
+console.log(`${inv6 ? '✓' : '✗'} 不变量6: 动作间隔 = ${HAND_LIFT_GAP_MS}ms (HAND_LIFT_GAP_MS, 真源 boardToolTiming)`)
 if (inv6) pass++; else fail++
 
 console.log(`\n== 结果: ${pass} 通过, ${fail} 失败 ==`)

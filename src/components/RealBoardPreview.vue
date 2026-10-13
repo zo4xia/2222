@@ -153,7 +153,13 @@ function playActionSpec() {
       .map(normalizeActionSpecItem)
       .filter(Boolean)
     if (normalized.length) {
-      runtime.enqueueAll(normalized)
+      // R5 步骤级隔离（2026-10-13）：单个动作失败/取消只 warn 并跳过，
+      // 不炸整场播放，也不再向全局抛 unhandled rejection。
+      runtime.enqueueAll(normalized).forEach((task) => {
+        task?.catch?.((err) => {
+          console.warn('[RealBoardPreview] 动作已隔离（单步失败/取消不阻断播放）:', err?.message || err)
+        })
+      })
     }
   }
 }

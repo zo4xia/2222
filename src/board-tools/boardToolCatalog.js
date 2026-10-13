@@ -1,5 +1,6 @@
 /* @qh-core LANE=SHARED POINT=TOOL_CATALOG only registered actions for B script */
 import { createHandActionScheduler } from './handActionScheduler.js'
+import { MIN_HAND_LIFT_GAP_MS } from './boardToolTiming.js'
 import { createTextTargetRegistry } from './textTargetRegistry.js'
 import {
   getRoughNotationAgentTool,
@@ -66,17 +67,25 @@ export function createBoardToolRuntime({
   const scheduler = createHandActionScheduler()
   const preparedPlans = new Set()
 
+  // 降级计划归一工厂（2026-10-13 第六轮）：空动作 / 未知工具 / prepare 失败统一走这里。
+  // 修复实锤：原三份内联副本引用了未导入的 MIN_HAND_LIFT_GAP_MS，导致“单步失败降级”
+  // 路径自身抛 ReferenceError 炸死整批播放（复现见 scripts/test-board-tool-catalog.mjs）。
+  function degradedPlan(action, type) {
+    const order = Number.isFinite(action?.order) ? Math.round(action.order) : 1
+    return {
+      id: `${type}:${action?.tool || (action ? 'unknown' : 'empty')}:${order}:${Date.now()}`,
+      order,
+      durationMs: 100,
+      gapAfterMs: MIN_HAND_LIFT_GAP_MS,
+      type,
+      execute: () => {},
+      remove: () => {},
+    }
+  }
+
   function prepare(action) {
     if (!action || typeof action !== 'object') {
-      return {
-        id: `noop:empty:${Date.now()}`,
-        order: 1,
-        durationMs: 100,
-        gapAfterMs: MIN_HAND_LIFT_GAP_MS,
-        type: 'noop',
-        execute: () => {},
-        remove: () => {},
-      }
+      return degradedPlan(null, 'noop')
     }
     try {
       if (action?.tool === ROUGH_NOTATION_TOOL_ID) {
@@ -97,28 +106,11 @@ export function createBoardToolRuntime({
         preparedPlans.add(plan)
         return plan
       }
+      console.warn(`[boardToolCatalog] 未知板书动作工具: ${action?.tool || '空'}（已降级 noop，不阻断后续动作）`)
+      return degradedPlan(action, 'noop')
     } catch (err) {
-      console.warn('[boardToolCatalog] prepare 动作失败降级:', action?.tool, err?.message)
-      return {
-        id: `fallback:${action?.tool || 'unknown'}:${action?.order || 1}:${Date.now()}`,
-        order: action?.order || 1,
-        durationMs: 100,
-        gapAfterMs: MIN_HAND_LIFT_GAP_MS,
-        type: 'fallback-noop',
-        action,
-        execute: () => {},
-        remove: () => {},
-      }
-    }
-    console.warn(`[boardToolCatalog] 未知板书动作工具: ${action?.tool || '空'}`)
-    return {
-      id: `noop:${action?.tool || 'unknown'}:${action?.order || 1}:${Date.now()}`,
-      order: action?.order || 1,
-      durationMs: 100,
-      gapAfterMs: MIN_HAND_LIFT_GAP_MS,
-      type: 'noop',
-      execute: () => {},
-      remove: () => {},
+      console.warn('[boardToolCatalog] prepare 动作失败降级（单步隔离，不阻断后续）:', action?.tool, err?.message)
+      return degradedPlan(action, 'fallback-noop')
     }
   }
 

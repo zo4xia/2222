@@ -1,10 +1,10 @@
 {
   "name": "speech-board-timing",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "archetype": "workflow",
   "description": "口播语速与板书书写时间节奏技巧蒸馏。160 cpm 语速，中文标点停顿，板书 400ms/字抖动，Row 间 1500ms，口播发音硬规范。",
   "created": "2026-09-19",
-  "updated": "2026-09-19",
+  "updated": "2026-10-13",
   "sources": [
     "src/agent-b-v2/timing.js",
     "src/services/speechTiming.js"
@@ -25,10 +25,10 @@
     "口播时长 = max(1200, 字数*375 + 标点停顿), 空口播=1500ms",
     "板书书写 400ms/字, 抖动 360—440ms (周期7步), 下限 320ms",
     "板书起手延迟 = min(2000, max(1000, speechDurationMs*0.2)), 可被 startDelay 覆盖",
-    "抬笔间隔 600ms (与 hand-action-control 共用)",
+    "动作间隔 MIN_HAND_LIFT_GAP_MS = 1000ms (真源 boardToolTiming.js; 2026-10-13 勘误: 曾标 600ms)",
     "Row 间停顿 1500ms (AGENT_B_V2_ROW_GAP_MS)",
     "Row 总耗时 = max(speechDurationMs, handWorkEndMs)",
-    "单动作估算: notation 1200 / line 800 / arrow 900 / 其他 1000 ms",
+    "单动作估算: notation underline 1200 / highlight 1400 / line 1000 / arrow 1200 / 其他 1200 ms (timing.js 真源)",
     "B 不输出 duration/startAt/endAt/durationMs/estimatedDurationMs",
     "口播分数: 分母分之分子, 阿拉伯数字, 不得用斜杠",
     "口播未知数: 艾克斯, 不得保留 x/X/×",

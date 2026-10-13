@@ -52,7 +52,7 @@
 </head>
 <body>
 <h1>speech-board-timing · 口播板书节奏</h1>
-<p class="sub">160 cpm 语速 + 标点停顿（。700 / ，500 / ……1000ms）· 板书 400ms/字 + 360—440 抖动 · 抬笔 600ms · Row 间 1500ms</p>
+<p class="sub">160 cpm 语速 + 标点停顿（。700 / ，500 / ……1000ms）· 板书 400ms/字 + 360—440 抖动 · 动作间隔 1000ms（MIN_HAND_LIFT_GAP_MS 真源 boardToolTiming.js，2026-10-13 勘误曾标 600）· Row 间 1500ms</p>
 
 <div class="grid">
   <div class="panel">
@@ -87,7 +87,7 @@
 // ─── 语速与节奏（与 src/agent-b-v2/timing.js 对齐） ──────
 const RATE=160;          // 160 cpm
 const ROW_GAP=1500;
-const HAND_LIFT=600;
+const HAND_LIFT=1000;    // = MIN_HAND_LIFT_GAP_MS（真源 src/board-tools/boardToolTiming.js；2026-10-13 归一，曾平行写死 600）
 const BASE_CHAR_MS=400;  // 板书 400ms/字
 const PUNCT={'.':700,'。':700,',':500,'，':500,'…':1000};
 
@@ -115,10 +115,11 @@ function calcBoardMs(content){
   return d;
 }
 function estimateActionMs(tool){
-  if(tool==='rough-notation')return 1200;
-  if(tool==='rough-line')return 800;
-  if(tool==='rough-arrow')return 900;
-  return 1000;
+  // 与 timing.js 真源对齐（2026-10-13 勘误）：notation 分动作、line 1000、arrow 1200、兑底 1200
+  if(tool==='rough-notation')return 1200;  // underline=1200 / highlight=1400（本 demo 取基准 1200）
+  if(tool==='rough-line')return 1000;
+  if(tool==='rough-arrow')return 1200;
+  return 1200;
 }
 
 function computeRow(row){

@@ -1,7 +1,7 @@
 ---
 name: speech-board-timing
-description: "口播语速与板书书写时间节奏技巧蒸馏。语速 160 cpm（60000/160≈375ms/字），中文标点停顿（。700ms / ，500ms / ……1000ms），板书书写 1秒2~3字（基准 400ms/字 + ±80ms 抖动模拟真人手感），抬笔换手 600ms，Row 间停顿 1500ms，板书起手自适应延迟（口播念到关键词后再落笔，约 1.2—2.0s）。口播分数念'分母分之分子'，未知数念'艾克斯'，乘号念'乘以'，加号念'加'，小数逐位汉字。用于 Agent B 写口播+板书节奏 / 渲染层估算总时长 / Check Agent 校验口播发音合规。"
-version: "1.0.0"
+description: "口播语速与板书书写时间节奏技巧蒸馏。语速 160 cpm（60000/160≈375ms/字），中文标点停顿（。700ms / ，500ms / ……1000ms），板书书写 1秒2~3字（基准 400ms/字 + ±80ms 抖动模拟真人手感），抬笔换手 1000ms（= MIN_HAND_LIFT_GAP_MS 真源 boardToolTiming.js，2026-10-13 归一），Row 间停顿 1500ms，板书起手自适应延迟（口播念到关键词后再落笔，约 1.2—2.0s）。口播分数念'分母分之分子'，未知数念'艾克斯'，乘号念'乘以'，加号念'加'，小数逐位汉字。用于 Agent B 写口播+板书节奏 / 渲染层估算总时长 / Check Agent 校验口播发音合规。"
+version: "1.1.0"
 archetype: workflow
 trigger: "写口播稿/估算口播时长/校验口播发音合规/板书书写节奏/Row间停顿/标点停顿"
 ---
@@ -290,8 +290,8 @@ validateSpeechDecimalReading(speech)
 口播时长: max(1200, 字数*375 + 标点停顿)  空口播=1500ms
 板书: 400ms/字 + 360—440 抖动 (1秒2.5字)
 板书起手: max(1000, min(2000, speech*0.2))，可被 startDelay 覆盖
-动作估算: notation 1200 / line 800 / arrow 900 / 其他 1000 ms
-抬笔: 600ms（与动作调度共用 MIN_HAND_LIFT_GAP_MS）
+动作估算: notation underline 1200 / highlight 1400 / line 1000 / arrow 1200 / 其他 1200 ms（timing.js 真源）
+动作间隔: MIN_HAND_LIFT_GAP_MS = 1000ms（与动作调度共用，真源 boardToolTiming.js；2026-10-13 勘误：曾标 600ms，估算偏快致长板书音画漂移）
 Row 间: 1500ms (AGENT_B_V2_ROW_GAP_MS)
 Row 总: max(speechDurationMs, handWorkEndMs)
 B 不填: duration / startAt / endAt / durationMs / estimatedDurationMs
