@@ -55,30 +55,34 @@ function formatChangeValue(value) {
 // 唯独 stageRatioSuggestion 没拼 → Check 只能拿系统提示词里的静态死规则（撑死 3 行）
 // 去砍 B 按 c 类题型配比（分析 25-35%）合规生成的分析行。
 // 双键名兼容与 AgentBDirect 一致（stageRatioSuggestion / 环节配比占比）。
+// ★ R8-③（夏夏终裁后二改）：配比仅作背景理解参考——行数与配比完全由 Agent B
+// 自主决定，Check 不做任何行数/占比核对。双键名兼容与 AgentBDirect 一致。
 export function buildStageRatioGuidance(ratioData) {
   const sr = ratioData && typeof ratioData === 'object' && !Array.isArray(ratioData)
     ? ratioData.suggestedRatio
     : null
-  // 无区间数据（null/空对象/数组脏数据/缺 suggestedRatio）一律按数据缺失兜底：
-  // 没有区间就没有可核对的政策，退保守规则
+  // 无区间数据（null/空对象/数组脏数据/缺 suggestedRatio）不注入，避免噪音
   if (!sr || typeof sr !== 'object' || Array.isArray(sr)) {
-    return '【本题环节配比占比 (stageRatioSuggestion)】\n未提供（数据缺失）：按系统提示词的保守兜底规则执行（分析不超过总步骤数的 1/2，撑死最多 3 行）。'
+    return '【本题环节配比占比 (stageRatioSuggestion)】\n未提供（不影响任何检查——行数与配比由 Agent B 自主决定，Check 不做行数核对）。'
   }
   const line = (label, v) => `- ${label}：${String(v ?? '') || '未提供'}`
   const typeLine = [ratioData.cuCode, ratioData.type].filter(Boolean).join(' · ') || '未提供'
-  return '【本题环节配比占比 (stageRatioSuggestion)】（B 生成时的唯一配比政策源，只按它核对，禁用一切固定比例）\n' +
+  return '【本题环节配比占比 (stageRatioSuggestion)】（仅作理解本题结构的背景参考）\n' +
     `- 题型：${typeLine}（置信度：${ratioData.confidence || '未提供'}）\n` +
     line('分析 (analysis)', sr.analysis) + '\n' +
     line('解答 (solution)', sr.solution) + '\n' +
     line('总结 (summary)', sr.summary) + '\n' +
     line('开收场 (introAndClosing)', sr.introAndClosing) + '\n' +
-    '核对口径：分析区允许行数上限 = 总行数 × 分析区间上限（百分比换算）。区间内完全合规，不得以任何固定数字为由砍行；确实超标时优先合并进解答而不是删除。'
+    '注意：行数与各 stage 行数配比由 Agent B 自主决定，你不得以此数据为依据核对、合并或删除任何行（含收尾金句行）。'
 }
 
 // ---------- 解析 Check Agent 返回 ----------
-const ALLOWED_FIELDS = new Set(['speech', 'board', 'board_timing', 'actionSpec', 'answer_error', 'common_mistake'])
+// ★ 行数守恒：structure 类是"只报告不动手"的冗余建议通道（夏夏终裁：
+// 行数/配比 Agent B 自己决定，收尾金句绝不可删）
+const ALLOWED_FIELDS = new Set(['speech', 'board', 'board_timing', 'actionSpec', 'answer_error', 'common_mistake', 'structure'])
 
-function parseCheckResponse(text, originalRows) {
+// export 供测试直测（test-check-ratio.mjs / 行数守恒用例）
+export function parseCheckResponse(text, originalRows) {
   const parsed = parseLLMJson(text)
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     return { ok: false, error: '返回内容不是 JSON 对象' }
@@ -87,7 +91,17 @@ function parseCheckResponse(text, originalRows) {
     return { ok: false, error: '返回的 rows 为空' }
   }
 
-  // 校验 stage 顺序不变（允许行数减少，但 stage 出现顺序必须和原始一致）
+  // ★ 代码级硬防线（金句保护兜底）：行数必须守恒——模型无论何理由
+  // （含"废话合并"、"分析过长"等已被撤销的口径）删/并行，直接判格式
+  // 违约回退原表，收尾金句永远删不掉。prompt 是软约束，这里是钢门。
+  if (parsed.rows.length !== originalRows.length) {
+    return {
+      ok: false,
+      error: `Check 无删行权限：输入 ${originalRows.length} 行，返回 ${parsed.rows.length} 行（行数守恒硬约束——行数与配比由 Agent B 自主决定，收尾金句不可删；如确需合并请由用户在 changes 报告建议下手动操作）`,
+    }
+  }
+
+  // 校验 stage 顺序不变（行数守恒后同长度，防 stage 交换/篡改）
   const originalStageSeq = originalRows.map(r => r.stage)
   const newStageSeq = parsed.rows.map(r => r.stage)
   let origIdx = 0
@@ -166,16 +180,8 @@ function parseCheckResponse(text, originalRows) {
     }
   }
 
-  // 3. 行数变化（合并/删除）
-  if (rows.length !== originalRows.length) {
-    changes.push({
-      row: null,
-      field: 'structure',
-      before: `${originalRows.length} 行`,
-      after: `${rows.length} 行`,
-      reason: `合并/精简了 ${originalRows.length - rows.length} 行`,
-    })
-  }
+  // 3. 行数变化段已删（行数守恒硬防线在前——行数不等直接 ok:false 回退原表，
+  // 此分支永远不可达，删掉防"删行合法"语义残留复活）
 
   return { ok: true, value: { rows, changes } }
 }
