@@ -141,15 +141,11 @@ export async function handleAgentBV2Request(req, res) {
       })
     }
     const handoff = body.handoff || {}
-    // system prompt 优先级：用户自定义 > 指定 skill > 默认 v2 prompt
-    let systemMessage
-    if (typeof body.systemPrompt === 'string' && body.systemPrompt.trim()) {
-      systemMessage = body.systemPrompt.trim()
-    } else {
-      const skillId = body.skillId || DEFAULT_SKILL_ID
-      const skill = getSkillById(skillId)
-      systemMessage = skill ? skill.buildSystemPrompt() : AGENT_B_SYSTEM_MESSAGE
-    }
+    // system prompt：指定 skill > 默认 v2 prompt（★ Task 13：自定义 body.systemPrompt 死链已砍——
+    // 前端自定义提示词弹窗无 UI 入口恒不传；风格收敛到 skills/index.js 注册表）
+    const skillId = body.skillId || DEFAULT_SKILL_ID
+    const skill = getSkillById(skillId)
+    const systemMessage = skill ? skill.buildSystemPrompt() : AGENT_B_SYSTEM_MESSAGE
     const promptHandoff = normalizeAgentBPromptHandoff(handoff)
     const userContent = [
       { type: 'text', text: `【Agent A handoff】\nfile: handoff.json\n${JSON.stringify(promptHandoff, null, 2)}` },
@@ -288,12 +284,10 @@ export async function handleAgentBV2Request(req, res) {
         ? getChatMessageText(data)
         : getChatMessageText(data?.choices?.[0]?.message)
       lastData = data
+      // ★ Task 13：死参数清理——contract.js 的 _options 只用 allowSynonyms，
+      // problemType/boardPlan/canvasParams/coordinateMode 传入即丢（死参数噪音）
       parsed = parseAgentBV2Response(lastText, {
-        problemType: handoff?.problemType,
         allowSynonyms: attempt === MAX_RETRIES,
-        boardPlan: handoff?.boardPlan,
-        canvasParams: handoff?.canvasParams,
-        coordinateMode: body.canvasParams?.coordinateMode,
       })
 
       if (parsed.ok) break
@@ -306,11 +300,8 @@ export async function handleAgentBV2Request(req, res) {
       // 只有完全拿不到 rows 时才返回错误
       const rawFallback = tryExtractFallbackRows(lastText)
       if (rawFallback && rawFallback.length) {
-        const fallbackRows = sanitizeRowLayout(rawFallback, {
-          boardPlan: handoff?.boardPlan,
-          canvasParams: handoff?.canvasParams,
-          coordinateMode: body.canvasParams?.coordinateMode,
-        })
+        // ★ Task 13：sanitizeRowLayout 签名只收 rows（旧第二参不收，传入即丢）
+        const fallbackRows = sanitizeRowLayout(rawFallback)
         const resultPayload = {
           rows: fallbackRows,
           model: credentials.model,

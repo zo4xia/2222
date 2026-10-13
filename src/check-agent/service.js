@@ -119,13 +119,5 @@ export async function applyCheckResult(rows) {
   return data
 }
 
-// 还原到 Check 之前的版本
-export async function revertCheckResult() {
-  const response = await fetch('/api/check-agent/revert', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-  })
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok || !data.ok) throw new Error(data.error || `还原失败 ${response.status}`)
-  return data
-}
+// ★ Task 13：revertCheckResult 砍除——服务端 /api/check-agent/revert 端点与备份机制
+// 已整链移除（零 UI 入口的死功能），客户端函数随之失去对端

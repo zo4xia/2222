@@ -18,10 +18,10 @@ import { polishRowsASR } from '../src/check-agent/asrPolish.js'
 import {
   readCurrentResult,
   overwriteCurrentResult,
-  saveOriginalBackup,
-  loadOriginalBackup,
-  hasOriginalBackup,
 } from './boardResultStore.js'
+// ★ Task 13：Check 读活档——校准层 overwriteCurrentHandoff 只改 public/handoff/，
+// 旧实现读 board-result 内嵌快照，生成后再点优化校准时 Check 仍拿旧 commonMistakes/teachingFocus
+import { readCurrentHandoff } from './handoffStoreHandler.js'
 import {
   isOptions,
   readJsonBody,
@@ -208,10 +208,13 @@ export async function handleCheckAgentRequest(req, res) {
       })
     }
 
-    // 从 handoff 取 boardPlan、易错点与核心知识参照
-    const handoff = readCurrentResult()?.result?.handoff
+    // ★ Task 13：handoff 参照改读活档（public/handoff/ 真相源，含校准层最新修缮），
+    // 快照仅作活档缺失时的兑底；coordinateMode 幽灵子键砍除（canvasParams 从无此键，
+    // 恒走 'percentage' fallback，真身在前端 UI ref，Check 请求体不携带）
+    const liveHandoff = readCurrentHandoff()?.handoff || null
+    const handoff = liveHandoff || readCurrentResult()?.result?.handoff
     const boardPlan = handoff?.boardPlan || null
-    const coordinateMode = handoff?.canvasParams?.coordinateMode || 'percentage'
+    const coordinateMode = 'percentage'
     const problemText = handoff?.problemText || ''
     const knowledgeAnalysis = handoff?.knowledgeAnalysis || {}
     let commonMistakes = Array.isArray(knowledgeAnalysis?.commonMistakes) ? [...knowledgeAnalysis.commonMistakes] : []
@@ -255,7 +258,7 @@ export async function handleCheckAgentRequest(req, res) {
           `- 题目原文：${problemText || '（以原步骤第一行题目为准）'}\n` +
           `- 教学重点(teachingFocus)：${teachingFocus || '抓牢核心算理与解题逻辑'}\n` +
           `- 关键公式(keyFormulaList)：${JSON.stringify(keyFormulaList)}\n` +
-          `- 易错点清单(commonMistakes)：${JSON.stringify(commonMistakes.length > 0 ? commonMistakes : ['单位换算是否统一', '计算乘除先后顺序', '括号内外符号变化', '审题遗漏关键条件'])}\n\n` +
+          `- 易错点清单(commonMistakes)：${commonMistakes.length > 0 ? JSON.stringify(commonMistakes) : '未提供（知识库亦无匹配，跳过针对性防坑核验，仅做通用数学正确性与口播质量检查）'}\n\n` +
           `【修缮把关硬性要求】：\n` +
           `1. 检查口播中是否在易错步骤顺嘴做出了启发式防坑提醒（例如“这里行不行呀？”、“注意单位统一了没有”）。\n` +
           `2. 严密排查老师自身的推导与算式是否踩了上述易错坑！若老师自己算错，在 changes 数组中作为 answer_error 报警并详细说明原因！`,
@@ -367,37 +370,9 @@ export async function handleCheckAgentRequest(req, res) {
   }
 }
 
-// 还原到 Check 之前的原始版本
-export async function handleCheckRevertRequest(req, res) {
-  if (isOptions(req, res)) return true
-  if (req.method !== 'POST') return false
-
-  try {
-    const current = readCurrentResult()
-    if (!current) {
-      return sendJson(req, res, 400, { ok: false, error: '没有找到当前 B 生成结果' })
-    }
-    if (!hasOriginalBackup(current.filename)) {
-      return sendJson(req, res, 400, { ok: false, error: '没有找到原始备份，无法还原' })
-    }
-    const original = loadOriginalBackup(current.filename)
-    if (!original) {
-      return sendJson(req, res, 500, { ok: false, error: '原始备份读取失败' })
-    }
-    const { filename } = overwriteCurrentResult(original)
-    return sendJson(req, res, 200, {
-      ok: true,
-      filename,
-      rows: original.rows || [],
-      reverted: true,
-    })
-  } catch (error) {
-    return sendJson(req, res, 500, {
-      ok: false,
-      error: error?.message || String(error),
-    })
-  }
-}
+// ★ Task 13：handleCheckRevertRequest + /api/check-agent/revert 端点整链砍除——
+// 前端零 UI 入口（service.revertCheckResult 无消费者），配套原始备份机制
+// （saveOriginalBackup/loadOriginalBackup/hasOriginalBackup）随之失读方，一并移除
 
 // 应用 Check 结果：覆写当前 board-result 文件
 export async function handleCheckApplyRequest(req, res) {
@@ -415,9 +390,6 @@ export async function handleCheckApplyRequest(req, res) {
     if (!current) {
       return sendJson(req, res, 400, { ok: false, error: '没有找到当前 B 生成结果' })
     }
-
-    // 第一次 apply 前保存原始备份（只存一次，不覆盖）
-    saveOriginalBackup(current.filename, current.result)
 
     // 覆写当前文件（保留原文件其他字段，只更新 rows 和 checkedAt）
     const updated = {
@@ -452,11 +424,6 @@ export function checkAgentProxyPlugin() {
       })
       server.middlewares.use('/api/check-agent/apply', (req, res, next) => {
         Promise.resolve(handleCheckApplyRequest(req, res)).then((handled) => {
-          if (!handled) next()
-        }).catch(next)
-      })
-      server.middlewares.use('/api/check-agent/revert', (req, res, next) => {
-        Promise.resolve(handleCheckRevertRequest(req, res)).then((handled) => {
           if (!handled) next()
         }).catch(next)
       })

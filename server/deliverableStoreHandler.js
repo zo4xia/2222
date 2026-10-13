@@ -223,9 +223,9 @@ export function writeDeliverableFile(data) {
   }
 
   const payload = {
-    $schema: '/deliverable/deliverable.schema.json',
+    // ★ Task 13：$schema / apiDocUrl 死链砍除——指向的 deliverable.schema.json 与
+    // DELIVERABLE_API_SPEC.md 全仓从未存在（幽灵契约链），下游消费规范收敛到本 payload 自描述字段
     apiSpecVersion: '2.0.0',
-    apiDocUrl: '/deliverable/DELIVERABLE_API_SPEC.md',
     specificationSummary: '每个 row 为一组原子单元；语音全程；板书与动作二者绝对互斥；动作时长定量 1~2 秒作为标点停顿。供下游课件制作与画布 Agent 直接消费。',
     specAnnotation: `画布规格批注：尺寸 ${CANVAS_SIZE.width}x${CANVAS_SIZE.height}、比例、题目/板书字号、stage 四区坐标落座区间、越界与手稿风格。`,
     ...data,
@@ -324,24 +324,8 @@ export async function handleDeliverableRequest(req, res) {
     })
   }
 
-  // GET /api/deliverable/api-spec — 获取下游 Agent 官方消费规范文档
-  if (req.method === 'GET' && (path === '/api-spec' || path === '/spec')) {
-    const specPath = fullPath('DELIVERABLE_API_SPEC.md')
-    let markdown = ''
-    if (existsSync(specPath)) {
-      markdown = readFileSync(specPath, 'utf-8')
-    } else {
-      const rootDoc = resolve(projectRoot, 'doc', 'DELIVERABLE_API_SPEC.md')
-      if (existsSync(rootDoc)) markdown = readFileSync(rootDoc, 'utf-8')
-    }
-    return sendJson(req, res, 200, {
-      ok: true,
-      specVersion: '2.0.0',
-      schemaUrl: '/deliverable/deliverable.schema.json',
-      markdown,
-      summary: '每个 row 为一组原子单元；语音全程；板书与动作二者绝对互斥；动作时长定量 1~2 秒作为标点停顿。供下游课件制作与画布 Agent 直接消费。',
-    })
-  }
+  // ★ Task 13：GET /api/deliverable/api-spec 死端点砍除——上游唯一消费者 useApiSpecDrawer 已随
+  // 幽灵契约链删除；文档本体（DELIVERABLE_API_SPEC.md）全仓从未存在，端点恒返回空 markdown
 
   // GET /api/deliverable/list — 列出历史产物文件
   if (req.method === 'GET' && path === '/list') {
@@ -528,7 +512,8 @@ export function deliverableStorePlugin() {
             }
           }
           // 若 /deliverable/row-player.html 未就绪，自动回退到项目 public/row-player.html 或 root row-player.html
-          if (filename === 'row-player.html' || filename === 'handdraw-player.html') {
+          // ★ Task 13：handdraw-player.html 僵尸名砍除——全仓零产出零引用
+          if (filename === 'row-player.html') {
             const rootPlayerPath = resolve(projectRoot, 'row-player.html')
             const publicPlayerPath = resolve(projectRoot, 'public', 'row-player.html')
             const fallbackPath = existsSync(publicPlayerPath) ? publicPlayerPath : (existsSync(rootPlayerPath) ? rootPlayerPath : null)

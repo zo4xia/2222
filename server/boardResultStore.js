@@ -122,28 +122,6 @@ export function listResultFiles() {
   return files
 }
 
-// ---------- 原始备份（第一次 apply 前存一份，用于 revert） ----------
-
-function originalBackupPath(filename) {
-  return resolve(RESULT_DIR, filename.replace(/\.json$/, '.original.json'))
-}
-
-export function saveOriginalBackup(filename, result) {
-  const backupPath = originalBackupPath(filename)
-  if (existsSync(backupPath)) return // 已有备份就不覆盖
-  writeFileSync(backupPath, JSON.stringify(result, null, 2), 'utf-8')
-}
-
-export function hasOriginalBackup(filename) {
-  return existsSync(originalBackupPath(filename))
-}
-
-export function loadOriginalBackup(filename) {
-  const backupPath = originalBackupPath(filename)
-  if (!existsSync(backupPath)) return null
-  try {
-    return JSON.parse(readFileSync(backupPath, 'utf-8'))
-  } catch {
-    return null
-  }
-}
+// ★ Task 13：原始备份三函数（saveOriginalBackup/loadOriginalBackup/hasOriginalBackup）砍除——
+// 唯一读方 check-agent revert 链已整链移除；knowledgeRefineHandler 用的是其文件内自建的一套，互不相干
+// （注：磁盘上历史遗留的 *.original.json 备份文件由 /api/cleanup 按 keep 规则统一清扫）

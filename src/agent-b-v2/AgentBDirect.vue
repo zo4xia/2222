@@ -27,7 +27,6 @@ import {
   SaveOutlined,
   CopyOutlined,
   PauseCircleOutlined,
-  BookOutlined,
   KeyOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons-vue'
@@ -49,7 +48,7 @@ import {
   parseApiKeys as parseAgentBApiKeys,
 } from '../lib/agentBApiConfig.js'
 import { userApiConfig } from '../lib/userApiConfig.js'
-import { exportElementsMarkdown, exportSpeechMarkdown, exportStoryboardMarkdown } from '../lib/speechMarkdown.js'
+import { exportSpeechMarkdown, exportStoryboardMarkdown } from '../lib/speechMarkdown.js'
 import VisualTimeline from '../components/VisualTimeline.vue'
 // ★ Task 19: 表格当前页面加预览小窗 (RealBoardPreview)
 import RealBoardPreview from '../components/RealBoardPreview.vue'
@@ -64,7 +63,6 @@ import {
 } from '../services/stepHandoff.js'
 // ponytail: 拆分 composables (从 AgentBDirect.vue 抽出纯逻辑)
 import { useBCache } from './composables/useBCache.js'
-import { useApiSpecDrawer } from './composables/useApiSpecDrawer.js'
 
 const props = defineProps({
   initialHandoff: { type: Object, required: true },
@@ -146,7 +144,6 @@ const deliverableGenerating = ref(false)
 const deliverableResult = ref(null)
 const deliverableModalOpen = ref(false)
 const toolsOpen = ref(false)
-const customSystemPrompt = ref('')
 const refineLoading = ref(false)
 const refineResultOpen = ref(false)
 const refineResult = ref(null)
@@ -159,7 +156,6 @@ function onSkillChange(val) {
   selectedSkillId.value = val
   message.success(`已切换讲课风格：${skillList.find(s => s.id === val)?.name || val}`)
 }
-const promptEditOpen = ref(false)
 const apiConfigOpen = ref(false)
 const cleanupLoading = ref(false)
 
@@ -193,8 +189,9 @@ function onSaveApiConfig() {
   }
   apiConfigOpen.value = false
 }
+// ★ Task 13：死功能链砍除——自定义提示词弹窗无 UI 入口（promptEditOpen 恒 false，
+// customSystemPrompt 恒空串），整链（ref→弹窗→useBCache 键位→service 传参→server 分支）全砍
 const currentSkillName = computed(() => {
-  if (customSystemPrompt.value?.trim()) return '自定义提示词'
   const skill = skillList.find(s => s.id === selectedSkillId.value)
   return skill?.name || selectedSkillId.value
 })
@@ -1066,7 +1063,6 @@ function actionContent(entry) {
 const { bCacheKey, bCacheGet, bCacheSet } = useBCache({
   getHandoff: () => handoff.value,
   getSelectedSkillId: () => selectedSkillId.value,
-  getCustomSystemPrompt: () => customSystemPrompt.value,
 })
 
 async function generateRows(force = false) {
@@ -1089,7 +1085,6 @@ async function generateRows(force = false) {
     // B 生成只请求剧本；不加载板书字体或发起字体网络请求。
     const result = await generateAgentBV2Rows({
       handoff: handoff.value,
-      systemPrompt: customSystemPrompt.value,
       skillId: selectedSkillId.value,
       rowGapMs: canvasParams.value.rowGapMs,
       canvasParams: { ...canvasParams.value },
@@ -1173,28 +1168,6 @@ function discardCheckChanges() {
   pendingCheckRows.value = null
   checkResultOpen.value = false
   checkFailedFallback.value = false
-}
-
-function exportElements() {
-  if (!rows.value.length) return
-  const ratioData = handoff.value?.stageRatioSuggestion || handoff.value?.['环节配比占比'] || null
-  exportElementsMarkdown(rows.value, {
-    problemText: handoff.value?.problemText || '',
-    model: generatedModel.value || agentBApiConfig.model || '',
-    generatedAt: new Date().toLocaleString('zh-CN', { hour12: false }),
-    canvasParams: JSON.parse(JSON.stringify(canvasParams.value)),
-    handoffCanvasParams: handoff.value?.canvasParams || null,
-    handoffBoardPlan: handoff.value?.boardPlan || null,
-    screenshotUrl: handoff.value?.screenshotUrl || '',
-    problemType: handoff.value?.problemType || '',
-    relatedKnowledge: relatedKnowledge.value || [],
-    teachingFocus: knowledgeAnalysis.value?.teachingFocus || '',
-    keyFormulaList: keyFormulaList.value || [],
-    zoneAnchors: handoff.value?.zoneAnchors || null,
-    stageRatioSuggestion: ratioData,
-    stageRatios: ratioData?.suggestedRatio || null,
-  })
-  message.success('完整要素表 MD 已导出')
 }
 
 function exportSpeech() {
@@ -1302,9 +1275,7 @@ function serializeCurrentDeliverableState() {
   })
 
   return {
-    $schema: '/deliverable/deliverable.schema.json',
     apiSpecVersion: '2.0.0',
-    apiDocUrl: '/deliverable/DELIVERABLE_API_SPEC.md',
     specificationSummary: '每个 row 为一组原子单元；语音全程；板书与动作二者绝对互斥；动作时长定量 1~2 秒作为标点停顿。供下游课件制作与画布 Agent 直接消费。',
     specAnnotation: `画布规格批注：尺寸 ${CANVAS_SIZE.width}x${CANVAS_SIZE.height}、比例、题目/板书字号、stage 四区坐标落座区间、越界与手稿风格。`,
     projectCode: code,
@@ -1383,9 +1354,8 @@ function serializeCurrentDeliverableState() {
   }
 }
 
-// 下游 Agent API 规格抽屉状态与方法
-// ponytail: 抽到 composables/useApiSpecDrawer.js，传 message 避免组件耦合
-const { apiSpecDrawerOpen, apiSpecMarkdown, loadingApiSpec, openApiSpecDrawer, copyApiSpecPrompt } = useApiSpecDrawer({ message })
+// ★ Task 13：useApiSpecDrawer 整套砍除——抽屉指向的 DELIVERABLE_API_SPEC.md / deliverable.schema.json
+// 全仓从未存在（6 处引用全 404 的幽灵契约链），下游规范入口收敛到导出 JSON 本体 + README
 
 // 固化生成最终交付产物单页：写入 public/deliverable/ 永久文件，刷新不丢失
 async function generateDeliverablePage() {
@@ -1465,15 +1435,16 @@ async function openHanddrawPlayer() {
     console.warn('[openHanddrawPlayer] localStorage 写入失败', e)
   }
 
-  // 2. 自动异步向后端同步当前产物，确保 public/deliverable/current.json 与 current.html 保持最新
+  // 2. 先归档再打开（★ Task 13 竞态修复）：await POST 落盘完成后再开窗，
+  //    避免 row-player 优先 fetch 服务端 current 时播到上一题；归档失败不阻断（走 localStorage 兑底）
   try {
-    fetch('/api/deliverable', {
+    await fetch('/api/deliverable', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
-    }).catch(err => console.warn('[openHanddrawPlayer] 后端自动归档轻微异常:', err))
+    })
   } catch (e) {
-    console.warn('[openHanddrawPlayer] 后端请求失败', e)
+    console.warn('[openHanddrawPlayer] 后端归档失败，将走 localStorage 兑底', e)
   }
 
   // 3. 打开 row-player.html 页面，传入 ?deliverable=/api/deliverable
@@ -2062,9 +2033,6 @@ function isRefineFieldEqual(original, refined) {
                     </a-menu-item>
                     <a-menu-item key="storyboard" @click="exportStoryboard">
                       <DownloadOutlined /> 画布分镜总表 MD（导入剪辑器用）
-                    </a-menu-item>
-                    <a-menu-item key="api-spec" @click="openApiSpecDrawer">
-                      <BookOutlined /> 下游 API 参数说明（给第三方用）
                     </a-menu-item>
                     <a-menu-divider />
                     <a-menu-item key="json" @click="downloadDeliverableJson">
@@ -3069,62 +3037,6 @@ function isRefineFieldEqual(original, refined) {
       </div>
     </a-modal>
 
-    <!-- 提示词编辑弹窗 -->
-    <a-modal
-      v-model:open="promptEditOpen"
-      title="提示词设置"
-      :width="720"
-      @ok="promptEditOpen = false"
-    >
-      <a-divider orientation="left">
-        讲解风格
-      </a-divider>
-      <a-typography-paragraph type="secondary" style="font-size: 12px;">
-        选择不同的讲解风格 Skill，决定老师的人设、讲解节奏和内容侧重。
-      </a-typography-paragraph>
-      <a-select
-        v-model:value="selectedSkillId"
-        style="width: 100%;"
-        :disabled="state === 'generating'"
-      >
-        <a-select-option
-          v-for="skill in skillList"
-          :key="skill.id"
-          :value="skill.id"
-        >
-          {{ skill.name }}
-          <template v-if="skill.description">
-            <a-typography-text type="secondary" style="font-size: 12px; display: block;">
-              {{ skill.description }}
-            </a-typography-text>
-          </template>
-        </a-select-option>
-      </a-select>
-
-      <a-divider orientation="left">
-        自定义 System Prompt
-      </a-divider>
-      <a-typography-paragraph type="secondary" style="font-size: 12px;">
-        留空使用上方选中的 Skill 默认 Prompt；粘贴自定义 Prompt 后，点击生成即生效（优先级高于 Skill）。
-      </a-typography-paragraph>
-      <a-textarea
-        v-model:value="customSystemPrompt"
-        :rows="16"
-        placeholder="留空使用默认 System Prompt"
-        :disabled="state === 'generating'"
-      />
-      <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
-        <a-typography-text type="secondary" style="font-size: 12px;">
-          {{ customSystemPrompt.length }} 字 · 当前使用：{{ currentSkillName }}
-        </a-typography-text>
-        <a-space>
-          <a-button size="small" :disabled="!customSystemPrompt" @click="customSystemPrompt = ''">
-            清空自定义
-          </a-button>
-        </a-space>
-      </div>
-    </a-modal>
-
     <!-- Agent B API 配置与多密钥轮询弹窗 -->
     <a-modal
       v-model:open="apiConfigOpen"
@@ -3237,97 +3149,6 @@ function isRefineFieldEqual(original, refined) {
       </div>
     </a-modal>
 
-    <!-- 下游 Agent API 规范抽屉（课件制作 / 画布播放） -->
-    <a-drawer
-      v-model:open="apiSpecDrawerOpen"
-      title="📘 教学微课课件与画布 Agent 消费 API 规格说明 (v2.0)"
-      :width="760"
-      placement="right"
-    >
-      <div class="api-spec-drawer-content">
-        <!-- 核心三铁律指引横幅 -->
-        <div class="api-spec-banner">
-          <div class="spec-banner-title">
-            🎯 下游小 Agent 消费核心原则（课件 PPT / 画布渲染）
-          </div>
-          <div class="spec-rules-grid">
-            <div class="spec-rule-card">
-              <div class="rule-badge">规则 1</div>
-              <div class="rule-title">每 Row 为一组原子单元</div>
-              <div class="rule-desc">一组 row 播放完毕后自然进入下一组，行间保持 1.5 秒行距缓冲。</div>
-            </div>
-            <div class="spec-rule-card">
-              <div class="rule-badge">规则 2</div>
-              <div class="rule-title">语音全程贯穿</div>
-              <div class="rule-desc">speech 全程播音，提供温柔、循序渐进的启发式语音流。</div>
-            </div>
-            <div class="spec-rule-card highlight">
-              <div class="rule-badge highlight">规则 3（极重要）</div>
-              <div class="rule-title">板书与动作二者绝对互斥</div>
-              <div class="rule-desc">动作定量 1~2 秒作为口播标点停顿，动作期间严禁板书书写，单手自然交替。</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 快捷操作栏 -->
-        <div class="api-spec-actions">
-          <a-space wrap>
-            <a-button type="primary" @click="copyApiSpecPrompt">
-              <template #icon><CopyOutlined /></template>
-              复制下游 Agent 消费提示词
-            </a-button>
-            <a-button href="/deliverable/DELIVERABLE_API_SPEC.md" target="_blank">
-              <template #icon><DownloadOutlined /></template>
-              查看规范 Markdown
-            </a-button>
-            <a-button href="/deliverable/deliverable.schema.json" target="_blank">
-              <template #icon><FileDoneOutlined /></template>
-              查看 JSON Schema
-            </a-button>
-          </a-space>
-        </div>
-
-        <!-- 结构与字段说明 -->
-        <a-divider orientation="left">🧩 数据字段与时序说明</a-divider>
-        <div class="api-spec-section">
-          <p class="section-text">
-            下游 Agent 无需重复计算复杂的音画重叠，直接读取每行中的 <code>exclusiveExecutionPlan</code> 数组按毫秒偏移执行即可：
-          </p>
-          <div class="code-block-wrapper">
-            <pre class="spec-code-pre"><code>{
-  "$schema": "/deliverable/deliverable.schema.json",
-  "apiSpecVersion": "2.0.0",
-  "projectCode": "deliverable-20260312-...",
-  "rows": [
-    {
-      "stage": "分析",
-      "speech": "我们先来看题目中给出的已知条件...",
-      "board": { "content": "已知条件: A=3, B=5" },
-      "actionSpec": [
-        { "action": "underline", "target": "已知条件", "durationSec": 1.2 }
-      ],
-      "estimatedDurationMs": 7500,
-      "exclusiveExecutionPlan": [
-        { "channel": "board", "startOffsetMs": 400, "durationMs": 3200, "description": "板书书写" },
-        { "channel": "action", "startOffsetMs": 3800, "durationMs": 1200, "action": "underline", "description": "下划线标点停顿" }
-      ]
-    }
-  ]
-}</code></pre>
-          </div>
-        </div>
-
-        <!-- 详细 Markdown 规范预览 -->
-        <a-divider orientation="left">📄 规范文档全文</a-divider>
-        <div v-if="loadingApiSpec" style="text-align: center; padding: 30px;">
-          <a-spin tip="正在载入 API 规范文档..." />
-        </div>
-        <div v-else class="markdown-preview-box">
-          <pre class="markdown-content">{{ apiSpecMarkdown }}</pre>
-        </div>
-      </div>
-    </a-drawer>
-
     <!-- 极具科技美感与情感化的高端生成中动画弹窗（全流程多阶段呼吸轮播） -->
     <ProcessLoadingModal
       :visible="state === 'generating'"
@@ -3345,121 +3166,8 @@ function isRefineFieldEqual(original, refined) {
 </template>
 
 <style scoped>
-/* 下游 Agent 规范抽屉样式 */
-.api-spec-drawer-content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
+/* ★ Task 13：下游 Agent 规范抽屉样式已随 useApiSpecDrawer 幽灵契约链整块移除 */
 
-.api-spec-banner {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.spec-banner-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 12px;
-}
-
-.spec-rules-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-
-.spec-rule-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.spec-rule-card.highlight {
-  border-color: #f59e0b;
-  background: #fffbeb;
-}
-
-.rule-badge {
-  font-size: 10px;
-  font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-}
-
-.rule-badge.highlight {
-  color: #b45309;
-}
-
-.rule-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.rule-desc {
-  font-size: 11px;
-  color: #64748b;
-  line-height: 1.4;
-}
-
-.api-spec-actions {
-  display: flex;
-  align-items: center;
-}
-
-.api-spec-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.section-text {
-  font-size: 13px;
-  color: #334155;
-  margin: 0;
-}
-
-.code-block-wrapper {
-  background: #0f172a;
-  border-radius: 8px;
-  padding: 12px 14px;
-  overflow-x: auto;
-}
-
-.spec-code-pre {
-  margin: 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
-  color: #e2e8f0;
-  line-height: 1.5;
-}
-
-.markdown-preview-box {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 14px;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.markdown-content {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 12px;
-  color: #334155;
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.6;
-}
 
 /* 页面工作台自适应放宽，保证演播室表格宽阔舒展 */
 :deep(.qh-page-content) {
@@ -5422,4 +5130,3 @@ function isRefineFieldEqual(original, refined) {
   border-left: 3px solid #52c41a;
 }
 </style>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                

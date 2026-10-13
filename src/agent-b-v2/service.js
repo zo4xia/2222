@@ -7,7 +7,7 @@ import { collectDeprecationWarnings } from './contract.js'
 
 const GENERATION_TEMPERATURE = 0.8
 
-export async function generateAgentBV2Rows({ handoff, systemPrompt, skillId, rowGapMs, canvasParams }) {
+export async function generateAgentBV2Rows({ handoff, skillId, rowGapMs, canvasParams }) {
   const userSnap = getAgentBApiSnapshot()
   if (!userSnap.apiKey) {
     throw new Error('缺少 Agent B API Key：请先在前端「Agent 配置」里填写')
@@ -37,7 +37,6 @@ export async function generateAgentBV2Rows({ handoff, systemPrompt, skillId, row
         apiKey: userSnap.apiKey,
         handoff,
         canvasParams: canvasParams || undefined,
-        systemPrompt: systemPrompt || undefined,
         skillId: skillId || undefined,
       }),
     })

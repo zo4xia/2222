@@ -2,13 +2,13 @@
  * useBCache.js — B 生成 localStorage 缓存（24h TTL + 超限清理 + Shift 强制刷新）
  *
  * ponytail: 从 AgentBDirect.vue 956-1031 行抽出，纯逻辑无模板依赖。
- * 调用方传 handoff / selectedSkillId / customSystemPrompt 的 getter，避免双向耦合。
+ * 调用方传 handoff / selectedSkillId 的 getter，避免双向耦合。
  *
  * @qh-core LANE=COMPOSABLE POINT=USE_B_CACHE
  */
 import { knowledgeItemText } from '../../services/stepHandoff.js'
 
-export function useBCache({ getHandoff, getSelectedSkillId, getCustomSystemPrompt }) {
+export function useBCache({ getHandoff, getSelectedSkillId }) {
   const B_CACHE_PREFIX = 'b-gen:'
   const B_CACHE_TTL = 24 * 60 * 60 * 1000
 
@@ -30,7 +30,6 @@ export function useBCache({ getHandoff, getSelectedSkillId, getCustomSystemPromp
       h.stageRatioSuggestion?.type || '',
       h.boardPlan?.question?.x || '',
       getSelectedSkillId() || '',
-      getCustomSystemPrompt() ? 'custom' : 'default',
     ].join('|')
   }
 

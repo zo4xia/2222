@@ -186,7 +186,7 @@ npm run test:refine-degrade
 | 解析 | parseLLMJson 唯一真源 | src/lib/parseLLMJson.js |
 | 动作 | rough-notation 三动作 underline/highlight/circle（underline+circle 为夏夏钦定两大核心兜底）+ rough-line + rough-arrow，锚定 exactText | src/board-tools/boardToolCatalog.js |
 | 渲染 | 微抖动/微倾斜是渲染层职责，B 不算 | row-player.html + RealBoardPreview.vue |
-| 下游契约 | 交付物 JSON 规范 | /api/deliverable/api-spec（DELIVERABLE_API_SPEC.md） |
+| 下游契约 | 交付物 JSON 规范 | 导出 JSON 本体（apiSpecVersion 2.0.0 + specificationSummary/specAnnotation 自描述字段） |
 
 ## 常见问题
 

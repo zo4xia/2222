@@ -3,11 +3,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs'
 import { extname, join, normalize, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { handleAgentBV2Request } from './agentBV2Handler.js'
-import {
-  handleCheckAgentRequest,
-  handleCheckApplyRequest,
-  handleCheckRevertRequest,
-} from './checkAgentHandler.js'
+import { handleCheckAgentRequest, handleCheckApplyRequest } from './checkAgentHandler.js'
 import { handleCleanupRequest } from './cleanupHandler.js'
 import { handleDeliverableRequest } from './deliverableStoreHandler.js'
 import { handleFishAudioRequest } from './fishAudioHandler.js'
@@ -47,7 +43,6 @@ async function dispatchApi(req, res) {
   if (pathname === '/api/agent-b-v2/generate') return handleAgentBV2Request(req, res)
   if (pathname === '/api/check-agent/check') return handleCheckAgentRequest(req, res)
   if (pathname === '/api/check-agent/apply') return handleCheckApplyRequest(req, res)
-  if (pathname === '/api/check-agent/revert') return handleCheckRevertRequest(req, res)
   if (pathname === '/api/cleanup') return withUrl(req, '/', () => handleCleanupRequest(req, res))
   if (pathname === '/api/handoff' || pathname === '/api/handoff/list') {
     const suffix = pathname === '/api/handoff/list' ? '/list' : '/'

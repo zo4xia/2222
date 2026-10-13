@@ -11,7 +11,7 @@ const CLEANUP_RULES = [
   { dir: 'audio', keep: (name, keepSet) => keepSet.has(name) },
   { dir: 'pic', keep: (name, keepSet) => keepSet.has(name) },
   { dir: 'board-result', keep: (name, keepSet) => keepSet.has(name) || name === 'current.json' },
-  { dir: 'deliverable', keep: (name, keepSet) => keepSet.has(name) || name === 'current.json' || name === 'current.html' || name === 'DELIVERABLE_API_SPEC.md' || name === 'deliverable.schema.json' },
+  { dir: 'deliverable', keep: (name, keepSet) => keepSet.has(name) || name === 'current.json' || name === 'current.html' },
 ]
 
 function readPointer(dir, keys, keep) {
