@@ -28,6 +28,8 @@ const tests = [
   { name: 'deliverable doctype (病头修复 10 用例)', cmd: 'node scripts/test-deliverable-doctype.mjs' },
   { name: 'speech regen button (按钮消失修复 6 用例)', cmd: 'node scripts/test-speech-regen-button.mjs' },
   { name: 'visual timeline (滚动+动作 10 用例)', cmd: 'node scripts/test-visual-timeline.mjs' },
+  { name: 'row-player stage flow (同 stage 顺序排版 34 用例)', cmd: 'node scripts/test-row-player-stage-flow.mjs' },
+  { name: 'step1 recognition robustness (第一步卡死防线 18 用例)', cmd: 'node scripts/test-step1-recognition-robustness.mjs' },
   { name: 'validate_contract',          cmd: 'node skills/board-lecture-player/scripts/validate_contract.cjs skills/board-lecture-player/assets/sample-rows.json' },
 ]
 

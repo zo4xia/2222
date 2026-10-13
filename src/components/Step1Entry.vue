@@ -4,7 +4,7 @@ import { computed, nextTick, reactive, ref, watch } from 'vue'
 
 const emit = defineEmits(['enter-board-draft'])
 import { message } from 'ant-design-vue'
-import { recognizeProblem, fileToDataUrl } from '../services/recognitionClient'
+import { recognizeProblem, fileToDataUrl, compressImageToDataUrl } from '../services/recognitionClient'
 import { renderProblemHtml } from '../utils/mathText'
 import { buildStep1Handoff, hasUsableAgentAKnowledge } from '../services/stepHandoff'
 import { saveLiveBoardPreview } from '../board-preview/liveBoardPreview.js'
@@ -499,7 +499,8 @@ async function beforeUpload(file) {
     if (sourceImageUrl.value) URL.revokeObjectURL(sourceImageUrl.value)
     sourceImageUrl.value = URL.createObjectURL(file)
     sourceImageName.value = file.name
-    sourceImageDataUrl.value = await fileToDataUrl(file)
+    // ★ 上传前压缩（2026-10-13）：手机原图 base64 常到 4~10MB（上传慢 + 超 Vercel 4.5MB 函数体上限），压到长边≤1600px/JPEG 0.85；失败自动回退原图
+    sourceImageDataUrl.value = await compressImageToDataUrl(file)
     // 横版检测：宽高比 > 1.4 视为横向图片
     isLandscape.value = await detectLandscape(sourceImageDataUrl.value)
     step1Confirmed.value = false

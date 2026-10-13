@@ -96,7 +96,12 @@ export async function handleRecognitionRequest(req, res, knowledge = {}) {
 
     const { response, data } = await requestChatCompletion({
       ...credentials,
-      timeoutMs: 60000,
+      // ★ 60→110 秒（2026-10-13 夏夏实测"第一步一直卡"根因）：这是全链最重的一次多模态调用
+      //   （图片+知识库上下文+全量 JSON 输出），视觉模型常见 60-180 秒；旧 60 秒对慢模型必杀
+      //   ——每次都是转圈两分钟后 504，永远走不完第一步。110s 单次尝试在 Vercel maxDuration 120s
+      //   函数预算内可完成；超时不重试（慢上游重试=再白等一程，只拖长转圈时间）。
+      timeoutMs: 110000,
+      retryOnAbort: false,
       body: {
         temperature: 0.3,
         messages: [{ role: 'user', content }],
@@ -131,7 +136,9 @@ export async function handleRecognitionRequest(req, res, knowledge = {}) {
     const status = error?.name === 'AbortError' ? 504 : 500
     return sendJson(req, res, status, {
       ok: false,
-      error: error?.name === 'AbortError' ? '识别上游连续两次请求均超时（单次 60 秒）' : error?.message || String(error),
+      error: error?.name === 'AbortError'
+        ? '识别上游请求超时（单次 110 秒）——模型响应太慢或网络不通：请换更快的视觉模型或稍后重试'
+        : error?.message || String(error),
     })
   }
 }

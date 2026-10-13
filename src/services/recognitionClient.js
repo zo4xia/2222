@@ -29,13 +29,18 @@ export async function recognizeProblem({
     throw new Error('缺少模型名称：请先在前端「Agent 配置」里填写模型名')
   }
 
+  const REQUEST_TIMEOUT_MS = 130000   // ★ 客户端超时（2026-10-13）：服务端 110s 超时 + 缓冲；到点主动断，绝不无限等
+
   showGlobalLoading('数据分析中...', '正在深度解析题目结构、几何图形与知识点...')
   let response
   let data
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {
     response = await fetch('/api/recognition/problem', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({
         problemText,
         imageDataUrl,
@@ -46,7 +51,13 @@ export async function recognizeProblem({
     })
 
     data = await response.json().catch(() => ({}))
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error(`识别请求超时（${Math.round(REQUEST_TIMEOUT_MS / 1000)} 秒）——网络或上游模型过慢，请重试或换更快的模型`)
+    }
+    throw error
   } finally {
+    clearTimeout(timeoutId)
     hideGlobalLoading()
   }
   if (!response.ok || !data.ok) {
@@ -143,6 +154,36 @@ function normalizeFocus(focus, type) {
   if (t === 'calculation') return 'calculation_process'
   if (t === 'word') return 'relation_understanding'
   return undefined
+}
+
+/** 上传前压缩（2026-10-13）：手机原图直传 base64 常到 4~10MB——上传慢、超 Vercel 函数体 4.5MB 上限、
+ *  上游视觉模型也用不着原尺寸。长边≤1600px、JPEG 0.85，一般压到 200~600KB。
+ *  非位图/解码失败一律回退原图，绝不让上传死在压缩上。 */
+export async function compressImageToDataUrl(file, { maxLongEdge = 1600, quality = 0.85 } = {}) {
+  const readOriginal = () => fileToDataUrl(file)
+  if (!String(file?.type || '').startsWith('image/')) return readOriginal()
+  try {
+    const origDataUrl = await readOriginal()
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image()
+      el.onload = () => resolve(el)
+      el.onerror = () => reject(new Error('图片解码失败'))
+      el.src = origDataUrl
+    })
+    const long = Math.max(img.naturalWidth || 0, img.naturalHeight || 0)
+    if (!long || long <= maxLongEdge) return origDataUrl            // 已够小，原样直传
+    const scale = maxLongEdge / long
+    const w = Math.max(1, Math.round((img.naturalWidth || 1) * scale))
+    const h = Math.max(1, Math.round((img.naturalHeight || 1) * scale))
+    const c = document.createElement('canvas')
+    c.width = w
+    c.height = h
+    c.getContext('2d').drawImage(img, 0, 0, w, h)
+    const out = c.toDataURL('image/jpeg', quality)
+    return out.length < origDataUrl.length ? out : origDataUrl
+  } catch (_) {
+    return readOriginal()                                          // 压缩失败回退原图
+  }
 }
 
 export function fileToDataUrl(file) {

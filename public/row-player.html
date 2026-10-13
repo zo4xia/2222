@@ -299,17 +299,67 @@ function resolveTagAnchor(bp){
   }
   return out;
 }
-/* 板书落笔点唯一真相源（2026-09-17 决策 #012 落地）：
-   优先级 board.startCoord > boardPlan 该 stage 区左上角(+2%,+4% 让出标签与首行基线) > 模板常量。
-   与 resolveTagAnchor 同为三层回退，且同源于导出物 boardPlan —— 不带它就是所有板书叠一处。 */
+/* 板书落笔点真相源（2026-10-13 起三层回退带 src 标记）：
+   row（显式 startCoord，内置样例/老档兼容）> zone（该 stage 区左上 +2%,+4% 让出标签与首行基线，仅作首行起笔锚）> 模板常量。
+   ★ 同 stage 后续行不再落区域左上——由 stageFlowPlace 顺序续排（B 侧 prompt 契约：B 不输出起手坐标，
+     "渲染层会以 stage 区域为起点，按文本自然换行和实际内容高度顺序排版"——本文件 2026-10-13 才真正兑现）。 */
 const COORD_FALLBACK={x:8,y:44};
 function resolveBoardCoord(row,bp,stage){
   const s=row&&row.board&&row.board.startCoord;
   const c=parseCoord(s);
-  if(c&&isFinite(c.x)&&isFinite(c.y))return {x:c.x,y:c.y,pct:!!c.pct};
+  if(c&&isFinite(c.x)&&isFinite(c.y))return {x:c.x,y:c.y,pct:!!c.pct,src:'row'};
   const zn=bp&&bp[TAG_ZONE_KEY[stage]];
-  if(zn&&isFinite(+zn.x)&&isFinite(+zn.y))return {x:+zn.x+2,y:+zn.y+4,pct:true};
-  return {x:COORD_FALLBACK.x,y:COORD_FALLBACK.y,pct:true};
+  if(zn&&isFinite(+zn.x)&&isFinite(+zn.y))return {x:+zn.x+2,y:+zn.y+4,pct:true,src:'zone'};
+  return {x:COORD_FALLBACK.x,y:COORD_FALLBACK.y,pct:true,src:'fallback'};
+}
+/* ===== 同 stage 多行顺序排版（Agent B prompt 契约的渲染层兑现，2026-10-13） =====
+   显式 startCoord 尊重原位；无坐标 → 首行落区域左上，后续行按前一行实际内容高度自然续排
+   （自然段落行距）；本列放不下 → 右移换列，列首回到本环节起笔锚。纯函数、px 坐标、可独立单测。 */
+function stageFlowPlace(cursor,zoneStart,given,estH,W,H,size){
+  const marginY=10, colGap=Math.round(size*0.9);
+  if(given)return {start:{x:given.x,y:given.y},cursor:{x:given.x,y:given.y,anchorY:given.y,colMaxW:0}};
+  if(!cursor){const s={x:zoneStart.x,y:zoneStart.y};
+    return {start:s,cursor:{x:s.x,y:s.y,anchorY:s.y,colMaxW:0}};}
+  let cur=cursor;
+  if(cur.y+estH>H-marginY)cur={x:cur.x+cur.colMaxW+colGap,y:cur.anchorY,anchorY:cur.anchorY,colMaxW:0};
+  return {start:{x:cur.x,y:cur.y},cursor:cur};
+}
+/* 行布局唯一真源：compile 期算死，drawWriting 直接消费（回退路径走同一函数，口径必然一致）。
+   自适应书写流（用户拍板 2026-09-17）原样搬入：向下写 → 画布底换列 → 行超宽自适应缩字号。 */
+function layoutBoardLines(content,x,y,W,H){
+  const size=38, marginX=10, marginY=10, colGap=Math.round(size*0.9);
+  const maxX=W-marginX, maxY=H-marginY;
+  const lines=toBoardLines(content);
+  const seed=hashStr(String(content||''));
+  const lhJ=jit(seed+1,lines.length,0.12).map(d=>1.57+d);
+  const spJ=jit(seed+2,lines.length,0.10).map(d=>1+d);
+  const layout=[]; let lx=x, ly=y, colMaxW=0;
+  for(let li=0;li<lines.length;li++){
+    const baseW=measureLine(lines[li],size,HAND_FONT);
+    if(li>0&&ly+size*lhJ[li]>maxY){lx+=colMaxW+colGap;ly=y;colMaxW=0;}
+    let fs=size, lw=baseW;
+    if(lx+lw>maxX&&lw>0){fs=Math.max(14,Math.floor(size*(maxX-lx)/lw));lw=lw*fs/size;}
+    layout.push({li:li,text:lines[li],x:lx,y:ly,size:fs,lw:lw});
+    colMaxW=Math.max(colMaxW,lw);
+    ly+=fs*lhJ[li];
+  }
+  return {lines:lines,layout:layout,endY:ly,endX:lx,colMaxW:colMaxW,seed:seed,lhJ:lhJ,spJ:spJ};
+}
+/* 板书字池：行布局 → 逐字坐标（actionSpec exactText 锚定用）。
+   \frac 记号打不匹配占位符（私用区字符），防 exactText 误锚进公式字面量。 */
+function boardCharPool(L){
+  const out=[];
+  (L.layout||[]).forEach(LL=>{
+    let cx=LL.x;
+    const toks=tokenizeLine(String(LL.text||''));
+    MCTX.font=LL.size+'px '+HAND_FONT;
+    for(const t of toks){
+      if(t.frac){out.push({ch:'\uE000',x:cx,y:LL.y,w:Math.max(1,LL.size*1.2),size:LL.size});cx+=LL.size*1.2;}
+      else{const ch=String(t.ch);const w=Math.max(1,MCTX.measureText(ch).width);
+        out.push({ch:ch,x:cx,y:LL.y,w:w,size:LL.size});cx+=w;}
+    }
+  });
+  return out;
 }
 
 // 动作分档时长（镜像 src/agent-b-v2/timing.js estimateActionDuration；离线单文件自带一份，改档两边同改）
@@ -347,6 +397,8 @@ function compile(data){
   const GAP=1500;
   const tagAnchor=resolveTagAnchor(bp);   // 装载即定死：render(0) 起标签就在导出物给的位置上
   let acc=0;
+  const stageFlow={};            // ★ 同 stage 多行顺序排版游标（px）：stage -> {x,y,anchorY,colMaxW}
+  const boardCharsRegistry=[];   // ★ 板书字池（按行序累积）：动作 exactText 可跨行锚定已写出的文字
   const rows=(data.rows||[]).map((r,i)=>{
     // 音频铁律（2026-09-18 夏夏）：本 row 当前时间唯一权威=真实音频播放时间。
     // audioDurationMs=试听探测到的真实时长（唯一主时钟）；duration 仅旧协议秒单位兼容；
@@ -374,15 +426,33 @@ function compile(data){
       let bw=charCount*BASE_CHAR_MS;
       const avail=dur-sd-trailingMs;
       if(avail>0&&bw>avail)bw=Math.max(300,Math.min(bw,avail));
+      /* ★ 同 stage 顺序排版：显式坐标尊重原位；否则 stageFlowPlace 续排（首行=区域左上锚）。
+         布局编译期算死（layoutBoardLines），drawWriting 直接消费——渲染帧不再重复量宽。 */
+      const stKey=String(r.stage||'解答');
+      const coord=resolveBoardCoord(r,bp,r.stage);
+      const given=coord.src==='row'?{x:coord.pct?W*coord.x/100:coord.x,y:coord.pct?H*coord.y/100:coord.y}:null;
+      const zoneStart=(coord.src==='zone')
+        ?{x:coord.pct?W*coord.x/100:coord.x,y:coord.pct?H*coord.y/100:coord.y}
+        :{x:W*COORD_FALLBACK.x/100,y:H*COORD_FALLBACK.y/100};
+      const estH=lines.length*38*1.7+20;            // 换列预判（行内到底换列兜底仍在，见 layoutBoardLines）
+      const placed=stageFlowPlace(stageFlow[stKey]||null,zoneStart,given,estH,W,H,38);
+      const L=layoutBoardLines(bContent,placed.start.x,placed.start.y,W,H);
+      /* 布局完成 → 游标推进到本行内容末（endY=末行基线+行高，即下一行自然续排点；
+         endX/colMaxW = 本行末列左与末列宽，本列放不下时换列用） */
+      stageFlow[stKey]={x:L.endX,y:L.endY,anchorY:placed.cursor.anchorY,colMaxW:L.colMaxW};
+      const rowChars=boardCharPool(L);
+      for(let ci2=0;ci2<rowChars.length;ci2++)boardCharsRegistry.push(rowChars[ci2]);
       plan.push({type:'board',startOffsetMs:sd,durationMs:bw,
-                 content:bContent,coord:resolveBoardCoord(r,bp,r.stage),
-                 ...(keyword?{triggerKeyword:keyword}:{})});
+                 content:bContent,coord:coord,
+                 layout:L.layout,lines:L.lines,seed:L.seed,lhJ:L.lhJ,spJ:L.spJ,
+                 ...(rowChars.length?{chars:rowChars}:{})});
       cursor=sd+bw+HAND_LIFT_MS;
     }
     acts.forEach((a,ai)=>{
       if(!lines.length&&ai===0)cursor=Math.min(1200,Math.max(600,Math.round(dur*0.12))); // 纯动作行（题目行）首动作前置
       const adur=actionDurationMs(a);
-      plan.push({type:'action',startOffsetMs:cursor,durationMs:adur,action:a});
+      plan.push({type:'action',startOffsetMs:cursor,durationMs:adur,action:a,
+                 boardChars:boardCharsRegistry.slice()});   // 动作锚定池：本行+先前行已写文字（B 契约"必须锚定已写出的文字"）
       cursor+=adur+HAND_LIFT_MS;
     });
     const maxEnd=plan.reduce((m,t)=>Math.max(m,(t.startOffsetMs||0)+(t.durationMs||0)),0);
@@ -466,7 +536,7 @@ function findRange(chars,sub,occ){
     for(let k=0;k<sub.length;k++) if(chars[i+k].ch!==sub[k]){ok=false;break;}
     if(ok){hit++; if(hit===occ){
       const a=chars[i], b=chars[i+sub.length-1];
-      return {x1:a.x,y1:a.y,x2:b.x+b.w,y2:b.y};}}
+      return {x1:a.x,y1:a.y,x2:b.x+b.w,y2:b.y,size:(a.size!=null?a.size:30)};}}
   }
   return null;
 }
@@ -905,28 +975,20 @@ function drawWriting(task,p,W,H,stage){
   const color=STAGE_COLOR[stage]||'#000000';       // 规格：分析红，解答/总结黑
   // 车同轨·书同文：板书字段（字符串或数组）统一过超级过滤器，一行一个按序落笔；
   // 采用当前字体自然段落换行的自然间距，不做额外固定行距限制
-  const lines=toBoardLines(task.content);
+  // ★ 布局唯一真源 = compile 期 layoutBoardLines（含同 stage 顺序排版游标，2026-10-13）。
+  //   task.layout 缺失（纯防御路径）时现场走同一函数自算，两路口径必然一致。
+  const preL=task.layout||null;
+  const lines=preL?(task.lines||toBoardLines(task.content)):toBoardLines(task.content);
   lines.forEach(l=>{if(STRUCT_MATH.test(l))FORMULA_LINES.add(l);});
-  const seed=hashStr(task.content||'');
+  const seed=preL?(task.seed||hashStr(task.content||'')):hashStr(task.content||'');
   // 规格：行高均值 1.7，逐行 1.55~1.85 微小随机 —— seed 冻结，幂等可 seek
-  const lhJ=jit(seed+1,lines.length,0.12).map(d=>1.57+d);   // 行距抖 ±3% ≈ compare D 档 margin±25% 等效值
+  const lhJ=preL?(task.lhJ||[]):jit(seed+1,lines.length,0.12).map(d=>1.57+d);   // 行距抖 ±3% ≈ compare D 档 margin±25% 等效值
   // 规格：板书 1秒2-3字，每行 ±10% 抖动 → 行配速系数 0.9~1.1
-  const spJ=jit(seed+2,lines.length,0.10).map(d=>1+d);
+  const spJ=preL?(task.spJ||[]):jit(seed+2,lines.length,0.10).map(d=>1+d);
 
-  // ★ 自适应书写流（用户拍板 2026-09-17）：画布内不硬限区域，向下写 → 到底换列到周边空白，
-  //   绝不溢出画布；行超宽 → 自适应缩小字号（保号不出界）
-  const marginX=10, marginY=10, colGap=Math.round(size*0.9);
-  const maxX=W-marginX, maxY=H-marginY;
-  const layout=[]; let lx=x, ly=y, colMaxW=0;
-  for(let li=0; li<lines.length; li++){
-    const baseW=measureLine(lines[li],size,HAND_FONT);
-    if(li>0 && ly+size*lhJ[li]>maxY){ lx+=colMaxW+colGap; ly=y; colMaxW=0; }
-    let fs=size, lw=baseW;
-    if(lx+lw>maxX && lw>0){ fs=Math.max(14,Math.floor(size*(maxX-lx)/lw)); lw=lw*fs/size; }
-    layout.push({li:li,text:lines[li],x:lx,y:ly,size:fs,lw:lw});
-    colMaxW=Math.max(colMaxW,lw);
-    ly+=fs*lhJ[li];
-  }
+  // 自适应书写流（用户拍板 2026-09-17）已并入 compile 期 layoutBoardLines：
+  //   画布内不硬限区域，向下写 → 到底换列到周边空白，绝不溢出画布；行超宽自适应缩字号
+  const layout=preL||layoutBoardLines(task.content,x,y,W,H).layout;
   // ★ 区间端点不动（互斥不破），只在区间内重分配：
   //   写 = 字符数 × 行配速，行与行之间 = 抬笔（timing.js 原公式只有前项，多行板书会低估）；横线行权重按 2 字（快速画完）
   const seg=[]; let ci=0;
@@ -1010,14 +1072,17 @@ function drawAction(task,p,Q,W,H){
     ctx.globalAlpha=1;
     return;
   }
-  // ── rough-notation：文字标记，锚定 board/题目原文（rough-notation 风：贴字 bbox、双遍手绘）──
+  // ── rough-notation：文字标记，锚定顺序 = 板书字池（本行+先前行，compile 期坐标）→ 题目原文；
+  //    两路都 miss 才跳过（旧版只搜题目 → 板书内容上的圈/线/高亮全被丢，"动作丢失"的播放器半边根因）──
   const tg=a.target||{};
-  const rg=findRange(Q.chars,tg.exactText||'',tg.occurrence||1);
-  if(!rg){ console.warn('[动作] 找不到文字 "',tg.exactText,'"，该标记被跳过'); return; }
+  let rg=(task.boardChars&&task.boardChars.length)?findRange(task.boardChars,tg.exactText||'',tg.occurrence||1):null;
+  if(!rg)rg=findRange(Q.chars,tg.exactText||'',tg.occurrence||1);
+  if(!rg){ console.warn('[动作] 找不到文字 "',tg.exactText,'"（板书与题目均未命中），该标记被跳过'); return; }
   const seed=hashStr(tg.exactText||'');
   const act=a.action||'underline';
-  // 字高按题目 30px：顶≈baseline-30，底≈baseline+8；padding 8（对齐 rough-notation 默认）
-  const bx1=rg.x1-8, bx2=rg.x2+8, by1=rg.y1-30-8, by2=rg.y1+8+8;
+  // 字高按命中字池实际字号（板书 38 / 题目 30）：顶≈baseline-fs，底≈baseline+fs*0.27；padding 8
+  const fs=rg.size||30;
+  const bx1=rg.x1-8, bx2=rg.x2+8, by1=rg.y1-fs-8, by2=rg.y1+Math.round(fs*0.27)+8;
   ctx.strokeStyle='#dc2626'; ctx.lineWidth=2.2; ctx.globalAlpha=0.9;
   if(act==='underline'){
     const yy=by2+4, xx1=bx1, xx2=bx1+(bx2-bx1)*p;
@@ -1489,6 +1554,8 @@ function warmBoardFonts(){
     document.fonts.load('38px "平方乔木体"',txt)
   ]).catch(function(){}).then(function(){
     FONT_VER++; ROW_CACHE.clear();                   // 字体到位后旧行图全部作废，必须整批重建
+    // ★ 布局在编译期算死 → 字宽变了必须整轴重排（时序不变，只有坐标换；reflowWithRealDuration 同款手法）
+    if(C){ try{ C=compile(C.data); }catch(e){ console.warn('[字体门] 重排失败',e); } }
     if(C){ render(now()); reportFontState(txt); }
   });
 }
@@ -1505,6 +1572,7 @@ function reportFontState(txt){
 warmBoardFonts();
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){
   FONT_VER++; ROW_CACHE.clear();
+  if(C){ try{ C=compile(C.data); }catch(e){} }   // 同字体门：真实字宽到位后重排布局
   if(C)render(now());
 });
 // 调试/分享入口：#t=毫秒 直接定位到任意时刻（render 纯函数保证画面正确）

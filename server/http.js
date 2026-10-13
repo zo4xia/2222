@@ -120,7 +120,7 @@ function calculateRetryDelay(response, hasMultipleKeys = false, defaultMs = 2000
   return defaultMs + Math.floor(Math.random() * 400)
 }
 
-export async function requestChatCompletion({ endpoint, apiKey, apiKeys, model, body, timeoutMs = 300000 }) {
+export async function requestChatCompletion({ endpoint, apiKey, apiKeys, model, body, timeoutMs = 300000, retryOnAbort = true }) {
   const keys = (Array.isArray(apiKeys) && apiKeys.length > 0) ? apiKeys : parseApiKeys(apiKey)
   if (keys.length === 0) keys.push(apiKey)
 
@@ -161,6 +161,9 @@ export async function requestChatCompletion({ endpoint, apiKey, apiKeys, model, 
       return { response, data, usedApiKey: currentKey }
     } catch (error) {
       if (attempt === maxAttempts - 1) throw error
+      // ★ 超时快速失败（2026-10-13）：慢上游重试只是把同样长的等待再付一遍——识别链传 retryOnAbort:false
+      const isAbort = error?.name === 'AbortError' || /aborted/i.test(String(error?.message || ''))
+      if (isAbort && !retryOnAbort) throw error
       const delayMs = keys.length > 1 ? 500 : 2000
       const nextKey = keys[(startIndex + attempt + 1) % keys.length]
       console.warn(`[requestChatCompletion] Key (${maskApiKey(currentKey)}) 请求网络异常(${error?.message})，准备切换 Key (${maskApiKey(nextKey)})，等待 ${delayMs}ms 重试...`)
