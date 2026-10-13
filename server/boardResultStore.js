@@ -124,4 +124,5 @@ export function listResultFiles() {
 
 // ★ Task 13：原始备份三函数（saveOriginalBackup/loadOriginalBackup/hasOriginalBackup）砍除——
 // 唯一读方 check-agent revert 链已整链移除；knowledgeRefineHandler 用的是其文件内自建的一套，互不相干
-// （注：磁盘上历史遗留的 *.original.json 备份文件由 /api/cleanup 按 keep 规则统一清扫）
+// （注：knowledge 侧备份写 public/handoff/*.original.json，该目录不在 /api/cleanup 清扫范围，
+//   孤儿备份会静默堆积——已挂账待拍板）

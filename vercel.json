@@ -16,9 +16,6 @@
     },
     "api/check-agent/apply.js": {
       "maxDuration": 30
-    },
-    "api/check-agent/revert.js": {
-      "maxDuration": 30
     }
   }
 }

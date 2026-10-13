@@ -256,7 +256,7 @@ export async function handleCheckAgentRequest(req, res) {
         type: 'text',
         text: `【本题题干与易错点清单 (commonMistakes) 把关指南】\n` +
           `- 题目原文：${problemText || '（以原步骤第一行题目为准）'}\n` +
-          `- 教学重点(teachingFocus)：${teachingFocus || '抓牢核心算理与解题逻辑'}\n` +
+          `- 教学重点(teachingFocus)：${teachingFocus || '未提供'}\n` +
           `- 关键公式(keyFormulaList)：${JSON.stringify(keyFormulaList)}\n` +
           `- 易错点清单(commonMistakes)：${commonMistakes.length > 0 ? JSON.stringify(commonMistakes) : '未提供（知识库亦无匹配，跳过针对性防坑核验，仅做通用数学正确性与口播质量检查）'}\n\n` +
           `【修缮把关硬性要求】：\n` +

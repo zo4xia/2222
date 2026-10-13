@@ -7,8 +7,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const candidateTemplatePaths = [
   resolve(__dirname, '../row-player.html'),
   resolve(__dirname, '../public/row-player.html'),
-  resolve(__dirname, '../public/deliverable/row-player.html'),
-  resolve(__dirname, '../public/deliverable/handdraw-player.html')
+  resolve(__dirname, '../public/deliverable/row-player.html')
 ]
 
 /**

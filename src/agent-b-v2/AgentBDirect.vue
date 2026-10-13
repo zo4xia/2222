@@ -1314,7 +1314,7 @@ function serializeCurrentDeliverableState() {
     // 题目信息与环节配比
     problemInfo: {
       screenshotUrl: handoff.value?.screenshotUrl || '',
-      problemType: handoff.value?.problemType || '小学数学题',
+      problemType: handoff.value?.problemType || '未提供',
       relatedKnowledge: relatedKnowledge.value || [],
       teachingFocus: knowledgeAnalysis.value?.teachingFocus || '',
       keyFormulaList: keyFormulaList.value || [],
@@ -1333,10 +1333,13 @@ function serializeCurrentDeliverableState() {
       stageRatioSuggestion: ratioData,
     },
     meta: {
-      problemType: handoff.value?.problemType || '小学数学题',
-      boardFocus: handoff.value?.boardFocus || '图文结合',
-      gradeLevel: handoff.value?.gradeLevel || '小学阶段',
-      knowledgeTitle: handoff.value?.selectedKnowledge?.title || handoff.value?.knowledge || '核心知识点',
+      // ★ Task 14 政策同型补刀：臆造 fallback（'小学数学题'/'图文结合'/'小学阶段'/'核心知识点'）清零，
+      // problemType/boardFocus 缺失写"未提供"；gradeLevel 真源=handoff.suggestedGrade；
+      // knowledgeTitle 真源=relatedKnowledge[0] 的「知识点」字段
+      problemType: handoff.value?.problemType || '未提供',
+      boardFocus: handoff.value?.boardFocus || '未提供',
+      gradeLevel: handoff.value?.suggestedGrade || '未提供',
+      knowledgeTitle: handoff.value?.relatedKnowledge?.[0]?.['知识点'] || '未提供',
       canvasSize: { width: CANVAS_SIZE.width, height: CANVAS_SIZE.height },
     },
     stats: {
