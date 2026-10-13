@@ -145,6 +145,7 @@ const deliverableResult = ref(null)
 const deliverableModalOpen = ref(false)
 const toolsOpen = ref(false)
 const refineLoading = ref(false)
+const refineApplying = ref(false)
 const refineResultOpen = ref(false)
 const refineResult = ref(null)
 const refineAppliedAt = ref('')
@@ -1497,6 +1498,8 @@ async function refineKnowledge() {
     if (result.ok && result.handoff) {
       // ★ 2026-10-13：降级响应（refineOk=false）时透出 warning，用户能看到"已保留原知识库"的原因
       if (result.warning) message.warning(result.warning)
+      // ★ R8-① A 方案：result 仅是修缮提案，服务端活档此刻仍是原文——
+      // 点「应用修缮」才会 POST /apply 落盘，点「保留原文」两端都零改动
       refineResult.value = result
       refineResultOpen.value = true
     } else {
@@ -1509,28 +1512,40 @@ async function refineKnowledge() {
   }
 }
 
-// 应用修缮结果：更新 localHandoff，参数表动态读取自动刷新（不用刷新页面）
+// 应用修缮结果：★ R8-① A 方案——先 POST /api/knowledge/apply 落盘确认，成功后才更新页面。
+// 服务端以当前活档为基底做白名单重合并（防提案过期卷回别环修缮），返回值即存档真容，无需二次拉档
 async function applyRefine() {
+  if (refineApplying.value) return
   if (!refineResult.value?.handoff) return
   // refineResult 被 Vue ref 代理，handoff 对象带 ReactiveEffect 循环引用
-  // 必须 toRaw + 安全深拷贝脱壳后再赋值，杜绝潜在的不可序列化对象抛错
-  const appliedHandoff = safeDeepClone(refineResult.value.handoff)
-  localHandoff.value = appliedHandoff
-  // 修缮接口已原地更新当前 handoff；再次读取确认页面与动态文件完全一致。
+  // 必须 toRaw + 安全深拷贝脱壳后再发请求，杜绝潜在的不可序列化对象抛错
+  const proposal = safeDeepClone(refineResult.value.handoff)
+  refineApplying.value = true
   try {
-    const response = await fetch('/api/handoff', { cache: 'no-store' })
-    const data = await response.json()
-    if (data?.ok && data.handoff) localHandoff.value = safeDeepClone(data.handoff)
+    const resp = await fetch('/api/knowledge/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ handoff: proposal }),
+    })
+    const data = await resp.json()
+    if (!resp.ok || !data?.ok) {
+      message.error(data?.error || `应用失败 ${resp.status}`)
+      return // 弹窗保留，可重试或改选保留原文
+    }
+    localHandoff.value = data.handoff ? safeDeepClone(data.handoff) : proposal
+    refineAppliedAt.value = new Date().toISOString()
+    refineResultOpen.value = false
+    refineResult.value = null
+    message.success('知识点修缮已确认落盘，活档与页面已同步')
   } catch (error) {
-    console.warn('[applyRefine] 已更新页面，重新读取 handoff 失败:', error?.message || error)
+    message.error(error?.message || '应用异常，活档未改动')
+  } finally {
+    refineApplying.value = false
   }
-  refineAppliedAt.value = new Date().toISOString()
-  refineResultOpen.value = false
-  refineResult.value = null
-  message.success('知识点修缮已应用，当前 handoff 文件与页面已同步')
 }
 
-// 保留原文：不更新，关闭弹窗
+// 保留原文：★ R8-① A 方案后名副其实——refine 从未落盘，关弹窗即两端零改动，
+// B（前端态）与 Check（活档）保持同一基准，不再分叉
 function keepOriginalRefine() {
   refineResultOpen.value = false
   refineResult.value = null
@@ -3032,6 +3047,7 @@ function isRefineFieldEqual(original, refined) {
           </a-button>
           <a-button
             type="primary"
+            :loading="refineApplying"
             @click="applyRefine"
           >
             应用修缮

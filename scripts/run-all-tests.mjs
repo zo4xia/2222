@@ -19,6 +19,7 @@ const tests = [
   { name: 'skillViolations (11 用例)',  cmd: 'node scripts/smoke-test-skills.mjs' },
   { name: 'boardToolCatalog 降级隔离 (8 用例)', cmd: 'node scripts/test-board-tool-catalog.mjs' },
   { name: 'knowledge contract (知识关联链契约)', cmd: 'node scripts/test-knowledge-contract.mjs' },
+  { name: 'knowledge apply (R8-① 先确认再落盘 12 用例)', cmd: 'node scripts/test-knowledge-apply.mjs' },
   { name: 'validate_contract',          cmd: 'node skills/board-lecture-player/scripts/validate_contract.cjs skills/board-lecture-player/assets/sample-rows.json' },
 ]
 

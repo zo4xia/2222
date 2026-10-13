@@ -1,8 +1,11 @@
 /* 知识点修缮 API — 独立模块，不动 Agent A 和 Agent B 的核心逻辑
-   直接读写 public/handoff.json，通过文件解耦 */
+   读写 public/handoff/ 活档（current.json 指针 + handoff-*.json 实体）
+   ★ R8-① A 方案（先对比确认再落盘）：refine 只出提案不落盘，
+     用户在对比弹窗点「应用修缮」→ POST /apply 才写入活档；点「保留原文」活档零改动，
+     B（信前端态）与 Check（信活档）永不分叉 */
 
 import { KNOWLEDGE_REFINE_SYSTEM_PROMPT } from '../src/agent-b-v2/knowledgeRefinePrompt.js'
-import { readCurrentHandoff, overwriteCurrentHandoff, fullPath as getHandoffFullPath } from './handoffStoreHandler.js'
+import { readCurrentHandoff, overwriteCurrentHandoff } from './handoffStoreHandler.js'
 import {
   isOptions,
   readJsonBody,
@@ -11,8 +14,7 @@ import {
   sendJson,
   getChatMessageText,
 } from './http.js'
-import { existsSync, readFileSync, copyFileSync, writeFileSync } from 'fs'
-import { resolve } from 'path'
+
 
 // ponytail: JSON 解析唯一真源已抽到 src/lib/parseLLMJson.js
 import { parseLLMJson } from '../src/lib/parseLLMJson.js'
@@ -45,62 +47,39 @@ function mergeKnowledgeFields(original, refined) {
   return merged
 }
 
-// 原始快照文件名：在当前 handoff 文件名后加 .original.json
-function originalBackupPath(filename) {
-  return getHandoffFullPath(filename.replace(/\.json$/, '.original.json'))
-}
-
-function saveOriginalBackup(filename, handoff) {
-  const backupPath = originalBackupPath(filename)
-  if (existsSync(backupPath)) return // 已有备份就不覆盖
-  writeFileSync(backupPath, JSON.stringify(handoff, null, 2), 'utf-8')
-}
-
-function hasOriginalBackup(filename) {
-  return existsSync(originalBackupPath(filename))
-}
-
-function loadOriginalBackup(filename) {
-  const backupPath = originalBackupPath(filename)
-  if (!existsSync(backupPath)) return null
-  try {
-    return JSON.parse(readFileSync(backupPath, 'utf-8'))
-  } catch {
-    return null
-  }
-}
-
+// 原始快照机制已随 R8-① A 方案移除：refine 不再中途落盘，"保留原文"名副其实无需回滚；
+// 旧 saveOriginalBackup/hasOriginalBackup/loadOriginalBackup（含死分支 revert 的唯一读方）全部失去存在理由
 export async function handleKnowledgeRefineRequest(req, res) {
   if (isOptions(req, res)) return true
   const url = new URL(req.url, 'http://localhost')
   const path = url.pathname
   // 中间件注册在 /api/knowledge/，req.url 前缀已去掉
-  if (path !== '/refine' && path !== '/revert') return false
+  if (path !== '/refine' && path !== '/apply') return false
   if (req.method !== 'POST') return false
 
-  // POST /api/knowledge/revert — 还原到修缮前的原始版本
-  if (path === '/api/knowledge/revert') {
+  // ★ R8-① A 方案：旧 /revert 分支整链移除——原条件比较的是剥前缀前的全路径（恒假，
+  // POST /api/knowledge/revert 实际会错误掉进 refine 分支调上游覆写存档），且零 UI 消费方，
+  // "保留原文"语义改由"确认前不落盘"直接保证，无需事后回滚
+
+  // POST /api/knowledge/apply — 用户确认后才落盘（★ R8-① A 方案新增）
+  if (path === '/apply') {
     try {
+      const body = await readJsonBody(req)
+      const proposal = body?.handoff
+      if (!proposal || typeof proposal !== 'object') {
+        return sendJson(req, res, 400, { ok: false, error: '缺少修缮提案 handoff' })
+      }
       const current = readCurrentHandoff()
-      if (!current) {
-        return sendJson(req, res, 400, { ok: false, error: '没有找到 handoff 存档' })
+      if (!current?.handoff || typeof current.handoff !== 'object') {
+        return sendJson(req, res, 400, { ok: false, error: '没有找到 handoff 存档，请先生成' })
       }
-      const original = loadOriginalBackup(current.filename)
-      if (!original) {
-        return sendJson(req, res, 400, { ok: false, error: '没有找到原始备份，无法还原' })
-      }
-      const filename = overwriteCurrentHandoff(original)
-      return sendJson(req, res, 200, {
-        ok: true,
-        filename,
-        handoff: original,
-        reverted: true,
-      })
+      // 防御性重合并：以当前活档为基底、白名单只放行知识字段——提案过期（如期间用户重新确认过 Step1）
+      // 也不会把别环修缮（配比/排版/画布参数）一并卷回旧值；merge 结果由 overwriteCurrentHandoff 内部补全
+      const merged = mergeKnowledgeFields(current.handoff, proposal)
+      const filename = overwriteCurrentHandoff(merged)
+      return sendJson(req, res, 200, { ok: true, filename, handoff: merged })
     } catch (error) {
-      return sendJson(req, res, 500, {
-        ok: false,
-        error: error?.message || String(error),
-      })
+      return sendJson(req, res, 500, { ok: false, error: error?.message || String(error) })
     }
   }
 
@@ -126,9 +105,6 @@ export async function handleKnowledgeRefineRequest(req, res) {
         error: '没有找到 handoff 存档，请先生成',
       })
     }
-
-    // 第一次修缮前保存原始备份（只存一次，不覆盖）
-    saveOriginalBackup(current.filename, handoff)
 
     const userContent = [
       {
@@ -180,13 +156,13 @@ export async function handleKnowledgeRefineRequest(req, res) {
     const mergedHandoff = mergeKnowledgeFields(handoff, refinedHandoff)
     const refineOk = Boolean(refinedHandoff)
 
-    // 原地覆写当前文件（不生成新文件，保持文件名不变）
-    const filename = overwriteCurrentHandoff(mergedHandoff)
+    // ★ R8-① A 方案：refine 阶段不落盘——只出提案（mergedHandoff），存档仍为原文；
+    // 旧"先落盘后弹确认"会把"保留原文"变成安慰剂（B 走前端旧值、Check 走活档新值，两环分叉）
 
     return sendJson(req, res, 200, {
       ok: true,
       model: credentials.model,
-      filename,
+      filename: current.filename,
       handoff: mergedHandoff,
       usage: data?.usage || null,
       refineOk,
