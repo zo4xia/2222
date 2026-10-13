@@ -1,5 +1,16 @@
 # 重要决策
 
+## 2026-10-13 死链 CSS 与零消费键的连根判定：属性读取为准 + 死值陷阱全灭
+- **决策**：连根砍除三类"活着进 bundle 但内容无效"的乱点——① `src/board-tools/boardTypography.css`（@font-face 指向已被第四轮删除的 `/fonts/pingfang-qiaomu.ttf`，family `Qinghuabu Qiaomu` 全仓渲染代码零引用）连同两个 vite 入口 import；② AgentBDirect.vue 手写 canvasParams 死值块 22 行（fontSize/lineHeight/boardSpeed 等字段全被 `...hcp` 展开覆盖 + canvasWidth/Height 异名键零消费）；③ deliverableStoreHandler.js 的 canvasWidth/Height 死键及其"下游消费的异名键"注释。
+- **背景**：夏夏令"先归一化乱七八糟的地方，砍删归一整理统一"。第四轮归一了字面值，但三类结构性乱点漏网：死链 CSS（源头文件已删，CSS 指向虚空）、被展开覆盖的手写副本（Task 5 在 deliverableStoreHandler 修过同款，AgentBDirect 是漏网之鱼）、异名键（Task 5 只换了字面值没查消费，注释还谎称"下游消费"）。
+- **关键裁决——属性读取为准**：判定一个 JSON 键是否被消费，唯一证据是 `grep '\.键名'` 属性访问命中，**写入处不算消费**。全仓 `.canvasWidth/.canvasHeight` 属性读取零命中，而 canvasSize.width/height 被 RealBoardPreview/BoardContentLayer/AgentBDirect 三处消费——写入侧自称"下游消费的异名键"不成立，注释与事实不符即按噪音处理。
+- **考虑的方案**：A) 保留 canvasWidth/Height 并让下游真消费它（双键并存）；B) 保留死链 CSS 等独立播放器将来接手；C) 属性读取零命中即连根砍（含注释与 import）。
+- **最终决策**：C。A 是为死键制造消费者，违反真源唯一（canvasSize 已是唯一键）；B 是"将来可能有用"式挖坑——@font-face family 无人引用时连 404 都不触发，纯静默无效代码骗维护者"有字体能力"；C 符合"噪音不删都是挖坑"。
+- **理由**：死值陷阱的三重危害：占位骗人（看起来在配置 fontSize，实际被 ...hcp 全覆盖）、异名键骗人（下游读的是另一个名字）、注释骗人（声称下游消费实际零消费）。三者都在"活着"的假象下掩埋真相。
+- **风险**：localStorage 缓存的旧 deliverable JSON 可能仍带 canvasWidth 键——下游读 canvasSize 已有 fallback 常量，无兼容风险；真源 buildCanvasParams 产出完整 canvasParams，序列化数据不受影响。
+- **验证**：`.canvasWidth/.canvasHeight` 属性读取全仓零命中；boardTypography/Qinghuabu/pingfang-qiaomu 代码层（src/server/public/api）清零；run-all-tests 6/6 + build 成功 + health 200。
+- **关联文件**：`src/main.js`、`src/board-preview/main.js`（import 删除）、`src/agent-b-v2/AgentBDirect.vue`（死值块 + import 瘦身）、`server/deliverableStoreHandler.js`（死键 + 注释）、`public/skills-hub/skill-2.html`（展示镜像对齐）。
+
 ## 2026-10-13 画布宪法唯一演绎：真源插值 + 孤儿档案自洽原则
 - **决策**：画布渲染参数（尺寸 1726×980 / 字号 30px·38px / 行高 / 平方乔木体 CDN 507 降级栈）以 `src/services/stepHandoff.js` 为唯一真源，数据流与模板文案层字面值全部改 import 插值；CSS 层（aspect-ratio 等）作为受控平行值备案保留。
 - **背景**：夏夏令"对齐画布真·唯一演绎定义"。审计发现 boardPlan.canvas 手写 `{w:1726,h:980}` 藏在真源插值区旁（Task 5 漏网）、uiSettings/导出 MD 的 '30px' 字符串字面值、skills 档案整窝旧字体世界观（尖尖体/490 主字体/死路径 TTF/臆造函数引用）。

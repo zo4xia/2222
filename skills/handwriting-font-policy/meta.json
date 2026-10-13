@@ -7,10 +7,9 @@
   "updated": "2026-10-13",
   "sources": [
     "src/services/stepHandoff.js",
-    "src/board-tools/boardTypography.css",
     "https://fontsapi.zeoseven.com/507/"
   ],
-  "distillation_contract": "Distill [板书手写字体加载与层级锁定] as a [workflow] pack so it can help with [Agent B 字体选择策略 / 渲染层字体加载 / Check Agent 校验层级越权], using [src/services/stepHandoff.js (HANDWRITING_* 真源常量) + src/board-tools/boardTypography.css + https://fontsapi.zeoseven.com/507/ (平方乔木体·现行主字体)], while respecting [L3 板书层独占手写体 / 题目层永久印刷体 / 教育与培训用途允许商用 / 字体不可改名再分发].",
+  "distillation_contract": "Distill [板书手写字体加载与层级锁定] as a [workflow] pack so it can help with [Agent B 字体选择策略 / 渲染层字体加载 / Check Agent 校验层级越权], using [src/services/stepHandoff.js (HANDWRITING_* 真源常量) + https://fontsapi.zeoseven.com/507/ (平方乔木体·现行主字体)], while respecting [L3 板书层独占手写体 / 题目层永久印刷体 / 教育与培训用途允许商用 / 字体不可改名再分发].",
   "core_sections": [
     "字体清单（主=平方乔木体 CDN 507，降级栈 157/511/510/509/490 同序）",
     "层级锁定（L1 题目永久印刷体 / L3 板书层手写体）",

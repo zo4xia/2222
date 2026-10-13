@@ -36,7 +36,6 @@
   src/utils/boardLayout.js (BOARD_LAYOUT) → board-zone-layout
 
   src/services/stepHandoff.js (HANDWRITING_* 真源常量) → handwriting-font-policy
-  src/board-tools/boardTypography.css    → handwriting-font-policy
   https://fontsapi.zeoseven.com/507/      → handwriting-font-policy (平方乔木体·现行主字体)
 
   src/board-tools/handActionScheduler.js → hand-action-control

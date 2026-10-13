@@ -8,13 +8,13 @@ trigger: "选择板书字体/加载 ZeoSeven 远程字体/校验字体层级越�
 
 # 板书手写字体加载与层级锁定
 
-> **⚠ 时代勘误（2026-10-13 对齐）**：本 skill 蒸馏自 boardTypography.js 时代，该文件已移除；原"本地 TTF qiaomu-local + localStorage 偏好"方案**从未接线**（localStorage key 零消费者）。现行真源 = `src/services/stepHandoff.js` 的 `HANDWRITING_FAMILY / HANDWRITING_FONT_STACK / HANDWRITING_CSS_HREF(_FALLBACKS)` 常量：**主字体=平方乔木体（ZeoSeven CDN 507 remote-css）**，栗壳坚坚体(490)为降级栈第 6 位。层级锁定原则（L1 印刷体/L3 手写体）仍活，现行校验位置=`src/check-agent/skillViolations.js`。本文 ZeoSeven 加载方法与授权条款仍有效。
+> **⚠ 时代勘误（2026-10-13 对齐，第五轮更新）**：本 skill 蒸馏自 boardTypography.js 时代，该文件已移除（经仓史复核从未存在）；配套 `src/board-tools/boardTypography.css`（@font-face 死链 /fonts/pingfang-qiaomu.ttf + family "Qinghuabu Qiaomu" 零消费）已于第五轮连根砍除，两个 vite 入口 import 同步移除。原"本地 TTF qiaomu-local + localStorage 偏好"方案**从未接线**（localStorage key 零消费者）。现行真源 = `src/services/stepHandoff.js` 的 `HANDWRITING_FAMILY / HANDWRITING_FONT_STACK / HANDWRITING_CSS_HREF(_FALLBACKS)` 常量：**主字体=平方乔木体（ZeoSeven CDN 507 remote-css）**，栗壳坚坚体(490)为降级栈第 6 位。层级锁定原则（L1 印刷体/L3 手写体）仍活，现行校验位置=`src/check-agent/skillViolations.js`。本文 ZeoSeven 加载方法与授权条款仍有效。
 
 > *"第1步已确认题目是不可变资产；禁止改题文、题目字体、题目位置或尺寸。手写体只活在 L3 板书层。"*
 
 ## 蒸馏合同
 
-`Distill [板书手写字体加载与层级锁定] as a [workflow] pack so it can help with [Agent B 字体选择策略 / 渲染层字体加载 / Check Agent 校验层级越权], using [src/services/stepHandoff.js (HANDWRITING_* 真源常量) + src/board-tools/boardTypography.css + https://fontsapi.zeoseven.com/507/ (平方乔木体·现行主字体)], while respecting [L3 板书层独占手写体 / 题目层永久印刷体 / 教育与培训用途允许商用 / 字体不可改名再分发].`
+`Distill [板书手写字体加载与层级锁定] as a [workflow] pack so it can help with [Agent B 字体选择策略 / 渲染层字体加载 / Check Agent 校验层级越权], using [src/services/stepHandoff.js (HANDWRITING_* 真源常量) + https://fontsapi.zeoseven.com/507/ (平方乔木体·现行主字体)], while respecting [L3 板书层独占手写体 / 题目层永久印刷体 / 教育与培训用途允许商用 / 字体不可改名再分发].`
 
 ---
 
@@ -233,7 +233,7 @@ saveBoardTypographyConfig({ fontId: 'like-jianjianti' })
 
 ## 六、本地 TTF 字体（时代档案·路径已死）
 
-> **时代注**：`/public/fonts/pingfang-qiaomu.ttf` 在仓库中不存在（`public/fonts/` 现仅含一份误放的外部工具文件），本地 TTF 方案从未落地。现行全部走 ZeoSeven remote-css。以下为 @font-face 写法档案（若将来真加本地字体可参考）：
+> **时代注**：`/public/fonts/pingfang-qiaomu.ttf` 在仓库中从未存在，`public/fonts/` 整目录已于第四轮移除（误放的外部工具文件），本地 TTF 方案从未落地。现行全部走 ZeoSeven remote-css。以下为 @font-face 写法档案（若将来真加本地字体可参考）：
 
 ```css
 @font-face {

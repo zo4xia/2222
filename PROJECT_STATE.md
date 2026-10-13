@@ -55,7 +55,6 @@ src/components/QhPageHeader.vue     Step1Entry / AgentBDirect 共用页头
 src/agent-b-v2/AgentBDirect.vue     接收 Agent A 情报、生成五字段表
 src/agent-b-v2/service.js           Agent B 生成接口调用与时间线落座
 src/style.css
-src/board-tools/boardTypography.css 字体配置冻结，等待独立播放器处理
 ```
 
 ## 不能删 / 主链支撑
@@ -72,7 +71,6 @@ src/utils/boardLayout.js            四区标签规划，确认第 1 步的前�
 src/utils/canvasCoords.js           Agent B 画布固定坐标
 src/agent-b-v2/prompt.js            Agent B 生成提示词
 src/board-tools/boardToolCatalog.js Agent B 可用板书工具目录
-src/board-tools/boardTypography.js  字体配置与字体加载
 src/board-tools/roughNotationTool.js
 src/board-tools/roughDrawingTool.js
 vite.config.js                      开发服务器挂载代理插件
@@ -106,6 +104,8 @@ agentBDraftResult.js / agentBContract.js
 第三轮（同日，孤岛死模块簇 13 项）：全模块消费链孤岛扫描实锤——`docs/canvas-board-text.md`（虚构 canvasBoardField 唯一入口地位）+ `src/utils/canvasBoardField.js`（零消费者、superCleanBoardField 与 superFilter 真源同名双定义）+ `src/utils/canvasText.js`（唯一消费者是死物）+ `scripts/verifyDeliverableTruthSource.mjs`（import 不存在导出、从未跑通）为 canvas 死链簇；`src/lib/apiConfigStoreFactory.js`、`dualStore.js`、`simpleIndexedDb.js`、`src/utils/lectureRecorder.js` 为未接线半成品簇（注释声称的收敛职能从未落地）；`src/services/` 四份 fetch 封装（deliverable/cleanup/knowledgeRefine/tts）被前端直接 fetch 绕过；`server/smokeTest.js` 无 npm 挂载无锚点登记。判活三关（vite 入口 / npm scripts 挂载 / 施工索引登记）保护了 proxySelfCheck、agentAKnowledgeSelfCheck、recognitionClient、stepHandoff 等活模块。`docs/` 目录清空移除。
 
 第四轮（同日，画布宪法对齐）：stepHandoff.js 真源常量（1726×980/30px/38px/1.65/1.7±/平方乔木体 CDN 507）全仓演绎归一——数据流字面值 9 处改 import 插值（AgentBDirect 4 + speechMarkdown 1 + BoardPreviewApp 4）；skills 档案层旧字体世界观勘误（board-speech-rules 尖尖体×3、handwriting-font-policy 三件套臆造引用窝点、README 断链 2 + 臆造引用 3）；row-player 真相源文案修正 + public 镜像逐字节同步；连根砍 public/fonts/（外部工具误放）。lite-player 孤儿自洽设计回滚保留。
+
+第五轮（同日，宪法外乱点归一）：连根砍 `src/board-tools/boardTypography.css` 死链簇（@font-face 指向已删除的 /fonts/pingfang-qiaomu.ttf + family "Qinghuabu Qiaomu" 全仓渲染零引用）+ 两个 vite 入口 import（src/main.js、src/board-preview/main.js）；砍 AgentBDirect.vue 手写 canvasParams 死值块 22 行（fontSize/lineHeight/boardSpeed 等被 `...hcp` 覆盖 + canvasWidth/Height 异名键零消费）与 import 五常量瘦身；砍 deliverableStoreHandler.js canvasWidth/Height 死键（"下游消费的异名键"注释经属性读取 grep 证伪）；展示镜像 public/skills-hub/skill-2.html 对齐 demo.html 6 项 ZeoSeven 字体清单（删 qiaomu-local 死链项与错误 family 名）；风险地图勘误——R1 降级 P3（已最小修复，残余 L2/L3 双区表达）、R2/R4 关闭，**活跳蚤只剩 R5（P2）与 R3（P3）**。颜色域三套色板（BOARD_MARK_COLORS/ROUGH_DRAWING_COLORS/drawIntent COLOR_MAP）判定为平行真源非重复，不动。
 
 已知问题并入 `SYSTEM_MAP.md` 第五节；收尾流程见 `AGENTS.md`「收尾流程」；git 历史可回溯（`git revert 38b9777`）。
 
@@ -187,8 +187,8 @@ Preview 已启用 Vercel Deployment Protection；登录 `xiaxia` 账号后访问
 ## 下一步
 
 使用独立 Check Agent C 配置手动点击一次“Check Agent”，确认上游模型按当前账号返回结构化修正结果。
-下潜业务流抓跳蚤（地表已扫清）：R1（rough-notation 仅 question 区可标记，analysis/solution/summary 圈画必崩，P1）、R3（L4 用户画笔层空壳，P3 归 Agent C）、R5（播放无断点续播，P2）为活跳蚤，地图在 doc/board_risk_matrix.md；R2/R4 已失效（drawIntentTool 有实质实现、assertHandwritingScope 已不存在），跳蚤轮处置时勘误。
-doc/ 剩余观察项：起始语-过渡-总结-兜底话术.md 与 speech-board-guide.md 话术段内容重叠度待评估；board 勘察三件套待跳蚤处置后一并评估归档。
+下潜业务流抓跳蚤（宪法与死链/死值已全部归一）：**R5（播放无断点续播/单步隔离，P2）是唯一活 P2**，入口 boardToolTiming.js + handActionScheduler.js，方案候选=订阅态持久化或步骤级 try/catch 隔离；R3（L4 用户画笔层空壳，P3 归 Agent C）；R1 残余（L2/L3 双区表达并行，P3）。地图在 doc/board_risk_matrix.md（第五轮已勘误：R1 降级 P3、R2/R4 关闭）。
+doc/ 剩余观察项：起始语-过渡-总结-兜底话术.md 与 speech-board-guide.md 话术段内容重叠度待评估；board 勘察三件套待 R5 处置后一并评估归档。
 
 ## Vercel 部署
 
@@ -215,23 +215,22 @@ Vercel 首次创建项目时自动把首次部署标成 Production；随后已�
 │  ├─ doc/board_resource_list.md   资源清单 + 依赖边 Mermaid
 │  ├─ doc/board_risk_matrix.md     风险矩阵 R1-R5 + 止血优先级
 │  └─ doc/board_initial_state.md   初始状态快照 + 四区对齐表
-├─ 关键发现（均经真实代码核验）
-│  ├─ R1 [P1] rough-notation 仅 question 区可运行：
-│  │        BoardContentLayer.vue:551 仅 data-board-region="question"；
-│  │        RealBoardPreview.vue:44 querySelector 查 DOM；
-│  │        textTargetRegistry.js:116 requireElement 找不到即抛错。
-│  │        → analysis/solution/summary 三区文本标记运行时崩。
-│  ├─ R2 [P2] draw 意图工具执行空壳：
-│  │        boardToolCatalog.js:86-95 prepare 给 DRAW_INTENT 返回 execute:()=>{}；
-│  │        真实几何由 roughDrawingTool 的 rough-line/rough-arrow 承担 → 死重。
-│  ├─ R3 [P3] L4 用户画笔层未实现：RealBoardPreview.vue:181 仅空 div aria-hidden。
-│  ├─ R4 [P2] 手写字体范围断言(boardTypography.assertHandwritingScope) 与标记层 region 语义分裂。
+├─ 关键发现（均经真实代码核验；2026-10-13 第五轮复核状态标注）
+│  ├─ R1 ~~[P1] rough-notation 仅 question 区可运行~~ → 已最小修复降级 P3：
+│  │        BoardContentLayer.vue:605 仍仅 data-board-region="question"（L2 边界）；
+│  │        但 RealBoardPreview.vue L3 层已按 rows 渲染三区真实文本锚点，
+│  │        textTargetRegistry 可定位；残余 = L2/L3 双区表达并行。
+│  ├─ R2 ~~[P2] draw 意图工具执行空壳~~ → 已失效：boardToolCatalog.js L95-99
+│  │        现挂 prepareDrawIntentAction 真实执行（drawIntentTool.js 220+ 行实现）。
+│  ├─ R3 [P3] L4 用户画笔层未实现：RealBoardPreview L4 仅空 div aria-hidden。
+│  ├─ R4 ~~[P2] 手写字体范围断言分裂~~ → 已关闭：boardTypography.js 从未存在（臆造），
+│  │        boardTypography.css 死链已于第五轮连根砍除；现行层级校验 = skillViolations.js。
 │  └─ R5 [P2] 调度器无断点续播/单步隔离，长板书中途异常整体失败。
 ├─ 纠正旧结论
-│  └─ drawIntentTool.js 非文件空壳（有 schema+校验），问题是执行路径 no-op（见 R2）。
+│  └─ drawIntentTool.js 非文件空壳（有 schema+校验+真实执行，见 R2 已失效）。
 └─ 处置建议
    ├─ R1 已执行最小修复：RealBoardPreview.vue L3 按 rows 渲染 analysis/solution/summary 真实文本锚点，并兼容百分比/像素 startCoord；BoardPreviewApp.vue 汇总并传递 rows.actionSpec。
-   └─ R2/R4/R5 待夏夏确认后单独清理
+   └─ R5 待夏夏确认后单独清理（唯一活跳蚤 P2；R3 为后续能力规划）
 ```
 
 状态：R1 代码修复已落地；Vite 实际编译通过、diff check 通过；尚缺浏览器级四区 exactText 点击验收，不能标记为完全收口。

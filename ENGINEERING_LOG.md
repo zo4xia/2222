@@ -1,5 +1,42 @@
 # 工程日志
 
+## 2026-10-13 第五轮：字体字号宪法外的乱点归一（死链 CSS 簇 + 手写死值簇 + 风险地图勘误）
+
+**背景与口径**：
+- 夏夏令"先归一化这些乱七八糟的地方，先砍、删、归一、整理，最后统一"。
+- 上轮已归一画布宪法字面值；本轮把审计面扩大到**字体字号之外的散点**：CSS 死链、手写 canvasParams 死值、异名零消费键、颜色域、坐标/布局模块、HTML 播放器、skills 展示镜像、风险地图时效。
+
+**执行步骤**：
+1. 摊开真源宪法（stepHandoff L19-64）与 CSS/渲染层全部字体出现点，跑 family 名、TTF 路径、颜色 hex、字号字面值四组全仓 grep。
+2. 对每个疑点跑消费链核查：`@font-face` family 是否有人引用、异名键 `canvasWidth/canvasHeight` 属性读取是否零命中、`...hcp` 展开覆盖分析。
+3. 对 doc/board_risk_matrix.md 五条风险逐条复核代码证据现状（行号漂移 + R1/R2/R4 修复/失效核验）。
+
+**代码变更**：
+- **连根砍 boardTypography.css 死链簇**：`src/board-tools/boardTypography.css` 删除——@font-face 指向第四轮已砍除的 `/fonts/pingfang-qiaomu.ttf`（指向虚空文件），family 名 `Qinghuabu Qiaomu` 全仓渲染代码零引用（真源 fontStack 是中文名）；连带删 `src/main.js` / `src/board-preview/main.js` 两个 vite 入口 import（内容完全静默无效：family 无人用 → 字体文件连 404 都不会触发）。
+- **砍 AgentBDirect.vue 手写 canvasParams 死值块 22 行**（L1325-1346）：`fontSize/lineHeight/boardSpeed/coordinateSystem/actionSpeed` 全被 `...hcp` 覆盖（hcp 的 fallback 本身就是 buildCanvasParams）= Task 5 在 deliverableStoreHandler 修过的同款死值陷阱漏网；`canvasWidth/canvasHeight` 异名键全仓属性读取零命中（下游 RealBoardPreview/BoardContentLayer/AgentBDirect chip 全读 `canvasSize.width/height`）= 死键。归一为 `canvasParams: { source, ...hcp }`；import 块同步瘦身（BOARD_FONT_SIZE/BOARD_FONT_RATIO_TEXT/HANDWRITING_FAMILY/LINE_HEIGHT_RULE/BOARD_SPEED_* 五常量砍后零用途，删除）。
+- **砍 deliverableStoreHandler.js 异名死键 + 注释谎言**：L186-192 `canvasWidth/canvasHeight` 删除，其注释"下游消费的异名键"经全仓属性读取 grep 证伪——这是 Task 5 只换了字面值没查消费的漏网（注释与事实不符即注释谎言，按噪音处理）。
+- **展示镜像对齐**：`public/skills-hub/skill-2.html`（handwriting-font-policy 对外展示页）删 @font-face 死链、字体清单从 5 项含 `qiaomu-local 本地 TTF`（死链项+错误 family 名 `PING FANG SHAO HUA` 等，与 ZeoSeven CSS 实际 family 名不匹配）对齐 demo.html 的 6 项 ZeoSeven 版、补 509 link、臆造引用注释 `boardTypography.js` → `stepHandoff.js`。
+- **风险地图勘误**（doc/board_risk_matrix.md + PROJECT_STATE 变更树 + doc/board_resource_list.md + doc/board_initial_state.md）：R1 降级 P3 已最小修复（RealBoardPreview L3 层 L241-255 三区真实文本锚点，textTargetRegistry 可定位；残余 = BoardContentLayer.vue:605 仍仅 question 打标，L2/L3 双区表达并行）；R2 关闭（boardToolCatalog L95-99 现挂 prepareDrawIntentAction 真实执行）；R4 关闭（boardTypography.js 从未存在 + CSS 本轮砍除）。**活跳蚤只剩 R5（P2 无断点续播）与 R3（P3 L4 空层）**。
+- **档案层引用同步**：PROJECT_STATE 删 boardTypography.js/.css 两行（臆造+死链）；skills/README.md、handwriting-font-policy/{meta.json,SKILL.md} 的 boardTypography.css 引用移除，SKILL.md 时代勘误声明升级为第五轮版本（含 CSS 砍除事实与 public/fonts/ 目录移除表述修正）。
+
+**发现和确认**：
+- 颜色域结构健康不动：`BOARD_MARK_COLORS`（roughNotationTool #d64545/#f8e58c 标注色）与 `ROUGH_DRAWING_COLORS`（roughDrawingTool #263238/#d64545 绘制色）是两个不同工具的 Object.freeze 色板（平行真源非重复定义），drawIntentTool 的中文颜色词 COLOR_MAP（石墨灰/蓝/红/黑→hex）是 draw 意图域第三套，各有消费链；prompt.js L220 军规里的 `#d64545/#f8e58c` 字面值是给 LLM 的说明文字——若插值会让 prompt.js（被 server import）连带拉入 rough-notation/roughjs 运行时依赖链，得不偿失，备案保留。
+- AgentBDirect L2701/L2731 SVG `font-family="serif"` 与 drawIntentTool L157 `sans-serif` 均非画布板书域（前者是 UI 面板图例，后者是几何顶点编号标注），不属于手写体宪法管辖，不动。
+- lite-player.html 的 1726 字面值与 `#d64545` 是自声明孤儿档案（Task 12 裁决"带防护声明的自洽历史参考"），不动。
+- row-player.html 1726×980 死规定与 BoardPreviewApp CSS aspect-ratio 属受控镜像/CSS 平行值（HTML canvas 属性与 CSS 无法 import JS 常量），第四轮已备案，不动。
+- 死键判定方法论：`grep '\.canvasWidth'` 属性读取零命中 ≠ 键名零命中（写入处不算消费）——判定"下游消费的异名键"必须以属性访问为准，写入侧自称下游消费不成立。
+
+**验证结果**：
+- node --check 三个改动 JS 通过；run-all-tests 6/6（superFilter 93/93）；npm run build 成功；productionServer /api/health 200 healthy。
+- 被删名代码层清零复核：boardTypography src/server/public/api 零命中；Qinghuabu/pingfang-qiaomu 零命中（SKILL.md 时代档案快照区历史注留痕）；canvasWidth/canvasHeight 仅剩 RealBoardPreview 本地 computed 变量名（读的是 canvasSize）与两处解释性注释。
+
+**接力棒**：
+- 宪法域（尺寸/字号/字体/行高/速度/颜色）+ 死值域 + 死链域全部归一完成。活跳蚤地图收窄为：**R5（P2 播放无断点续播/单步隔离）是唯一 P2**，R3（P3 L4 用户画笔层，归属 Agent C 规划），R1 残余（P3 L2/L3 双区表达并行，扩展标记区时需同步两套）。
+- 下轮若下潜 R5：入口 `boardToolTiming.js` + `handActionScheduler.js`（串行互斥调度器），方案候选=订阅态持久化或步骤级 try/catch 隔离。
+- 若后续要做 canvasParams schema 收敛（canvasSize vs canvasWidth 双轨历史包），注意 localStorage 缓存的旧 deliverable JSON 里可能仍有 canvasWidth 残留——下游读 canvasSize 已有 fallback，无兼容风险。
+
+---
+
 ## 2026-10-13 第四轮：画布宪法对齐（真源演绎定义统一 + 误导字体档案勘误）
 
 **背景与口径**：

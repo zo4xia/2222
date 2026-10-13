@@ -10,14 +10,12 @@
 | 文件 | 职责 | 关键导出 | 复用评级 |
 |---|---|---|---|
 | `roughDrawingTool.js` | rough.js 画线/箭头/几何图形引擎；区域边界越界校验 | `getRoughDrawingAgentTools` / `prepareRoughDrawingAction` / `validateRoughDrawingRegion` / `ROUGH_DRAWING_REGIONS` | 核心，已跑通 |
-| `roughNotationTool.js` | rough-notation 文本标记（underline/highlight/circle/bracket）；依赖文本目标定位 | `getRoughNotationAgentTool` / `prepareRoughNotationAction` / `validateRoughNotationAction` | 核心，**仅 question 区可用**（见风险 R1） |
+| `roughNotationTool.js` | rough-notation 文本标记（underline/highlight/circle/bracket）；依赖文本目标定位 | `getRoughNotationAgentTool` / `prepareRoughNotationAction` / `validateRoughNotationAction` | 核心；三区标记已由 RealBoardPreview L3 锚点修复（R1 降级 P3） |
 | `handActionScheduler.js` | 手部动作串行调度器：互斥锁 + 订阅/状态机，保证板书动作顺序播放 | `createHandActionScheduler` | 核心，已跑通 |
 | `boardToolCatalog.js` | 工具目录（Agent 可见 schema）+ 运行时 prepare/enqueue；唯一装配点 | `getAgentBoardToolCatalog` / `createBoardToolRuntime` / `validateBoardToolAction` | 核心装配点 |
 | `boardToolTiming.js` | 时序控制与 seed（确定性播放，避免字体/坐标漂移） | 时序/seed 工具 | 核心，全程序控制 |
 | `textTargetRegistry.js` | 文本标记目标注册：按 `region + exactText + occurrence` 定位 DOM 锚点 | `createTextTargetRegistry` / `VALID_REGIONS` | 核心支撑 |
-| `drawIntentTool.js` | draw 意图工具：schema + 校验 | `getDrawIntentAgentTool` / `validateDrawIntentAction` / `DRAW_INTENT_TOOL_ID` | **执行路径死重**（见风险 R2） |
-| `boardTypography.js` | 字体配置 + 手写范围断言（`assertHandwritingScope`） | 字体加载 / 范围校验 | 已冻结待独立播放器 |
-| `boardTypography.css` | 字体 CSS（冻结） | — | 静态资源 |
+| `drawIntentTool.js` | draw 意图工具：schema + 校验 + 真实执行 | `getDrawIntentAgentTool` / `validateDrawIntentAction` / `prepareDrawIntentAction` / `DRAW_INTENT_TOOL_ID` | 核心（R2 已失效，boardToolCatalog 挂真实执行） |
 
 ### 1.2 渲染层 `src/components/`
 

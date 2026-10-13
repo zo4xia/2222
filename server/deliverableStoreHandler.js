@@ -183,13 +183,13 @@ export function writeDeliverableFile(data) {
   const hbp = data.boardPlan || data.zoneAnchors || fallbackBoardPlan
   // ★ 2026-10-13 归一化：删掉历史手写 fontSize/lineHeight/boardSpeed 副本
   // （曾为“被 ...defaultHcp 覆盖的死值”，px:35+尖尖体是陷阱；真源唯一 = stepHandoff.buildCanvasParams）
-  // canvasWidth/canvasHeight 为下游消费的异名键，改由 CANVAS_SIZE 插值，不再写字面值
+  // ★ 2026-10-13 第五轮：canvasWidth/canvasHeight 异名键亦删除——全仓属性读取零命中
+  // （下游 RealBoardPreview/BoardContentLayer/AgentBDirect 全读 canvasSize.width/height），
+  // 此前“下游消费的异名键”注释与事实不符，属注释谎言
   const defaultHcp = buildCanvasParams()
   const rawCanvasParams = data.canvasParams || {}
   const canvasParams = {
     source: 'handoff (Agent A 根据题目实时判断，为唯一真相源)',
-    canvasWidth: CANVAS_SIZE.width,
-    canvasHeight: CANVAS_SIZE.height,
     ...defaultHcp,
     ...rawCanvasParams,
   }

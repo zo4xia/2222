@@ -11,7 +11,7 @@
 | 文本标记 | rough-notation（underline/highlight/circle/bracket） | 已引入 |
 | 渲染 | Vue 3 SFC（BoardContentLayer / RealBoardPreview） | L1–L4 叠层 |
 | 调度 | 自研 handActionScheduler（串行互斥 + 订阅） | 无外部依赖 |
-| 字体 | 手写体（boardTypography 配置 + CSS 冻结） | 待独立播放器 |
+| 字体 | 手写体（真源 stepHandoff.js HANDWRITING_* 常量 + ZeoSeven CDN 507） | 平方乔木体主字体，6 级降级栈 |
 | 坐标体系 | 画布百分比（0–100，左上原点）+ region 边界 | boardLayout / canvasCoords |
 
 ## 二、初始状态图（Mermaid）

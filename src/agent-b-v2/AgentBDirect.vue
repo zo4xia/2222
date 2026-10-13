@@ -59,13 +59,7 @@ import { showGlobalLoading, hideGlobalLoading } from '../services/globalLoading.
 import {
   QUESTION_FONT_SIZE,
   QUESTION_LINE_HEIGHT,
-  BOARD_FONT_SIZE,
-  BOARD_FONT_RATIO_TEXT,
-  HANDWRITING_FAMILY,
   CANVAS_SIZE,
-  LINE_HEIGHT_RULE,
-  BOARD_SPEED_CHARS_PER_SEC,
-  BOARD_SPEED_JITTER,
   buildCanvasParams,
 } from '../services/stepHandoff.js'
 // ponytail: 拆分 composables (从 AgentBDirect.vue 抽出纯逻辑)
@@ -1321,27 +1315,11 @@ function serializeCurrentDeliverableState() {
     keepOriginal: Boolean(handoff.value?.keepOriginal),
     screenshotUrl: handoff.value?.screenshotUrl || '',
     topicLayout: handoff.value?.topicLayout || null,
-    // handoff 画布参数（唯一真相源）
+    // ★ 2026-10-13 归一化：删掉手写 canvasParams 副本（fontSize/lineHeight/boardSpeed 等
+    // 全被 ...hcp 覆盖 = 死值陷阱，canvasWidth/Height 异名键全仓零消费）
+    // 真源唯一 = stepHandoff.buildCanvasParams（hcp 的 fallback 本身就是它）
     canvasParams: {
       source: 'handoff (Agent A 根据题目实时判断，为唯一真相源)',
-      canvasWidth: CANVAS_SIZE.width,
-      canvasHeight: CANVAS_SIZE.height,
-      coordinateSystem: '百分比坐标 0-100',
-      fontSize: {
-        question: { px: QUESTION_FONT_SIZE, family: `微软雅黑（印刷体，${QUESTION_FONT_SIZE}px）`, color: '黑色' },
-        // ★ Task 10: 字号 35 → 38 (甲方 2026-09-17 拍板); 字体 LikeJianJianTi → 平方乔木体 (CDN 507)
-        analysis: { px: BOARD_FONT_SIZE, family: `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`, color: '红色' },
-        solution: { px: BOARD_FONT_SIZE, family: `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`, color: '黑色' },
-        summary: { px: BOARD_FONT_SIZE, family: `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`, color: '黑色' },
-      },
-      lineHeight: {
-        question: QUESTION_LINE_HEIGHT,
-        // ★ Task 10: 板书行高 1.7±随机（区间 1.55~1.85，下游渲染职责）
-        others: LINE_HEIGHT_RULE,
-      },
-      // ★ Task 10: 板书速度 1秒2-3字 + ±5% 抖动 + 自适应加速
-      boardSpeed: `下游渲染参数：1秒约${BOARD_SPEED_CHARS_PER_SEC}个汉字，每行±${BOARD_SPEED_JITTER * 100}%轻微抖动；书写时长超出音频窗口时自适应加速压进音频内（音频=行时长唯一主时钟）`,
-      actionSpeed: '差不多同样速度（rough-line/rough-arrow/rough-notation绘制速度）',
       ...hcp,
     },
     // handoff 四区布局（真相源）+ Label 坐标（row-player 标签贴纸位置真源）
