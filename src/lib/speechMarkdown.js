@@ -93,7 +93,7 @@ export function buildStandardExplainParamsSection(meta = {}) {
     '| 参数 | 值 |',
     '| --- | --- |',
     '| 坐标计算方式 | 百分比 |',
-    '| 题目字号（UI） | 30px |',
+    `| 题目字号（UI） | ${QUESTION_FONT_SIZE}px |`,
     '| 题目字体（UI） | `"Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif` |',
     '| 音频速度 | （若有音频url的，以音频自然播放时间为时间，一组一组自然播放即可，如果没有音频url信息的，用填充演示数据占位，）速度计算 160字/分 |',
     '',

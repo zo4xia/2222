@@ -1,5 +1,39 @@
 # 工程日志
 
+## 2026-10-13 第四轮：画布宪法对齐（真源演绎定义统一 + 误导字体档案勘误）
+
+**背景与口径**：
+- 夏夏令"先对齐画布真·唯一演绎定义、字体字号这些，路途上看到不对的连根砍"。
+- 真源宪法 = `src/services/stepHandoff.js` L19-64：CANVAS_SIZE 1726×980 / QUESTION_FONT_SIZE 30 / BOARD_FONT_SIZE 38 / QUESTION_LINE_HEIGHT 1.65 / BOARD_LINE_HEIGHT 1.7±(1.55-1.85) / HANDWRITING_FAMILY 平方乔木体(CDN 507) / BOARD_SPEED 2.5字每秒±5%。本轮以它为基准全仓审计所有出现点。
+
+**执行步骤**：
+1. 全仓扫 1726/980/字体名/字号字面值，按"数据流插值 / 模板文案 / CSS 平行值 / 受控镜像 / prompt 军规文本"五类分诊。
+2. skills/ 档案层（7 skill 展示档案，非运行时——运行时动态加载只有 src/agent-b-v2/skills/ 三件套）旧字体世界观勘误。
+3. 镜像抽验：row-player（播放器真相源）与 lite-player（自声明孤儿/历史参考）字体链一致性核查。
+
+**代码变更**：
+- 字面值归一 9 处（全部改 stepHandoff 真源 import 插值）：AgentBDirect.vue 4 处（boardPlan.canvas `{w:1726,h:980}` → CANVAS_SIZE 插值、uiSettings questionFontSize '30px'、specAnnotation 批注、2 处模板文案）；speechMarkdown.js 1 处（导出 MD 表 '30px'）；BoardPreviewApp.vue 4 处模板文案（补 CANVAS_SIZE import）。
+- 档案勘误：board-speech-rules/SKILL.md 三区字体"手写尖尖体（LikeJianJianTi）"→ 平方乔木体(CDN 507)；handwriting-font-policy 三件（SKILL.md + meta.json + demo.html）全面对齐真源——顶部加时代勘误声明、字体表对齐 6 级降级栈（补 509 韶拓体）、臆造引用修正（boardTypography.js→stepHandoff.js / assertHandwritingScope→skillViolations.js 实况）、死路径标注（/fonts/pingfang-qiaomu.ttf 从未存在）、localStorage 方案标注未接线。
+- 断链修复：skills/README.md 两处丢 `[h` 的 markdown 断链（handwriting-font-policy/hand-action-control）+ 沉淀来源 3 处臆造引用修正（boardTypography.js/boardMathPolicy.js 均不存在→真实源）+ 字体优先级行对齐。
+- 镜像同步：row-player.html L166"手写尖尖体"文案 → 平方乔木体（真相源修正），public/row-player.html 逐字节同步（md5 一致确认）。
+- 连根砍：public/fonts/ 整目录（误放的外部 AI 工具 web-design-engineer SKILL.md，TTF 死路径目录）。
+
+**发现和确认**：
+- lite-player.html 头部自我声明"孤儿文件/非真相源/改交付行为请改 row-player"——其用 157/490/511/510/509 五族 + boardFont:LikeJianJianTi 渲染是**自洽的历史参考设计**（有防护声明，非误导）。本轮曾误改后识别宪法冲突，已 git checkout 回滚原样——**对齐≠无差别拉平，孤儿档案按其自我声明处置**。
+- handwriting-font-policy 的 localStorage key `qinghuabu.boardTypography.v1` 全仓零消费者（未接线方案又一起）；其引用的 assertHandwritingScope/ensureHandwritingFont/boardTypography.js 全部不存在——skill 档案层最大臆造引用窝点，本轮已逐一勘误标注。
+- 运行时字体链核实：row-player（真相源）6 链齐全 507 为主；产品主链 buildCanvasParams 的 fontSource.handwriting 完整携带 fontStack+cssHref+fallbacks；RealBoardPreview.vue 字体栈与真源逐项一致（受控平行定义）。
+- CSS 层 aspect-ratio: 1726/980（BoardPreviewApp/AgentBDirect）与 HTML canvas width/height 属性为受控平行值（CSS 无法 import JS 常量，值与真源一致），保留并在此备案。
+
+**验证结果**：
+- run-all-tests 6/6（superFilter 93/93）；npm run build 成功（模板插值编译验证）；productionServer health 200。
+- 数据流 1726/980/30px/38px 字面值清零（仅剩 CSS aspect-ratio、canvas HTML 属性、HTML 注释）；"尖尖体"旧称谓全仓清零；镜像 md5 一致。
+
+**接力棒**：
+- 画布宪法（尺寸/字号/字体/行高/速度）全仓对齐完成，下潜业务流抓跳蚤的地图与参数基准均已可信：R1（P1 三区标记必崩）/R3（P3 L4 空层）/R5（P2 无断点续播）。
+- 若将来加本地字体或用户字体偏好：参考 handwriting-font-policy 六章 @font-face 档案写法，以 stepHandoff 常量扩展，勿再手抄降级栈。
+
+---
+
 ## 2026-10-13 第三轮清理：孤岛死模块簇 13 项（写了没接线的坑）
 
 **背景与口径**：

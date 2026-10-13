@@ -1314,7 +1314,7 @@ function serializeCurrentDeliverableState() {
     apiSpecVersion: '2.0.0',
     apiDocUrl: '/deliverable/DELIVERABLE_API_SPEC.md',
     specificationSummary: '每个 row 为一组原子单元；语音全程；板书与动作二者绝对互斥；动作时长定量 1~2 秒作为标点停顿。供下游课件制作与画布 Agent 直接消费。',
-    specAnnotation: '画布规格批注：尺寸 1726x980、比例、题目/板书字号、stage 四区坐标落座区间、越界与手稿风格。',
+    specAnnotation: `画布规格批注：尺寸 ${CANVAS_SIZE.width}x${CANVAS_SIZE.height}、比例、题目/板书字号、stage 四区坐标落座区间、越界与手稿风格。`,
     projectCode: code,
     problemText: handoff.value?.problemText || '',
     sourceImageUrl: handoff.value?.sourceImageDataUrl || handoff.value?.sourceImageUrl || '',
@@ -1346,7 +1346,7 @@ function serializeCurrentDeliverableState() {
     },
     // handoff 四区布局（真相源）+ Label 坐标（row-player 标签贴纸位置真源）
     boardPlan: {
-      canvas: { w: 1726, h: 980 },
+      canvas: { w: CANVAS_SIZE.width, h: CANVAS_SIZE.height },
       topicLabel: hbp.topicLabel || { x: 5.7, y: 6.6, w: 7.1 },
       question: { x: hbp.question?.x ?? 6, y: hbp.question?.y ?? 13.32, w: hbp.question?.w ?? 40.32, h: hbp.question?.h ?? '' },
       analysisLabel: hbp.analysisLabel || { x: 5.7, y: 34.5, w: 7.2 },
@@ -1360,7 +1360,7 @@ function serializeCurrentDeliverableState() {
     // UI 可调参数（B 页面设置）
     uiSettings: {
       coordinateMode: '百分比',
-      questionFontSize: '30px',
+      questionFontSize: `${QUESTION_FONT_SIZE}px`,
       questionFontFamily: '"Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
       audioSpeedPolicy: '（若有音频url的，以音频自然播放时间为时间，一组一组自然播放即可，如果没有音频url信息的，用填充演示数据占位，）速度计算 160字/分',
     },
@@ -1690,7 +1690,7 @@ function isRefineFieldEqual(original, refined) {
             <span class="handoff-stat-tag">画布分区 {{ handoff?.boardPlan ? 4 : 0 }} 个</span>
             <span class="handoff-stat-tag">知识参考 {{ relatedKnowledge.length }} 条</span>
             <span class="handoff-stat-tag">建议年级 {{ handoff?.suggestedGrade || '未判断' }}</span>
-            <span class="handoff-stat-tag">标准真画布 1726×980</span>
+            <span class="handoff-stat-tag">标准真画布 {{ CANVAS_SIZE.width }}×{{ CANVAS_SIZE.height }}</span>
           </div>
 
 
@@ -2132,7 +2132,7 @@ function isRefineFieldEqual(original, refined) {
             <div class="params-panel-controls">
               <div class="param-control-item">
                 <span class="param-coord-pill">
-                  📐 标准真画布 1726×980 (16:9) · 四区百分比坐标系
+                  📐 标准真画布 {{ CANVAS_SIZE.width }}×{{ CANVAS_SIZE.height }} (16:9) · 四区百分比坐标系
                 </span>
               </div>
 
@@ -3251,7 +3251,7 @@ function isRefineFieldEqual(original, refined) {
           </div>
           <div class="meta-item">
             <span class="meta-label">真画布规格:</span>
-            <span class="meta-value">1726 × 980 (16:9 标准比例锁定)</span>
+            <span class="meta-value">{{ CANVAS_SIZE.width }} × {{ CANVAS_SIZE.height }} (16:9 标准比例锁定)</span>
           </div>
           <div class="meta-item">
             <span class="meta-label">已固化时序:</span>

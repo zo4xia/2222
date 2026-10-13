@@ -42,6 +42,7 @@ import {
   QUESTION_FONT_SIZE,
   BOARD_FONT_SIZE,
   HANDWRITING_FAMILY,
+  CANVAS_SIZE,
 } from '../services/stepHandoff.js'
 import {
   exportSpeechMarkdown as doExportSpeechMarkdown,
@@ -843,7 +844,7 @@ function getStageTagColor(stage) {
             <div class="metric-icon bg-amber"><CompassOutlined /></div>
             <div class="metric-content">
               <span class="metric-label">画布标准</span>
-              <span class="metric-value">1726 × 980</span>
+              <span class="metric-value">{{ CANVAS_SIZE.width }} × {{ CANVAS_SIZE.height }}</span>
             </div>
           </div>
         </div>
@@ -896,7 +897,7 @@ function getStageTagColor(stage) {
               </template>
 
               <template v-if="activeTab === 'coords'">
-                <span class="spec-hint-badge">画布物理基准: 1726 × 980 (16:9 课件演播室)</span>
+                <span class="spec-hint-badge">画布物理基准: {{ CANVAS_SIZE.width }} × {{ CANVAS_SIZE.height }} (16:9 课件演播室)</span>
               </template>
 
               <template v-if="activeTab === 'json'">
@@ -979,14 +980,14 @@ function getStageTagColor(stage) {
               <!-- 右侧：四区规格与百分比绝对值对照表 -->
               <div class="coords-card zones-table-card">
                 <div class="card-sub-header">
-                  <span class="sub-title">🎯 四大区域规划参数 (1726 × 980 · 达芬奇手稿风格)</span>
+                  <span class="sub-title">🎯 四大区域规划参数 ({{ CANVAS_SIZE.width }} × {{ CANVAS_SIZE.height }} · 达芬奇手稿风格)</span>
                 </div>
                 <table class="zones-data-table">
                   <thead>
                     <tr>
                       <th>区域名称</th>
                       <th>相对百分比 (X%, Y%, W%, H%)</th>
-                      <th>绝对像素坐标 (1726×980)</th>
+                      <th>绝对像素坐标 ({{ CANVAS_SIZE.width }}×{{ CANVAS_SIZE.height }})</th>
                       <th>功能定义</th>
                     </tr>
                   </thead>

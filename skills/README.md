@@ -33,11 +33,11 @@
 源码:
   src/utils/boardLayout.js          → board-zone-layout
   src/utils/canvasCoords.js         → board-zone-layout
-  src/services/boardMathPolicy.js   → board-zone-layout
+  src/utils/boardLayout.js (BOARD_LAYOUT) → board-zone-layout
 
-  src/board-tools/boardTypography.js     → handwriting-font-policy
+  src/services/stepHandoff.js (HANDWRITING_* 真源常量) → handwriting-font-policy
   src/board-tools/boardTypography.css    → handwriting-font-policy
-  https://fonts.zeoseven.com/items/490/   → handwriting-font-policy (栗壳坚坚体)
+  https://fontsapi.zeoseven.com/507/      → handwriting-font-policy (平方乔木体·现行主字体)
 
   src/board-tools/handActionScheduler.js → hand-action-control
   src/board-tools/boardToolCatalog.js    → hand-action-control
@@ -156,7 +156,7 @@
 |---|---|
 | 画布尺寸 | `handoff.canvasParams` > `board-zone-layout` 默认值 |
 | 四区坐标 | `handoff.boardPlan` + `zoneAnchors` > 默认 BOARD_LAYOUT |
-| 字体选择 | 用户 localStorage > `handwriting-font-policy` 默认 `qiaomu-local` |
+| 字体选择 | `stepHandoff.js` HANDWRITING_FONT_STACK（主=平方乔木体 CDN 507） > 降级栈 |
 | 动作时长 | 程序计算 > Agent 填写（Agent 填了直接拒） |
 | 口播时长 | 程序估算 (160cpm + 标点) > TTS 真实回填 > Agent 填写 |
 | 坐标格式 | `coordinateMode`（单独传入） > 固定百分比 |

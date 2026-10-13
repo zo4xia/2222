@@ -8,11 +8,13 @@ trigger: "选择板书字体/加载 ZeoSeven 远程字体/校验字体层级越�
 
 # 板书手写字体加载与层级锁定
 
+> **⚠ 时代勘误（2026-10-13 对齐）**：本 skill 蒸馏自 boardTypography.js 时代，该文件已移除；原"本地 TTF qiaomu-local + localStorage 偏好"方案**从未接线**（localStorage key 零消费者）。现行真源 = `src/services/stepHandoff.js` 的 `HANDWRITING_FAMILY / HANDWRITING_FONT_STACK / HANDWRITING_CSS_HREF(_FALLBACKS)` 常量：**主字体=平方乔木体（ZeoSeven CDN 507 remote-css）**，栗壳坚坚体(490)为降级栈第 6 位。层级锁定原则（L1 印刷体/L3 手写体）仍活，现行校验位置=`src/check-agent/skillViolations.js`。本文 ZeoSeven 加载方法与授权条款仍有效。
+
 > *"第1步已确认题目是不可变资产；禁止改题文、题目字体、题目位置或尺寸。手写体只活在 L3 板书层。"*
 
 ## 蒸馏合同
 
-`Distill [板书手写字体加载与层级锁定] as a [workflow] pack so it can help with [Agent B 字体选择策略 / 渲染层字体加载 / Check Agent 校验层级越权], using [src/board-tools/boardTypography.js + src/board-tools/boardTypography.css + https://fonts.zeoseven.com/items/490/ (栗壳坚坚体)], while respecting [L3 板书层独占手写体 / 题目层永久印刷体 / 教育与培训用途允许商用 / 字体不可改名再分发].`
+`Distill [板书手写字体加载与层级锁定] as a [workflow] pack so it can help with [Agent B 字体选择策略 / 渲染层字体加载 / Check Agent 校验层级越权], using [src/services/stepHandoff.js (HANDWRITING_* 真源常量) + src/board-tools/boardTypography.css + https://fontsapi.zeoseven.com/507/ (平方乔木体·现行主字体)], while respecting [L3 板书层独占手写体 / 题目层永久印刷体 / 教育与培训用途允许商用 / 字体不可改名再分发].`
 
 ---
 
@@ -20,13 +22,19 @@ trigger: "选择板书字体/加载 ZeoSeven 远程字体/校验字体层级越�
 
 ### 1.1 默认字体表
 
-| id | label | family | source | href / path |
+与 `stepHandoff.js` 的 `HANDWRITING_FONT_STACK` 同序降级栈（CDN href 一一对应）：
+
+| 序 | label（=真源 family 名） | source | href / path | 地位 |
 |---|---|---|---|---|
-| `qiaomu-local` | 平方乔木体 | `Qinghuabu Qiaomu` | `local` (TTF) | `/fonts/pingfang-qiaomu.ttf` |
-| `pingfang-shaohua` | 平方韶华 | `PING FANG SHAO HUA` | `remote-css` | `https://fontsapi.zeoseven.com/157/main/result.css` |
-| `like-jianjianti` | 片刻见见体（栗壳坚坚体） | `LikeJianJianTi` | `remote-css` | `https://fontsapi.zeoseven.com/490/main/result.css` |
-| `pingfang-shangshangqian` | 平方上上签 | `PING FANG SHAGN SHANG QIAN` | `remote-css` | `https://fontsapi.zeoseven.com/511/main/result.css` |
-| `pingfang-sansheng` | 平方三生 | `PING FANG SAN SHENG` | `remote-css` | `https://fontsapi.zeoseven.com/510/main/result.css` |
+| 1 | 平方乔木体 | `remote-css` | `https://fontsapi.zeoseven.com/507/main/result.css` | **主字体（现行）** |
+| 2 | 平方韶华体 | `remote-css` | `https://fontsapi.zeoseven.com/157/main/result.css` | 降级 |
+| 3 | 平方上上谦体 | `remote-css` | `https://fontsapi.zeoseven.com/511/main/result.css` | 降级 |
+| 4 | 平方三生体 | `remote-css` | `https://fontsapi.zeoseven.com/510/main/result.css` | 降级 |
+| 5 | 平方韶拓体（PingFangSaTuoTi） | `remote-css` | `https://fontsapi.zeoseven.com/509/main/result.css` | 降级 |
+| 6 | 栗壳坚坚体（LikeJianJianTi） | `remote-css` | `https://fontsapi.zeoseven.com/490/main/result.css` | 降级（原主字体） |
+| — | KaiTi / STKaiti / PingFang SC / serif | 系统 | — | 栈尾系统兜底 |
+
+> 历史注：旧表的 `qiaomu-local`（`/fonts/pingfang-qiaomu.ttf` 本地 TTF）路径在仓库中不存在，且 family 名 `Qinghuabu Qiaomu` 不在真源 fontStack——已删除该行。
 
 ### 1.2 栗壳坚坚体（id=490）详情
 
@@ -74,7 +82,9 @@ HTML 方式（推荐渲染层用，便于 `crossOrigin` 与懒加载控制）：
 | **L3** | **板书层（analysis / solution / summary 的 board 内容）** | **手写体（5 选 1）** | ✅ 用户可切换 | ❌ 不涉及题文 |
 | L4 | 用户透明层（手写体浮层、注释） | — | — | — |
 
-### 2.2 层级越权校验（assertHandwritingScope）
+### 2.2 层级越权校验（时代注：函数已移除）
+
+> `assertHandwritingScope` 原实现于 `src/board-tools/boardTypography.js`，该文件已移除。现行层级校验在 `src/check-agent/skillViolations.js`（question 区手写越权软提示 + 读题行 board.content 应为空）。以下为时代档案快照：
 
 ```js
 assertHandwritingScope({ layer: 'L3', region: 'analysis' })
@@ -90,10 +100,10 @@ assertHandwritingScope({ layer: 'L3', region: 'question' })
 ### 2.3 字体风格 fallback 链
 
 ```js
-fontFamily: `"LikeJianJianTi", "KaiTi", "STKaiti", cursive`
+fontFamily: HANDWRITING_FONT_STACK  // stepHandoff.js 真源: "平方乔木体","平方韶华体","平方上上谦体","平方三生体","PingFangSaTuoTi","LikeJianJianTi",KaiTi,STKaiti,"PingFang SC",serif
 ```
 
-> 必须保留 `KaiTi / STKaiti / cursive` fallback，远程字体加载失败时降级为系统楷体，保持手写感不断。
+> 必须保留栈尾 `KaiTi / STKaiti / serif` fallback，远程字体加载失败时逐级降级，保持手写感不断。渲染层实参考 `src/components/RealBoardPreview.vue`（与真源逐项一致的受控平行定义）。
 
 ---
 
@@ -161,7 +171,9 @@ export async function ensureHandwritingFont(fontId) {
 
 ---
 
-## 四、字体偏好持久化
+## 四、字体偏好持久化（方案档案·未接线）
+
+> **时代注**：本节方案从未接线（`qinghuabu.boardTypography.v1` 全仓零消费者）。现行字体选择无用户态持久化，由真源常量 + 降级栈自动处理。
 
 ### 4.1 localStorage 存储
 
@@ -175,9 +187,9 @@ saveBoardTypographyConfig({ fontId: 'like-jianjianti' })
 // → localStorage.setItem(STORAGE_KEY, JSON.stringify({ fontId }))
 ```
 
-### 4.2 默认字体
+### 4.2 默认字体（现行）
 
-`DEFAULT_HANDWRITING_FONT_ID = 'qiaomu-local'`（本地 TTF，零网络依赖，首屏不闪）
+主字体 = `HANDWRITING_FAMILY = '平方乔木体'`（ZeoSeven CDN 507 remote-css，`link rel=stylesheet` + onload 模式加载，不阻塞首屏）
 
 ---
 
@@ -219,9 +231,9 @@ saveBoardTypographyConfig({ fontId: 'like-jianjianti' })
 
 ---
 
-## 六、本地 TTF 字体（@font-face 写法）
+## 六、本地 TTF 字体（时代档案·路径已死）
 
-`/public/fonts/pingfang-qiaomu.ttf` 的 CSS：
+> **时代注**：`/public/fonts/pingfang-qiaomu.ttf` 在仓库中不存在（`public/fonts/` 现仅含一份误放的外部工具文件），本地 TTF 方案从未落地。现行全部走 ZeoSeven remote-css。以下为 @font-face 写法档案（若将来真加本地字体可参考）：
 
 ```css
 @font-face {
@@ -239,9 +251,9 @@ saveBoardTypographyConfig({ fontId: 'like-jianjianti' })
 
 ## 七、与 handoff JSON 的对接
 
-### 7.1 handoff 不传字体，由用户态决定
+### 7.1 handoff 携带 fontSource（现行事实）
 
-`handoff JSON` 中**不包含字体字段**。字体由用户在画布 UI 上的"板书字体"下拉切换，存 localStorage。
+`handoff.canvasParams.fontSource.handwriting` 携带真源字体配置（family / fontStack / cssHref / cssHrefFallbacks / loadSnippet），由 `buildCanvasParams()` 从 stepHandoff 常量生成。不存在用户态字体下拉。
 
 ### 7.2 字号基准与字体协同
 
@@ -258,8 +270,8 @@ saveBoardTypographyConfig({ fontId: 'like-jianjianti' })
 
 | 反模式 | 现象 | 修正 |
 |---|---|---|
-| 用手写体写题目 | question 区被改成 LikeJianJianTi | `assertHandwritingScope({layer:'L1'})` 抛错阻断 |
-| 改字体保留名 | 把 `LikeJianJianTi` 改名 `MyFont` | 授权条款禁止，Check Agent 校验保留名 |
+| 用手写体写题目 | question 区被改成手写体 | `src/check-agent/skillViolations.js` 软提示（原 boardTypography.js 硬断言已随文件移除） |
+| 改字体保留名 | 把 `LikeJianJianTi` 改名 `MyFont` | 授权条款禁止（保留名以真源 fontStack 为准） |
 | 不带 fallback | remote-css 加载失败时整段空白 | 必须保留 `KaiTi, STKaiti, cursive` fallback |
 | 不 crossOrigin | canvas 截图时字体被 tainted 拒绝 | `link.crossOrigin = 'anonymous'` |
 | 重复挂 link | 每次切换都 appendChild | `link.id` 去重 + `link.sheet` 判定跳过 await |
@@ -271,11 +283,11 @@ saveBoardTypographyConfig({ fontId: 'like-jianjianti' })
 ## 九、快速参考
 
 ```
-默认字体: qiaomu-local (本地 TTF, 零网络依赖)
-栗壳坚坚体: like-jianjianti, href=fontsapi.zeoseven.com/490/main/result.css
-层级: L1 题目层=印刷体(永久) / L3 板书层=手写体(5选1)
-加载: link rel=stylesheet + crossOrigin=anonymous + document.fonts.load 双保险
-fallback: "LikeJianJianTi", "KaiTi", "STKaiti", cursive
+主字体: 平方乔木体 (ZeoSeven CDN 507 remote-css, stepHandoff.js HANDWRITING_FAMILY)
+降级栈: 507 → 157 → 511 → 510 → 509(PingFangSaTuoTi) → 490(LikeJianJianTi) → KaiTi/STKaiti/serif
+层级: L1 题目层=印刷体(永久) / L3 板书层=手写体(栈内降级,非用户选)
+加载: link rel=stylesheet + onload=stylesheet + 多 CDN 降级 (真源 loadSnippet)
+fallback: HANDWRITING_FONT_STACK (真源常量, 勿手抄)
 授权: 教育与培训允许 ✅ / 修改衍生待释明 / 不改字体保留名
-持久化: localStorage 'qinghuabu.boardTypography.v1' = { fontId }
+持久化: 无 (localStorage 方案未接线, 已标注档案)
 ```

@@ -1,5 +1,14 @@
 # 重要决策
 
+## 2026-10-13 画布宪法唯一演绎：真源插值 + 孤儿档案自洽原则
+- **决策**：画布渲染参数（尺寸 1726×980 / 字号 30px·38px / 行高 / 平方乔木体 CDN 507 降级栈）以 `src/services/stepHandoff.js` 为唯一真源，数据流与模板文案层字面值全部改 import 插值；CSS 层（aspect-ratio 等）作为受控平行值备案保留。
+- **背景**：夏夏令"对齐画布真·唯一演绎定义"。审计发现 boardPlan.canvas 手写 `{w:1726,h:980}` 藏在真源插值区旁（Task 5 漏网）、uiSettings/导出 MD 的 '30px' 字符串字面值、skills 档案整窝旧字体世界观（尖尖体/490 主字体/死路径 TTF/臆造函数引用）。
+- **关键裁决——lite-player 回滚**：lite-player.html 自我声明"孤儿文件/非真相源/字体看 stepHandoff/改行为请改 row-player"，其 490 渲染是有防护声明的自洽历史参考。本轮误改（补 507 link + boardFont 改平方乔木体）后识别宪法冲突，git checkout 回滚——**对齐不等于无差别拉平，带防护声明的孤儿档案按其自我声明处置**。
+- **理由**：宪法唯一演绎 = 修改一处全局生效。字面值残留是"改了真源没改副本"的漂移温床；但孤儿档案的价值恰恰在于如实保存历史状态，拉平它反而销毁信息且违反其自身声明。
+- **风险**：CSS aspect-ratio 与 canvas HTML 属性是平行值（CSS 无法 import JS 常量），真源变更时需手动同步——已在 ENGINEERING_LOG 备案两处位置。
+- **验证**：run-all-tests 6/6 + build + health 200；字面值清点（数据流零残留、尖尖体全仓清零）；row-player 与 public 镜像 md5 一致。
+- **关联文件**：`src/agent-b-v2/AgentBDirect.vue`、`src/lib/speechMarkdown.js`、`src/board-preview/BoardPreviewApp.vue`、`skills/`（board-speech-rules + handwriting-font-policy 三件 + README）、`row-player.html` + `public/row-player.html`。
+
 ## 2026-10-13 孤岛死模块的判定标准：消费链事实 > 注释/文档声称
 - **决策**：删除 13 项零消费死模块（canvas 死链簇 4 + 未接线半成品簇 4 + services 假封装簇 5），判定唯一依据是**消费链事实**（跨文件 import/引用计数 + npm scripts 挂载 + vite/HTML 入口 + 施工索引登记四重验证），注释和文档声称的职能一律不作为存活证据。
 - **背景**：`docs/canvas-board-text.md` 声称 canvasBoardField.js 是"画布板书唯一入口"，实际板书主链走 contract.js#normalizeBoard + superFilter，该模块代码消费者为零；`dualStore.js` 注释声称"消除 AgentBDirect 重复模式"从未接线；`verifyDeliverableTruthSource.mjs` 头部声称"可复跑"，实跑 SyntaxError（import 了 speechMarkdown.js 不存在的导出）——四份"说谎的注释/文档"是本轮最大共性。

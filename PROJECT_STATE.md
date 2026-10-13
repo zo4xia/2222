@@ -105,6 +105,8 @@ agentBDraftResult.js / agentBContract.js
 
 第三轮（同日，孤岛死模块簇 13 项）：全模块消费链孤岛扫描实锤——`docs/canvas-board-text.md`（虚构 canvasBoardField 唯一入口地位）+ `src/utils/canvasBoardField.js`（零消费者、superCleanBoardField 与 superFilter 真源同名双定义）+ `src/utils/canvasText.js`（唯一消费者是死物）+ `scripts/verifyDeliverableTruthSource.mjs`（import 不存在导出、从未跑通）为 canvas 死链簇；`src/lib/apiConfigStoreFactory.js`、`dualStore.js`、`simpleIndexedDb.js`、`src/utils/lectureRecorder.js` 为未接线半成品簇（注释声称的收敛职能从未落地）；`src/services/` 四份 fetch 封装（deliverable/cleanup/knowledgeRefine/tts）被前端直接 fetch 绕过；`server/smokeTest.js` 无 npm 挂载无锚点登记。判活三关（vite 入口 / npm scripts 挂载 / 施工索引登记）保护了 proxySelfCheck、agentAKnowledgeSelfCheck、recognitionClient、stepHandoff 等活模块。`docs/` 目录清空移除。
 
+第四轮（同日，画布宪法对齐）：stepHandoff.js 真源常量（1726×980/30px/38px/1.65/1.7±/平方乔木体 CDN 507）全仓演绎归一——数据流字面值 9 处改 import 插值（AgentBDirect 4 + speechMarkdown 1 + BoardPreviewApp 4）；skills 档案层旧字体世界观勘误（board-speech-rules 尖尖体×3、handwriting-font-policy 三件套臆造引用窝点、README 断链 2 + 臆造引用 3）；row-player 真相源文案修正 + public 镜像逐字节同步；连根砍 public/fonts/（外部工具误放）。lite-player 孤儿自洽设计回滚保留。
+
 已知问题并入 `SYSTEM_MAP.md` 第五节；收尾流程见 `AGENTS.md`「收尾流程」；git 历史可回溯（`git revert 38b9777`）。
 
 ## API 唯一真相
