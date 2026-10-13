@@ -69,7 +69,7 @@ ok('无 env → 内置默认池两枚', () => {
   assert.equal(keys.length, 2)
   assert.ok(keys.every(k => k.startsWith('sk-fish-')))
 })
-ok('复数 env → 完全替代默认池（不混入死 key）', () => {
+ok('复数 env → 完全替代默认池（不混入默认池）', () => {
   process.env.FISH_AUDIO_API_KEYS = 'k-alpha, k-beta'
   const keys = getApiKeys()
   assert.deepEqual(keys, ['k-alpha', 'k-beta'])
