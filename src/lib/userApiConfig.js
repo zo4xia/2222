@@ -24,14 +24,24 @@ const STORAGE_KEY = 'qinghuabu.userApiConfig.v3'
 const EVENT_NAME = 'qinghuabu:user-api-config-change'
 
 /**
+ * ★ Task 18 env 统一化：部署预设从环境变量注入（vite define 桥，.env 文件或平台 env），
+ * 优先级：UI 用户填写（localStorage）> env 部署预设 > 内置默认（原硬编码 loomex 测试配置）。
+ * 未设时回退内置默认，行为与历史版本完全一致。
+ */
+const PRESET_ENDPOINT = import.meta.env.AI_API_ENDPOINT
+const PRESET_API_KEY = import.meta.env.AI_API_KEY
+const PRESET_MODEL = import.meta.env.AI_API_MODEL
+
+/**
  * 默认测试配置 — loomex 中转站（国内直连可用，Gemini 渠道带 OpenAI 协议转换）。
  * ★ 2026-10-13：从 prorisehub 切换到 loomex——prorisehub 的 Gemini 渠道是原生协议直通，
  * 不认 OpenAI 格式字段（messages/response_format/stream/temperature），会报 400。
+ * ★ Task 18：三值支持 env 预设覆盖（AI_API_ENDPOINT / AI_API_MODEL / AI_API_KEY）。
  */
 export const DEFAULT_USER_API_CONFIG = Object.freeze({
-  endpoint: 'https://www.loomex.space/v1/chat/completions',
-  apiKey: 'sk-eVlHvx23VVyNGqSytiEC3YiJ1QaZnh5RZq1NOJ1EljrE4M3z',
-  model: 'gemini-2.5-flash-lite',
+  endpoint: PRESET_ENDPOINT || 'https://www.loomex.space/v1/chat/completions',
+  apiKey: PRESET_API_KEY || 'sk-eVlHvx23VVyNGqSytiEC3YiJ1QaZnh5RZq1NOJ1EljrE4M3z',
+  model: PRESET_MODEL || 'gemini-2.5-flash-lite',
 })
 
 export function parseApiKeys(apiKeyInput) {

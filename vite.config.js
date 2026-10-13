@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import { dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
 import vue from '@vitejs/plugin-vue'
@@ -52,8 +52,21 @@ function healthPlugin() {
   }
 }
 
-export default defineConfig({
-  plugins: [
+export default defineConfig(({ mode }) => {
+  // ─────────────────────────────────────────────────────────────────────────────
+  // ★ Task 18 env 统一化桥：同一套 .env 文件同时喂三个消费方
+  //   ① 前端 bundle：define 桥把 import.meta.env.AI_API_* 编译期替换为字面量
+  //   ② dev 插件（server/* 代理、fish TTS、UPSTREAM_HOSTS 白名单）：回写 process.env
+  //   ③ 优先级：平台注入 env > .env 文件（回写时不覆盖已存在值）；
+  //      用户在前端 UI 填写的配置（localStorage）优先级始终最高，env 只是“未填时的预设”
+  // ─────────────────────────────────────────────────────────────────────────────
+  const flatEnv = loadEnv(mode, projectRoot, '')
+  for (const [key, value] of Object.entries(flatEnv)) {
+    if (process.env[key] === undefined) process.env[key] = value
+  }
+
+  return {
+    plugins: [
     vue(),
     healthPlugin(),
     createRecognitionProxyPlugin({ knowledgeBase: AGENT_A_KNOWLEDGE_BASE }),
@@ -65,7 +78,13 @@ export default defineConfig({
     deliverableStorePlugin(),
     fishAudioPlugin(),
     cleanupPlugin(),
-  ],
+    ],
+    define: {
+    'import.meta.env.AI_API_ENDPOINT': JSON.stringify(flatEnv.AI_API_ENDPOINT || ''),
+    'import.meta.env.AI_API_MODEL': JSON.stringify(flatEnv.AI_API_MODEL || ''),
+    'import.meta.env.AI_CHECK_MODEL': JSON.stringify(flatEnv.AI_CHECK_MODEL || ''),
+    'import.meta.env.AI_API_KEY': JSON.stringify(flatEnv.AI_API_KEY || ''),
+    },
   // ★ Task 12: optimizeDeps 不再 exclude 任何包，让 vite 预打包 vendor 到 .vite/deps
   // 这样 dev 模式 HMR 正常 (vite 注入的 __VUE_HMR_RUNTIME__ 由本地 vue dev 版提供)
   server: {
@@ -78,16 +97,17 @@ export default defineConfig({
     port: 3000,
     allowedHosts: true,
   },
-  build: {
-    rollupOptions: {
-      // 2026-10-13 第七轮：agent-b-v2.html 重复入口退役（与 index.html 挂同一 DirectFlow，
-      // 业务流唯一入口 = index.html；board-preview.html 为全屏预览按钮直连页）
-      input: {
-        main: resolve(projectRoot, 'index.html'),
-        'board-preview': resolve(projectRoot, 'board-preview.html'),
+    build: {
+      rollupOptions: {
+        // 2026-10-13 第七轮：agent-b-v2.html 重复入口退役（与 index.html 挂同一 DirectFlow，
+        // 业务流唯一入口 = index.html；board-preview.html 为全屏预览按钮直连页）
+        input: {
+          main: resolve(projectRoot, 'index.html'),
+          'board-preview': resolve(projectRoot, 'board-preview.html'),
+        },
+        // ★ Task 12: 不再 external 任何包, rollup 把 vendor 全部打包进 chunk
+        // 浏览器原生 ESM 不需要解析 bare import, 部署到任何静态服务器都能跑
       },
-      // ★ Task 12: 不再 external 任何包, rollup 把 vendor 全部打包进 chunk
-      // 浏览器原生 ESM 不需要解析 bare import, 部署到任何静态服务器都能跑
     },
-  },
+  }
 })

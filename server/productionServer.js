@@ -1,3 +1,4 @@
+import './loadDotEnv.js' // ★ Task 18 env 统一化：.env 加载必须先于所有 server 模块求值
 import { createServer } from 'node:http'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { extname, join, normalize, relative, resolve } from 'node:path'

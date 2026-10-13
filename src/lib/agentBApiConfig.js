@@ -1,10 +1,17 @@
 import { reactive } from 'vue'
 
 const STORAGE_KEY = 'qinghuabu.agentBApiConfig.v4'
+
+// ★ Task 18 env 统一化：预设从 env 注入（vite define 桥），
+// 优先级：UI 填写（localStorage）> env 预设 > 内置默认；未设时行为与历史版本一致
+const PRESET_ENDPOINT = import.meta.env.AI_API_ENDPOINT
+const PRESET_API_KEY = import.meta.env.AI_API_KEY
+const PRESET_MODEL = import.meta.env.AI_API_MODEL
+
 const DEFAULT_AGENT_B_API_CONFIG = Object.freeze({
-  endpoint: 'https://www.loomex.space/v1/chat/completions',
-  apiKey: 'sk-eVlHvx23VVyNGqSytiEC3YiJ1QaZnh5RZq1NOJ1EljrE4M3z',
-  model: 'gemini-2.5-flash-lite',
+  endpoint: PRESET_ENDPOINT || 'https://www.loomex.space/v1/chat/completions',
+  apiKey: PRESET_API_KEY || 'sk-eVlHvx23VVyNGqSytiEC3YiJ1QaZnh5RZq1NOJ1EljrE4M3z',
+  model: PRESET_MODEL || 'gemini-2.5-flash-lite',
 })
 
 function isChatCompletionsEndpoint(endpoint = '') {

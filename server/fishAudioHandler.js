@@ -15,6 +15,21 @@ const DEFAULT_API_KEYS = [
 ]
 const DEFAULT_MODEL = 's2.1-pro-free'
 const DEFAULT_REFERENCE_ID = 'fcee4dd834844f28a92b246e0d996104'
+const DEFAULT_BASE_URL = 'https://api.fish.audio'
+
+// ★ Task 18 env 统一化：model / reference_id / base_url 三常量改从环境变量读取，
+// 未设置时回退内置预设（= 原硬编码值）。惰性函数求值，避免模块顶 import 时序问题。
+export function getFishModel() {
+  return String(process.env.FISH_AUDIO_MODEL || '').trim() || DEFAULT_MODEL
+}
+
+export function getFishReferenceId() {
+  return String(process.env.FISH_AUDIO_REFERENCE_ID || '').trim() || DEFAULT_REFERENCE_ID
+}
+
+export function getFishBaseUrl() {
+  return String(process.env.FISH_AUDIO_API_BASE_URL || '').trim().replace(/\/+$/, '') || DEFAULT_BASE_URL
+}
 
 let currentKeyIndex = 0
 
@@ -31,8 +46,9 @@ export function getApiKeys() {
   if (process.env.FISH_AUDIO_API_KEY && !envKeys.includes(process.env.FISH_AUDIO_API_KEY)) {
     envKeys.unshift(process.env.FISH_AUDIO_API_KEY)
   }
-  const all = [...new Set([...envKeys, ...DEFAULT_API_KEYS])]
-  return all.length > 0 ? all : DEFAULT_API_KEYS
+  // ★ Task 18: env 设了任一 key（单数或复数）即完全替代内置 key 池，不再混入默认池
+  if (envKeys.length > 0) return envKeys
+  return DEFAULT_API_KEYS
 }
 
 function ensureDir(dir) {
@@ -94,8 +110,8 @@ function readJsonBody(req) {
  */
 export async function synthesizeSpeech({
   text,
-  referenceId = DEFAULT_REFERENCE_ID,
-  model = DEFAULT_MODEL,
+  referenceId = getFishReferenceId(),
+  model = getFishModel(),
   apiKey,
   forceRefresh = false,
 }) {
@@ -139,7 +155,7 @@ export async function synthesizeSpeech({
   for (let attempt = 0; attempt < candidateKeys.length; attempt++) {
     const activeKey = candidateKeys[(startIndex + attempt) % candidateKeys.length]
     try {
-      const response = await fetch('https://api.fish.audio/v1/tts', {
+      const response = await fetch(`${getFishBaseUrl()}/v1/tts`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${activeKey}`,
@@ -186,8 +202,8 @@ export async function synthesizeSpeech({
  */
 export async function saveSpeechLocally({
   text,
-  referenceId = DEFAULT_REFERENCE_ID,
-  model = DEFAULT_MODEL,
+  referenceId = getFishReferenceId(),
+  model = getFishModel(),
   apiKey,
   stepIndex,
   forceRefresh = false,
@@ -292,8 +308,8 @@ export async function handleFishAudioRequest(req, res) {
     sendJson(res, 200, {
       ok: true,
       provider: 'fish-audio',
-      model: DEFAULT_MODEL,
-      referenceId: DEFAULT_REFERENCE_ID,
+      model: getFishModel(),
+      referenceId: getFishReferenceId(),
       keyCount: keys.length,
       keys: keys.map(maskKey),
       docs: 'https://docs.fish.audio/developer-guide/getting-started/quickstart',
@@ -339,8 +355,8 @@ export async function handleFishAudioRequest(req, res) {
     try {
       const body = await readJsonBody(req)
       const items = Array.isArray(body.items) ? body.items : []
-      const referenceId = body.referenceId || DEFAULT_REFERENCE_ID
-      const model = body.model || DEFAULT_MODEL
+      const referenceId = body.referenceId || getFishReferenceId()
+      const model = body.model || getFishModel()
       const concurrency = Math.min(2, Math.max(1, Number(body.concurrency) || 2))
 
       const results = await mapConcurrent(items, concurrency, async (item, index) => {
