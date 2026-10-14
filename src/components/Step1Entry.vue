@@ -31,6 +31,10 @@ import {
 import RealBoardPreview from './RealBoardPreview.vue'
 import QhPageHeader from './QhPageHeader.vue'
 import { planLabelsFromTopic } from '../utils/boardLayout'
+import { detectContentLandscape } from '../utils/imageContentRegion.js'
+// ★ 2026-10-14：safeFetchJson 升格共享真源 src/lib/safeJsonFetch.js（agentB refine/apply
+// 同源接入），本组件保留同名薄委托——行为契约不变，调用点零改动
+import { safeJsonFetch } from '../lib/safeJsonFetch.js'
 import {
   CloudUploadOutlined,
   CheckCircleOutlined,
@@ -292,42 +296,8 @@ const canConfirm = computed(() => {
 const confirming = ref(false)
 
 async function safeFetchJson(url, options = {}, retries = 1) {
-  for (let i = 0; i <= retries; i++) {
-    try {
-      const resp = await fetch(url, options)
-      const contentType = resp.headers.get('content-type') || ''
-      if (!resp.ok) {
-        let errText = ''
-        if (contentType.includes('application/json')) {
-          const errJson = await resp.json().catch(() => null)
-          errText = errJson?.error || errJson?.message || `HTTP ${resp.status}`
-        } else {
-          const raw = await resp.text().catch(() => '')
-          errText = raw.slice(0, 120) || `HTTP ${resp.status}`
-        }
-        if (i < retries && (resp.status >= 500 || resp.status === 404 || resp.status === 429)) {
-          const waitMs = resp.status === 429 ? 2500 : 1500
-          console.warn(`[safeFetchJson] 请求 ${url} 遇到 HTTP ${resp.status}，等待 ${waitMs}ms 后重试...`)
-          await new Promise(r => setTimeout(r, waitMs))
-          continue
-        }
-        return { ok: false, error: errText }
-      }
-      if (!contentType.includes('application/json')) {
-        const raw = await resp.text().catch(() => '')
-        return { ok: false, error: '服务端返回非 JSON 数据: ' + (raw.slice(0, 80) || '未知响应') }
-      }
-      const data = await resp.json()
-      return data
-    } catch (err) {
-      if (i < retries) {
-        console.warn(`[safeFetchJson] 请求 ${url} 异常，等待 1500ms 后重试...`, err?.message)
-        await new Promise(r => setTimeout(r, 1500))
-        continue
-      }
-      return { ok: false, error: err?.message || '网络连接异常' }
-    }
-  }
+  // 薄委托共享真源：非 JSON 响应守卫/重试退避/网络异常兜底逻辑全部在 lib 层
+  return safeJsonFetch(url, options, { retries, label: '第1步' })
 }
 
 const statusText = computed(() => {
@@ -374,13 +344,20 @@ function suggestFromText(text) {
   return { type: undefined, focus: undefined }
 }
 
-function detectLandscape(dataUrl) {
-  return new Promise((resolve) => {
-    const img = new window.Image()
-    img.onload = () => resolve(img.naturalWidth / (img.naturalHeight || 1) > 1.4)
-    img.onerror = () => resolve(false)
-    img.src = dataUrl
-  })
+/* ★ 2026-10-14 夏夏定的贴图规则（取代旧 detectLandscape 整图宽高比>1.4 的肤浅判断）：
+ *   判定依据 = 图片里「黑色文本内容区域」的长宽比，不是整张图的——
+ *   照片白边、纸张留白、取景框都会污染整图判断。
+ *   内容区域长(横向)>宽(纵向) → 横向贴入（isLandscape=true：图贴顶、三区横排在下）；
+ *   长<宽 → 左侧贴图、左右开布局（isLandscape=false：图占左列、三区右侧纵排）。
+ *   实现：utils/imageContentRegion.js（黑字阈值→Otsu 自适应→整图回退三层） */
+async function detectLandscape(dataUrl) {
+  const info = await detectContentLandscape(dataUrl)
+  console.log(
+    `[贴图规则] 内容区域判定 method=${info.method} aspect=${info.aspect}` +
+      (info.region ? ` region=${info.region.w}x${info.region.h}` : '') +
+      ` 整图=${info.imageWidth}x${info.imageHeight} → ${info.landscape ? '横向贴入' : '左侧贴图·左右开'}`,
+  )
+  return info.landscape
 }
 
 function applySuggestion(text) {
@@ -524,7 +501,7 @@ async function beforeUpload(file) {
     sourceImageName.value = file.name
     // ★ 上传前压缩（2026-10-13）：手机原图 base64 常到 4~10MB（上传慢 + 超 Vercel 4.5MB 函数体上限），压到长边≤1600px/JPEG 0.85；失败自动回退原图
     sourceImageDataUrl.value = await compressImageToDataUrl(file)
-    // 横版检测：宽高比 > 1.4 视为横向图片
+    // 贴图布局定向：黑色文本内容区域长宽比判定（横向贴入 vs 左侧贴图），见函数头注释
     isLandscape.value = await detectLandscape(sourceImageDataUrl.value)
     step1Confirmed.value = false
     // 上传只是入口；是否贴原图由识别判定（纯文字图=文本，不贴原图）

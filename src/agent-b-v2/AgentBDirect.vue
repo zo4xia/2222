@@ -48,6 +48,9 @@ import {
   parseApiKeys as parseAgentBApiKeys,
 } from '../lib/agentBApiConfig.js'
 import { userApiConfig } from '../lib/userApiConfig.js'
+// ★ 2026-10-14：refine/apply 原为全 App 仅剩的裸 fetch+resp.json()——平台网关切断/代理吐
+// HTML 错误页时直接炸 SyntaxError（夏夏实测"点优化确认出现 json 报错"）。换共享安全封装。
+import { safeJsonFetch } from '../lib/safeJsonFetch.js'
 import { exportSpeechMarkdown, exportStoryboardMarkdown } from '../lib/speechMarkdown.js'
 import VisualTimeline from '../components/VisualTimeline.vue'
 import { showGlobalLoading, hideGlobalLoading } from '../services/globalLoading.js'
@@ -1438,7 +1441,10 @@ async function refineKnowledge() {
   if (refineLoading.value) return
   refineLoading.value = true
   try {
-    const resp = await fetch('/api/knowledge/refine', {
+    // ★ 2026-10-14：裸 fetch+resp.json() → safeJsonFetch（非 JSON 响应/超时/连接中断
+    // 都给可读报错，不再吐裸 "Unexpected token" 解析错误）；客户端 100s 超时覆盖
+    // 服务端单次上游 60s 预算（服务端已改超时不重试，总时长 ≤ 61s）
+    const result = await safeJsonFetch('/api/knowledge/refine', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1446,8 +1452,7 @@ async function refineKnowledge() {
         model: userApiConfig.model,
         apiKey: userApiConfig.apiKey,
       }),
-    })
-    const result = await resp.json()
+    }, { label: '知识点优化', timeoutMs: 100000 })
     if (result.ok && result.handoff) {
       // ★ 2026-10-13：降级响应（refineOk=false）时透出 warning，用户能看到"已保留原知识库"的原因
       if (result.warning) message.warning(result.warning)
@@ -1475,14 +1480,14 @@ async function applyRefine() {
   const proposal = safeDeepClone(refineResult.value.handoff)
   refineApplying.value = true
   try {
-    const resp = await fetch('/api/knowledge/apply', {
+    // ★ 2026-10-14：apply 同换 safeJsonFetch（与 refine 同源的裸 resp.json() 隐患）
+    const data = await safeJsonFetch('/api/knowledge/apply', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ handoff: proposal }),
-    })
-    const data = await resp.json()
-    if (!resp.ok || !data?.ok) {
-      message.error(data?.error || `应用失败 ${resp.status}`)
+    }, { label: '应用修缮', timeoutMs: 30000 })
+    if (!data?.ok) {
+      message.error(data?.error || '应用失败')
       return // 弹窗保留，可重试或改选保留原文
     }
     localHandoff.value = data.handoff ? safeDeepClone(data.handoff) : proposal

@@ -116,6 +116,11 @@ export async function handleKnowledgeRefineRequest(req, res) {
     const { response, data } = await requestChatCompletion({
       ...credentials,
       timeoutMs: 60000,
+      // ★ 2026-10-14 快速失败：超时重试只会把等待翻倍（60s×2 起，多 key 轮询更久）——
+      // 期间平台网关若切断连接，客户端会对着 HTML 错误页炸出裸 JSON 解析报错
+      // （夏夏实测"点优化确认出现 json 报错"）。对齐识别链 Task 30 的单次快速失败
+      // 哲学：refine 是轻调用，慢上游不值得等第二程；总时长 ≤ 61s，客户端 100s 超时覆盖。
+      retryOnAbort: false,
       body: {
         temperature: Number(body.temperature ?? 0.3),
         stream: false,

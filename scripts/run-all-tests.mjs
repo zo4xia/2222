@@ -31,6 +31,8 @@ const tests = [
   { name: 'row-player stage flow (同 stage 顺序排版 34 用例)', cmd: 'node scripts/test-row-player-stage-flow.mjs' },
   { name: 'step1 recognition robustness (第一步卡死防线 18 用例)', cmd: 'node scripts/test-step1-recognition-robustness.mjs' },
   { name: 'step1 canvas text (回填修复+blocks防御 25 用例)', cmd: 'node scripts/test-step1-canvas-text.mjs' },
+  { name: 'step1 content region (贴图布局规则 21 用例)', cmd: 'node scripts/test-step1-content-region.mjs' },
+  { name: 'refine json safe (优化确认 json 报错修复 20 用例)', cmd: 'node scripts/test-refine-json-safe.mjs' },
   { name: 'validate_contract',          cmd: 'node skills/board-lecture-player/scripts/validate_contract.cjs skills/board-lecture-player/assets/sample-rows.json' },
   { name: 'action whitelist sync (真源同步哨兵 20 用例)', cmd: 'node scripts/test-action-whitelist-sync.mjs' },
 ]
