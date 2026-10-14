@@ -5,6 +5,8 @@
  */
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
+// ★ 2026-10-14 分支2移植：题文渲染前先进画布传输损伤修复（唯一入口，板书走 superFilter）
+import { normalizeCanvasText } from './canvasText.js'
 
 const LATEX_HINT = /\\[a-zA-Z]|[_^]\{|\$\$|\$|\\\(|\\\[/
 const CJK = /[\u4e00-\u9fff\uff00-\uffef]/
@@ -161,11 +163,17 @@ function renderMixedBareLatex(text) {
  * - 分数 3/4、LaTeX 命令、$...$ 走 KaTeX
  */
 export function renderProblemHtml(text) {
-  const raw = String(text || '').trim()
+  const raw = normalizeCanvasText(text).trim()
   if (!raw) return ''
   const promoted = promoteSimpleFractions(raw)
   if (!LATEX_HINT.test(promoted) && !/\d+\/\d+/.test(raw)) {
     return escapeHtml(raw).replace(/\n/g, '<br>')
   }
   return renderDelimited(promoted)
+}
+
+/** 是否含数学内容（分支2 同名 API 补齐：先用 canvasText 修复再判定，损伤文本不漏判） */
+export function hasMathContent(text) {
+  const raw = normalizeCanvasText(text)
+  return LATEX_HINT.test(raw) || /\d+\/\d+/.test(raw)
 }

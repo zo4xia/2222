@@ -6,6 +6,8 @@ const emit = defineEmits(['enter-board-draft'])
 import { message } from 'ant-design-vue'
 import { recognizeProblem, fileToDataUrl, compressImageToDataUrl } from '../services/recognitionClient'
 import { renderProblemHtml } from '../utils/mathText'
+// ★ 2026-10-14 分支2移植：识别回填清洗传输损伤（rac{→\frac、实体、字面\n、HTML标签）
+import { normalizeCanvasText } from '../utils/canvasText.js'
 import { buildStep1Handoff, hasUsableAgentAKnowledge } from '../services/stepHandoff'
 import { saveLiveBoardPreview } from '../board-preview/liveBoardPreview.js'
 import { selectAgentARelatedKnowledge } from '../services/agentAKnowledge.js'
@@ -159,6 +161,22 @@ function onProblemTextUpdated(newText) {
   syncLiveBoardPreview()
 }
 
+/**
+ * ★ 2026-10-14 blocks 陈旧防御：只有当保存的文本块拼起来与当前题目文本一致时才复用。
+ * syncAll 的正常回路里 blocks 文本永远与 problemText 同步（用户拖拽/编辑后二者相等）；
+ * 只有"新识别回填了新题"或"用户直接改了输入框"时二者才会分叉——分叉即陈旧，弃用旧块
+ * 改按新文本重新切块。坐标/宽度等纯排版信息不受影响，只判文本。
+ */
+function savedBlocksMatchCurrentText(blocks, currentText) {
+  if (!Array.isArray(blocks) || blocks.length === 0) return null
+  const joined = blocks
+    .map((b) => String(b?.text || '').trim())
+    .filter(Boolean)
+    .join('\n')
+  if (!joined) return null
+  return joined === String(currentText || '').trim() ? blocks : null
+}
+
 const topicLayout = computed(() => {
   // 重新生成：只微调题目块，不乱动甲方底板
   const jitter = (layoutSeed.value % 3) * 0.4
@@ -199,7 +217,9 @@ const topicLayout = computed(() => {
         ...auto.topicLabel,
         ...(customTopicLayout.value.topicLabel || {}),
       },
-      blocks: customTopicLayout.value.blocks || auto.blocks,
+      // ★ 2026-10-14 blocks 陈旧防御：旧题的文本块（localStorage 恢复）与当前题目文本
+      //   不一致 = 上一题的排版残留，不得压过新识别回填的题目（画布显示旧题=回填"完全不一样"的真凶之一）
+      blocks: savedBlocksMatchCurrentText(customTopicLayout.value.blocks, problemText.value) || auto.blocks,
     }
   }
 
@@ -406,7 +426,10 @@ async function placeOnCanvas({ fromUpload = false } = {}) {
       apiKey: userApiConfig.apiKey,
     })
 
-    if (result.problemText) problemText.value = result.problemText
+    // ★ 2026-10-14 回填边界修复：识别结果先过 canvasText 清洗再回填——LLM/JSON 传输损伤（rac{、&times;、字面 \n、HTML 标签）不进题目框
+    if (result.problemText) {
+      problemText.value = normalizeCanvasText(result.problemText).trim() || result.problemText
+    }
     uncertainItems.value = result.uncertainItems || []
     suggestedLayout.value = result.suggestedLayout || null
     suggestedGrade.value = result.knowledgeAnalysis?.suggestedGrade || ''

@@ -30,6 +30,7 @@ const tests = [
   { name: 'visual timeline (滚动+动作 10 用例)', cmd: 'node scripts/test-visual-timeline.mjs' },
   { name: 'row-player stage flow (同 stage 顺序排版 34 用例)', cmd: 'node scripts/test-row-player-stage-flow.mjs' },
   { name: 'step1 recognition robustness (第一步卡死防线 18 用例)', cmd: 'node scripts/test-step1-recognition-robustness.mjs' },
+  { name: 'step1 canvas text (回填修复+blocks防御 25 用例)', cmd: 'node scripts/test-step1-canvas-text.mjs' },
   { name: 'validate_contract',          cmd: 'node skills/board-lecture-player/scripts/validate_contract.cjs skills/board-lecture-player/assets/sample-rows.json' },
   { name: 'action whitelist sync (真源同步哨兵 20 用例)', cmd: 'node scripts/test-action-whitelist-sync.mjs' },
 ]
