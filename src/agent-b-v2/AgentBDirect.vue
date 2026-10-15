@@ -580,6 +580,22 @@ function onPlayAudioFromTimeline({ index, url } = {}) {
 
 // ========= 口播语音 TTS 控制（Fish Audio 接口）=========
 const rowAudioCache = ref({})
+
+// ★ 哑巴根修复（P0，2026-10-15）：音频字段唯一写入口 = 真源 rows.value[index]。
+// 病灶：tableRows 是 {...row} 浅克隆，模板 #bodyCell 的 record 是克隆本；
+// 三个 TTS handler 把 record.audioUrl 写在克隆上，applyAgentBV2Timeline 重建
+// tableRows 后蒸发——工作台试听因 rowAudioCache 兜底显得正常（假象），
+// 而导出/播放链路读真源 rows.value → audioUrl 全空 → 序列化写成
+// '音频暂未生成' 占位串 → row-player isAudioSrc 拒收 → 静音虚拟时钟 = 点击播放哑巴。
+// 修复：统一走本函数（对齐 updateRow 模式），并同步刷新 B 缓存（P2 防刷新丢：
+// 旧版 bCacheSet 只在生成时刻写一次，合成音频后刷新页面即全丢）。
+function setRowAudioUrl(index, url) {
+  if (!url || !rows.value[index]) return
+  rows.value[index] = { ...rows.value[index], audioUrl: url }
+  rowAudioCache.value[index] = url
+  rows.value = applyAgentBV2Timeline(rows.value)
+  try { bCacheSet(rows.value, generatedModel.value) } catch (_e) { /* 缓存失败不阻断 */ }
+}
 const playingAudioIndex = ref(null)
 const synthesizingRowIndex = ref(null)
 const regeneratingRowIndex = ref(null)
@@ -616,10 +632,12 @@ function readAudioDuration(url) {
   })
 }
 
-async function recordAudioMetadata(index, record, url) {
+async function recordAudioMetadata(index, url) {
   const durationMs = await readAudioDuration(url)
-  if (durationMs) {
-    record.audioDurationMs = durationMs
+  if (durationMs && rows.value[index]) {
+    // ★ 哑巴根修复（P0）：写真源 rows.value[index]（同 updateRow 模式）。
+    // 旧版写 record（tableRows 浅克隆），applyAgentBV2Timeline 重建克隆后 audioDurationMs 蒸发
+    rows.value[index] = { ...rows.value[index], audioDurationMs: durationMs }
     rows.value = applyAgentBV2Timeline(rows.value)
   }
 }
@@ -688,29 +706,31 @@ async function playAudioUrl(url, index) {
   }
 }
 
-// ★ 试听完立刻回填表单：把缓存的 audioUrl + 真实时长落到 record + rowAudioCache，
-//   防止后续被误判"没 mp3 地址 / 没自然音频时长"。即使 record.audioUrl 已存在也补一遍双保险。
+// ★ 试听完立刻回填表单：把缓存的 audioUrl + 真实时长落到真源 + rowAudioCache，
+//   防止后续被误判"没 mp3 地址 / 没自然音频时长"。即使 audioUrl 已存在也补一遍双保险。
+//   2026-10-15 哑巴根修复同型化：本函数 record（rows.value[index]）虽是真源本尊，
+//   但为维持「音频字段唯一写入口」铁律，写入统一委托 setRowAudioUrl / recordAudioMetadata。
 async function backfillAudioToRow(index, url) {
   if (typeof index !== 'number' || !url) return
   const record = rows.value?.[index]
   if (!record) return
   let changed = false
-  // 1. 双保险回填 audioUrl
+  // 1. 双保险回填 audioUrl（真源写入口：含 rowAudioCache 同步 + 时轴重排 + B 缓存刷新）
   if (!record.audioUrl) {
-    record.audioUrl = url
+    setRowAudioUrl(index, url)
     changed = true
   }
-  // 2. rowAudioCache 同步
+  // 2. rowAudioCache 同步（record 已带 audioUrl 的场景，仍确保 cache 一致）
   if (rowAudioCache.value[index] !== url) {
     rowAudioCache.value[index] = url
     changed = true
   }
-  // 3. 没真实时长就立刻读一次（loadedmetadata）落上 audioDurationMs
+  // 3. 没真实时长就立刻读一次（loadedmetadata）落上 audioDurationMs（真源写入口）
   if (!record.audioDurationMs || record.audioDurationMs <= 0) {
     try {
       const dur = await readAudioDuration(url)
       if (dur && dur > 0) {
-        record.audioDurationMs = dur
+        await recordAudioMetadata(index, url)
         changed = true
       }
     } catch (_) {}
@@ -755,9 +775,8 @@ async function handlePlayOrSynthesizeSpeech(index, record) {
     if (!res.ok || !data.ok || !data.audioUrl) {
       throw new Error(data.error || '语音合成失败')
     }
-    record.audioUrl = data.audioUrl
-    rowAudioCache.value[index] = data.audioUrl
-    await recordAudioMetadata(index, record, data.audioUrl)
+    setRowAudioUrl(index, data.audioUrl)
+    await recordAudioMetadata(index, data.audioUrl)
     message.success(`第 ${index + 1} 步口播语音生成成功`)
     playAudioUrl(data.audioUrl, index)
   } catch (err) {
@@ -794,9 +813,8 @@ async function handleRegenerateSpeech(index, record) {
     if (!res.ok || !data.ok || !data.audioUrl) {
       throw new Error(data.error || '重新生成语音失败')
     }
-    record.audioUrl = data.audioUrl
-    rowAudioCache.value[index] = data.audioUrl
-    await recordAudioMetadata(index, record, data.audioUrl)
+    setRowAudioUrl(index, data.audioUrl)
+    await recordAudioMetadata(index, data.audioUrl)
     message.success(`第 ${index + 1} 步口播语音已重新生成`)
     playAudioUrl(data.audioUrl, index)
   } catch (err) {
@@ -834,9 +852,9 @@ async function handleSaveLocalSpeech(index, record) {
     if (!res.ok || !data.ok || !data.urlPath) {
       throw new Error(data.error || '保存本地语音失败')
     }
-    record.audioUrl = data.urlPath
-    rowAudioCache.value[index] = data.urlPath
-    await recordAudioMetadata(index, record, data.urlPath)
+    // ★ save-local 旧版只写克隆不播不 backfill，/audio/<ts>.mp3 URL 100% 丢——写真源修复
+    setRowAudioUrl(index, data.urlPath)
+    await recordAudioMetadata(index, data.urlPath)
     message.success(`语音已保存至本地配套目录，并已记录下载 URL: ${data.urlPath}`)
   } catch (err) {
     message.error(`保存本地失败: ${err.message || String(err)}`)
@@ -1230,6 +1248,11 @@ function serializeCurrentDeliverableState() {
       stage: rowStage,
       speech: r.speech != null ? String(r.speech) : '',
       audioUrl: r.audioUrl || '音频暂未生成',
+      // ★ mp3 契约字段（决策 #017 契约恢复）：真 URL 才写、未生成写空串。
+      // 占位中文串只留在 audioUrl（BoardPreviewApp isRowAudioValid 显式排除该字面量）；
+      // row-player normRow pick(['mp3','audio','audioUrl','voice']) mp3 优先命中。
+      // （真源 rows 从不写占位串，r.audioUrl 要么空要么真 URL，此处可直接透传）
+      mp3: r.audioUrl || '',
       audioDurationMs: Number(r.audioDurationMs) > 0 ? Math.round(Number(r.audioDurationMs)) : null,
       board: {
         // ★ 必须带 stage：板书字段自描述属于哪个 stage (题目/分析/解答/总结)

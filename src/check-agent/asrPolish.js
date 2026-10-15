@@ -185,11 +185,22 @@ export function polishRowsASR(originalRows) {
       }
     }
 
+    // ★ 哑巴根修复（P1，2026-10-15）：ASR 兜底通道与 Check Agent 同病——
+    // 返回行只带 4 内容字段，音频三字段被洗掉；此处按索引回填原行音频，
+    // 防止「ASR 规范化 → 应用 → 导出/播放哑巴」链路
+    const keepAudio = {}
+    if (typeof origRow?.audioUrl === 'string' && origRow.audioUrl !== '') keepAudio.audioUrl = origRow.audioUrl
+    if (Number(origRow?.audioDurationMs) > 0) {
+      keepAudio.audioDurationMs = Math.round(Number(origRow.audioDurationMs))
+      keepAudio.duration = origRow.duration
+    }
+
     return {
       stage,
       speech: polishedSpeech,
       board: newBoard,
       actionSpec: Array.isArray(origRow?.actionSpec) ? origRow.actionSpec : [],
+      ...keepAudio,
     }
   })
 

@@ -115,16 +115,29 @@ export function parseCheckResponse(text, originalRows) {
     origIdx++
   }
 
-  const rows = parsed.rows.map((row) => ({
-    stage: row?.stage || '',
-    speech: typeof row?.speech === 'string' ? row.speech : '',
-    board: row?.board !== undefined && row?.board !== null
-      ? normalizeBoard(row.board)
-      : '',
-    actionSpec: Array.isArray(row?.actionSpec)
-      ? normalizeAgentBV2ActionSpec(row.actionSpec)
-      : [],
-  }))
+  // ★ 哑巴根修复（P1，2026-10-15）：Check 只拥有内容四字段的重写权；
+  // 音频三字段（audioUrl/audioDurationMs/duration）按索引从原表一一对齐回填。
+  // 旧版 4 字段白名单重建 rows，把试听回填的音频剥得干干净净——用户跑一次
+  // Check 并应用，导出/播放立即全哑（row-player 拿占位串静音降级）。
+  const rows = parsed.rows.map((row, i) => {
+    const orig = originalRows[i] || {}
+    const hasAudio = typeof orig.audioUrl === 'string' && orig.audioUrl !== ''
+    return {
+      stage: row?.stage || '',
+      speech: typeof row?.speech === 'string' ? row.speech : '',
+      board: row?.board !== undefined && row?.board !== null
+        ? normalizeBoard(row.board)
+        : '',
+      actionSpec: Array.isArray(row?.actionSpec)
+        ? normalizeAgentBV2ActionSpec(row.actionSpec)
+        : [],
+      // 音频字段随原行保留（Check 不碰音频）
+      ...(hasAudio ? { audioUrl: orig.audioUrl } : {}),
+      ...(Number(orig.audioDurationMs) > 0
+        ? { audioDurationMs: Math.round(Number(orig.audioDurationMs)), duration: orig.duration }
+        : {}),
+    }
+  })
 
   // 生成 changes 报告
   const reportedChanges = (Array.isArray(parsed.changes) ? parsed.changes : [])

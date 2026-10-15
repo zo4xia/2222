@@ -8,7 +8,7 @@ import { writeFileSync, readFileSync, existsSync, readdirSync, mkdirSync } from 
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { isOptions, readJsonBody, sendJson } from './http.js'
-import { renderDeliverableHtml } from './renderDeliverableHtml.js'
+import { renderDeliverableHtml, normalizeDeliverableAssetPaths } from './renderDeliverableHtml.js'
 import { computeRowGroupTimeline, AUDIO_SPEED_POLICY_TEXT } from '../src/agent-b-v2/timing.js'
 import {
   buildCanvasParams,
@@ -293,6 +293,11 @@ export function writeDeliverableFile(data) {
     htmlFilename,
     createdAt: data.createdAt || new Date().toISOString(),
   }
+
+  // ★ #017 出口一：JSON 写盘前归一音频路径 + mp3 契约字段补齐（与 renderDeliverableHtml
+  //   同一实现，决策 #017 双出口单一实现铁律；幂等，HTML 出口再跑一遍无副作用）。
+  //   曾随 36a960c（dependabot squash 回滚）断性丢失，导出件 file:// 必哑——本次恢复
+  normalizeDeliverableAssetPaths(payload)
 
   // 1. 写入配套实体 JSON 归档文件
   writeFileSync(jsonFilePath, JSON.stringify(payload, null, 2), 'utf-8')

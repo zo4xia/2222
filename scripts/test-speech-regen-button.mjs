@@ -59,11 +59,14 @@ ok('handleRegenerateSpeech 仍带 forceRefresh: true（强制刷新语义保持�
   assert.ok(fnMatch[0].includes('forceRefresh: true'), '重新生成必须强制刷新（绕过缓存重合成）')
 })
 
-ok('小喇叭首次生成回填链保持（audioUrl + rowAudioCache + 时长元数据）', () => {
+ok('小喇叭首次生成回填链保持（真源写入口 + 时长元数据）', () => {
   const fnMatch = src.match(/async function handlePlayOrSynthesizeSpeech[\s\S]{0,1600}?\n\}/)
   assert.ok(fnMatch, 'handlePlayOrSynthesizeSpeech 函数应存在')
-  assert.ok(fnMatch[0].includes('record.audioUrl = data.audioUrl'), '首次生成应回填 audioUrl')
+  // ★ 2026-10-15 哑巴根修复后断言翻转：必须写真源（setRowAudioUrl → rows.value[index]），
+  //   旧克隆写法 record.audioUrl = ... 会在 applyAgentBV2Timeline 重建时蒸发（导出/播放哑巴根因）
+  assert.ok(fnMatch[0].includes('setRowAudioUrl(index, data.audioUrl)'), '首次生成应走真源写入口 setRowAudioUrl')
   assert.ok(fnMatch[0].includes('recordAudioMetadata'), '应记录音频元数据')
+  assert.ok(!/record\.audioUrl\s*=/.test(src), '克隆写法 record.audioUrl = 全文不得残留（会蒸发，哑巴根因）')
 })
 
 console.log(`\n${pass + fail} 用例：${pass} 通过 / ${fail} 失败`)

@@ -1281,6 +1281,9 @@ audioEl.onended=()=>{
 audioEl.onerror=()=>{
   if(!C)return;
   const r=C.rows[rowIdx];
+  /* ★ 可观测性（哑巴排查）：旧版静默降级零诊断，404/占位串/断网全表现为"哑巴但不卡死"；
+     留一条 warn 帮下一次定位（不弹窗不打断播放） */
+  console.warn('[row-player] 音频加载失败，本行降级为无声演示:',r&&r.row&&r.row.mp3);
   rowHasAudio=false; audioEl.removeAttribute('src');
   if(r&&!(r.durMs>0))r.durMs=2000;
   rowT0=performance.now();
