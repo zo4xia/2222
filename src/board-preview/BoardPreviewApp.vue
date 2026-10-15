@@ -48,6 +48,8 @@ import {
   exportSpeechMarkdown as doExportSpeechMarkdown,
   exportElementsMarkdown as doExportElementsMarkdown,
 } from '../lib/speechMarkdown.js'
+// ★ Task 40：#017 归一共享真源（流水线 JSON 出口接线，与 AgentBDirect/服务端双出口同一实现）
+import { normalizeDeliverableAssetPaths } from '../lib/deliverableAssetPaths.js'
 import {
   isLiveBoardPreviewUpdate,
   loadLiveBoardPreview,
@@ -382,6 +384,10 @@ const pipelineJsonString = computed(() => {
       actionSpec: row.actionSpec,
     })),
   }
+  // ★ Task 40-A：流水线 JSON 出口同走 #017 共享归一（sequence 行 mp3/audioUrl +
+  //   topicSpec.screenshotUrl 题目图）——data/sequence/topicSpec 均为本次 computed 新建的
+  //   对象图，原地归一无副作用；file:// 消费不再拿到站点根绝对路径（/audio-cache/ → ../audio-cache/）
+  normalizeDeliverableAssetPaths(data)
   return JSON.stringify(data, null, 2)
 })
 
@@ -429,6 +435,10 @@ function exportElementsMarkdown() {
     generatedAt: createdAt.value,
     handoffCanvasParams: meta.value?.canvasParams,
     handoffBoardPlan: boardPlan.value,
+    // ★ v2.1 补漏（Task 40-F）：要素表板书字体行此前不传选择 → 恒写 handoff 默认态
+    //   乔木 507，韶华档从预览页导出错说字体；与 AgentBDirect exportSpeech/exportStoryboard
+    //   同口径（服务端归一时 fontSource.handwriting.choice 与 uiSettings.handwritingFontChoice 同值）
+    handwritingFontChoice: meta.value?.canvasParams?.fontSource?.handwriting?.choice ?? null,
   })
   message.success('已导出五字段要素表 MD')
 }

@@ -52,6 +52,8 @@ import { userApiConfig } from '../lib/userApiConfig.js'
 // HTML 错误页时直接炸 SyntaxError（夏夏实测"点优化确认出现 json 报错"）。换共享安全封装。
 import { safeJsonFetch } from '../lib/safeJsonFetch.js'
 import { exportSpeechMarkdown, exportStoryboardMarkdown } from '../lib/speechMarkdown.js'
+// ★ Task 40：#017 归一共享真源（客户端 JSON 导出出口接线，与服务端双出口同一实现）
+import { normalizeDeliverableAssetPaths } from '../lib/deliverableAssetPaths.js'
 import VisualTimeline from '../components/VisualTimeline.vue'
 import { showGlobalLoading, hideGlobalLoading } from '../services/globalLoading.js'
 // 画布参数唯一真源：src/services/stepHandoff.js
@@ -560,6 +562,25 @@ function updateBoardContent(index, content) {
     ...rows.value[index],
     board: { content, startDelay: current.startDelay },
   }
+}
+
+// ★ Task 40（2026-10-16）：手动书写延迟（落笔时机）唯一真源写入口。
+// branch2 旧血统（36d169d→298e5a3，未合入 HEAD）曾有每行「落笔时机 0-60 秒」输入框 +
+// updateBoardStartDelay，dependabot squash（36a960c）并线时静默丢失；数据结构 board.startDelay
+// 全链路本就认手动值（timing.js 手动值优先 / row-player normRow startDelay 消费 /
+// asrPolish「人工已显式设定时机，保留」），本处只补 UI 写入口。
+// 铁律（同 setRowAudioUrl 先例）：写真源 rows.value + applyAgentBV2Timeline 重算
+//（estimatedStartMs 系 startDelay 派生，改延迟必须重算）+ bCacheSet 同步刷（防刷新蒸发）。
+function updateBoardStartDelay(index, delay) {
+  invalidateCheck()
+  const current = parseBoard(rows.value[index].board)
+  const n = typeof delay === 'number' && !isNaN(delay) && delay >= 0 ? Math.min(delay, 60) : 0
+  rows.value[index] = {
+    ...rows.value[index],
+    board: { content: current.content, startDelay: n },
+  }
+  rows.value = applyAgentBV2Timeline(rows.value)
+  try { bCacheSet(rows.value, generatedModel.value) } catch (_e) { /* 缓存失败不阻断 */ }
 }
 
 // 视觉时间轴事件：点击某 Row 组定位并高亮表格对应行
@@ -1443,7 +1464,32 @@ async function generateDeliverablePage() {
   }
 }
 
-function openDeliverablePage() {
+// ★ Task 40-E（2026-10-16）：打开前必先重新固化当前状态树。旧版直接开
+// deliverableResult.url（上次 generateDeliverablePage 的归档快照），模态框若一直
+// 开着、期间又改了板书/重录了音频，点「立即打开」看到的就是旧内容（「导出的是旧
+// 东西」实感来源）。归一后：每次打开 = 最新状态重新落盘再开（同 projectCode 覆写
+// 同一归档，openHanddrawPlayer 同款 POST 语义）；重新固化失败不阻断（回退上次归
+// 档 URL / row-player 实时序列化兑底）。
+async function openDeliverablePage() {
+  if (rows.value.length) {
+    try {
+      const payload = serializeCurrentDeliverableState()
+      const res = await fetch('/api/deliverable', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deliverable: payload }),
+      })
+      const data = await res.json()
+      if (data.ok && data.url) {
+        deliverableResult.value = data
+        window.open(data.url, '_blank')
+        return
+      }
+      console.warn('[openDeliverablePage] 重新固化失败，回退上次归档 URL:', data?.error)
+    } catch (e) {
+      console.warn('[openDeliverablePage] 重新固化网络异常，回退上次归档 URL:', e)
+    }
+  }
   if (deliverableResult.value?.url) {
     window.open(deliverableResult.value.url, '_blank')
     return
@@ -1484,7 +1530,11 @@ function downloadDeliverableJson() {
     return
   }
   // 1. 严格从当前应用运行时的响应式状态树（state tree）实时序列化，绝不从已归档的旧快照中读取，更绝不发起网络请求获取 HTML
-  const deliverableData = serializeCurrentDeliverableState()
+  // ★ Task 40-A：客户端 JSON 出口补 #017 归一（与服务端双出口同一实现，共享真源）——
+  //   旧版只序列化不归一，mp3/audioUrl 带站点根绝对路径 /audio-cache/...，
+  //   file:// 双击 row-player「导入 JSON」必 404 静音（#017 同型缺口第三出口）；
+  //   题目图 screenshotUrl（/pic/ → ../pic/）同规，离线双击不再丢图。序列化返回全新对象图，原地归一无副作用。
+  const deliverableData = normalizeDeliverableAssetPaths(serializeCurrentDeliverableState())
   const code = deliverableData.projectCode || 'deliverable'
 
   // 2. 序列化为规范格式化 JSON 字符串
@@ -2499,6 +2549,22 @@ function isRefineFieldEqual(original, refined) {
                     class="board-content-input"
                     @change="(event) => updateBoardContent(index, event.target.value)"
                   />
+                  <!-- ★ Task 40：每行落笔延迟（书写延迟时间）手动编辑——branch2 旧血统被 squash
+                       丢失的功能回归：0~60 秒（旧血统同区间），改后立即重算时间轴并刷 B 缓存 -->
+                  <div class="board-delay-edit">
+                    <span class="board-delay-edit-label">落笔延迟（秒）：</span>
+                    <a-input-number
+                      :value="parseBoard(record.board).startDelay"
+                      :min="0"
+                      :max="60"
+                      :step="0.5"
+                      :precision="1"
+                      size="small"
+                      class="board-delay-input"
+                      title="本行语音开始播放后，延迟多少秒才动笔写板书（0 = 语音一起笔）"
+                      @change="(value) => updateBoardStartDelay(index, value)"
+                    />
+                  </div>
                   <div class="board-edit-actions">
                     <a-button size="small" type="primary" class="board-done-btn" @click="editingBoardIndex = -1">
                       完成
@@ -4253,6 +4319,25 @@ function isRefineFieldEqual(original, refined) {
 .board-content-input {
   font-size: 12px;
   line-height: 1.5;
+}
+
+/* ★ Task 40：每行落笔延迟输入行（branch2 旧血统功能回归） */
+.board-delay-edit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.board-delay-edit-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-deep, #163b3d);
+  white-space: nowrap;
+}
+
+.board-delay-input {
+  width: 92px;
 }
 
 .board-edit-actions {

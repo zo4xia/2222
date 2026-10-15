@@ -1,6 +1,13 @@
 import { readFileSync, existsSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+// ★ Task 40（2026-10-16）：#017 归一提为前后端共享真源 src/lib/deliverableAssetPaths.js——
+//   客户端导出出口（AgentBDirect downloadDeliverableJson / BoardPreviewApp pipelineJsonString）
+//   此前不归一（服务端双出口已治、客户端 JSON 出口是 #017 同型缺口，file:// 导入必哑），
+//   现四出口同一实现。此处 re-export 维持既有 import 路径（deliverableStoreHandler / 哨兵测试）不破坏。
+import { normalizeDeliverableAssetPaths } from '../src/lib/deliverableAssetPaths.js'
+
+export { normalizeDeliverableAssetPaths }
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // 依次查找模板：根目录 row-player.html > public/row-player.html > public/deliverable/row-player.html
@@ -10,40 +17,9 @@ const candidateTemplatePaths = [
   resolve(__dirname, '../public/deliverable/row-player.html')
 ]
 
-/**
- * 交付物资源路径归一 + 契约字段补齐（决策 #017，2026-09-17 定案，2026-10-15 恢复）
- * - audioUrl / mp3：`/audio-cache/x.mp3` → `../audio-cache/x.mp3`。
- *   服务端绝对路径在 file:// 双击下会解析到磁盘根 → 404 → onerror 静默降级 = 全程静音；
- *   改相对上级后，交付页（public/deliverable/）在 http 与 file:// 两种协议下都命中 public/audio-cache/。
- * - mp3：契约字段（下游 row-player pick(['mp3',...]) 优先命中），未生成写空串；
- *   中文占位串（'音频暂未生成'）不进 mp3（isAudioSrc 会拒收但污染字段语义）。
- * 单一实现：JSON 写盘（writeDeliverableFile）与 HTML 渲染（renderDeliverableHtml）
- * 两条出口共用，禁止另起一套。幂等：重复调用无副作用。
- * 史档：该逻辑曾随 36a960c（squash 合并 dependabot PR #7 基于旧 main 快照）
- * 被整体回滚删除断性丢失，导出件从那以后 file:// 必哑——本次依 branch2 (3025bad)
- * 原实现恢复并小幅净化（mp3 只写真 URL）。
- */
-export function normalizeDeliverableAssetPaths(deliverable) {
-  if (!deliverable || !Array.isArray(deliverable.rows)) return deliverable
-  const toRelative = (v) => (
-    typeof v === 'string' && /^\/(audio-cache|audio|pic)\//.test(v) ? `..${v}` : (v || '')
-  )
-  const isPlayableSrc = (v) => (
-    typeof v === 'string' && v !== '' && /^(\.\.?\/|\/|data:audio\/|blob:|https?:\/\/)/.test(v)
-  )
-  deliverable.rows.forEach((row) => {
-    if (!row || typeof row !== 'object') return
-    const rel = toRelative(row.mp3 || row.audioUrl || '')
-    if (isPlayableSrc(rel)) {
-      row.mp3 = rel
-      row.audioUrl = rel
-    } else {
-      // 未生成/占位串：mp3 契约字段写空串，audioUrl 保留原值（下游展示层判断用）
-      row.mp3 = ''
-    }
-  })
-  return deliverable
-}
+// 史档：normalizeDeliverableAssetPaths 本体已于 2026-10-16（Task 40）迁至
+// src/lib/deliverableAssetPaths.js（前后端共享真源，客户端 JSON 双出口接线），
+// 本文件 re-export 保持 API 不变；决策 #017 的注释与史档随本体走。
 
 /**
  * 统一微课与参数交付物单页生成器
@@ -68,18 +44,40 @@ export function ensureDoctype(html) {
   return `<!DOCTYPE html>\n${html}`
 }
 
+// ★ Task 40：交付件标题（供测试直测，同 ensureDoctype 先例）——
+// problemText 去换行截 18 字 + 固定后缀；导出 HTML 的 <title> 随题目走，
+// 模板默认题名是“平行四边形面积”示例残留，不随内容变（夏夏 2026-10-16 指出）。
+export function deliverableTitle(deliverable) {
+  const text = String(deliverable?.problemText || '').replace(/\s+/g, ' ').trim()
+  const snippet = text.slice(0, 18)
+  return snippet ? `${snippet} · 仿人板书微课` : '仿人板书微课'
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 export function renderDeliverableHtml(deliverable) {
   const templatePath = candidateTemplatePaths.find(p => existsSync(p))
 
   if (templatePath) {
     try {
       const template = ensureDoctype(readFileSync(templatePath, 'utf-8'))
-      // ★ #017 出口二：渲染 HTML 前归一音频路径（与 writeDeliverableFile JSON 出口
+      // ★ #017 出口二：渲染 HTML 前归一音频/题目图路径（与 writeDeliverableFile JSON 出口
       //   同一实现；幂等，已在 JSON 出口归一过的数据再跑一遍无副作用）
       const normalized = normalizeDeliverableAssetPaths(deliverable)
       const safeJson = JSON.stringify(normalized || {}).replace(/</g, '\\u003c')
+      // ★ Task 40：标题随题目注入（转义防注入；模板 <title> 占位被真实题名替换）
+      const titled = template.replace(
+        /<title>[^<]*<\/title>/,
+        `<title>${escapeHtml(deliverableTitle(normalized))}</title>`
+      )
       const injectedScript = `<script>window.__INITIAL_DELIVERABLE__ = ${safeJson};</script>\n</head>`
-      return template.replace('</head>', injectedScript)
+      return titled.replace('</head>', injectedScript)
     } catch (err) {
       console.error('[renderDeliverableHtml] 读取模板失败，降级重定向:', err)
     }

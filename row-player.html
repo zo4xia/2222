@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>平行四边形面积 · 仿人板书（timing.js 时间真值）</title>
+<title>仿人板书微课</title>
 <!--
   模板壳 / 母版：单文件、零依赖、离线双击可开（沿用 bento「文件即产品」的壳）
   ★ 与 bento 的根本差别：bento 是离散翻页，我们是连续毫秒时间轴。
@@ -955,12 +955,21 @@ for(const k in ASSET.icons){const im=new Image();IMG.icons[k]=im;loadStageImg(im
      - 图片题：落座算法留了 image 区 → 画；
      - 文本题目：没有 image 区 → 只把 url 带出去，绝不往板上贴截图压板书。 */
 let PROBLEM_IMG=null;
-function setProblemImage(src){
-  if(!src||typeof src!=='string'){PROBLEM_IMG=null;return;}
+// ★ Task 40-B：题目图改「主候选 + 兜底链」——旧版单值 pick 让 screenshotUrl（/pic/ 相对化后
+//   file:// 双击仍可能缺图）遮蔽离线 base64 兜底 sourceImageUrl；onerror 现在逐级降试
+//   （与服务端 #017 归一 ../pic/ 配套），全挂才当没有；warn 留痕与音频 onerror 同款可诊断。
+function setProblemImage(src,fallbacks){
+  const cands=[src].concat(Array.isArray(fallbacks)?fallbacks.filter(function(v){return v&&v!==src;}):[])
+    .filter(function(v){return v&&typeof v==='string';});
+  if(!cands.length){PROBLEM_IMG=null;return;}
+  const cur=cands[0],rest=cands.slice(1);
   const im=new Image();
   im.onload=()=>{PROBLEM_IMG=im;if(C)render(now());};
-  im.onerror=()=>{PROBLEM_IMG=null;};   // 图挂了就当没有，不影响播放
-  im.src=src;
+  im.onerror=()=>{
+    if(rest.length){console.warn('[row-player] 题目图加载失败，降级兜底链:',cur);setProblemImage(rest[0],rest.slice(1));}
+    else{console.warn('[row-player] 题目图加载失败（兜底链耗尽）:',cur);PROBLEM_IMG=null;}
+  };   // 图挂了逐级降试，全挂才当没有，不影响播放
+  im.src=cur;
 }
 
 // stage 贴纸标签：位置唯一真相源 = 导出物 boardPlan 的四个 Label 定位（装载时已解析进 C.tagAnchor）
@@ -1297,7 +1306,16 @@ audioEl.onerror=()=>{
 function load(data){
   C=compile(data);
   T=0; rowIdx=0; rowAnchor=0; rowT0=performance.now(); rowHasAudio=false;
+  syncDocTitle();
   render(0);
+}
+/* ★ Task 40：标题随题目走——模板默认 <title> 是“平行四边形面积”示例题名残留（固定不随
+   内容变，夏夏 2026-10-16 指出）；装载唯一咽喉 load() 处同步 document.title，
+   URL/localStorage/固化注入/导入 JSON 四通道全覆盖；服务端 renderDeliverableHtml
+   也在固化时替换 <title>（双保险，两条通道互不依赖）。 */
+function syncDocTitle(){
+  var t=String(DATA.problemText||'').replace(/\s+/g,' ').trim();
+  document.title=(t?t.slice(0,18)+' · ':'')+'仿人板书微课';
 }
 document.getElementById('btnPlay').onclick=()=>{playing?pause():play();};
 function seekTo(v){
@@ -1395,7 +1413,7 @@ async function loadFromUrlOrDefault(){
           if (nd.projectCode) DATA.projectCode = nd.projectCode;
           if (nd.problemText) DATA.problemText = nd.problemText;
           if (nd.boardPlan) DATA.boardPlan = nd.boardPlan;
-          if (nd.problemImage) { DATA.problemImage = nd.problemImage; setProblemImage(nd.problemImage); }
+          if (nd.problemImage) { DATA.problemImage = nd.problemImage; DATA.problemImageFallbacks = nd.problemImageFallbacks || []; setProblemImage(nd.problemImage, DATA.problemImageFallbacks); }
           DATA.rows = nd.rows;
           const inCodeEl = document.getElementById('inCode');
           const inProblemEl = document.getElementById('inProblem');
@@ -1450,7 +1468,7 @@ async function loadFromUrlOrDefault(){
           if (nd.projectCode) DATA.projectCode = nd.projectCode;
           if (nd.problemText) DATA.problemText = nd.problemText;
           if (nd.boardPlan) DATA.boardPlan = nd.boardPlan;
-          if (nd.problemImage) { DATA.problemImage = nd.problemImage; setProblemImage(nd.problemImage); }
+          if (nd.problemImage) { DATA.problemImage = nd.problemImage; DATA.problemImageFallbacks = nd.problemImageFallbacks || []; setProblemImage(nd.problemImage, DATA.problemImageFallbacks); }
           DATA.rows = nd.rows;
           const inCodeEl = document.getElementById('inCode');
           const inProblemEl = document.getElementById('inProblem');
@@ -1531,6 +1549,11 @@ function normRow(r){
 }
 function normData(j){
   const rowsRaw=j.rows||j.steps||j.phases||[];
+  // ★ Task 40-B：题目图候选链（主 + 兜底）——screenshotDataUrl(base64 离线稳) > screenshotUrl
+  //   (/pic/，file:// 可能缺) > sourceImageUrl(base64 兜底) > problemImage（第三方槽）
+  const IMG_SLOTS=['screenshotDataUrl','screenshotUrl','sourceImageUrl','problemImage'];
+  const imgCands=IMG_SLOTS.map(function(n){return j?j[n]:null;})
+    .filter(function(v){return typeof v==='string'&&v!=='';});
   return {
     projectCode: pick(j,['projectCode','code','id'])||'LECTURE',
     problemText: pick(j,['problemText','question','title','题目'])||'',
@@ -1541,7 +1564,10 @@ function normData(j){
       ||(j.canvasParams&&j.canvasParams.fontSource&&j.canvasParams.fontSource.handwriting&&j.canvasParams.fontSource.handwriting.choice)
       ||null,
     // 题目图：内嵌 base64 优先（离线可开），其次 url；画不画由 boardPlan.image 决定
-    problemImage: pick(j,['screenshotDataUrl','screenshotUrl','sourceImageUrl','problemImage'])||'',
+    // ★ Task 40-B：主候选 + 兜底链——旧版单值 pick 让 screenshotUrl 遮蔽 base64 兜底；
+    //   onerror 逐级降试（见 setProblemImage），不再静默丢图
+    problemImage: imgCands[0]||'',
+    problemImageFallbacks: imgCands.slice(1),
     rows: rowsRaw.map(normRow)
   };
 }
@@ -1554,10 +1580,11 @@ if(window.__INITIAL_DELIVERABLE__){try{
   if(_nd.problemText)DATA.problemText=_nd.problemText;
   if(_nd.boardPlan)DATA.boardPlan=_nd.boardPlan;
   if(_nd.problemImage)DATA.problemImage=_nd.problemImage;
+  DATA.problemImageFallbacks=_nd.problemImageFallbacks||[];
   if(_nd.rows&&_nd.rows.length)DATA.rows=_nd.rows;
   document.getElementById('inCode').value=DATA.projectCode||'';
   document.getElementById('inProblem').value=DATA.problemText||'';
-  setProblemImage(DATA.problemImage);
+  setProblemImage(DATA.problemImage,DATA.problemImageFallbacks);
   load(DATA);
 }catch(e){console.warn('[deliverable] 注入数据解析失败，使用内置示例',e);}}
 /* ---- 配置面板：题目级填空 + 一键导入 JSON ---- */
@@ -1579,9 +1606,10 @@ document.getElementById('fJson').onchange=e=>{
       if(nd.problemText)DATA.problemText=nd.problemText;
       DATA.rows=nd.rows;
       if(nd.problemImage)DATA.problemImage=nd.problemImage;
+      DATA.problemImageFallbacks=nd.problemImageFallbacks||[];
       document.getElementById('inCode').value=DATA.projectCode||'';
       document.getElementById('inProblem').value=DATA.problemText||'';
-      setProblemImage(DATA.problemImage);
+      setProblemImage(DATA.problemImage,DATA.problemImageFallbacks);
       load(DATA); seekTo(0);
       alert('已导入：'+DATA.rows.length+' 行（已按我们的字段表归一，多余字段已忽略）');
     }catch(err){ alert('JSON 解析失败：'+err.message); }
@@ -1665,7 +1693,8 @@ window.AgentCanvas={
       if(nd.problemText)DATA.problemText=nd.problemText;
       if(nd.boardPlan)DATA.boardPlan=nd.boardPlan;
       if(nd.rows&&nd.rows.length)DATA.rows=nd.rows;
-      setProblemImage(nd.problemImage);
+      DATA.problemImageFallbacks=nd.problemImageFallbacks||[];
+      setProblemImage(nd.problemImage,DATA.problemImageFallbacks);
       load(DATA);seekTo(0);
       document.getElementById('inCode').value=DATA.projectCode||'';
       document.getElementById('inProblem').value=DATA.problemText||'';

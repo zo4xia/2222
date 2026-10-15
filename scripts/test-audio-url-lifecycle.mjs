@@ -16,6 +16,13 @@
  *   B. renderDeliverableHtml / writeDeliverableFile 双出口归一集成
  *   C. parseCheckResponse / polishRowsASR 音频字段回填行为级
  *   D. AgentBDirect 真源写入口 + row-player 双胞胎一致性（源码级）
+ *
+ * Task 40 扩容（2026-10-16，导出内容真实性审计四缺口闭环）：
+ *   A.+ sequence（流水线形状）行归一 + screenshotUrl 题目图三落点（顶层/topicSpec/problemInfo）归一
+ *   B.+ 导出 HTML 标题随题目注入（拔“平行四边形”示例题名残留）
+ *   D.+ 三胞胎（含 dist）+ 题目图兜底链 + syncDocTitle 装载咽喉
+ *   E.  新增：客户端 JSON 双出口接线 / openDeliverablePage 打开前重新固化 /
+ *       要素表字体选择补传 / 每行落笔延迟真源写入口（branch2 被 squash 丢失功能回归）
  */
 import { strict as assert } from 'node:assert'
 import { readFileSync, existsSync, rmSync } from 'node:fs'
@@ -23,7 +30,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { createHash } from 'node:crypto'
 
-import { normalizeDeliverableAssetPaths, renderDeliverableHtml } from '../server/renderDeliverableHtml.js'
+import { normalizeDeliverableAssetPaths, renderDeliverableHtml, deliverableTitle } from '../server/renderDeliverableHtml.js'
 import { writeDeliverableFile } from '../server/deliverableStoreHandler.js'
 import { parseCheckResponse } from '../server/checkAgentHandler.js'
 import { polishRowsASR } from '../src/check-agent/asrPolish.js'
@@ -94,6 +101,34 @@ ok('幂等：连续跑两遍结果一致', () => {
   assert.strictEqual(JSON.stringify(d), first)
 })
 
+ok('Task 40-A：sequence（流水线形状）行同规归一', () => {
+  const d = { sequence: [{ stage: '分析', audioUrl: '/audio-cache/seq.mp3' }, { audioUrl: '音频暂未生成' }] }
+  normalizeDeliverableAssetPaths(d)
+  assert.strictEqual(d.sequence[0].mp3, '../audio-cache/seq.mp3')
+  assert.strictEqual(d.sequence[0].audioUrl, '../audio-cache/seq.mp3')
+  assert.strictEqual(d.sequence[1].mp3, '')
+})
+
+ok('Task 40-B：顶层 screenshotUrl 归一上级目录（题目图离线不再 404）', () => {
+  const d = { screenshotUrl: '/pic/shot-20261016.jpg', rows: [mk(undefined, '/audio-cache/a.mp3')] }
+  normalizeDeliverableAssetPaths(d)
+  assert.strictEqual(d.screenshotUrl, '../pic/shot-20261016.jpg')
+})
+
+ok('Task 40-B：topicSpec / problemInfo 两个题目图落点同规', () => {
+  const d = { topicSpec: { screenshotUrl: '/pic/p1.jpg' }, problemInfo: { screenshotUrl: '/pic/p2.jpg' } }
+  normalizeDeliverableAssetPaths(d)
+  assert.strictEqual(d.topicSpec.screenshotUrl, '../pic/p1.jpg')
+  assert.strictEqual(d.problemInfo.screenshotUrl, '../pic/p2.jpg')
+})
+
+ok('题目图非字符串 / null / 外链不重写', () => {
+  const d = { screenshotUrl: null, topicSpec: { screenshotUrl: 'https://cdn.example.com/p.png' }, problemInfo: {} }
+  normalizeDeliverableAssetPaths(d)
+  assert.strictEqual(d.screenshotUrl, null)
+  assert.strictEqual(d.topicSpec.screenshotUrl, 'https://cdn.example.com/p.png')
+})
+
 /* ============ B. 双出口集成 ============ */
 console.log('\n[B] #017 双出口（HTML 渲染 / JSON 写盘）')
 
@@ -137,6 +172,23 @@ try {
     if (existsSync(p)) rmSync(p)
   }
 }
+
+ok('Task 40：renderDeliverableHtml 标题随题目注入（拔“平行四边形”示例残留）', () => {
+  const d = {
+    projectCode: 'TEST-title-1',
+    problemText: '一个长方形的长是12厘米，宽是8厘米，求它的周长和面积各是多少？',
+    rows: [mk(undefined, '/audio-cache/abc.mp3')],
+  }
+  const html = renderDeliverableHtml(d)
+  assert.ok(html.includes('<title>一个长方形的长是12厘米，宽是8厘米 · 仿人板书微课</title>'), '标题应为题目前 18 字 + 固定后缀')
+  assert.ok(!html.includes('平行四边形面积 · 仿人板书'), '模板示例题名残留必须被替换')
+})
+
+ok('deliverableTitle：截断 18 字 / 空题兑底 / 空白折叠', () => {
+  assert.strictEqual(deliverableTitle({ problemText: '  题目\n有两个空格   与换行 ' }), '题目 有两个空格 与换行 · 仿人板书微课')
+  assert.strictEqual(deliverableTitle({ problemText: '' }), '仿人板书微课')
+  assert.strictEqual(deliverableTitle({}), '仿人板书微课')
+})
 
 /* ============ C. Check / ASR 通道音频字段回填 ============ */
 console.log('\n[C] Check/ASR 通道音频回填')
@@ -204,12 +256,71 @@ ok('AgentBDirect：setRowAudioUrl 同步刷新 B 缓存（防刷新丢音频）'
     '合成成功后应 bCacheSet 回写缓存')
 })
 
-ok('row-player 双胞胎 md5 一致 + onerror 可观测性', () => {
+ok('row-player 三胞胎 md5 一致（root/public/dist）+ onerror 可观测性', () => {
   const ha = createHash('md5').update(twinA).digest('hex')
   const hb = createHash('md5').update(twinB).digest('hex')
   assert.strictEqual(ha, hb, '根目录与 public/ 双胞胎必须逐字节一致')
+  const distPath = join(root, 'dist/row-player.html')
+  if (existsSync(distPath)) {
+    const hc = createHash('md5').update(readFileSync(distPath, 'utf8')).digest('hex')
+    assert.strictEqual(hc, ha, 'dist 构建产物（若存在）也必须与母版一致')
+  }
   assert.ok(twinA.includes("[row-player] 音频加载失败"), 'onerror 应留 warn 痕迹（哑巴可诊断）')
   assert.ok(twinB.includes("[row-player] 音频加载失败"), '双胞胎同步携带 warn')
+})
+
+ok('row-player Task 40：题目图兜底链 + 标题装载咽喉接线', () => {
+  assert.ok(/function setProblemImage\(src,fallbacks\)/.test(twinA), 'setProblemImage 应携带兜底链参数')
+  assert.ok(twinA.includes('problemImageFallbacks: imgCands.slice(1)'), 'normData 应产出兜底链候选')
+  assert.ok(twinA.includes('题目图加载失败，降级兜底链'), 'onerror 应逐级降试并 warn 留痕')
+  assert.ok(/function load\(data\)\{[\s\S]{0,200}?syncDocTitle\(\);/.test(twinA), 'load() 装载咽喉应同步 document.title')
+  assert.ok(/function syncDocTitle\(\)/.test(twinA), 'syncDocTitle 函数应存在')
+  assert.ok(!twinA.includes('平行四边形面积 · 仿人板书'), '模板示例题名残留必须清零')
+})
+
+/* ============ E. Task 40：客户端导出出口接线 / 重新固化 / 落笔延迟（源码级） ============ */
+console.log('\n[E] Task 40：客户端导出出口接线 / 打开前重新固化 / 落笔延迟真源写入口')
+
+const bpa = readFileSync(join(root, 'src/board-preview/BoardPreviewApp.vue'), 'utf8')
+const sharedLib = readFileSync(join(root, 'src/lib/deliverableAssetPaths.js'), 'utf8')
+const serverRender = readFileSync(join(root, 'server/renderDeliverableHtml.js'), 'utf8')
+
+ok('共享真源存在：src/lib/deliverableAssetPaths.js 本体（零 node 依赖，浏览器可加载）', () => {
+  assert.ok(sharedLib.includes('export function normalizeDeliverableAssetPaths'), '共享模块应导出归一函数')
+  assert.ok(!sharedLib.includes("from 'fs'") && !sharedLib.includes("from 'path'"), '共享模块必须零 node 依赖')
+})
+
+ok('服务端 re-export 共享真源（不平行另写一套）', () => {
+  assert.ok(serverRender.includes("from '../src/lib/deliverableAssetPaths.js'"), 'renderDeliverableHtml 应 import 共享真源')
+  assert.ok(!/export function normalizeDeliverableAssetPaths\(deliverable\)\s*\{/.test(serverRender), '服务端不得残留平行实现')
+})
+
+ok('AgentBDirect 客户端 JSON 出口接线共享归一（downloadDeliverableJson）', () => {
+  assert.ok(src.includes("import { normalizeDeliverableAssetPaths } from '../lib/deliverableAssetPaths.js'"), '应 import 共享真源')
+  assert.ok(/function downloadDeliverableJson\(\)[\s\S]{0,600}?normalizeDeliverableAssetPaths\(serializeCurrentDeliverableState\(\)\)/.test(src), '导出前应过归一')
+})
+
+ok('BoardPreviewApp 流水线 JSON 出口接线共享归一（pipelineJsonString，sequence+topicSpec 形状）', () => {
+  assert.ok(bpa.includes("import { normalizeDeliverableAssetPaths } from '../lib/deliverableAssetPaths.js'"), '应 import 共享真源')
+  assert.ok(/normalizeDeliverableAssetPaths\(data\)/.test(bpa), 'computed 内应调用归一')
+})
+
+ok('Task 40-F：BoardPreviewApp 要素表导出传字体选择（韶华档不再错写乔木）', () => {
+  assert.ok(/function exportElementsMarkdown\(\)[\s\S]{0,600}?handwritingFontChoice:\s*meta\.value\?\.canvasParams\?\.fontSource\?\.handwriting\?\.choice/.test(bpa), '应从 canvasParams.fontSource 派生传选择')
+})
+
+ok('Task 40-E：openDeliverablePage 打开前重新固化（旧快照病根拔除）', () => {
+  const fn = src.match(/async function openDeliverablePage\(\)[\s\S]{0,900}?\n\}/)
+  assert.ok(fn, 'openDeliverablePage 应为 async 版本')
+  assert.ok(fn[0].includes('serializeCurrentDeliverableState()'), '函数体内应实时序列化当前状态')
+  assert.ok(fn[0].includes("method: 'POST'") && fn[0].includes("'/api/deliverable'"), '应 POST 重新固化后再开窗')
+  assert.ok(!/openDeliverablePageFresh/.test(src), '不得残留平行双胞胎函数名')
+})
+
+ok('Task 40-②：updateBoardStartDelay 真源写入口（时间轴重算 + bCache 同步）', () => {
+  assert.ok(/function updateBoardStartDelay\(index, delay\)[\s\S]{0,700}?applyAgentBV2Timeline\(rows\.value\)/.test(src), '改延迟必须重算时间轴')
+  assert.ok(/function updateBoardStartDelay\(index, delay\)[\s\S]{0,800}?bCacheSet\(rows\.value,\s*generatedModel\.value\)/.test(src), '必须同步刷 B 缓存（防刷新蒸发，setRowAudioUrl 铁律）')
+  assert.ok(/board-delay-input/.test(src) && /updateBoardStartDelay\(index, value\)/.test(src), '编辑卡应有延迟输入控件接线')
 })
 
 console.log(`\n${pass + fail} 用例：${pass} 通过 / ${fail} 失败`)
