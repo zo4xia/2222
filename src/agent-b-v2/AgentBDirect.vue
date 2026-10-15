@@ -1315,7 +1315,7 @@ function serializeCurrentDeliverableState() {
 }
 
 // ★ Task 13：useApiSpecDrawer 整套砍除——抽屉指向的 DELIVERABLE_API_SPEC.md / deliverable.schema.json
-// 全仓从未存在（6 处引用全 404 的幽灵契约链），下游规范入口收敛到导出 JSON 本体 + README
+// 全仓从未存在（6 处引用全 404 的幽灵契约链��，下游规范入口收敛到导出 JSON 本体 + README
 
 // 固化生成最终交付产物单页：写入 public/deliverable/ 永久文件，刷新不丢失
 async function generateDeliverablePage() {
@@ -2068,7 +2068,7 @@ function isRefineFieldEqual(original, refined) {
             v-if="!rows.length"
             class="workbench-empty-state"
           >
-            <div class="empty-icon-box">📐</div>
+            <div class="empty-icon-box">����</div>
             <div class="empty-text-title">题目信息与四区排版已就绪</div>
             <div class="empty-text-sub">点击右上角「生成 Agent B 五字段」按钮，即可为小朋友生成由浅入深、温润启发式的讲课剧本</div>
             <a-button
@@ -2107,22 +2107,6 @@ function isRefineFieldEqual(original, refined) {
                     @click="setLayoutPreset('standard')"
                   >
                     🌟 标准全景
-                  </button>
-                  <button
-                    type="button"
-                    :class="['preset-btn', { active: layoutPreset === 'speech_focus' }]"
-                    title="专注口播：折叠板书与动作，口播稿占超宽阔视野，沉浸打磨讲课录音文案"
-                    @click="setLayoutPreset('speech_focus')"
-                  >
-                    🎙️ 专注口播
-                  </button>
-                  <button
-                    type="button"
-                    :class="['preset-btn', { active: layoutPreset === 'board_focus' }]"
-                    title="专注板书：折叠口播与动作，板书占超宽阔视野，沉浸推导公式与推演几何"
-                    @click="setLayoutPreset('board_focus')"
-                  >
-                    ✍️ 专注板书
                   </button>
                 </div>
               </div>
