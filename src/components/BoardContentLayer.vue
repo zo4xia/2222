@@ -8,7 +8,8 @@ import {
 import { renderProblemHtml } from '../utils/mathText'
 import { buildGridLines } from '../utils/canvasCoords'
 // 画布参数唯一真源：src/services/stepHandoff.js
-import { QUESTION_FONT_SIZE, CANVAS_SIZE } from '../services/stepHandoff.js'
+// ★ 字体宪法 v2（2026-10-15）：题目字体族/颜色从真源派生，行高自然口径
+import { QUESTION_FONT_SIZE, QUESTION_FONT_FAMILY, BOARD_TEXT_COLOR, CANVAS_SIZE } from '../services/stepHandoff.js'
 
 const props = defineProps({
   problemText: { type: String, default: '' },
@@ -22,7 +23,7 @@ const props = defineProps({
   draggable: { type: Boolean, default: true },
   /**
    * ★ Task 9 修复: 画布舞台参数 (canvasParams)
-   *  含 fontSize.question.px / canvasSize.width / lineHeight.question 等
+   *  含 fontSize.question.px / canvasSize.width / lineHeight.policy（字体宪法 v2：自然行高文案）等
    *  没传则 fallback 到 stepHandoff.js 常量 (QUESTION_FONT_SIZE / CANVAS_SIZE)
    */
   canvasParams: { type: Object, default: null },
@@ -481,6 +482,9 @@ function getBlockStyle(block) {
     width: `${widthVal}%`,
     // ★ Task 9: 用 realCanvasWidth 替代写死的 17.26 (= 1726/100), 让画布尺寸随 canvasParams 自适应
     fontSize: `calc(${block.fontSize || realQuestionFontSize.value} * 1cqw / ${realCanvasWidth.value / 100})`,
+    // ★ 字体宪法 v2: 题目印刷体 = 微软雅黑（真源 stepHandoff.QUESTION_FONT_FAMILY），颜色黑色真源派生
+    fontFamily: QUESTION_FONT_FAMILY,
+    color: BOARD_TEXT_COLOR,
   }
 }
 
@@ -767,9 +771,10 @@ onBeforeUnmount(() => {
   filter: grayscale(1) contrast(1.05); pointer-events: none;
 }
 .topic-text {
-  /* line-height 1.65 = 题目区印刷体行高，真源 src/services/stepHandoff.js QUESTION_LINE_HEIGHT */
-  z-index: 4; color: #1f1f1f; line-height: 1.65; white-space: pre-wrap; word-break: break-word;
-  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-weight: 500;
+  /* ★ 字体宪法 v2（2026-10-15）：行高 = 自然（CSS normal，无强制行高规范，夏夏拍板）；
+     字体族/颜色由 getBlockStyle 内联真源派生（stepHandoff.QUESTION_FONT_FAMILY / BOARD_TEXT_COLOR） */
+  z-index: 4; line-height: normal; white-space: pre-wrap; word-break: break-word;
+  font-weight: 500;
 }
 .topic-text :deep(.katex) { font-size: 1.0em; }
 

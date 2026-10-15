@@ -55,10 +55,11 @@ import { exportSpeechMarkdown, exportStoryboardMarkdown } from '../lib/speechMar
 import VisualTimeline from '../components/VisualTimeline.vue'
 import { showGlobalLoading, hideGlobalLoading } from '../services/globalLoading.js'
 // 画布参数唯一真源：src/services/stepHandoff.js
-// ★ Task 10: 引入完整常量避免硬编码字号/字体/行高
+// ★ 字体宪法 v2（2026-10-15）：题目字体/行高口径全部真源派生，不再硬编码
 import {
   QUESTION_FONT_SIZE,
-  QUESTION_LINE_HEIGHT,
+  QUESTION_FONT_FAMILY,
+  LINE_HEIGHT_POLICY_TEXT,
   CANVAS_SIZE,
   buildCanvasParams,
 } from '../services/stepHandoff.js'
@@ -253,8 +254,8 @@ const toolReferenceRows = toolCatalog.tools.flatMap((tool) => {
 const canvasParams = ref({
   coordinateMode: 'percentage',
   questionFontSize: QUESTION_FONT_SIZE,
-  questionFontFamily: '"Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
-  questionLineHeight: QUESTION_LINE_HEIGHT,
+  questionFontFamily: QUESTION_FONT_FAMILY,
+  lineHeightPolicy: LINE_HEIGHT_POLICY_TEXT,
   rowGapMs: AGENT_B_V2_ROW_GAP_MS,
   speechSpeed: AGENT_B_V2_SPEECH_RATE,
 })
@@ -1265,11 +1266,12 @@ function serializeCurrentDeliverableState() {
       summary: { x: hbp.summary?.x ?? 54, y: hbp.summary?.y ?? 69.5, w: hbp.summary?.w ?? 40, h: hbp.summary?.h ?? 22 },
       image: hbp.image || null,
     },
-    // UI 可调参数（B 页面设置）
+    // UI 可调参数（B 页面设置）—— 字体宪法 v2：全部真源派生（stepHandoff.js），不再硬编码
     uiSettings: {
       coordinateMode: '百分比',
       questionFontSize: `${QUESTION_FONT_SIZE}px`,
-      questionFontFamily: '"Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+      questionFontFamily: QUESTION_FONT_FAMILY,
+      lineHeightPolicy: LINE_HEIGHT_POLICY_TEXT,
       audioSpeedPolicy: AUDIO_SPEED_POLICY_TEXT,
     },
     // 题目信息与环节配比
@@ -1703,7 +1705,7 @@ function isRefineFieldEqual(original, refined) {
                         </span>
                         <span class="canvas-param-chip">
                           <span class="chip-k">行高</span>
-                          <span class="chip-v">题{{ handoff.canvasParams.lineHeight.question }} / 文{{ handoff.canvasParams.lineHeight.others }}</span>
+                          <span class="chip-v">自然（无强制行高规范）</span>
                         </span>
                       </div>
                       <span class="qh-field-key">canvasParams</span>

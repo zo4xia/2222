@@ -5,26 +5,36 @@
  * 核心：题目内容、题型、板书侧重 + 第1步已定题目坐标
  */
 /* 画布参数【唯一真源】
- * 全项目画布尺寸 / 题目字号 / 板书字号 / 题目行高只在此定义，其余位置一律 import。
- * 禁止再写字面值（30 / 38 / 1.65 / 1.7 / 1726 / 980）；发现别处硬编码 = 那处是 bug。
+ * 全项目画布尺寸 / 题目字号 / 板书字号 / 字体族 / 颜色 / 行高口径只在此定义，其余位置一律 import。
+ * 禁止再写字面值（30 / 38 / 1726 / 980 / 微软雅黑栈 / #dc2626 / #000000）；发现别处硬编码 = 那处是 bug。
  * 注意 skills/ 下的 html 是测试草稿，不是本文件的依据。
  *
  * ★ Task 10 修复 (2026-09-21)：恢复甲方原始要求（row-player.html v1.1 2026-09-17 拍板版）
  *   - 板书字号 35px → 38px（35 与 42 折中）
  *   - 板书字体 LikeJianJianTi(490) → 平方乔木体(507) 优先，490 作为降级栈尾
- *   - 板书行高无数字 → 1.7±随机（区间 1.55~1.85，下游渲染职责，均值 1.7）
- *   - 板书速度 1秒2-3字 + ±5% 轻微抖动 + 书写时长超出音频窗口自适应加速
  *   - 字距 0-2px 微小随机 → 三路抖动（字号/基线/字距）+ 位置抖动
+ *
+ * ★ 字体宪法 v2（2026-10-15 夏夏拍板，全库归一）：
+ *   - 画布 1726×980px（以实际硬编码画布尺寸为准）
+ *   - 题目：微软雅黑 30px（印刷体）；题目之外：板书 38px 手写体
+ *   - 板书字体 2 种可选：默认平方乔木体(507)；备选链 157韶华→511上上谦→510三生→509韶拓→490栗坚（按栈自动降级）
+ *   - 颜色：分析区红色，其余全部黑色（渲染端色值唯一真源 = ANALYSIS_TEXT_COLOR / BOARD_TEXT_COLOR）
+ *   - 行高 = 自然行高（CSS line-height: normal / 字体自身度量），不设强制行高规范（旧 1.65 / 1.7± 已废止）
+ *   - 每个标签区域内 CSS 流动自适应：行内段落自然间距、自然换行；布局由渲染层编译期度量排版（唯一布局权威）
  */
 export const CANVAS_SIZE = { width: 1726, height: 980, unit: 'px', origin: '左上角(0,0), X向右Y向下' }
 export const COORDINATE_SYSTEM = '百分比坐标 0-100'
 export const QUESTION_FONT_SIZE = 30
-export const QUESTION_LINE_HEIGHT = 1.65
+// ★ 字体宪法 v2：题目印刷体 = 微软雅黑（夏夏 2026-10-15 拍板；旧 Segoe UI 优先栈已废止）
+export const QUESTION_FONT_FAMILY = '"Microsoft YaHei", "PingFang SC", sans-serif'
+export const QUESTION_FONT_FAMILY_TEXT = '微软雅黑（印刷体，本地字体）'
 // ★ Task 10: 板书字号 38px（甲方 2026-09-17 拍板，35 与 42 折中）
 export const BOARD_FONT_SIZE = 38
 export const BOARD_FONT_RATIO_TEXT = '约题目的1.2~1.5倍，推荐38px'
 // ★ Task 10: 主手写体 = 平方乔木体 (CDN 507)；490 (栗壳坚坚体) 降为字体栈尾
+// 字体宪法 v2「2 种可选」：默认 = 平方乔木体(507)；备选 = 平方韶华体(157)，其后为加载失败自动降级链
 export const HANDWRITING_FAMILY = '平方乔木体'
+export const HANDWRITING_FAMILY_ALT = '平方韶华体'
 export const HANDWRITING_CSS_HREF = 'https://fontsapi.zeoseven.com/507/main/result.css'
 // ★ Task 10: 完整字体栈（与 row-player.html line 116-122 同步镜像）
 //   顺序：507 平方乔木体（主）→ 157 平方韶华体 → 511 平方上上谦体 → 510 平方三生体 → 509 平方韶拓体 → 490 栗壳坚坚体 → 系统楷体
@@ -49,20 +59,20 @@ export const HANDWRITING_CSS_HREF_FALLBACKS = [
   'https://fontsapi.zeoseven.com/509/main/result.css',  // 平方韶拓体
   'https://fontsapi.zeoseven.com/490/main/result.css',  // 栗壳坚坚体（原主字体降为降级）
 ]
-// ★ Task 10: 板书行高真相源 = 1.7±随机（区间 1.55~1.85，下游渲染职责）
-export const BOARD_LINE_HEIGHT_MEAN = 1.7
-export const BOARD_LINE_HEIGHT_MIN = 1.55
-export const BOARD_LINE_HEIGHT_MAX = 1.85
+// ★ 字体宪法 v2（2026-10-15 夏夏拍板）：自然行高，不设强制行高规范。
+//   渲染口径：DOM 用 line-height: normal；画布用字体度量（fontBoundingBoxAscent+Descent），两者同源。
+//   估算口径（B 感知垂直跨度 / 服务端换行预判）用 LINE_HEIGHT_ESTIMATE_RATIO 保守比数。
+//   旧 QUESTION_LINE_HEIGHT=1.65 / BOARD_LINE_HEIGHT 1.7±(1.55~1.85) 已全库废止拔除。
+export const LINE_HEIGHT_POLICY_TEXT = '自然行高（CSS line-height: normal / 字体自身度量），不设强制行高规范；区域内行内段落自然间距、自然换行'
+export const LINE_HEIGHT_POLICY_SHORT = '自然（无强制行高规范）'
+export const LINE_HEIGHT_ESTIMATE_RATIO = 1.2
+// ★ 字体宪法 v2：颜色唯一真源——分析区红色，其余全部黑色（画布/ DOM 渲染端色值从这里派生）
+export const ANALYSIS_TEXT_COLOR = '#dc2626'
+export const BOARD_TEXT_COLOR = '#000000'
 // ★ 板书速度真相源（timing.js BASE_CHAR_WRITE_MS=220ms/字 为唯一代码真源）：1秒4~5字 + ±30ms 抖动 + 超音频窗口自适应加速
 export const BOARD_SPEED_CHARS_PER_SEC = 4.5  // 1秒4~5字（2026-10-15 夏夏拍板提速，基准 220ms/字），均值 4.5
 export const BOARD_SPEED_JITTER = 0.14       // ±30ms/220ms ≈ ±14% 轻微抖动（timing.js jitter ±30ms 真源换算）
 export const BOARD_SPEED_ADAPTIVE_COMPRESS = true  // 书写时长超出音频窗口时自适应加速压进音频内
-
-/** 行高口径：题目 1.65 固定 / 板书 1.7±随机（1.55~1.85）+ 渲染层微小随机抖动 */
-export const LINE_HEIGHT_RULE =
-  '板书行高均值 1.7，逐行 1.55~1.85 微小随机（seed 冻结，幂等可 seek）；题目行高 1.65 固定'
-export const LINE_HEIGHT_FORMULA =
-  '板书 line-height = 1.7 + random(-0.15, +0.15)（seed 冻结）；题目 line-height = 1.65 固定'
 
 /** 生成 handoff 的 canvasParams：stepHandoff 生成与 server 兜底补全共用同一份 */
 export function buildCanvasParams() {
@@ -88,8 +98,9 @@ export function buildCanvasParams() {
         usage: `渲染前必须先加载该 CSS（font-family: "${HANDWRITING_FAMILY}"; font-weight: normal），字体栈 fallback 顺序见 fontStack；507 不可用时按栈降级`,
       },
       question: {
-        family: 'Segoe UI/PingFang SC/Microsoft YaHei',
-        label: '印刷体（题目层，本地字体，不加载网络字体）',
+        family: QUESTION_FONT_FAMILY_TEXT,
+        stack: QUESTION_FONT_FAMILY,
+        label: '印刷体（题目层，微软雅黑本地字体，不加载网络字体）',
         fontWeight: 'normal',
       },
     },
@@ -100,12 +111,11 @@ export function buildCanvasParams() {
       summary: { px: BOARD_FONT_SIZE, family: boardFamily, color: '黑色' },
     },
     lineHeight: {
-      question: QUESTION_LINE_HEIGHT,
-      // ★ Task 10: 板书行高真相源 - 1.7±随机（1.55~1.85，下游渲染职责）
-      others: LINE_HEIGHT_RULE,
-      boardMean: BOARD_LINE_HEIGHT_MEAN,
-      boardMin: BOARD_LINE_HEIGHT_MIN,
-      boardMax: BOARD_LINE_HEIGHT_MAX,
+      // ★ 字体宪法 v2：自然行高（无强制规范）；estimateRatio 仅供 B 估算垂直跨度
+      policy: LINE_HEIGHT_POLICY_TEXT,
+      question: LINE_HEIGHT_POLICY_SHORT,
+      others: LINE_HEIGHT_POLICY_SHORT,
+      estimateRatio: LINE_HEIGHT_ESTIMATE_RATIO,
     },
     letterSpacing: {
       question: '0',
@@ -118,7 +128,7 @@ export function buildCanvasParams() {
     boardSpeedJitter: BOARD_SPEED_JITTER,
     boardSpeedAdaptiveCompress: BOARD_SPEED_ADAPTIVE_COMPRESS,
     actionSpeed: '差不多同样速度（rough-line/rough-arrow/rough-notation绘制速度）',
-    lineHeightFormula: LINE_HEIGHT_FORMULA,
+    lineHeightPolicy: LINE_HEIGHT_POLICY_TEXT,
   }
 }
 

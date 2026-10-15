@@ -35,7 +35,8 @@ const tests = [
   { name: 'refine json safe (优化确认 json 报错修复 20 用例)', cmd: 'node scripts/test-refine-json-safe.mjs' },
   { name: 'validate_contract',          cmd: 'node skills/board-lecture-player/scripts/validate_contract.cjs skills/board-lecture-player/assets/sample-rows.json' },
   { name: 'action whitelist sync (真源同步哨兵 20 用例)', cmd: 'node scripts/test-action-whitelist-sync.mjs' },
-  { name: 'playback speed sync (提速归一哨兵 58 用例)', cmd: 'node scripts/test-playback-speed-sync.mjs' },
+  { name: 'playback speed sync (提速归一哨兵 69 用例)', cmd: 'node scripts/test-playback-speed-sync.mjs' },
+  { name: 'font single source (字体宪法v2归一哨兵 47 用例)', cmd: 'node scripts/test-font-single-source.mjs' },
 ]
 
 let pass = 0, fail = 0

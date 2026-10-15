@@ -25,7 +25,7 @@ trigger: "生成讲题执行表/板书/口播稿/五字段JSON/Agent B输出"
 | handoff 字段 | 用途 | 读取要求 |
 |---|---|---|
 | `boardPlan` | 四区板书布局参考（question/analysis/solution/summary 四区的 x/y/w/h + 标签位置） | 坐标定位辅助，起手坐标参考本区范围，落在区域内即可 |
-| `canvasParams` | 画布参数（canvasSize, fontSize, lineHeight, boardSpeed, lineHeightFormula 等） | **必须使用真实值**，根据本区字号和行高估算每行高度 |
+| `canvasParams` | 画布参数（canvasSize, fontSize, lineHeight, boardSpeed, lineHeightPolicy 等） | **必须使用真实值**，根据本区字号和行高估算每行高度 |
 | `zoneAnchors` | 四个区域的关键锚点坐标，key 为 question/analysis/solution/summary | **区域范围是硬约束**：板书和动作坐标不得超出对应区域范围 |
 | `coordinateSpec` | 坐标系说明（百分比坐标 0—100，原点左上） | 作为基准参考 |
 | `coordinateMode` | **单独传入的参数**（不在 handoff JSON 内）。坐标输出模式：`percentage` = 百分比坐标，`pixel` = 像素坐标 | **决定所有坐标输出格式**，board.startCoord 和 actionSpec 中的坐标均按此模式输出 |
@@ -37,23 +37,26 @@ trigger: "生成讲题执行表/板书/口播稿/五字段JSON/Agent B输出"
 - **board.startCoord** 和 **actionSpec 中的坐标** 统一按 coordinateMode 输出
 - 没有可用布局信息时，宁可返回 `[]`，不要编造坐标
 
-### 1.3 字号与行高（以 handoff 真实值为准）
+### 1.3 字号、字体与颜色（字体宪法 v2，真源 stepHandoff.js）
 
-| 区域 | 参考字号 | 字体 | 行高（B估算用） | 颜色 |
+| 区域 | 参考字号 | 字体 | 行高 | 颜色 |
 |---|---|---|---|---|
-| 题目区 | ~30px | 印刷体（Segoe UI/PingFang SC/Microsoft YaHei） | ~1.65 | 黑色 |
-| 分析区 | ~38px（题目的1.2~1.5倍） | 平方乔木体（手写体，主 CDN 507；降级栈见 stepHandoff.js HANDWRITING_FONT_STACK） | ~1.7（下游渲染1.55-1.85微小随机） | **红色** |
-| 解答区 | ~38px（题目的1.2~1.5倍） | 平方乔木体（手写体，主 CDN 507） | ~1.7（下游渲染1.55-1.85微小随机） | 黑色 |
-| 总结区 | ~38px（题目的1.2~1.5倍） | 平方乔木体（手写体，主 CDN 507） | ~1.7（下游渲染1.55-1.85微小随机） | 黑色 |
+| 题目区 | ~30px | 印刷体（微软雅黑 Microsoft YaHei；真源 stepHandoff.QUESTION_FONT_FAMILY） | 自然（无强制规范） | 黑色 |
+| 分析区 | ~38px（题目的1.2~1.5倍） | 平方乔木体（手写体，主 CDN 507；降级栈见 stepHandoff.js HANDWRITING_FONT_STACK） | 自然（无强制规范） | **红色** |
+| 解答区 | ~38px（题目的1.2~1.5倍） | 平方乔木体（手写体，主 CDN 507） | 自然（无强制规范） | 黑色 |
+| 总结区 | ~38px（题目的1.2~1.5倍） | 平方乔木体（手写体，主 CDN 507） | 自然（无强制规范） | 黑色 |
+
+> ★ 字体宪法 v2（2026-10-15 夏夏拍板）：行高 = 自然行高（CSS line-height: normal / 字体自身度量），
+> 不设强制行高规范；旧 ~1.65 / ~1.7±(1.55-1.85) 已全库废止。
 
 > **下游渲染参数（B 不需要处理）**：
 > - 字间距：0-2px 微小随机，模拟自然手写感
 > - 书写速度抖动：每行 ±10%，避免机械感
-> - 这些是画布渲染层的效果，B 按平均值估算坐标即可
+> - 这些是画布渲染层的效果，B 按平均值估算即可
 
-**行高估算公式**（用于计算起手坐标 y 增量）：
+**行高估算公式**（仅用于 B 感知垂直跨度/估算，渲染层实际按字体度量排版）：
 ```
-每行高度(px) ≈ 字号 × 行高
+每行高度(px) ≈ 字号 × 1.2（估算比数，真源 stepHandoff.LINE_HEIGHT_ESTIMATE_RATIO）
 每行高度(%) = 每行高度(px) / 画布高度 × 100
 ```
 
@@ -309,7 +312,7 @@ board 是对象，不是字符串：
 - board 是对象 `{startCoord, content}`，不是字符串
 - B 不输出时间字段，时间由下游动态计算
 - 板书速度约 1 秒 4~5 字（基准 220ms/字，下游渲染加 ±30ms 抖动，B 按均匀速度估算；2026-10-15 提速）
-- 板书字号是题目的1.2~1.5倍，行高约1.7（下游渲染加抖动）
+- 板书字号是题目的1.2~1.5倍，行高 = 自然（字体度量，无强制行高规范；估算用 字号×1.2）
 - 字间距/速度抖动是下游渲染效果，B 不需要处理
 - 口播约 160 字/分，长停顿靠拆行
 - 分数用 `\frac{}`，口播念"分母分之分子"

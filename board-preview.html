@@ -37,9 +37,18 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>画布预览 · 全屏</title>
-    <!-- 板书手写字体（分析/解答/总结区）；题目层用印刷体，不使用此字体。配置 onerror 优雅降级到系统楷体栈 -->
-    <link href="https://fontsapi.zeoseven.com/490/main/result.css" onload="this.rel='stylesheet'" onerror="console.warn('[Font] 板书字体 CDN 加载异常，已降级为系统楷体');" rel="preload" as="style" crossorigin />
-    <noscript><link rel="stylesheet" href="https://fontsapi.zeoseven.com/490/main/result.css" /></noscript>
+    <!-- 板书手写字体（分析/解答/总结区）；题目层用印刷体（微软雅黑），不使用此字体。
+         主字体 = 平方乔木体 (CDN 507)，降级栈与 index.html / row-player.html 同步镜像：
+           507 平方乔木体（主）→ 157 平方韶华体 → 511 平方上上谦体 → 510 平方三生体 → 509 平方韶拓体 → 490 栗壳坚坚体 → 系统楷体
+         加载策略：主 507 同步加载（onload 切 stylesheet），其余 5 个异步按需（media=print + onload 切 all）不阻塞首屏。
+         ★ 2026-10-15 R8-④ 销账：此前只挂 490 单链，预览页板书渲染降级栈尾栗壳坚坚体，与工作台/播放页（507 主）不一致 -->
+    <link href="https://fontsapi.zeoseven.com/507/main/result.css" onload="this.rel='stylesheet'" onerror="console.warn('[Font] 平方乔木体(507) 加载异常，按字体栈降级');" rel="preload" as="style" crossorigin />
+    <link rel="stylesheet" href="https://fontsapi.zeoseven.com/157/main/result.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="https://fontsapi.zeoseven.com/511/main/result.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="https://fontsapi.zeoseven.com/510/main/result.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="https://fontsapi.zeoseven.com/509/main/result.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="https://fontsapi.zeoseven.com/490/main/result.css" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://fontsapi.zeoseven.com/507/main/result.css" /></noscript>
   </head>
   <body>
     <div id="app"></div>

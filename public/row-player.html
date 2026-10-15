@@ -13,11 +13,11 @@
   渲染：render(t) 纯函数，幂等、可 seek、不漂移
   死规定：stage 中文 / region 英文 / 画布 1726×980 百分比坐标
   规格真相源（2026-09-13 handoff 画布参数）：
-    题目   30px 印刷体(Segoe UI/PingFang SC/Microsoft YaHei) 黑色 行高1.65 一打开就写好（考卷式）
-    分析   38px 手写体(平方乔木体) 红色 行高1.7±随机
-    解答   38px 手写体 黑色 行高1.7±随机
-    总结   38px 手写体 黑色 行高1.7±随机
-    行高随机区间 1.55~1.85（下游渲染职责，均值1.7）
+    题目   30px 印刷体(微软雅黑 Microsoft YaHei) 黑色 自然行高 一打开就写好（考卷式）
+    分析   38px 手写体(平方乔木体) 红色 自然行高
+    解答   38px 手写体 黑色 自然行高
+    总结   38px 手写体 黑色 自然行高
+    行高 = 自然（字体自身度量 / CSS normal 口径），不设强制行高规范（2026-10-15 夏夏拍板，旧 1.65/1.7± 废止）
     板书速度 1秒4~5个汉字（220ms/字基准，±30ms 抖动）；书写时长超出音频窗口时自适应加速压进音频内（音频=行时长唯一主时钟）；rough 动作同速
   素材真相源（2026-09-13 内嵌 base64，单文件离线）：
     底图 canvas-bg-1726x980.png（PNG→WebP 8KB）：浅蓝贴纸边框，板面区透明挖空，垫 #fbfaf6 纸白
@@ -324,26 +324,41 @@ function stageFlowPlace(cursor,zoneStart,given,estH,W,H,size){
   if(cur.y+estH>H-marginY)cur={x:cur.x+cur.colMaxW+colGap,y:cur.anchorY,anchorY:cur.anchorY,colMaxW:0};
   return {start:{x:cur.x,y:cur.y},cursor:cur};
 }
+/* 行高口径（字体宪法 v2，2026-10-15 夏夏拍板）：自然行高，不设强制行高规范。
+   取字体自身行盒高度（= CSS line-height: normal 同源度量 fontBoundingBoxAscent+Descent）；
+   度量不可用（旧浏览器/桩环境）时退估算比数 1.2（镜像 stepHandoff.LINE_HEIGHT_ESTIMATE_RATIO，改真源要同步）。 */
+function naturalLhRatio(font,size){
+  try{
+    MCTX.font=size+'px '+font;
+    const m=MCTX.measureText('国');
+    if(m&&isFinite(m.fontBoundingBoxAscent)&&isFinite(m.fontBoundingBoxDescent)){
+      const r=(m.fontBoundingBoxAscent+m.fontBoundingBoxDescent)/size;
+      if(r>0.8&&r<3)return r;                 // 合理区间防脏度量
+    }
+  }catch(e){}
+  return 1.2;
+}
 /* 行布局唯一真源：compile 期算死，drawWriting 直接消费（回退路径走同一函数，口径必然一致）。
-   自适应书写流（用户拍板 2026-09-17）原样搬入：向下写 → 画布底换列 → 行超宽自适应缩字号。 */
+   自适应书写流（用户拍板 2026-09-17）原样搬入：向下写 → 画布底换列 → 行超宽自适应缩字号。
+   行距 = 自然行高（字体度量，逐行无抖动——手写感由字内基线抖动/字距抖动/整行微倾承载）。 */
 function layoutBoardLines(content,x,y,W,H){
   const size=38, marginX=10, marginY=10, colGap=Math.round(size*0.9);
   const maxX=W-marginX, maxY=H-marginY;
   const lines=toBoardLines(content);
   const seed=hashStr(String(content||''));
-  const lhJ=jit(seed+1,lines.length,0.12).map(d=>1.57+d);
+  const lhR=naturalLhRatio(HAND_FONT,size);   // 自然行高比数（旧 lhJ 1.55~1.85 随机抖已随强制行高规范废止）
   const spJ=jit(seed+2,lines.length,0.10).map(d=>1+d);
   const layout=[]; let lx=x, ly=y, colMaxW=0;
   for(let li=0;li<lines.length;li++){
     const baseW=measureLine(lines[li],size,HAND_FONT);
-    if(li>0&&ly+size*lhJ[li]>maxY){lx+=colMaxW+colGap;ly=y;colMaxW=0;}
+    if(li>0&&ly+size*lhR>maxY){lx+=colMaxW+colGap;ly=y;colMaxW=0;}
     let fs=size, lw=baseW;
     if(lx+lw>maxX&&lw>0){fs=Math.max(14,Math.floor(size*(maxX-lx)/lw));lw=lw*fs/size;}
     layout.push({li:li,text:lines[li],x:lx,y:ly,size:fs,lw:lw});
     colMaxW=Math.max(colMaxW,lw);
-    ly+=fs*lhJ[li];
+    ly+=fs*lhR;
   }
-  return {lines:lines,layout:layout,endY:ly,endX:lx,colMaxW:colMaxW,seed:seed,lhJ:lhJ,spJ:spJ};
+  return {lines:lines,layout:layout,endY:ly,endX:lx,colMaxW:colMaxW,seed:seed,lhR:lhR,spJ:spJ};
 }
 /* 板书字池：行布局 → 逐字坐标（actionSpec exactText 锚定用）。
    \frac 记号打不匹配占位符（私用区字符），防 exactText 误锚进公式字面量。 */
@@ -439,7 +454,7 @@ function compile(data){
       const zoneStart=(coord.src==='zone')
         ?{x:coord.pct?W*coord.x/100:coord.x,y:coord.pct?H*coord.y/100:coord.y}
         :{x:W*COORD_FALLBACK.x/100,y:H*COORD_FALLBACK.y/100};
-      const estH=lines.length*38*1.7+20;            // 换列预判（行内到底换列兜底仍在，见 layoutBoardLines）
+      const estH=lines.length*38*1.2+20;            // 换列预判（自然行高估算比数 1.2，镜像 stepHandoff.LINE_HEIGHT_ESTIMATE_RATIO；行内到底换列兜底仍在，见 layoutBoardLines）
       const placed=stageFlowPlace(stageFlow[stKey]||null,zoneStart,given,estH,W,H,38);
       const L=layoutBoardLines(bContent,placed.start.x,placed.start.y,W,H);
       /* 布局完成 → 游标推进到本行内容末（endY=末行基线+行高，即下一行自然续排点；
@@ -449,7 +464,7 @@ function compile(data){
       for(let ci2=0;ci2<rowChars.length;ci2++)boardCharsRegistry.push(rowChars[ci2]);
       plan.push({type:'board',startOffsetMs:sd,durationMs:bw,
                  content:bContent,coord:coord,
-                 layout:L.layout,lines:L.lines,seed:L.seed,lhJ:L.lhJ,spJ:L.spJ,
+                 layout:L.layout,lines:L.lines,seed:L.seed,spJ:L.spJ,
                  ...(rowChars.length?{chars:rowChars}:{})});
       cursor=sd+bw+HAND_LIFT_MS;
     }
@@ -515,9 +530,9 @@ function rellipse(ctx,cx,cy,rx,ry,seed){
 // 规格真相源：手写区字体 = PingFangHand（handwrite-compare 同款本地 ttf，字风格唯一真相源）
 // 字体栈与 stepHandoff.HANDWRITING_FONT_STACK 同序：507 平方乔木体 → 同族平方体 → 系统楷体（镜像，改真源要同步）
 const HAND_FONT='"平方乔木体","平方韶华体","平方上上谦体","平方三生体","PingFangSaTuoTi","LikeJianJianTi",KaiTi,STKaiti,"PingFang SC",serif';
-// 规格真相源：题目区是印刷体，不吃手写字体
-const PRINT_FONT='"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif';
-// 规格真相源：分析区红笔，解答/总结黑笔（题目区不走手写渲染）
+// 规格真相源：题目区是印刷体（微软雅黑主，字体宪法 v2 夏夏拍板），不吃手写字体（镜像 stepHandoff.QUESTION_FONT_FAMILY，改真源要同步）
+const PRINT_FONT='"Microsoft YaHei","PingFang SC",system-ui,sans-serif';
+// 规格真相源：分析区红笔，解答/总结黑笔（题目区不走手写渲染；色值镜像 stepHandoff.ANALYSIS_TEXT_COLOR/BOARD_TEXT_COLOR）
 const STAGE_COLOR={'题目':'#000000','分析':'#dc2626','解答':'#000000','总结':'#000000'};
 function layoutText(ctx,text,x,y,maxW,size,lh,font){
   ctx.font=size+'px '+(font||HAND_FONT);
@@ -987,9 +1002,8 @@ function drawWriting(task,p,W,H,stage){
   const lines=preL?(task.lines||toBoardLines(task.content)):toBoardLines(task.content);
   lines.forEach(l=>{if(STRUCT_MATH.test(l))FORMULA_LINES.add(l);});
   const seed=preL?(task.seed||hashStr(task.content||'')):hashStr(task.content||'');
-  // 规格：行高均值 1.7，逐行 1.55~1.85 微小随机 —— seed 冻结，幂等可 seek
-  const lhJ=preL?(task.lhJ||[]):jit(seed+1,lines.length,0.12).map(d=>1.57+d);   // 行距抖 ±3% ≈ compare D 档 margin±25% 等效值
-  // 规格：板书 1秒2-3字，每行 ±10% 抖动 → 行配速系数 0.9~1.1
+  // 规格（字体宪法 v2，2026-10-15）：行高 = 自然（字体度量，无强制行高规范），行距不再逐行抖动；布局由 compile 期 layoutBoardLines 算死
+  // 规格：板书 1秒4~5字（基准 220ms/字），每行 ±10% 抖动 → 行配速系数 0.9~1.1
   const spJ=preL?(task.spJ||[]):jit(seed+2,lines.length,0.10).map(d=>1+d);
 
   // 自适应书写流（用户拍板 2026-09-17）已并入 compile 期 layoutBoardLines：
@@ -1124,10 +1138,10 @@ function render(t){
     ctx.restore();
   }
 
-  // 题目原文（静态，考卷式：一打开就有），规格 30px 印刷体 黑色 行高1.65
+  // 题目原文（静态，考卷式：一打开就有），规格 30px 印刷体(微软雅黑) 黑色 自然行高（字体度量）
   const bp=C.data.boardPlan||{};
   const q=bp.question||{x:6,y:12,w:42,h:26};
-  const Q=layoutText(ctx,C.data.problemText||'',W*q.x/100,H*q.y/100+40,W*q.w/100,30,30*1.65,PRINT_FONT);
+  const Q=layoutText(ctx,C.data.problemText||'',W*q.x/100,H*q.y/100+40,W*q.w/100,30,30*naturalLhRatio(PRINT_FONT,30),PRINT_FONT);
   ctx.fillStyle='#000000'; ctx.font='30px '+PRINT_FONT; ctx.textBaseline='alphabetic';
   Q.lines.forEach(L=>ctx.fillText(L.t,W*q.x/100,L.y));
 

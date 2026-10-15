@@ -6,7 +6,7 @@ import {
   CANVAS_W as DESIGN_W,
   CANVAS_H as DESIGN_H,
 } from '../utils/canvasCoords'
-import { BOARD_FONT_SIZE, QUESTION_FONT_SIZE, HANDWRITING_FONT_STACK } from '../services/stepHandoff.js'
+import { BOARD_FONT_SIZE, QUESTION_FONT_SIZE, HANDWRITING_FONT_STACK, ANALYSIS_TEXT_COLOR, BOARD_TEXT_COLOR } from '../services/stepHandoff.js'
 import { createBoardToolRuntime } from '../board-tools/boardToolCatalog.js'
 
 const props = defineProps({
@@ -215,7 +215,12 @@ function onClick() {
       class="board"
       :class="{ interactive }"
       data-board-canvas="true"
-      :style="{ aspectRatio: `${DESIGN_W} / ${DESIGN_H}` }"
+      :style="{
+        aspectRatio: `${DESIGN_W} / ${DESIGN_H}`,
+        // ★ 字体宪法 v2：区域文字颜色真源派生（分析红 / 其余黑）
+        '--board-analysis-color': ANALYSIS_TEXT_COLOR,
+        '--board-ink-color': BOARD_TEXT_COLOR,
+      }"
       @mousemove="onMove"
       @mouseleave="onLeave"
       @click="onClick"
@@ -266,7 +271,7 @@ function onClick() {
             v-for="item in boardTextRows.filter((entry) => entry.region === region)"
             :key="item.id"
             class="board-text-anchor"
-            :style="{ fontSize: `${boardFontSize}px` }"
+            :style="{ fontSize: `${boardFontSize}px`, fontFamily: HANDWRITING_FONT_STACK }"
           >{{ item.content }}</span>
         </div>
         <div
@@ -317,17 +322,17 @@ function onClick() {
   overflow: visible;
   white-space: pre-wrap;
 }
-.board-region-layer-analysis { color: #b42318; }
+.board-region-layer-analysis { color: var(--board-analysis-color); }
 .board-region-layer-solution,
-.board-region-layer-summary { color: #17202a; }
+.board-region-layer-summary { color: var(--board-ink-color); }
 .board-text-anchor {
   display: block;
   max-width: 100%;
   margin: 0 0 18px;
   white-space: pre-wrap;
-  line-height: 1.5;
-  /* ★ Task 10: 字体栈与 stepHandoff.HANDWRITING_FONT_STACK 同序（507 主 → 490 降级 → 系统楷体） */
-  font-family: "平方乔木体", "平方韶华体", "平方上上谦体", "平方三生体", "PingFangSaTuoTi", "LikeJianJianTi", KaiTi, STKaiti, "PingFang SC", serif;
+  /* ★ 字体宪法 v2（2026-10-15）：行高 = 自然（CSS normal，无强制行高规范，夏夏拍板）；
+     字体族由模板内联真源派生（stepHandoff.HANDWRITING_FONT_STACK，旧硬编码栈已拔） */
+  line-height: normal;
   font-weight: normal;
   letter-spacing: 0;
   transform: translateZ(0);

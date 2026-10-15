@@ -10,8 +10,13 @@ import { fileURLToPath } from 'url'
 import { isOptions, readJsonBody, sendJson } from './http.js'
 import { renderDeliverableHtml } from './renderDeliverableHtml.js'
 import { computeRowGroupTimeline, AUDIO_SPEED_POLICY_TEXT } from '../src/agent-b-v2/timing.js'
-import { layoutBoardRows } from '../src/utils/boardLayout.js'
-import { buildCanvasParams, CANVAS_SIZE, QUESTION_FONT_SIZE } from '../src/services/stepHandoff.js'
+import {
+  buildCanvasParams,
+  CANVAS_SIZE,
+  QUESTION_FONT_SIZE,
+  QUESTION_FONT_FAMILY,
+  LINE_HEIGHT_POLICY_TEXT,
+} from '../src/services/stepHandoff.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const projectRoot = resolve(__dirname, '..')
@@ -150,21 +155,16 @@ export function writeDeliverableFile(data) {
   const htmlFilePath = fullPath(htmlFilename)
 
   // 为每个 row 注入严格的单手互斥时序计划与定量 1-2 秒标点停顿动作计划
-  // 并补回 board.startCoord：区域即起点 + 纵向累加（模型不产坐标，本层算出来供外部播放器消费）
-  const rowLayouts = layoutBoardRows(data.rows || [])
+  // ★ 字体宪法 v2（2026-10-15）：不再补回 board.startCoord——布局唯一权威 = 播放器渲染层
+  //   编译期度量排版（自然行高 + stageFlow 顺序续排），与 B 契约「板书不输出起手坐标」对齐；
+  //   旧版服务端估算器（layoutBoardRows 1.2 比数注入）与渲染层度量双权威打架，已拔除。
   const normalizedRows = Array.isArray(data.rows)
-    ? data.rows.map((row, index) => {
+    ? data.rows.map((row) => {
         const computed = computeRowGroupTimeline(row)
-        const layout = rowLayouts[index]
-        const board =
-          row.board && typeof row.board === 'object'
-            ? { ...row.board, startCoord: row.board.startCoord || (layout ? layout.startCoord : undefined) }
-            : row.board
         const estimatedDurationMs = row.estimatedDurationMs || computed.rowTotalDurationMs
         const exclusiveExecutionPlan = row.exclusiveExecutionPlan || computed.exclusiveExecutionPlan
         return {
           ...row,
-          board,
           estimatedDurationMs,
           totalDurationMs: row.totalDurationMs || estimatedDurationMs,
           exclusiveExecutionPlan,
@@ -194,12 +194,20 @@ export function writeDeliverableFile(data) {
     ...rawCanvasParams,
   }
 
-  // audioSpeedPolicy 是说明性文案（真源 timing.js），旧存档带来的旧文案必须丢弃——文案不是数据，不随档走
-  const { audioSpeedPolicy: _legacyAudioSpeedPolicy, ...restUiSettings } = data.uiSettings || {}
+  // audioSpeedPolicy / questionFontFamily / lineHeightPolicy 是说明性文案（真源 timing.js / stepHandoff.js），
+  // 旧存档带来的旧口径必须丢弃——文案不是数据，不随档走（同 Task 35 audioSpeedPolicy 先例）
+  const {
+    audioSpeedPolicy: _legacyAudioSpeedPolicy,
+    questionFontFamily: _legacyQuestionFontFamily,
+    questionLineHeight: _legacyQuestionLineHeight,
+    lineHeightPolicy: _legacyLineHeightPolicy,
+    ...restUiSettings
+  } = data.uiSettings || {}
   const uiSettings = {
     coordinateMode: '百分比',
     questionFontSize: `${QUESTION_FONT_SIZE}px`,
-    questionFontFamily: '"Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+    questionFontFamily: QUESTION_FONT_FAMILY,
+    lineHeightPolicy: LINE_HEIGHT_POLICY_TEXT,
     audioSpeedPolicy: AUDIO_SPEED_POLICY_TEXT,
     ...restUiSettings,
   }

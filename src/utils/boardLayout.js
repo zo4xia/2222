@@ -1,7 +1,7 @@
 /** 甲方画布 1726×980 · demo 已验证标签/区域落点（百分比） */
 import { CANVAS_W as DESIGN_W, CANVAS_H as DESIGN_H } from './canvasCoords.js'
 // 题目字号唯一真源：src/services/stepHandoff.js
-import { QUESTION_FONT_SIZE, BOARD_FONT_SIZE } from '../services/stepHandoff.js'
+import { QUESTION_FONT_SIZE } from '../services/stepHandoff.js'
 export { DESIGN_W, DESIGN_H }
 
 const BOARD_SAFE_X_PCT = 6
@@ -43,69 +43,11 @@ export function pctBox(style = {}) {
   return out
 }
 
-/**
- * 板书行落点排版：区域即起点，纵向按自然行高累加（取消人为强制行距，依靠字体自然高度排版）。
- * 业务规则：
- *   - 起点 = 区域左上角，模型不输出"起手坐标"，由渲染层自然排版；
- *   - 允许超出本区（内容多时向下延展），但禁止超出画布底边 BOARD_BOTTOM_LIMIT_PCT；
- *   - 游标单调递增 → 天然不重叠，不需要额外避让算法。
- * @params {Array<{stage: string, board?: {content?: string}}>} rows
- * @params {{fontSizePx?: number}} [options]
- * @returns {Array<{startCoord: string, x: number, y: number, lineCount: number}>} 与 rows 一一对应
- */
-export function layoutBoardRows(rows, { fontSizePx = BOARD_FONT_SIZE } = {}) {
-  // 中文全角按 1 字宽、ASCII 按 0.55 字宽估算，够用于换行计数（误差 <5%，无需 canvas 度量）
-  const charWidthPx = (ch) => (/[\x00-\xff]/.test(ch) ? fontSizePx * 0.55 : fontSizePx)
-  const lineHeightPct = ((fontSizePx * 1.2) / DESIGN_H) * 100
-  const stageToZone = {
-    题目: 'question',
-    分析: 'analysis',
-    解答: 'solution',
-    总结: 'summary',
-  }
-
-  const cursor = {}
-  return (Array.isArray(rows) ? rows : []).map((row) => {
-    const zone = stageToZone[row?.stage] || 'solution'
-    const box = BOARD_LAYOUT[zone] || BOARD_LAYOUT.solution
-    if (cursor[zone] == null) cursor[zone] = box.y
-
-    const content = String(row?.board?.content ?? '')
-    const zoneWidthPx = (box.w / 100) * DESIGN_W
-    // 显式 \n 与超宽自动换行都要占位，否则多行内容会被压成一行
-    let lineCount = 0
-    for (const rawLine of content.split('\n')) {
-      if (!rawLine.trim()) {
-        lineCount += 1
-        continue
-      }
-      let used = 0
-      let wrapped = 1
-      for (const ch of rawLine) {
-        used += charWidthPx(ch)
-        if (used > zoneWidthPx) {
-          wrapped += 1
-          used = charWidthPx(ch)
-        }
-      }
-      lineCount += wrapped
-    }
-    if (lineCount === 0) lineCount = 1
-
-    const heightPct = lineCount * lineHeightPct
-    let y = cursor[zone]
-    // 触底即停：宁可让渲染层缩放，也不把字写到画布外
-    if (y + heightPct > BOARD_BOTTOM_LIMIT_PCT) y = Math.max(box.y, BOARD_BOTTOM_LIMIT_PCT - heightPct)
-
-    cursor[zone] = y + heightPct
-    return {
-      startCoord: `[${roundPct(box.x)}%, ${roundPct(y)}%]`,
-      x: roundPct(box.x),
-      y: roundPct(y),
-      lineCount,
-    }
-  })
-}
+/* 【已拔除 2026-10-15】layoutBoardRows 服务端行落点估算器（1.2 比数纵向累加 + startCoord 注入）。
+ * 字体宪法 v2（夏夏拍板）：布局唯一权威 = 播放器渲染层编译期度量排版（row-player layoutBoardLines，
+ * 自然行高 + 度量换列 + stageFlow 顺序续排），与 B 契约「板书不输出起手坐标，由渲染层按区域自然排版」对齐；
+ * 服务端预判坐标与渲染层度量排版双权威互相打架（估算 1.2 比数 vs 实际字体度量）是旧暗病，本层不再注入 startCoord。
+ * 若将来需要服务端预览估算，用 stepHandoff.LINE_HEIGHT_ESTIMATE_RATIO 重建，不要手写比数。 */
 
 /**
  * 题目图片容器最大高度（%）。
