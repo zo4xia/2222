@@ -327,9 +327,12 @@ function stageFlowPlace(cursor,zoneStart,given,estH,W,H,size){
   if(cur.y+estH>H-marginY)cur={x:cur.x+cur.colMaxW+colGap,y:cur.anchorY,anchorY:cur.anchorY,colMaxW:0};
   return {start:{x:cur.x,y:cur.y},cursor:cur};
 }
-/* 行高口径（字体宪法 v2，2026-10-15 夏夏拍板）：自然行高，不设强制行高规范。
+/* 行高口径（字体宪法 v2，2026-10-15 夏夏拍板；v2.2 2026-10-16 追加分数余量）：自然行高，不设强制行高规范。
    取字体自身行盒高度（= CSS line-height: normal 同源度量 fontBoundingBoxAscent+Descent）；
-   度量不可用（旧浏览器/桩环境）时退估算比数 1.2（镜像 stepHandoff.LINE_HEIGHT_ESTIMATE_RATIO，改真源要同步）。 */
+   度量不可用（旧浏览器/桩环境）时退估算比数 1.2（镜像 stepHandoff.LINE_HEIGHT_ESTIMATE_RATIO，改真源要同步）。
+   v2.2：自然行高之上再加 2px 分数余量——\frac 分数（分子在上/分母在下）越出字体自然行盒，纯 normal 相邻行贴死；
+   常量镜像 stepHandoff.NATURAL_LINE_HEIGHT_EXTRA_PX，改真源两边同步。 */
+const NATURAL_LH_EXTRA_PX=2;
 function naturalLhRatio(font,size){
   try{
     MCTX.font=size+'px '+font;
@@ -349,17 +352,17 @@ function layoutBoardLines(content,x,y,W,H){
   const maxX=W-marginX, maxY=H-marginY;
   const lines=toBoardLines(content);
   const seed=hashStr(String(content||''));
-  const lhR=naturalLhRatio(HAND_FONT,size);   // 自然行高比数（旧 lhJ 1.55~1.85 随机抖已随强制行高规范废止）
+  const lhR=naturalLhRatio(HAND_FONT,size);   // 自然行高比数（旧 lhJ 1.55~1.85 随机抖已随强制行高规范废止）；行距 = 自然行高 + NATURAL_LH_EXTRA_PX 分数余量（v2.2）
   const spJ=jit(seed+2,lines.length,0.10).map(d=>1+d);
   const layout=[]; let lx=x, ly=y, colMaxW=0;
   for(let li=0;li<lines.length;li++){
     const baseW=measureLine(lines[li],size,HAND_FONT);
-    if(li>0&&ly+size*lhR>maxY){lx+=colMaxW+colGap;ly=y;colMaxW=0;}
+    if(li>0&&ly+size*lhR+NATURAL_LH_EXTRA_PX>maxY){lx+=colMaxW+colGap;ly=y;colMaxW=0;}
     let fs=size, lw=baseW;
     if(lx+lw>maxX&&lw>0){fs=Math.max(14,Math.floor(size*(maxX-lx)/lw));lw=lw*fs/size;}
     layout.push({li:li,text:lines[li],x:lx,y:ly,size:fs,lw:lw});
     colMaxW=Math.max(colMaxW,lw);
-    ly+=fs*lhR;
+    ly+=fs*lhR+NATURAL_LH_EXTRA_PX;   // 行距推进 = 自然行高 + 2px 分数余量（v2.2，分数上下结构呼吸空间）
   }
   return {lines:lines,layout:layout,endY:ly,endX:lx,colMaxW:colMaxW,seed:seed,lhR:lhR,spJ:spJ};
 }
@@ -457,7 +460,7 @@ function compile(data){
       const zoneStart=(coord.src==='zone')
         ?{x:coord.pct?W*coord.x/100:coord.x,y:coord.pct?H*coord.y/100:coord.y}
         :{x:W*COORD_FALLBACK.x/100,y:H*COORD_FALLBACK.y/100};
-      const estH=lines.length*38*1.2+20;            // 换列预判（自然行高估算比数 1.2，镜像 stepHandoff.LINE_HEIGHT_ESTIMATE_RATIO；行内到底换列兜底仍在，见 layoutBoardLines）
+      const estH=lines.length*(38*1.2+NATURAL_LH_EXTRA_PX)+20;   // 换列预判（自然行高估算 = 比数 1.2 + 2px 分数余量，镜像 stepHandoff.LINE_HEIGHT_ESTIMATE_RATIO/NATURAL_LINE_HEIGHT_EXTRA_PX；行内到底换列兜底仍在，见 layoutBoardLines）
       const placed=stageFlowPlace(stageFlow[stKey]||null,zoneStart,given,estH,W,H,38);
       const L=layoutBoardLines(bContent,placed.start.x,placed.start.y,W,H);
       /* 布局完成 → 游标推进到本行内容末（endY=末行基线+行高，即下一行自然续排点；
@@ -1157,10 +1160,10 @@ function render(t){
     ctx.restore();
   }
 
-  // 题目原文（静态，考卷式：一打开就有），规格 30px 印刷体(微软雅黑) 黑色 自然行高（字体度量）
+  // 题目原文（静态，考卷式：一打开就有），规格 30px 印刷体(微软雅黑) 黑色 自然行高（字体度量）+2px 分数余量（v2.2）
   const bp=C.data.boardPlan||{};
   const q=bp.question||{x:6,y:12,w:42,h:26};
-  const Q=layoutText(ctx,C.data.problemText||'',W*q.x/100,H*q.y/100+40,W*q.w/100,30,30*naturalLhRatio(PRINT_FONT,30),PRINT_FONT);
+  const Q=layoutText(ctx,C.data.problemText||'',W*q.x/100,H*q.y/100+40,W*q.w/100,30,30*naturalLhRatio(PRINT_FONT,30)+NATURAL_LH_EXTRA_PX,PRINT_FONT);
   ctx.fillStyle='#000000'; ctx.font='30px '+PRINT_FONT; ctx.textBaseline='alphabetic';
   Q.lines.forEach(L=>ctx.fillText(L.t,W*q.x/100,L.y));
 

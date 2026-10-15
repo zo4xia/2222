@@ -36,7 +36,7 @@ row = { stage, mp3|audioBase64, duration(仅占位), speech, board:{startDelay, 
 2. 坐标格式由 `coordinateMode` 决定（percentage/pixel），默认 percentage。
 3. **`board` 是 v3.0 对象 `{startDelay, content, region}`，不含坐标。** 旧数据若带 `startCoord`：当作**过时软提示**接受，但仍要以实测容量重新定位，绝不盲信。
 4. **行时长由真实音频决定**（`audio.duration`），不是下游算出来的。
-5. 板书字号是题目的 1.2~1.5 倍（题目区微软雅黑 30px，其他区 38px；真源 stepHandoff.js 字体宪法 v2），行间距自然（无强制行高规范）+ 字间距轻微抖动。
+5. 板书字号是题目的 1.2~1.5 倍（题目区微软雅黑 30px，其他区 38px；真源 stepHandoff.js 字体宪法 v2），行间距自然 + 2px 分数余量（无强制行高规范；分数上下结构越出行盒，真源 stepHandoff.NATURAL_LINE_HEIGHT_EXTRA_PX）+ 字间距轻微抖动。
 6. 板书速度别太慢；样式要像手写（逐字位移/旋转抖动、整行轻微倾斜），不要板板正正。
 7. 分数用 `\frac{num}{den}` 渲染上下结构；`^2`/`_x` → 上下标；`\begin{aligned}`/`\\`/`&` → 分行/对齐。口播念「分母分之分子」（上游稿已处理）。
 8. 字母 x 在复合式里念「艾克斯」（上游稿已写谐音，代码不动）。

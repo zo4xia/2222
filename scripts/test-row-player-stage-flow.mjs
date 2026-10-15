@@ -164,8 +164,8 @@ check('区域缺位 → src:"fallback"（模板常量兜底）',
   check('同 stage 第二行不叠首行（y2 > 首行末行 y）', b2.layout[0].y > b1.layout[b1.layout.length - 1].y)
   check('同 stage 第三行不叠第二行（y3 > 第二行末行 y）', b3.layout[0].y > b2.layout[b2.layout.length - 1].y)
   check('三行同列左对齐（自然段落感）', b1.layout[0].x === b2.layout[0].x && b2.layout[0].x === b3.layout[0].x)
-  check('相邻行距 = 自然行高口径（字体宪法 v2：字体度量，桩环境无度量→估算比数1.2→38×1.2=45.6，非 0 叠字）',
-    b2.layout[0].y - b1.layout[0].y >= 38 * 1.1 && b2.layout[0].y - b1.layout[0].y <= 38 * 1.3,
+  check('相邻行距 = 自然行高 + 2px 分数余量（字体宪法 v2.2：桩环境无度量→估算1.2→38×1.2+2=47.6，非 0 叠字）',
+    Math.abs((b2.layout[0].y - b1.layout[0].y) - (38 * 1.2 + 2)) < 1e-6,
     `gap=${b2.layout[0].y - b1.layout[0].y}`)
   const solX = W * 56 / 100, solY = H * 16 / 100
   check('显式 startCoord 行尊重原位（解答 [56%,16%]）', Math.abs(b4.layout[0].x - solX) < 1e-6 && Math.abs(b4.layout[0].y - solY) < 1e-6)

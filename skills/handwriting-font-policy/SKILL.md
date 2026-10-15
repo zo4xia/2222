@@ -263,13 +263,13 @@ saveBoardTypographyConfig({ fontId: 'like-jianjianti' })
 
 | 区域 | 字体类型 | 字号 | 行高 |
 |---|---|---|---|
-| 题目区 | 印刷体（微软雅黑） | ~30px（handoff.canvasParams.QUESTION_FONT_SIZE） | 自然（无强制规范） |
-| 分析区 | **手写体（平方乔木体 507 主）** | ~38px（题目 1.2~1.5 倍） | 自然（无强制规范） |
-| 解答区 | **手写体** | ~38px | 自然（无强制规范） |
-| 总结区 | **手写体** | ~38px | 自然（无强制规范） |
+| 题目区 | 印刷体（微软雅黑） | ~30px（handoff.canvasParams.QUESTION_FONT_SIZE） | 自然+2px 分数余量 |
+| 分析区 | **手写体（平方乔木体 507 主）** | ~38px（题目 1.2~1.5 倍） | 自然+2px 分数余量 |
+| 解答区 | **手写体** | ~38px | 自然+2px 分数余量 |
+| 总结区 | **手写体** | ~38px | 自然+2px 分数余量 |
 
-> ★ 字体宪法 v2（2026-10-15 夏夏拍板）：行高 = 自然行高（CSS normal / 字体度量），不设强制行高规范；
-> 旧 ~1.65 / ~1.7（渲染 1.55—1.85 微抖）已全库废止；B 估算垂直跨度用 字号×1.2（LINE_HEIGHT_ESTIMATE_RATIO）。
+> ★ 字体宪法 v2.2（v2 2026-10-15 拍板自然行高；v2.2 2026-10-16 夏夏追加 +2px 分数余量）：行高 = 自然行高（CSS normal / 字体度量）+ 2px，不设强制行高规范；
+> 分数上下结构越出行盒、相邻行贴死，故加 2px（真源 stepHandoff.NATURAL_LINE_HEIGHT_EXTRA_PX）；旧 ~1.65 / ~1.7（渲染 1.55—1.85 微抖）已全库废止；B 估算垂直跨度用 字号×1.2 + 2px（LINE_HEIGHT_ESTIMATE_RATIO / NATURAL_LINE_HEIGHT_EXTRA_PX）。
 
 ---
 

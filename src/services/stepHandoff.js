@@ -121,13 +121,17 @@ export function handwritingFontSourceFor(fontChoice) {
     usage: `渲染前必须先加载该 CSS（font-family: "${sel.family}"; font-weight: normal），字体栈 fallback 顺序见 fontStack；${sel.cdn} 不可用时按栈降级`,
   }
 }
-// ★ 字体宪法 v2（2026-10-15 夏夏拍板）：自然行高，不设强制行高规范。
+// ★ 字体宪法 v2.2（v2 2026-10-15 拍板自然行高；v2.2 2026-10-16 夏夏追加 +2px 分数余量）：自然行高，不设强制行高规范。
 //   渲染口径：DOM 用 line-height: normal；画布用字体度量（fontBoundingBoxAscent+Descent），两者同源。
-//   估算口径（B 感知垂直跨度 / 服务端换行预判）用 LINE_HEIGHT_ESTIMATE_RATIO 保守比数。
+//   分数余量：分数记法（分子在上/分母在下——画布 frac 真排版 + 题目层 KaTeX 行内公式）会越出字体自然行盒，
+//   纯 normal 相邻行视觉贴死，自然行高之上统一再加 NATURAL_LINE_HEIGHT_EXTRA_PX（px，设计坐标系 1726×980）：
+//   画布直接加 px（row-player 镜像常量 NATURAL_LH_EXTRA_PX）；DOM 用 src/lib/naturalLineHeight.js 度量比数 + 2px 折算无单位 line-height。
+//   估算口径（B 感知垂直跨度 / 服务端换行预判）= 字号 × LINE_HEIGHT_ESTIMATE_RATIO + NATURAL_LINE_HEIGHT_EXTRA_PX。
 //   旧 QUESTION_LINE_HEIGHT=1.65 / BOARD_LINE_HEIGHT 1.7±(1.55~1.85) 已全库废止拔除。
-export const LINE_HEIGHT_POLICY_TEXT = '自然行高（CSS line-height: normal / 字体自身度量），不设强制行高规范；区域内行内段落自然间距、自然换行'
-export const LINE_HEIGHT_POLICY_SHORT = '自然（无强制行高规范）'
+export const LINE_HEIGHT_POLICY_TEXT = '自然行高（CSS line-height: normal / 字体自身度量）+2px 分数余量（分数上下结构越出行盒需呼吸空间），不设强制行高规范；区域内行内段落自然间距、自然换行'
+export const LINE_HEIGHT_POLICY_SHORT = '自然+2px 分数余量（无强制行高规范）'
 export const LINE_HEIGHT_ESTIMATE_RATIO = 1.2
+export const NATURAL_LINE_HEIGHT_EXTRA_PX = 2
 // ★ 字体宪法 v2：颜色唯一真源——分析区红色，其余全部黑色（画布/ DOM 渲染端色值从这里派生）
 export const ANALYSIS_TEXT_COLOR = '#dc2626'
 export const BOARD_TEXT_COLOR = '#000000'
@@ -163,11 +167,12 @@ export function buildCanvasParams(fontChoice = HANDWRITING_FONT_CHOICE_DEFAULT) 
       summary: { px: BOARD_FONT_SIZE, family: boardFamily, color: '黑色' },
     },
     lineHeight: {
-      // ★ 字体宪法 v2：自然行高（无强制规范）；estimateRatio 仅供 B 估算垂直跨度
+      // ★ 字体宪法 v2.2：自然行高 + 2px 分数余量（无强制规范）；estimateRatio/extraPx 仅供 B 估算垂直跨度
       policy: LINE_HEIGHT_POLICY_TEXT,
       question: LINE_HEIGHT_POLICY_SHORT,
       others: LINE_HEIGHT_POLICY_SHORT,
       estimateRatio: LINE_HEIGHT_ESTIMATE_RATIO,
+      extraPx: NATURAL_LINE_HEIGHT_EXTRA_PX,
     },
     letterSpacing: {
       question: '0',

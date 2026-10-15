@@ -7,6 +7,7 @@ import {
   CANVAS_H as DESIGN_H,
 } from '../utils/canvasCoords'
 import { BOARD_FONT_SIZE, QUESTION_FONT_SIZE, HANDWRITING_FONT_STACK, ANALYSIS_TEXT_COLOR, BOARD_TEXT_COLOR } from '../services/stepHandoff.js'
+import { naturalLhRatioFor, naturalLhWithFractionMargin } from '../lib/naturalLineHeight.js'
 import { createBoardToolRuntime } from '../board-tools/boardToolCatalog.js'
 
 const props = defineProps({
@@ -59,6 +60,28 @@ const boardFontSize = computed(() => {
 const handwritingFontStack = computed(() => {
   const stack = props.canvasParams?.fontSource?.handwriting?.fontStack
   return (typeof stack === 'string' && stack.includes('"')) ? stack : HANDWRITING_FONT_STACK
+})
+// ★ 字体宪法 v2.2（2026-10-16 夏夏拍板）：自然行高 + 2px 分数余量——CSS 无法对 line-height: normal
+//   做加法，用 canvas 度量字体栈自然比数 + 2px 折算无单位 line-height（与 row-player naturalLhRatio
+//   同一度量体系）。度量不可用回落 .board-text-anchor 基础样式 normal；手写字体 CDN 异步加载完成
+//   （loadingdone）后重测——字体没到之前量到的是回退栈，到了必须换真度量。
+const boardLhRatio = ref(null)
+function remeasureBoardLh() {
+  boardLhRatio.value = naturalLhRatioFor(handwritingFontStack.value, boardFontSize.value)
+}
+const boardTextLh = computed(() => naturalLhWithFractionMargin(boardLhRatio.value, boardFontSize.value))
+watch([handwritingFontStack, boardFontSize], remeasureBoardLh)
+onMounted(() => {
+  remeasureBoardLh()
+  const fonts = typeof document !== 'undefined' && document.fonts
+  if (fonts) {
+    fonts.ready?.then(remeasureBoardLh)
+    fonts.addEventListener?.('loadingdone', remeasureBoardLh)
+  }
+})
+onBeforeUnmount(() => {
+  const fonts = typeof document !== 'undefined' && document.fonts
+  fonts?.removeEventListener?.('loadingdone', remeasureBoardLh)
 })
 // ★ Task 9: 画布尺寸 (没传则 fallback 1726×980 常量)
 const canvasWidth = computed(() => {
@@ -277,7 +300,7 @@ function onClick() {
             v-for="item in boardTextRows.filter((entry) => entry.region === region)"
             :key="item.id"
             class="board-text-anchor"
-            :style="{ fontSize: `${boardFontSize}px`, fontFamily: handwritingFontStack }"
+            :style="{ fontSize: `${boardFontSize}px`, fontFamily: handwritingFontStack, lineHeight: boardTextLh ?? 'normal' }"
           >{{ item.content }}</span>
         </div>
         <div
@@ -336,7 +359,9 @@ function onClick() {
   max-width: 100%;
   margin: 0 0 18px;
   white-space: pre-wrap;
-  /* ★ 字体宪法 v2（2026-10-15）：行高 = 自然（CSS normal，无强制行高规范，夏夏拍板）；
+  /* ★ 字体宪法 v2.2（2026-10-16）：行高 = 自然 + 2px 分数余量（分数上下结构越出行盒需呼吸空间）；
+     CSS 无法对 normal 做加法，运行时度量值经内联 lineHeight 注入（naturalLineHeight.js），
+     度量不可用时回落这里的 normal 兜底。
      v2.1 字体族由 handwritingFontStack 计算属性派生（canvasParams.fontSource.handwriting →
      真源构造器按用户下拉选择填入；未传兑底 stepHandoff.HANDWRITING_FONT_STACK），旧硬编码栈已拔 */
   line-height: normal;

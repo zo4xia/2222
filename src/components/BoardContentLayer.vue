@@ -8,8 +8,9 @@ import {
 import { renderProblemHtml } from '../utils/mathText'
 import { buildGridLines } from '../utils/canvasCoords'
 // 画布参数唯一真源：src/services/stepHandoff.js
-// ★ 字体宪法 v2（2026-10-15）：题目字体族/颜色从真源派生，行高自然口径
+// ★ 字体宪法 v2（2026-10-15）：题目字体族/颜色从真源派生；v2.2（2026-10-16）：行高 = 自然 + 2px 分数余量
 import { QUESTION_FONT_SIZE, QUESTION_FONT_FAMILY, BOARD_TEXT_COLOR, CANVAS_SIZE } from '../services/stepHandoff.js'
+import { naturalLhRatioFor, naturalLhWithFractionMargin } from '../lib/naturalLineHeight.js'
 
 const props = defineProps({
   problemText: { type: String, default: '' },
@@ -34,6 +35,16 @@ const realQuestionFontSize = computed(() => {
   const px = Number(props.canvasParams?.fontSize?.question?.px)
   return px > 0 ? px : QUESTION_FONT_SIZE
 })
+// ★ 字体宪法 v2.2（2026-10-16 夏夏拍板）：题目层自然行高 + 2px 分数余量（KaTeX 行内分数越出行盒，
+//   相邻行贴死）——CSS 无法对 normal 做加法，用 canvas 度量印刷体栈自然比数（本地系统字体，
+//   同步可得无需等 fonts.ready），getBlockStyle 按块字号折算无单位 line-height；未度量回落
+//   .topic-text 类样式 normal（与 row-player 题目行 30*naturalLhRatio+2 同源同规则）
+const topicLhRatio = ref(null)
+function remeasureTopicLh() {
+  topicLhRatio.value = naturalLhRatioFor(QUESTION_FONT_FAMILY, realQuestionFontSize.value)
+}
+watch(realQuestionFontSize, remeasureTopicLh)
+onMounted(remeasureTopicLh)
 const realCanvasWidth = computed(() => {
   const w = Number(props.canvasParams?.canvasSize?.width)
   return w > 0 ? w : CANVAS_SIZE.width
@@ -476,15 +487,19 @@ function onMouseLeaveBlock(id) {
 function getBlockStyle(block) {
   const coord = localBlockCoords.get(block.id) || { x: block.x, y: block.y }
   const widthVal = localBlockWidths.get(block.id) ?? block.w
+  const fs = block.fontSize || realQuestionFontSize.value
   return {
     left: `${coord.x}%`,
     top: `${coord.y}%`,
     width: `${widthVal}%`,
     // ★ Task 9: 用 realCanvasWidth 替代写死的 17.26 (= 1726/100), 让画布尺寸随 canvasParams 自适应
-    fontSize: `calc(${block.fontSize || realQuestionFontSize.value} * 1cqw / ${realCanvasWidth.value / 100})`,
+    fontSize: `calc(${fs} * 1cqw / ${realCanvasWidth.value / 100})`,
     // ★ 字体宪法 v2: 题目印刷体 = 微软雅黑（真源 stepHandoff.QUESTION_FONT_FAMILY），颜色黑色真源派生
     fontFamily: QUESTION_FONT_FAMILY,
     color: BOARD_TEXT_COLOR,
+    // ★ 字体宪法 v2.2: 自然行高 + 2px 分数余量——无单位比数随 cqw 字号同步缩放；
+    //   未度量（旧浏览器/SSR）回落 .topic-text 类样式 line-height: normal
+    lineHeight: naturalLhWithFractionMargin(topicLhRatio.value, fs) ?? undefined,
   }
 }
 
@@ -771,8 +786,10 @@ onBeforeUnmount(() => {
   filter: grayscale(1) contrast(1.05); pointer-events: none;
 }
 .topic-text {
-  /* ★ 字体宪法 v2（2026-10-15）：行高 = 自然（CSS normal，无强制行高规范，夏夏拍板）；
-     字体族/颜色由 getBlockStyle 内联真源派生（stepHandoff.QUESTION_FONT_FAMILY / BOARD_TEXT_COLOR） */
+  /* ★ 字体宪法 v2.2（2026-10-16）：行高 = 自然 + 2px 分数余量（分数上下结构越出行盒需呼吸空间）；
+     度量值由 getBlockStyle 内联 lineHeight 注入（naturalLineHeight.js，与画布同源度量），
+     度量不可用回落这里的 normal 兑底；字体族/颜色由 getBlockStyle 内联真源派生
+     （stepHandoff.QUESTION_FONT_FAMILY / BOARD_TEXT_COLOR） */
   z-index: 4; line-height: normal; white-space: pre-wrap; word-break: break-word;
   font-weight: 500;
 }

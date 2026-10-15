@@ -10,6 +10,7 @@ import {
   BOARD_FONT_RATIO_TEXT,
   LINE_HEIGHT_POLICY_TEXT,
   LINE_HEIGHT_ESTIMATE_RATIO,
+  NATURAL_LINE_HEIGHT_EXTRA_PX,
   BOARD_SPEED_CHARS_PER_SEC,
   BOARD_SPEED_JITTER,
   knowledgeItemText,
@@ -89,8 +90,8 @@ export function buildStandardExplainParamsSection(meta = {}) {
     `| 总结区字号 | ${hcp.fontSize?.summary?.px ?? BOARD_FONT_SIZE}px |`,
     `| 总结区字体 | \`${boardFontText}\` |`,
     `| 总结区颜色 | ${hcp.fontSize?.summary?.color || '黑色'} |`,
-    // ★ 字体宪法 v2：行高为自然口径（不随档走，文案真源 stepHandoff），估算比数一并告知 B
-    `| 行高（题目/板书通用） | ${LINE_HEIGHT_POLICY_TEXT}；估算行高 ≈ 字号 × ${LINE_HEIGHT_ESTIMATE_RATIO} |`,
+    // ★ 字体宪法 v2.2：行高为自然 + 2px 分数余量口径（不随档走，文案/余量真源 stepHandoff），估算公式一并告知 B
+    `| 行高（题目/板书通用） | ${LINE_HEIGHT_POLICY_TEXT}；估算行高 ≈ 字号 × ${LINE_HEIGHT_ESTIMATE_RATIO} + ${NATURAL_LINE_HEIGHT_EXTRA_PX}px |`,
     `| 板书速度 | ${hcp.boardSpeed || `下游渲染参数：1秒约${BOARD_SPEED_CHARS_PER_SEC}个汉字，每行±${BOARD_SPEED_JITTER * 100}%轻微抖动；书写时长超出音频窗口时自适应加速压进音频内（音频=行时长唯一主时钟）`} |`,
     `| 动作速度 | ${hcp.actionSpeed || '差不多同样速度（rough-line/rough-arrow/rough-notation绘制速度）'} |`,
     '',

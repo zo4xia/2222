@@ -40,6 +40,7 @@ import {
   LINE_HEIGHT_POLICY_TEXT,
   LINE_HEIGHT_POLICY_SHORT,
   LINE_HEIGHT_ESTIMATE_RATIO,
+  NATURAL_LINE_HEIGHT_EXTRA_PX,
   ANALYSIS_TEXT_COLOR,
   BOARD_TEXT_COLOR,
   resolveHandwritingFont,
@@ -83,9 +84,11 @@ const stackOrder = ['平方乔木体', '平方韶华体', '平方上上谦体', 
   check('A6 CDN 降级链同序 507/157/511/510/509/490', HANDWRITING_CSS_HREF.includes('/507/') && ids.join(',') === '507,157,511,510,509,490', ids.join(','))
 }
 check('A7 颜色：分析区红 #dc2626 / 其余黑 #000000', ANALYSIS_TEXT_COLOR === '#dc2626' && BOARD_TEXT_COLOR === '#000000')
-check('A8 行高口径 = 自然行高（无强制行高规范）',
-  LINE_HEIGHT_POLICY_TEXT.includes('自然行高') && LINE_HEIGHT_POLICY_TEXT.includes('不设强制行高') && LINE_HEIGHT_ESTIMATE_RATIO === 1.2)
-check('A8b 行高短文案', LINE_HEIGHT_POLICY_SHORT.includes('自然'))
+check('A8 行高口径 = 自然行高 + 2px 分数余量（无强制行高规范）',
+  LINE_HEIGHT_POLICY_TEXT.includes('自然行高') && LINE_HEIGHT_POLICY_TEXT.includes('不设强制行高')
+  && LINE_HEIGHT_POLICY_TEXT.includes('+2px 分数余量')
+  && LINE_HEIGHT_ESTIMATE_RATIO === 1.2 && NATURAL_LINE_HEIGHT_EXTRA_PX === 2)
+check('A8b 行高短文案', LINE_HEIGHT_POLICY_SHORT.includes('自然') && LINE_HEIGHT_POLICY_SHORT.includes('2px'))
 
 const hcp = buildCanvasParams()
 {
@@ -94,8 +97,9 @@ const hcp = buildCanvasParams()
     hcp.fontSize.question.px === 30 && hcp.fontSize.question.family.includes('微软雅黑') && hcp.fontSize.question.color === '黑色'
     && hcp.fontSize.analysis.px === 38 && hcp.fontSize.analysis.color === '红色'
     && hcp.fontSize.solution.color === '黑色' && hcp.fontSize.summary.color === '黑色')
-  check('A9b buildCanvasParams 行高块 = 自然政策（数值 1.65/1.7 不出现）',
-    hcp.lineHeight.policy === LINE_HEIGHT_POLICY_TEXT && !/"1\.65"/.test(cp) && !/"1\.7"/.test(cp))
+  check('A9b buildCanvasParams 行高块 = 自然+2px 政策（数值 1.65/1.7 不出现；extraPx 数值键）',
+    hcp.lineHeight.policy === LINE_HEIGHT_POLICY_TEXT && hcp.lineHeight.extraPx === NATURAL_LINE_HEIGHT_EXTRA_PX
+    && !/"1\.65"/.test(cp) && !/"1\.7"/.test(cp))
   check('A9c buildCanvasParams fontSource.question.stack = 真源字体栈',
     hcp.fontSource.question.stack === QUESTION_FONT_FAMILY && hcp.fontSource.question.family === QUESTION_FONT_FAMILY_TEXT)
 }
@@ -145,8 +149,15 @@ console.log('── D. row-player 双胞胎与离线镜像 ──')
   check('D3 自然行高函数存在（fontBoundingBox 度量 + 1.2 兜底）',
     rp.includes('function naturalLhRatio') && /return 1\.2;\s*\n\}/.test(rp))
   check('D4 逐行行距抖动 lhJ 拔除（1.57+d 模式清零）', !/1\.57\+d/.test(rp) && !/lhJ=L\.lhJ/.test(rp))
-  check('D5 换列预判 estH 用估算比数 1.2', /estH=lines\.length\*38\*1\.2\+20/.test(rp))
-  check('D6 题目行距自然度量（30*naturalLhRatio，非 30*1.65）', /30\*naturalLhRatio\(PRINT_FONT,30\)/.test(rp) && !/30\*1\.65/.test(rp))
+  check('D5 换列预判 estH = 估算比数 1.2 + 2px 分数余量（v2.2）',
+    /estH=lines\.length\*\(38\*1\.2\+NATURAL_LH_EXTRA_PX\)\+20/.test(rp))
+  check('D6 题目行距自然度量 + 2px（30*naturalLhRatio+NATURAL_LH_EXTRA_PX，非 30*1.65）',
+    /30\*naturalLhRatio\(PRINT_FONT,30\)\+NATURAL_LH_EXTRA_PX/.test(rp) && !/30\*1\.65/.test(rp))
+  check('D9 v2.2 分数余量镜像常量 + 画布三处消费（行距推进/换列判定/题目）',
+    /const NATURAL_LH_EXTRA_PX=2;/.test(rp)
+    && /ly\+=fs\*lhR\+NATURAL_LH_EXTRA_PX;/.test(rp)
+    && /ly\+size\*lhR\+NATURAL_LH_EXTRA_PX>maxY/.test(rp)
+    && rp.includes('镜像 stepHandoff.NATURAL_LINE_HEIGHT_EXTRA_PX'))
   check('D7 规格头注释：自然行高 + 微软雅黑', rp.includes('行高 = 自然') && rp.includes('印刷体(微软雅黑 Microsoft YaHei)'))
   check('D8 STAGE_COLOR：分析 #dc2626 / 其余 #000000（色值镜像宪法）',
     /STAGE_COLOR=\{'题目':'#000000','分析':'#dc2626','解答':'#000000','总结':'#000000'\}/.test(rp))
@@ -166,12 +177,17 @@ console.log('── E. 消费端 import 派生 ──')
   check('E2b deliverableStoreHandler 无 Segoe 字体字面量', !/"Segoe UI",\s*"PingFang SC"/.test(store))
 
   const smd = read('src/lib/speechMarkdown.js')
-  check('E3 speechMarkdown：题目字体真源插值 + 行高政策行（不随档走）',
-    /QUESTION_FONT_FAMILY/.test(smd) && /LINE_HEIGHT_POLICY_TEXT/.test(smd) && /LINE_HEIGHT_ESTIMATE_RATIO/.test(smd))
+  check('E3 speechMarkdown：题目字体真源插值 + 行高政策行（不随档走）+ v2.2 估算公式 +2px',
+    /QUESTION_FONT_FAMILY/.test(smd) && /LINE_HEIGHT_POLICY_TEXT/.test(smd) && /LINE_HEIGHT_ESTIMATE_RATIO/.test(smd)
+    && /NATURAL_LINE_HEIGHT_EXTRA_PX/.test(smd) && /\$\{NATURAL_LINE_HEIGHT_EXTRA_PX\}px/.test(smd))
 
   const bcl = read('src/components/BoardContentLayer.vue')
   check('E4 BoardContentLayer：题目层内联真源字体族/颜色 + 行高自然',
     /fontFamily:\s*QUESTION_FONT_FAMILY/.test(bcl) && /color:\s*BOARD_TEXT_COLOR/.test(bcl) && !/line-height:\s*1\.65/.test(bcl))
+  check('E4b BoardContentLayer：v2.2 题目行高 = 度量比数 + 分数余量（naturalLineHeight 派生，未度量回落 normal）',
+    /naturalLhRatioFor\(QUESTION_FONT_FAMILY,\s*realQuestionFontSize\.value\)/.test(bcl)
+    && /lineHeight:\s*naturalLhWithFractionMargin\(topicLhRatio\.value,\s*fs\)\s*\?\?\s*undefined/.test(bcl)
+    && /line-height:\s*normal/.test(bcl))   // 度量失败兑底仍在类样式
 
   const rbp = read('src/components/RealBoardPreview.vue')
   check('E5 RealBoardPreview：字体栈 = fontSource 派生计算属性 + 真源常量兑底（v2.1，全文件无栈字面量）',
@@ -183,7 +199,12 @@ console.log('── E. 消费端 import 派生 ──')
     && !rbp.includes('PingFangSaTuoTi') && !rbp.includes('平方乔木体') && !rbp.includes('平方韶华体'))
   check('E5b RealBoardPreview：颜色走 CSS var 真源注入（旧 #b42318/#17202a 清零）',
     /'--board-analysis-color':\s*ANALYSIS_TEXT_COLOR/.test(rbp) && /'--board-ink-color':\s*BOARD_TEXT_COLOR/.test(rbp) && !rbp.includes('#b42318') && !rbp.includes('#17202a'))
-  check('E5c RealBoardPreview：行高自然（旧 1.5 拔除）', /line-height:\s*normal/.test(rbp) && !/line-height:\s*1\.5;/.test(rbp))
+  check('E5c RealBoardPreview：v2.2 行高 = 度量比数 + 分数余量（loadingdone 重测，旧 1.5 拔除）',
+    /lineHeight:\s*boardTextLh\s*\?\?\s*'normal'/.test(rbp)
+    && /naturalLhRatioFor\(handwritingFontStack\.value,\s*boardFontSize\.value\)/.test(rbp)
+    && /loadingdone/.test(rbp)
+    && /line-height:\s*normal/.test(rbp)      // 度量失败兑底仍在类样式
+    && !/line-height:\s*1\.5;/.test(rbp))
 }
 
 /* ========== F. 布局权威归一（估算器注入拔除） ========== */
@@ -203,11 +224,13 @@ console.log('── F. 布局唯一权威（渲染层编译期度量）──')
 console.log('── G. 教法层对齐 ──')
 {
   const bsr = read('skills/board-speech-rules/SKILL.md')
-  check('G1 board-speech-rules：行高列自然 + 估算公式 1.2 + 活表格旧值清零（墓碑注释豁免）',
-    bsr.includes('自然（无强制规范）') && bsr.includes('字号 × 1.2') && !/行高约1\.7/.test(bsr) && !/\| ~1\.65 \|/.test(bsr) && !/\| ~1\.7 /.test(bsr))
+  check('G1 board-speech-rules：行高列自然+2px 分数余量 + 估算公式 1.2+2px + 活表格旧值清零（墓碑注释豁免）',
+    bsr.includes('自然+2px 分数余量') && bsr.includes('字号 × 1.2 + 2px') && !/行高约1\.7/.test(bsr) && !/\| ~1\.65 \|/.test(bsr) && !/\| ~1\.7 /.test(bsr))
   check('G1b board-speech-rules：题目字体 = 微软雅黑', bsr.includes('印刷体（微软雅黑 Microsoft YaHei'))
   const meta = JSON.parse(read('skills/board-speech-rules/meta.json'))
-  check('G1c meta.json v3.3.0 + v3_3_changes 记档', meta.version === '3.3.0' && Array.isArray(meta.v3_3_changes) && meta.v3_3_changes.some(s => s.includes('自然行高')))
+  check('G1c meta.json v3.3.1 + v3_3_1_changes 记档（v2.2 分数余量）',
+    meta.version === '3.3.1' && Array.isArray(meta.v3_3_1_changes) && meta.v3_3_1_changes.some(s => s.includes('分数余量'))
+    && Array.isArray(meta.v3_3_changes) && meta.v3_3_changes.some(s => s.includes('自然行高')))
 
   const hfp = read('skills/handwriting-font-policy/SKILL.md')
   check('G2 handwriting-font-policy：L1 印刷体微软雅黑永久 + L3 v2.1 用户可切换（下拉 2 选 1 随档走）',
@@ -218,7 +241,8 @@ console.log('── G. 教法层对齐 ──')
     hfp.includes('| 题目区 | 印刷体（微软雅黑） | ~30px') && !/\| ~1\.65 \|/.test(hfp) && !/\| ~1\.7 /.test(hfp))
 
   const blp = read('skills/board-lecture-player/SKILL.md')
-  check('G3 board-lecture-player：行距自然 + 无"行距抖动"', blp.includes('行间距自然（无强制行高规范）') && !/行距抖动/.test(blp))
+  check('G3 board-lecture-player：行距自然 + 2px 分数余量 + 无"行距抖动"',
+    blp.includes('行间距自然 + 2px 分数余量') && !/行距抖动/.test(blp))
 
   const prompt = read('src/agent-b-v2/prompt.js')
   check('G4 B prompt 教法：题目字号 30px 微软雅黑（与宪法一致）', prompt.includes('题目字号 ${QUESTION_FONT_SIZE}px 微软雅黑'))
@@ -293,6 +317,20 @@ console.log('── H. v2.1 字体切换器 ──')
       && /handwritingFontChoice:\s*boardFontChoice\.value/.test(agent)
       && !black.test(strip(agent)))
   }
+}
+
+/* ========== I. v2.2 分数余量（DOM 度量工具 naturalLineHeight.js） ========== */
+console.log('── I. v2.2 分数余量 DOM 工具 ──')
+{
+  const nlh = read('src/lib/naturalLineHeight.js')
+  check('I1 naturalLineHeight.js：真源余量 import + fontBoundingBox 同源度量 + 护栏区间 + null 回落',
+    /NATURAL_LINE_HEIGHT_EXTRA_PX/.test(nlh)
+    && /fontBoundingBoxAscent/.test(nlh) && /fontBoundingBoxDescent/.test(nlh)
+    && /r > 0\.8 && r < 3/.test(nlh)
+    && /typeof document === 'undefined'/.test(nlh))
+  const bl = read('src/utils/boardLayout.js')
+  check('I2 boardLayout 墓碑注释带余量重建口径（RATIO + EXTRA_PX，不手写比数）',
+    /LINE_HEIGHT_ESTIMATE_RATIO \+ NATURAL_LINE_HEIGHT_EXTRA_PX/.test(bl))
 }
 
 /* ========== 收尾 ========== */
