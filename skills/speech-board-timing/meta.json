@@ -1,10 +1,10 @@
 {
   "name": "speech-board-timing",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "archetype": "workflow",
-  "description": "口播语速与板书书写时间节奏技巧蒸馏。160 cpm 语速，中文标点停顿，板书 400ms/字抖动，Row 间 1500ms，口播发音硬规范。",
+  "description": "口播语速与板书书写时间节奏技巧蒸馏。160 cpm 语速，中文标点停顿，板书 220ms/字抖动（1秒4~5字，2026-10-15 提速），Row 间 1000ms，口播发音硬规范。",
   "created": "2026-09-19",
-  "updated": "2026-10-13",
+  "updated": "2026-10-15",
   "sources": [
     "src/agent-b-v2/timing.js",
     "src/agent-b-v2/timing.js (ponytail 唯一真源；services/speechTiming.js 幽灵路径已勘误)"
@@ -12,7 +12,7 @@
   "distillation_contract": "Distill [口播语速与板书书写时间节奏] as a [workflow] pack so it can help with [Agent B 写口播+板书节奏 / 渲染层估算总时长 / Check Agent 校验口播发音合规], using [src/agent-b-v2/timing.js], while respecting [B 不输出时间字段 / 时间由下游动态算 / 口播发音硬规范].",
   "core_sections": [
     "口播语速（160 cpm + 标点停顿）",
-    "板书书写节奏（400ms/字 + 抖动）",
+    "板书书写节奏（220ms/字 + 抖动，1秒4~5字）",
     "单动作时长估算",
     "Row 组时间线（1D 单手串行）",
     "口播发音硬规范（分数/符号/小数）",
@@ -22,11 +22,11 @@
     "语速 160 cpm = 375ms/字 (60000/160)",
     "字数计算去掉空白和中英文标点",
     "中文标点停顿: 。700ms / ，500ms / ……1000ms",
-    "口播时长 = max(1200, 字数*375 + 标点停顿), 空口播=1500ms",
-    "板书书写 400ms/字, 抖动 360—440ms (周期7步), 下限 320ms",
+    "口播时长 = max(1500, 字数*375 + 标点停顿), 空口播=1500ms",
+    "板书书写 220ms/字, 抖动 190—250ms (周期7步), 下限 190ms (1秒4~5字, 2026-10-15 夏夏拍板提速)",
     "板书起手延迟 = min(2000, max(1000, speechDurationMs*0.2)), 可被 startDelay 覆盖",
     "动作间隔 MIN_HAND_LIFT_GAP_MS = 1000ms (真源 boardToolTiming.js; 2026-10-13 勘误: 曾标 600ms)",
-    "Row 间停顿 1500ms (AGENT_B_V2_ROW_GAP_MS)",
+    "Row 间停顿 1000ms (AGENT_B_V2_ROW_GAP_MS, 2026-10-15 夏夏拍板 1500→1000)",
     "Row 总耗时 = max(speechDurationMs, handWorkEndMs)",
     "单动作估算: notation underline 1200 / highlight 1400 / circle 1500 / line 1000 / arrow 1200 / 其他 1200 ms (timing.js 真源)",
     "B 不输出 duration/startAt/endAt/durationMs/estimatedDurationMs",

@@ -13,6 +13,7 @@ import {
   BOARD_SPEED_JITTER,
   knowledgeItemText,
 } from '../services/stepHandoff.js'
+import { AUDIO_SPEED_POLICY_TEXT } from '../agent-b-v2/timing.js'
 
 /**
  * 导出物全局说明参数（真相源与规范基准）
@@ -101,7 +102,7 @@ export function buildStandardExplainParamsSection(meta = {}) {
     '| 坐标计算方式 | 百分比 |',
     `| 题目字号（UI） | ${QUESTION_FONT_SIZE}px |`,
     '| 题目字体（UI） | `"Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif` |',
-    '| 音频速度 | （若有音频url的，以音频自然播放时间为时间，一组一组自然播放即可，如果没有音频url信息的，用填充演示数据占位，）速度计算 160字/分 |',
+    `| 音频速度 | ${AUDIO_SPEED_POLICY_TEXT} |`,
     '',
     '### 题目信息与环节配比',
     '',

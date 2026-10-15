@@ -35,15 +35,15 @@ console.log(`  C1 plan 长度: ${c1Real.exclusiveExecutionPlan.length} (期望 2
 check('C1 纯板书: speech+board 两块, board 在 startDelay 后', c1Real, {
   speechDurationMs: 4075,
   boardStartDelayMs: 800,      // max(800, min(1800, round(4075*0.15)=611)) = 800
-  boardDurationMs: 3170,       // calculateBoardWritingDuration("解：设未知数为 x") 真值
-  boardEndDelayMs: 3970,       // 800 + 3170
+  boardDurationMs: 1730,       // 2026-10-15 提速后真值: "解：设未知数为 x" 8字 × 190~250ms 抖动 (旧 400ms/字时代为 3170)
+  boardEndDelayMs: 2530,       // 800 + 1730
   actionTimeline: [],
   exclusiveExecutionPlan: [
     { type: 'speech', role: 'narration_full', startOffsetMs: 0, durationMs: 4075, endOffsetMs: 4075, text: '这道题我们来看一下。' },
-    { type: 'board', role: 'writing', startOffsetMs: 800, durationMs: 3170, endOffsetMs: 3970, content: '解：设未知数为 x' },
+    { type: 'board', role: 'writing', startOffsetMs: 800, durationMs: 1730, endOffsetMs: 2530, content: '解：设未知数为 x' },
   ],
-  handWorkEndMs: 3970,
-  rowTotalDurationMs: 4075,    // max(4075, 3970) = 4075
+  handWorkEndMs: 2530,
+  rowTotalDurationMs: 4075,    // max(4075, 2530) = 4075
   mutualExclusivityPolicy: 'single-hand-serial-1-2s-action-pause',
 })
 

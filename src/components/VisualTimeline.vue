@@ -178,6 +178,7 @@
 
 <script setup>
 import { computed, ref, watch, nextTick } from 'vue'
+import { AGENT_B_V2_ROW_GAP_MS } from '../agent-b-v2/timing.js'
 
 const props = defineProps({
   rows: {
@@ -355,10 +356,14 @@ function getPreludePercent(row) {
 
 // 估算累计起始时间点
 function getEstimatedStart(targetIdx) {
+  // 2026-10-15 归一：优先吃 timing.js 预计算的 estimatedStartMs（唯一真源时间轴），
+  // 仅在行数据不带时间轴字段时本地兜底估算（rowGap 用真源常量，不再平行写死）
+  const est = Number(props.rows?.[targetIdx]?.estimatedStartMs)
+  if (Number.isFinite(est) && est >= 0) return est
   let accMs = 0
   for (let i = 0; i < targetIdx; i++) {
     const d = getDuration(props.rows[i]) * 1000
-    accMs += d + 1500 // 包含默认 1.5s row gap
+    accMs += d + AGENT_B_V2_ROW_GAP_MS
   }
   return accMs
 }

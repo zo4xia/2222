@@ -52,7 +52,7 @@
 </head>
 <body>
 <h1>speech-board-timing · 口播板书节奏</h1>
-<p class="sub">160 cpm 语速 + 标点停顿（。700 / ，500 / ……1000ms）· 板书 400ms/字 + 360—440 抖动 · 动作间隔 1000ms（MIN_HAND_LIFT_GAP_MS 真源 boardToolTiming.js，2026-10-13 勘误曾标 600）· Row 间 1500ms</p>
+<p class="sub">160 cpm 语速 + 标点停顿（。700 / ，500 / ……1000ms）· 板书 220ms/字 + 190—250 抖动（1秒4~5字，2026-10-15 提速）· 动作间隔 1000ms（MIN_HAND_LIFT_GAP_MS 真源 boardToolTiming.js，2026-10-13 勘误曾标 600）· Row 间 1000ms（2026-10-15 夏夏拍板）</p>
 
 <div class="grid">
   <div class="panel">
@@ -79,16 +79,16 @@
     <h2 style="margin-top:14px">多 Row 全局时间线</h2>
     <div class="timeline" id="timeline"></div>
     <div class="axis" id="axis"></div>
-    <p class="note">绿=口播 / 蓝=板书 / 橙=动作 / 灰=抬笔间隔 / Row 间 1500ms 停顿</p>
+    <p class="note">绿=口播 / 蓝=板书 / 橙=动作 / 灰=抬笔间隔 / Row 间 1000ms 停顿</p>
   </div>
 </div>
 
 <script>
 // ─── 语速与节奏（与 src/agent-b-v2/timing.js 对齐） ──────
 const RATE=160;          // 160 cpm
-const ROW_GAP=1500;
+const ROW_GAP=1000;   // = AGENT_B_V2_ROW_GAP_MS（真源 src/agent-b-v2/timing.js；2026-10-15 夏夏拍板 1500→1000）
 const HAND_LIFT=1000;    // = MIN_HAND_LIFT_GAP_MS（真源 src/board-tools/boardToolTiming.js；2026-10-13 归一，曾平行写死 600）
-const BASE_CHAR_MS=400;  // 板书 400ms/字
+const BASE_CHAR_MS=220;  // 板书 220ms/字（1秒4~5字，2026-10-15 夏夏拍板提速，真源 timing.js BASE_CHAR_WRITE_MS）
 const PUNCT={'.':700,'。':700,',':500,'，':500,'…':1000};
 
 function countChars(s){
@@ -103,14 +103,14 @@ function countPunct(s){
   return p;
 }
 function calcBoardMs(content){
-  // 去 LaTeX 控制符后逐字累加，每字 360—440 抖动
+  // 去 LaTeX 控制符后逐字累加，每字 190—250 抖动
   const clean=String(content||'').replace(/\\(begin|end)\{[^}]+\}/g,'')
     .replace(/\\(frac|times|div|aligned)/g,' ').replace(/\s+/g,'');
   const n=Math.max(1,[...clean].length);
   let d=0;
   for(let i=0;i<n;i++){
     const jitter=((i*17)%7-3)*10;
-    d+=Math.max(320,BASE_CHAR_MS+jitter);
+    d+=Math.max(190,BASE_CHAR_MS+jitter);
   }
   return d;
 }
@@ -126,7 +126,7 @@ function computeRow(row){
   const speech=String(row.speech||'').trim();
   const chars=countChars(speech);
   const punct=countPunct(speech);
-  const speechMs=chars>0?Math.max(1200,Math.round(chars*60000/RATE)+punct):1500;
+  const speechMs=chars>0?Math.max(1500,Math.round(chars*60000/RATE)+punct):1500;
 
   const boardContent=String(row.board||'').trim();
   const hasBoard=Boolean(boardContent);

@@ -37,7 +37,7 @@ import { BOARD_MARK_COLORS } from '../board-tools/roughNotationTool.js'
 import { ROUGH_DRAWING_COLORS } from '../board-tools/roughDrawingTool.js'
 import { saveLiveBoardPreview } from '../board-preview/liveBoardPreview.js'
 import { generateAgentBV2Rows } from './service.js'
-import { applyAgentBV2Timeline, computeRowGroupTimeline, countCharacters, estimateSpeechDurationMs, AGENT_B_V2_SPEECH_RATE } from './timing.js'
+import { applyAgentBV2Timeline, computeRowGroupTimeline, countCharacters, estimateSpeechDurationMs, AGENT_B_V2_SPEECH_RATE, AGENT_B_V2_ROW_GAP_MS, AUDIO_SPEED_POLICY_TEXT } from './timing.js'
 import { listSkills, DEFAULT_SKILL_ID } from './skills/index.js'
 import { checkAgentRows, applyCheckResult } from '../check-agent/service.js'
 import { batchPolishRowsMathAsr } from '../lib/mathAsrConverter.js'
@@ -94,7 +94,7 @@ const GENERATING_STEPS = [
   { icon: '💡', title: '搭建儿童思维支架', desc: '正在唤醒核心知识点，梳理温柔循序的提问链与易错点...' },
   { icon: '✍️', title: '规划板书内容与节拍', desc: '正在推导板书核心算式，按教学内容安排自然留白...' },
   { icon: '🎙️', title: '润色专属口播文案', desc: '正在推敲由浅入深、温润自然的口播发音节奏与标点停顿...' },
-  { icon: '✨', title: '对齐讲学时序分镜', desc: '正在校验口播语速与画布动作执行轴，五字段讲义即将呈现...' },
+  { icon: '✨', title: '对齐讲学时序分镜', desc: '正在校验口播时序口径（有音频跟音频/无音频兑底估算）与画布动作执行轴，五字段讲义即将呈现...' },
 ]
 const generatingStepIndex = ref(0)
 let generatingTimer = null
@@ -255,8 +255,8 @@ const canvasParams = ref({
   questionFontSize: QUESTION_FONT_SIZE,
   questionFontFamily: '"Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
   questionLineHeight: QUESTION_LINE_HEIGHT,
-  rowGapMs: 1500,
-  speechSpeed: 160,
+  rowGapMs: AGENT_B_V2_ROW_GAP_MS,
+  speechSpeed: AGENT_B_V2_SPEECH_RATE,
 })
 
 // board 列编辑状态：-1 表示无编辑，>=0 表示正在编辑的行索引
@@ -390,7 +390,7 @@ const totalEstimatedStats = computed(() => {
     totalChars += countCharacters(r.speech)
     totalSpeechMs += estimateSpeechDurationMs(r.speech, { speed: canvasParams.value?.speechSpeed || AGENT_B_V2_SPEECH_RATE })
   })
-  const totalGapMs = (rows.value.length - 1) * (canvasParams.value?.rowGapMs || 1500)
+  const totalGapMs = (rows.value.length - 1) * (canvasParams.value?.rowGapMs || AGENT_B_V2_ROW_GAP_MS)
   const totalSec = Math.round((totalSpeechMs + totalGapMs) / 1000)
   const m = Math.floor(totalSec / 60)
   const s = totalSec % 60
@@ -983,7 +983,7 @@ function moveRow(fromIndex, toIndex) {
 
   // 核心：在拖拽完成后自动重新计算整个视频的时间轴序列
   rows.value = applyAgentBV2Timeline(list, {
-    rowGapMs: canvasParams.value?.rowGapMs || 1500,
+    rowGapMs: canvasParams.value?.rowGapMs || AGENT_B_V2_ROW_GAP_MS,
   })
 
   message.success(`已调整行顺序（第 ${fromIndex + 1} 行 ➔ 第 ${toIndex + 1} 行），并已自动重新计算全片视频时间轴 ╰(๑◕ ▿ ◕๑)╯`)
@@ -995,7 +995,7 @@ watch(
   () => {
     if (rows.value.length) {
       rows.value = applyAgentBV2Timeline(rows.value, {
-        rowGapMs: canvasParams.value?.rowGapMs || 1500,
+        rowGapMs: canvasParams.value?.rowGapMs || AGENT_B_V2_ROW_GAP_MS,
       })
     }
   }
@@ -1027,7 +1027,11 @@ async function generateRows(force = false) {
   if (!force) {
     const cached = bCacheGet()
     if (cached) {
-      rows.value = cached.rows
+      // 2026-10-15 提速归一：旧缓存（写字 400ms/字、rowGap 1500ms 时代算的时间轴）恢复时一律重算，
+      // 防止旧常量时代的 estimatedStartMs/estimatedDurationMs 混进新速度体系（防散关键一步）
+      rows.value = applyAgentBV2Timeline(cached.rows, {
+        rowGapMs: canvasParams.value?.rowGapMs || AGENT_B_V2_ROW_GAP_MS,
+      })
       generatedModel.value = cached.model
       state.value = 'ready'
       message.info(`已使用缓存结果（${cached.rows.length}行），Shift+点击可强制刷新`)
@@ -1105,7 +1109,7 @@ function applyCheckChanges() {
   const changeCount = checkChanges.value.length
   const isAsr = checkSource.value === 'math_asr'
   rows.value = applyAgentBV2Timeline(pendingCheckRows.value, {
-    rowGapMs: canvasParams.value?.rowGapMs || 1500,
+    rowGapMs: canvasParams.value?.rowGapMs || AGENT_B_V2_ROW_GAP_MS,
   })
   if (!isAsr) {
     // Check Agent 结果同步写回服务端文件（文件即真相源）
@@ -1266,7 +1270,7 @@ function serializeCurrentDeliverableState() {
       coordinateMode: '百分比',
       questionFontSize: `${QUESTION_FONT_SIZE}px`,
       questionFontFamily: '"Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
-      audioSpeedPolicy: '（若有音频url的，以音频自然播放时间为时间，一组一组自然播放即可，如果没有音频url信息的，用填充演示数据占位，）速度计算 160字/分',
+      audioSpeedPolicy: AUDIO_SPEED_POLICY_TEXT,
     },
     // 题目信息与环节配比
     problemInfo: {

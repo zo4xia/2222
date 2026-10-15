@@ -1,7 +1,7 @@
 ---
 name: speech-board-timing
-description: "口播语速与板书书写时间节奏技巧蒸馏。语速 160 cpm（60000/160≈375ms/字），中文标点停顿（。700ms / ，500ms / ……1000ms），板书书写 1秒2~3字（基准 400ms/字 + ±80ms 抖动模拟真人手感），抬笔换手 1000ms（= MIN_HAND_LIFT_GAP_MS 真源 boardToolTiming.js，2026-10-13 归一），Row 间停顿 1500ms，板书起手自适应延迟（口播念到关键词后再落笔，约 1.2—2.0s）。口播分数念'分母分之分子'，未知数念'艾克斯'，乘号念'乘以'，加号念'加'，小数逐位汉字。用于 Agent B 写口播+板书节奏 / 渲染层估算总时长 / Check Agent 校验口播发音合规。"
-version: "1.1.0"
+description: "口播语速与板书书写时间节奏技巧蒸馏。语速 160 cpm（60000/160≈375ms/字），中文标点停顿（。700ms / ，500ms / ……1000ms），板书书写 1秒4~5字（基准 220ms/字 + ±30ms 抖动模拟真人手感，2026-10-15 夏夏拍板提速 400→220），抬笔换手 1000ms（= MIN_HAND_LIFT_GAP_MS 真源 boardToolTiming.js，2026-10-13 归一），Row 间停顿 1000ms（2026-10-15 夏夏拍板 1500→1000，口播自然语句停顿），板书起手自适应延迟（口播念到关键词后再落笔，约 1.2—2.0s）。口播分数念'分母分之分子'，未知数念'艾克斯'，乘号念'乘以'，加号念'加'，小数逐位汉字。用于 Agent B 写口播+板书节奏 / 渲染层估算总时长 / Check Agent 校验口播发音合规。"
+version: "1.2.0"
 archetype: workflow
 trigger: "写口播稿/估算口播时长/校验口播发音合规/板书书写节奏/Row间停顿/标点停顿"
 ---
@@ -25,7 +25,7 @@ trigger: "写口播稿/估算口播时长/校验口播发音合规/板书书写�
 | `AGENT_B_V2_SPEECH_RATE` | **160 cpm** | 每分钟 160 字 |
 | `SPEECH_MS_PER_CHARACTER` | `60000/160 ≈ 375ms` | 每字 375ms（含正常停顿摊销） |
 | `SPEECH_TIMING_SOURCE` | `speech-estimate-170-cpm` | 旧版 170 cpm 标识，B-v2 用 160 |
-| `SPEECH_ROW_GAP_MS` | 300ms | 旧版 Row 间停顿（B-v2 用 1500ms） |
+| `SPEECH_ROW_GAP_MS` | 300ms | 旧版 Row 间停顿（B-v2 现用 1000ms） |
 
 ### 1.2 字数计算（去标点）
 
@@ -68,16 +68,16 @@ speechDurationMs = max(1200, round(字数 * 375) + 标点停顿)
 
 ---
 
-## 二、板书书写节奏（1 秒 2~3 字）
+## 二、板书书写节奏（1 秒 4~5 字）
 
 ### 2.1 基准常量
 
 | 常量 | 值 | 说明 |
 |---|---|---|
-| `BASE_CHAR_WRITE_MS` | **400ms** | 1 个汉字书写基准（1秒2.5字） |
-| 抖动区间 | **360—440ms** | 模拟真人手感，避免机械感 |
-| `HAND_LIFT_GAP_MS` | **600ms** | 抬笔换手间隔（与动作调度共用） |
-| `AGENT_B_V2_ROW_GAP_MS` | **1500ms** | Row 间停顿 |
+| `BASE_CHAR_WRITE_MS` | **220ms** | 1 个汉字书写基准（1秒4~5字，2026-10-15 提速） |
+| 抖动区间 | **190—250ms** | 模拟真人手感，避免机械感（4.0~5.3 字/秒） |
+| `HAND_LIFT_GAP_MS` | **1000ms** | 抬笔换手间隔（= MIN_HAND_LIFT_GAP_MS 真源 boardToolTiming.js；2026-10-13 归一，曾误标 600ms） |
+| `AGENT_B_V2_ROW_GAP_MS` | **1000ms** | Row 间停顿（2026-10-15 夏夏拍板 1500→1000，口播自然语句停顿） |
 
 ### 2.2 书写时长计算（带抖动）
 
@@ -90,17 +90,17 @@ function calculateBoardWritingDuration(content) {
     .replace(/\s+/g, '')
   const charCount = max(1, [...clean].length)
 
-  // 2. 逐字累加，每字 360—440ms 微抖动
+  // 2. 逐字累加，每字 190—250ms 微抖动
   let durationMs = 0
   for (let i = 0; i < charCount; i++) {
     const jitter = ((i * 17) % 7 - 3) * 10   // -30, -20, -10, 0, 10, 20, 30
-    durationMs += max(320, 400 + jitter)
+    durationMs += max(190, 220 + jitter)
   }
   return durationMs
 }
 ```
 
-> **抖动算法**：`((i * 17) % 7 - 3) * 10` → 周期性 7 步循环（-30, -20, -10, 0, 10, 20, 30），不是真随机，保证估算可复现。下限 320ms 不让任何字写得太快。
+> **抖动算法**：`((i * 17) % 7 - 3) * 10` → 周期性 7 步循环（-30, -20, -10, 0, 10, 20, 30），不是真随机，保证估算可复现。下限 190ms 不让任何字写得太快。
 
 ### 2.3 板书起手延迟（自适应）
 
@@ -259,7 +259,7 @@ validateSpeechDecimalReading(speech)
 
 | B 不填 | 原因 |
 |---|---|
-| `duration` / `durationMs` | 由下游按 160cpm + 400ms/字 + 标点停顿算 |
+| `duration` / `durationMs` | 由下游按 160cpm + 220ms/字 + 标点停顿算 |
 | `startAt` / `endAt` | 由 Row 时间线全局累加 |
 | `triggerAt` 可填参考 | 但下游会重算 |
 
@@ -269,16 +269,16 @@ validateSpeechDecimalReading(speech)
 
 | 反模式 | 现象 | 修正 |
 |---|---|---|
-| 写太快 | 1 秒 5 字 | 基准 400ms/字 + 360—440 抖动，下限 320 |
-| 写太慢 | 1 秒 1 字 | 上限 440ms，超出视为卡顿 |
-| 机械等长 | 每字都 400ms | 抖动 7 步循环避免机械感 |
+| 写太快 | 1 秒 6 字 | 基准 220ms/字 + 190—250 抖动，下限 190（1秒最多 5.3 字） |
+| 写太慢 | 1 秒 3 字 | 上限 250ms，超出视为卡顿 |
+| 机械等长 | 每字都 220ms | 抖动 7 步循环避免机械感 |
 | 板书先于口播 | 手在嘴前 | `boardStartDelayMs = speechDurationMs * 0.2`，等口播念到关键词 |
 | 念斜杠 | "3/4" | 改"4分之3"（分母分之分子） |
 | 念字母 | "x" | 改"艾克斯" |
 | 念符号 | "+" | 改"加" |
 | 小数点 | "3.14" | 改"3点一四"（逐位汉字） |
 | 标点不停顿 | "你好。你好。" 无 700ms | 程序按句号 700ms / 逗号 500ms 加 |
-| 极短口播 | "嗯。" < 1200ms | `max(1200, ...)` 下限保护 |
+| 极短口播 | "嗯。" < 1500ms | `max(1500, ...)` 下限保护（timing.js 真源） |
 
 ---
 
@@ -287,12 +287,12 @@ validateSpeechDecimalReading(speech)
 ```
 语速: 160 cpm (375ms/字)
 标点停顿: 。700ms / ，500ms / ……1000ms
-口播时长: max(1200, 字数*375 + 标点停顿)  空口播=1500ms
-板书: 400ms/字 + 360—440 抖动 (1秒2.5字)
+口播时长: max(1500, 字数*375 + 标点停顿)  空口播=1500ms
+板书: 220ms/字 + 190—250 抖动 (1秒4~5字, 2026-10-15 提速)
 板书起手: max(1000, min(2000, speech*0.2))，可被 startDelay 覆盖
 动作估算: notation underline 1200 / highlight 1400 / circle 1500 / line 1000 / arrow 1200 / 其他 1200 ms（timing.js 真源）
 动作间隔: MIN_HAND_LIFT_GAP_MS = 1000ms（与动作调度共用，真源 boardToolTiming.js；2026-10-13 勘误：曾标 600ms，估算偏快致长板书音画漂移）
-Row 间: 1500ms (AGENT_B_V2_ROW_GAP_MS)
+Row 间: 1000ms (AGENT_B_V2_ROW_GAP_MS, 2026-10-15 夏夏拍板 1500→1000)
 Row 总: max(speechDurationMs, handWorkEndMs)
 B 不填: duration / startAt / endAt / durationMs / estimatedDurationMs
 口播硬规范: 分数=分母分之分子 / x=艾克斯 / ×=乘以 / +=加 / 小数逐位汉字
