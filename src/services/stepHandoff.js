@@ -53,9 +53,9 @@ export const HANDWRITING_CSS_HREF_FALLBACKS = [
 export const BOARD_LINE_HEIGHT_MEAN = 1.7
 export const BOARD_LINE_HEIGHT_MIN = 1.55
 export const BOARD_LINE_HEIGHT_MAX = 1.85
-// ★ Task 10: 板书速度真相源 = 1秒2-3字 + ±5% 抖动 + 超音频窗口自适应加速
-export const BOARD_SPEED_CHARS_PER_SEC = 2.5  // 1秒2-3字，均值2.5
-export const BOARD_SPEED_JITTER = 0.05       // ±5% 轻微抖动
+// ★ 板书速度真相源（timing.js BASE_CHAR_WRITE_MS=220ms/字 为唯一代码真源）：1秒4~5字 + ±30ms 抖动 + 超音频窗口自适应加速
+export const BOARD_SPEED_CHARS_PER_SEC = 4.5  // 1秒4~5字（2026-10-15 夏夏拍板提速，基准 220ms/字），均值 4.5
+export const BOARD_SPEED_JITTER = 0.14       // ±30ms/220ms ≈ ±14% 轻微抖动（timing.js jitter ±30ms 真源换算）
 export const BOARD_SPEED_ADAPTIVE_COMPRESS = true  // 书写时长超出音频窗口时自适应加速压进音频内
 
 /** 行高口径：题目 1.65 固定 / 板书 1.7±随机（1.55~1.85）+ 渲染层微小随机抖动 */

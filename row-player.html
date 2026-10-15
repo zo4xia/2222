@@ -18,7 +18,7 @@
     解答   38px 手写体 黑色 行高1.7±随机
     总结   38px 手写体 黑色 行高1.7±随机
     行高随机区间 1.55~1.85（下游渲染职责，均值1.7）
-    板书速度 1秒2-3个汉字，每行±5%轻微抖动；书写时长超出音频窗口时自适应加速压进音频内（音频=行时长唯一主时钟）；rough 动作同速
+    板书速度 1秒4~5个汉字（220ms/字基准，±30ms 抖动）；书写时长超出音频窗口时自适应加速压进音频内（音频=行时长唯一主时钟）；rough 动作同速
   素材真相源（2026-09-13 内嵌 base64，单文件离线）：
     底图 canvas-bg-1726x980.png（PNG→WebP 8KB）：浅蓝贴纸边框，板面区透明挖空，垫 #fbfaf6 纸白
     板书安全区（量自透明区）：left 1.80% top 3.37% right 98.15% bottom 96.33%
@@ -406,7 +406,12 @@ function compile(data){
     const measuredAudioMs=Number(r.audioDurationMs);
     const hasMeasuredAudio=Number.isFinite(measuredAudioMs)&&measuredAudioMs>0;
     const audioRow=!!(typeof r.mp3==='string'&&isAudioSrc(r.mp3));  // normRow 已把 audioUrl 归入 mp3 白名单
-    const estSpeechMs=Math.max(1000,Math.round((r.speech||'').replace(/\s/g,'').length*60/160*1000));
+    // 2026-10-15 归一：估算口径对齐 timing.js estimateSpeechDurationMs —— 剥中英文标点后按 160cpm 计
+    // + 中文标点停顿（。700 / ，500 / ……1000）+ 1500ms 下限；旧版不剥标点无停顿下限1000，与 App 估算分叉
+    const estSpeechText=String(r.speech||'');
+    const estSpeechChars=[...estSpeechText.replace(/\s+/g,'').replace(/[。，、；：？！“”‘’（）《》【】……—.,!?;:'"()\[\]<>~`@#$%^&*_+=|\\/]/g,'')].length;
+    const estPunctMs=((estSpeechText.match(/。/g)||[]).length*700)+((estSpeechText.match(/，/g)||[]).length*500)+((estSpeechText.match(/…+/g)||[]).length*1000);
+    const estSpeechMs=Math.max(1500,Math.round(estSpeechChars*60/160*1000)+estPunctMs);
     let dur=hasMeasuredAudio
           ? Math.round(measuredAudioMs)
           : (typeof r.duration==='number'&&r.duration>0 ? r.duration*1000 : estSpeechMs);
@@ -958,7 +963,8 @@ function drawProblemImage(ctx,W,H){
 // 时间常量：板书 BASE_CHAR_MS/字 · 行间抬笔 HAND_LIFT_MS（板书换行节奏，本文件私有）
 // 2026-10-13 拍板消解伪冲突：HAND_LIFT_MS(行间)=600 与 boardToolTiming.js 的
 // MIN_HAND_LIFT_GAP_MS(动作换手硬下限)=1000 量纲不同、互不约束；原"991/timing.js"路径已不存在。
-const BASE_CHAR_MS=400, HAND_LIFT_MS=600;
+// 2026-10-15 夏夏拍板提速：400→220（1秒4~5字），镜像 timing.js BASE_CHAR_WRITE_MS（改两处同改）
+const BASE_CHAR_MS=220, HAND_LIFT_MS=600;
 const FEATHER_PX=2;   // 笔尖羽化：纯 clip 切口是硬的，抹一条软边更像笔推进（成本极低）
 
 function drawWriting(task,p,W,H,stage){
@@ -995,7 +1001,7 @@ function drawWriting(task,p,W,H,stage){
   lines.forEach((l,li)=>{
     seg.push({t:'w',li:li,text:l,ci:ci,w:(isRuleLine(l)?2:Math.max(1,l.length))*spJ[li]});
     ci+=l.length;
-    if(li<lines.length-1)seg.push({t:'l',w:HAND_LIFT_MS/BASE_CHAR_MS});   // 600/400 = 1.5 个字的等价权重
+    if(li<lines.length-1)seg.push({t:'l',w:HAND_LIFT_MS/BASE_CHAR_MS});   // 600/220 ≈ 2.7 个字的等价权重
   });
   const totalW=seg.reduce((a,s)=>a+s.w,0);
   const shown=p*totalW;

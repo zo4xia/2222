@@ -4,8 +4,9 @@
 import { MIN_HAND_LIFT_GAP_MS } from '../board-tools/boardToolTiming.js'
 
 export const AGENT_B_V2_SPEECH_RATE = 160
-export const AGENT_B_V2_ROW_GAP_MS = 1500
-export const BASE_CHAR_WRITE_MS = 400 // 1秒2~3字（基准 2.5 字/秒 = 400ms/字）
+export const AGENT_B_V2_ROW_GAP_MS = 1000
+// 2026-10-15 夏夏拍板提速：写字 1秒4~5字（400ms/字 → 220ms/字），row 间自然停顿 1500→1000ms（口播语句间停顿）
+export const BASE_CHAR_WRITE_MS = 220 // 1秒4~5字（基准 4.5 字/秒 = 220ms/字，抖动 ±30ms → 190~250ms = 4.0~5.3 字/秒）
 export const HAND_LIFT_GAP_MS = MIN_HAND_LIFT_GAP_MS // 动作抬笔换手间隔（真源 boardToolTiming.js）
 
 function normalizeSpeech(speech) {
@@ -38,7 +39,7 @@ export function estimateSpeechDurationMs(speech, { speed = AGENT_B_V2_SPEECH_RAT
 }
 
 /**
- * 计算板书书写耗时预估（1秒2~3字，带微弱抖动区间）
+ * 计算板书书写耗时预估（1秒4~5字，带微弱抖动区间）
  */
 export function calculateBoardWritingDuration(content) {
   const text = String(content || '').trim()
@@ -52,9 +53,9 @@ export function calculateBoardWritingDuration(content) {
 
   let durationMs = 0
   for (let i = 0; i < charCount; i++) {
-    // 微弱抖动感：在 360ms ~ 440ms 之间轻微浮动，呈现真人书写节奏
+    // 微弱抖动感：在 190ms ~ 250ms 之间轻微浮动，呈现真人书写节奏（4.0~5.3 字/秒）
     const jitter = ((i * 17) % 7 - 3) * 10
-    durationMs += Math.max(320, BASE_CHAR_WRITE_MS + jitter)
+    durationMs += Math.max(190, BASE_CHAR_WRITE_MS + jitter)
   }
   return durationMs
 }

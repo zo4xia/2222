@@ -262,7 +262,7 @@ Row 2: estimatedStartMs = T1 + ROW_GAP_MS, estimatedEndMs = ...
 ...
 ```
 
-`AGENT_B_V2_ROW_GAP_MS = 1500ms`（Row 间停顿）。
+`AGENT_B_V2_ROW_GAP_MS = 1000ms`（Row 间停顿；2026-10-15 夏夏拍板 1500→1000，口播自然语句停顿）。
 
 ---
 

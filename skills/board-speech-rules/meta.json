@@ -1,10 +1,10 @@
 {
   "name": "board-speech-rules",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "archetype": "workflow",
   "description": "小学数学AI讲题系统——板书与口播稿规则蒸馏",
   "created": "2026-08-20",
-  "updated": "2026-08-24",
+  "updated": "2026-10-15",
   "sources": [
     "src/agent-b-v2/prompt.js",
     "src/agent-b-v2/contract.js",
@@ -29,13 +29,19 @@
     "board 是 v2.0 对象格式 {startCoord, content}，不是字符串",
     "B 不输出时间字段（duration等），时间由下游动态计算",
     "板书字号是题目的1.2~1.5倍，行间距/字间距轻微抖动",
-    "板书速度约1秒2字，每行±10%轻微抖动，避免机械感",
+    "板书速度约1秒4~5字（基准220ms/字，±30ms抖动，2026-10-15 夏夏拍板提速；真源 timing.js BASE_CHAR_WRITE_MS）",
+    "Row间隔约1秒（AGENT_B_V2_ROW_GAP_MS=1000ms，2026-10-15 夏夏拍板 1500→1000）",
     "分数用\\frac{}，口播念分母分之分子",
     "字母x在复合表达式里念艾克斯",
     "动作只有3个：rough-notation/rough-line/rough-arrow",
     "动作triggerAt是本row开始后多少秒，格式+00:00:SS",
     "动作坐标必须落在region区域内，不得跨区域",
     "松门槛：格式硬约束，内容软引导，不把题型卡成唯一答案"
+  ],
+  "v3_2_changes": [
+    "板书速度提速：1秒2字±10% → 1秒4~5字（220ms/字 ±30ms，2026-10-15 夏夏拍板，对齐 timing.js 真源）",
+    "Row 间隔：1.5秒 → 1秒（AGENT_B_V2_ROW_GAP_MS=1000ms，口播自然语句停顿）",
+    "旧 ±10% 抖动表述归一为 ±30ms（真源 jitter 算法）"
   ],
   "v3_1_changes": [
     "板书字号从32px调整为38px（题目的1.2~1.5倍）",
