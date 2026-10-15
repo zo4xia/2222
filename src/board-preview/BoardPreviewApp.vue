@@ -466,7 +466,7 @@ const problemReadiness = computed(() => {
   }
 })
 
-// 模块 2：TTS 音轨状态
+// ��块 2：TTS 音轨状态
 const ttsReadiness = computed(() => {
   const totalSteps = rows.value.length
   if (totalSteps === 0) {
@@ -932,8 +932,10 @@ function getStageTagColor(stage) {
                 <tbody>
                   <tr v-for="(row, idx) in filteredRows" :key="idx">
                     <td class="col-center index-num">{{ idx + 1 }}</td>
-                    <td class="col-center">
-                      <a-tag :color="getStageTagColor(row.stage)">{{ row.stage }}</a-tag>
+                    <td class="col-center stage-cell">
+                      <span :class="['stage-label', `stage-label-${getStageTagColor(row.stage)}`]">
+                        {{ row.stage }}
+                      </span>
                     </td>
                     <td class="col-center duration-tag">{{ row.duration }}</td>
                     <td class="col-speech">
@@ -1607,11 +1609,32 @@ function getStageTagColor(stage) {
   vertical-align: top;
 }
 
-.col-center {
+  .col-center {
   text-align: center;
-}
+  }
 
-.index-num {
+  .stage-cell {
+  white-space: nowrap;
+  }
+
+  .stage-label {
+  display: inline-block;
+  padding: 2px 7px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+  }
+
+  .stage-label-blue { color: #2563eb; background: #eff6ff; }
+  .stage-label-cyan { color: #0891b2; background: #ecfeff; }
+  .stage-label-purple { color: #7c3aed; background: #f5f3ff; }
+  .stage-label-green { color: #059669; background: #ecfdf5; }
+  .stage-label-orange { color: #d97706; background: #fffbeb; }
+  .stage-label-default { color: #64748b; background: #f8fafc; }
+  
+  .index-num {
   font-weight: 600;
   color: #94a3b8;
 }
