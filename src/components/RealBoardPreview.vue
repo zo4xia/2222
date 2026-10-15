@@ -54,6 +54,12 @@ const boardFontSize = computed(() => {
   const px = Number(props.canvasParams?.fontSize?.analysis?.px)
   return px > 0 ? px : BOARD_FONT_SIZE
 })
+// ★ v2.1 板书字体切换：fontStack 从 canvasParams.fontSource.handwriting 派生（上游按用户选择
+//   用真源构造器 handwritingFontSourceFor 填入）；旧档/未传则兑底默认栈。单一控制点不变。
+const handwritingFontStack = computed(() => {
+  const stack = props.canvasParams?.fontSource?.handwriting?.fontStack
+  return (typeof stack === 'string' && stack.includes('"')) ? stack : HANDWRITING_FONT_STACK
+})
 // ★ Task 9: 画布尺寸 (没传则 fallback 1726×980 常量)
 const canvasWidth = computed(() => {
   const w = Number(props.canvasParams?.canvasSize?.width)
@@ -271,7 +277,7 @@ function onClick() {
             v-for="item in boardTextRows.filter((entry) => entry.region === region)"
             :key="item.id"
             class="board-text-anchor"
-            :style="{ fontSize: `${boardFontSize}px`, fontFamily: HANDWRITING_FONT_STACK }"
+            :style="{ fontSize: `${boardFontSize}px`, fontFamily: handwritingFontStack }"
           >{{ item.content }}</span>
         </div>
         <div
@@ -331,7 +337,8 @@ function onClick() {
   margin: 0 0 18px;
   white-space: pre-wrap;
   /* ★ 字体宪法 v2（2026-10-15）：行高 = 自然（CSS normal，无强制行高规范，夏夏拍板）；
-     字体族由模板内联真源派生（stepHandoff.HANDWRITING_FONT_STACK，旧硬编码栈已拔） */
+     v2.1 字体族由 handwritingFontStack 计算属性派生（canvasParams.fontSource.handwriting →
+     真源构造器按用户下拉选择填入；未传兑底 stepHandoff.HANDWRITING_FONT_STACK），旧硬编码栈已拔 */
   line-height: normal;
   font-weight: normal;
   letter-spacing: 0;

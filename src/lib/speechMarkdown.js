@@ -6,7 +6,7 @@ import {
   QUESTION_FONT_SIZE,
   QUESTION_FONT_FAMILY,
   BOARD_FONT_SIZE,
-  HANDWRITING_FAMILY,
+  resolveHandwritingFont,
   BOARD_FONT_RATIO_TEXT,
   LINE_HEIGHT_POLICY_TEXT,
   LINE_HEIGHT_ESTIMATE_RATIO,
@@ -22,6 +22,11 @@ import { AUDIO_SPEED_POLICY_TEXT } from '../agent-b-v2/timing.js'
  */
 export function buildStandardExplainParamsSection(meta = {}) {
   const hcp = meta.handoffCanvasParams || meta.canvasParams || buildCanvasParams()
+  // ★ v2.1：板书区字体行随用户选择派生（handoff 永远默认态，选择值经 meta.handwritingFontChoice
+  //   传入）；不再读 hcp.fontSize 文案——那是 handoff 默认态，shaohua 选择下会说谎。
+  //   同步拔掉旧 fallback 里的"主 CDN 507"字面量（字体宪法 lite 违例）
+  const boardFontSel = resolveHandwritingFont(meta.handwritingFontChoice)
+  const boardFontText = `${boardFontSel.family}（手写体，网络字体 fontSource.handwriting 主 CDN ${boardFontSel.cdn}，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`
   const fallbackHbp = {
     question: { x: 6, y: 13.32, w: 40.32, h: '' },
     analysis: { x: 6, y: 40.62, w: 44, h: 54.38 },
@@ -76,13 +81,13 @@ export function buildStandardExplainParamsSection(meta = {}) {
     `| 题目区字体 | \`${hcp.fontSize?.question?.family || `微软雅黑（印刷体，${QUESTION_FONT_SIZE}px）`}\` |`,
     `| 题目区颜色 | ${hcp.fontSize?.question?.color || '黑色'} |`,
     `| 分析区字号 | ${hcp.fontSize?.analysis?.px ?? BOARD_FONT_SIZE}px |`,
-    `| 分析区字体 | \`${hcp.fontSize?.analysis?.family || `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`}\` |`,
+    `| 分析区字体 | \`${boardFontText}\` |`,
     `| 分析区颜色 | ${hcp.fontSize?.analysis?.color || '红色'} |`,
     `| 解答区字号 | ${hcp.fontSize?.solution?.px ?? BOARD_FONT_SIZE}px |`,
-    `| 解答区字体 | \`${hcp.fontSize?.solution?.family || `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`}\` |`,
+    `| 解答区字体 | \`${boardFontText}\` |`,
     `| 解答区颜色 | ${hcp.fontSize?.solution?.color || '黑色'} |`,
     `| 总结区字号 | ${hcp.fontSize?.summary?.px ?? BOARD_FONT_SIZE}px |`,
-    `| 总结区字体 | \`${hcp.fontSize?.summary?.family || `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`}\` |`,
+    `| 总结区字体 | \`${boardFontText}\` |`,
     `| 总结区颜色 | ${hcp.fontSize?.summary?.color || '黑色'} |`,
     // ★ 字体宪法 v2：行高为自然口径（不随档走，文案真源 stepHandoff），估算比数一并告知 B
     `| 行高（题目/板书通用） | ${LINE_HEIGHT_POLICY_TEXT}；估算行高 ≈ 字号 × ${LINE_HEIGHT_ESTIMATE_RATIO} |`,

@@ -297,6 +297,13 @@ const stageOptions = computed(() => {
   return ['all', ...Array.from(set)]
 })
 
+// ★ v2.1：分区描述的手写字体名随交付档选择派生（meta.canvasParams.fontSource.handwriting），
+//   旧档/未传兑底默认乔木——文案与实际渲染字体（RealBoardPreview 同源）不再各说各话
+const handFontFamily = computed(() => {
+  const fam = meta.value?.canvasParams?.fontSource?.handwriting?.family
+  return (typeof fam === 'string' && fam) ? fam : HANDWRITING_FAMILY
+})
+
 // 四区绝对坐标与百分比对照
 const fourZonesCoords = computed(() => {
   const plan = boardPlan.value || {}
@@ -326,9 +333,9 @@ const fourZonesCoords = computed(() => {
 
   return [
     { key: 'topic', name: '题目区 (Topic/Question)', tag: '题', label: '题目', ...toPx(q), desc: `承载题目文本与原图锦定（${QUESTION_FONT_SIZE}px 微软雅黑，印刷体）` },
-    { key: 'analysis', name: '分析区 (Analysis)', tag: '析', label: '分析', ...toPx(an), desc: `引导审题思路与关系拆解（约 ${BOARD_FONT_SIZE}px 手写体 ${HANDWRITING_FAMILY}）` },
-    { key: 'solution', name: '解答区 (Solution)', tag: '解', label: '解答', ...toPx(so), desc: `核心规范算式与步骤推导（约 ${BOARD_FONT_SIZE}px 手写体 ${HANDWRITING_FAMILY}）` },
-    { key: 'summary', name: '总结区 (Summary)', tag: '总', label: '总结', ...toPx(sm), desc: `作答闭环与方法结论沉淀（约 ${BOARD_FONT_SIZE}px 手写体 ${HANDWRITING_FAMILY}）` },
+    { key: 'analysis', name: '分析区 (Analysis)', tag: '析', label: '分析', ...toPx(an), desc: `引导审题思路与关系拆解（约 ${BOARD_FONT_SIZE}px 手写体 ${handFontFamily.value}）` },
+    { key: 'solution', name: '解答区 (Solution)', tag: '解', label: '解答', ...toPx(so), desc: `核心规范算式与步骤推导（约 ${BOARD_FONT_SIZE}px 手写体 ${handFontFamily.value}）` },
+    { key: 'summary', name: '总结区 (Summary)', tag: '总', label: '总结', ...toPx(sm), desc: `作答闭环与方法结论沉淀（约 ${BOARD_FONT_SIZE}px 手写体 ${handFontFamily.value}）` },
   ]
 })
 

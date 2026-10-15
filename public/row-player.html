@@ -34,8 +34,9 @@
     2026-09-17 16:30 v1.1 小阿星 ✦（代表夏夏）CDN 素材接入 + AgentCanvas 控制桥
 -->
 <style>
-  /* 板书手写体 = 平方乔木体，走 CDN 507 按需加载（2026-09-17 改，去掉 4.91MB 内嵌）；
-     507 不可用按字体栈降级：同族平方体（异步按需加载，不阻塞首屏）→ 系统楷体。栈顺序真源 = stepHandoff.HANDWRITING_FONT_STACK */
+  /* 板书手写体双态（v2.1 2026-10-15 UI 下拉对齐）：qiaomu=乔木 CDN 507 主（同步加载），
+     shaohua=韶华 CDN 157 主；两态降级链在 <head> link 区已全覆盖（6 个 CDN 全声明，按需下载字形）。
+     栈顺序真源 = stepHandoff.HANDWRITING_FONT_STACK / HANDWRITING_FONT_STACK_ALT */
   /*
    * 视觉 token（2026-09-16 资产化）：与 src/style.css 的 --qh-* 同一套值。
    * 单文件离线播放器无法引外部样式表，此处为同一真源的镜像，改色须两处同步。
@@ -114,7 +115,9 @@
   }
 </style>
 <link rel="stylesheet" href="https://fontsapi.zeoseven.com/507/main/result.css" />
-<!-- 回退字体（异步按需：media=print → onload 转 all，不阻塞首屏；cn-font-split 按 unicode-range 分片，只有真用到才下载字形） -->
+<!-- 回退字体（异步按需：media=print → onload 转 all，不阻塞首屏；cn-font-split 按 unicode-range 分片，只有真用到才下载字形）
+     ★ v2.1：6 个 CDN = 乔木态(qiaomu)与韶华态(shaohua)两条链的并集，两态切换只改 font-family 栈序（HAND_FONT_STACKS），
+     这里声明全部字体不分态——canvas 用哪族才下载哪族的字形，切到韶华时 507 的字形分片不会被请求 -->
 <link rel="stylesheet" href="https://fontsapi.zeoseven.com/157/main/result.css" media="print" onload="this.media='all'" />
 <link rel="stylesheet" href="https://fontsapi.zeoseven.com/511/main/result.css" media="print" onload="this.media='all'" />
 <link rel="stylesheet" href="https://fontsapi.zeoseven.com/510/main/result.css" media="print" onload="this.media='all'" />
@@ -528,8 +531,15 @@ function rellipse(ctx,cx,cy,rx,ry,seed){
 
 /* ============ 5. 排版：记每个字的坐标，供 action 定位 exactText ============ */
 // 规格真相源：手写区字体 = PingFangHand（handwrite-compare 同款本地 ttf，字风格唯一真相源）
-// 字体栈与 stepHandoff.HANDWRITING_FONT_STACK 同序：507 平方乔木体 → 同族平方体 → 系统楷体（镜像，改真源要同步）
-const HAND_FONT='"平方乔木体","平方韶华体","平方上上谦体","平方三生体","PingFangSaTuoTi","LikeJianJianTi",KaiTi,STKaiti,"PingFang SC",serif';
+// ★ v2.1 字体切换双态（2026-10-15 UI 下拉对齐，夏夏拍板）：
+//   qiaomu = 乔木(507)主链 507→157→511→510→509→490→楷体（默认）
+//   shaohua = 韶华(157)主链 157→511→510→509→490→楷体（选了韶华就不要乔木）
+//   栈顺序镜像真源 stepHandoff.HANDWRITING_FONT_STACK / HANDWRITING_FONT_STACK_ALT（改真源要同步）
+const HAND_FONT_STACKS={
+  qiaomu:'"平方乔木体","平方韶华体","平方上上谦体","平方三生体","PingFangSaTuoTi","LikeJianJianTi",KaiTi,STKaiti,"PingFang SC",serif',
+  shaohua:'"平方韶华体","平方上上谦体","平方三生体","PingFangSaTuoTi","LikeJianJianTi",KaiTi,STKaiti,"PingFang SC",serif'};
+const HAND_FONT_FAMILY={qiaomu:'平方乔木体',shaohua:'平方韶华体'};
+let HAND_FONT=HAND_FONT_STACKS.qiaomu;   // 由 applyHandFontChoice() 按档覆写（首 load 前调用）
 // 规格真相源：题目区是印刷体（微软雅黑主，字体宪法 v2 夏夏拍板），不吃手写字体（镜像 stepHandoff.QUESTION_FONT_FAMILY，改真源要同步）
 const PRINT_FONT='"Microsoft YaHei","PingFang SC",system-ui,sans-serif';
 // 规格真相源：分析区红笔，解答/总结黑笔（题目区不走手写渲染；色值镜像 stepHandoff.ANALYSIS_TEXT_COLOR/BOARD_TEXT_COLOR）
@@ -569,6 +579,15 @@ function findRange(chars,sub,occ){
 const DPR=Math.max(2,Math.min(3,window.devicePixelRatio||1));
 let FONT_VER=0;                                     // 字体异步加载完成后 +1 → 缓存整体作废
 const ROW_CACHE=new Map();                          // Map 保插入序 → LRU 淘汰可直接取首个 key
+// ★ v2.1 字体选择态（镜像 stepHandoff.resolveHandwritingFont；档内选择值 = uiSettings.handwritingFontChoice）
+let FONT_CHOICE='qiaomu';
+function applyHandFontChoice(choice){
+  const c=(choice==='shaohua')?'shaohua':'qiaomu';  // 未知值兑底默认（旧档/手改 JSON 防污染）
+  if(c===FONT_CHOICE)return;
+  FONT_CHOICE=c; HAND_FONT=HAND_FONT_STACKS[c];
+  FONT_VER++; ROW_CACHE.clear();                    // 字体换了：行图缓存整批作废（字体门同款手法）
+  warmBoardFonts();                                 // ★ v2.1 重预热：canvas 绘制不触发 @font-face 下载，不重跑就静默停在回退字体（URL fetch 异步路径实测病灶）
+}
 let SCRATCH=null;                                   // 羽化合成用，全屏尺寸只建一张、反复复用
 function getScratch(W,H){
   if(!SCRATCH)SCRATCH=document.createElement('canvas');
@@ -1366,6 +1385,7 @@ async function loadFromUrlOrDefault(){
         if (rows && rows.length) {
           const meta = json.deliverable && typeof json.deliverable === 'object' ? json.deliverable : json;
           const nd = normData({ ...meta, rows });
+          applyHandFontChoice(nd.handwritingFontChoice);   // ★ v2.1 字体随档（load 前调用，首排就用对字体）
           if (nd.projectCode) DATA.projectCode = nd.projectCode;
           if (nd.problemText) DATA.problemText = nd.problemText;
           if (nd.boardPlan) DATA.boardPlan = nd.boardPlan;
@@ -1396,6 +1416,7 @@ async function loadFromUrlOrDefault(){
     if (!rows || !rows.length) throw new Error('rows 为空或缺失');
     const meta = json.deliverable && typeof json.deliverable === 'object' ? json.deliverable : json;
     const nd = normData({ ...meta, rows });
+    applyHandFontChoice(nd.handwritingFontChoice);     // ★ v2.1 字体随档（load 前调用）
     if (nd.projectCode) DATA.projectCode = nd.projectCode;
     if (nd.problemText) DATA.problemText = nd.problemText;
     if (nd.boardPlan) DATA.boardPlan = nd.boardPlan;
@@ -1419,6 +1440,7 @@ async function loadFromUrlOrDefault(){
         if (rows && rows.length) {
           const meta = json.deliverable && typeof json.deliverable === 'object' ? json.deliverable : json;
           const nd = normData({ ...meta, rows });
+          applyHandFontChoice(nd.handwritingFontChoice);   // ★ v2.1 降级 LS 路径字体也随档（与主 LS 分支对称）
           if (nd.projectCode) DATA.projectCode = nd.projectCode;
           if (nd.problemText) DATA.problemText = nd.problemText;
           if (nd.boardPlan) DATA.boardPlan = nd.boardPlan;
@@ -1507,6 +1529,11 @@ function normData(j){
     projectCode: pick(j,['projectCode','code','id'])||'LECTURE',
     problemText: pick(j,['problemText','question','title','题目'])||'',
     boardPlan: pick(j,['boardPlan'])||null,
+    // ★ v2.1 板书字体选择（数据键，随档走）：uiSettings.handwritingFontChoice 优先，
+    //   canvasParams.fontSource.handwriting.choice 兑底（服务端归一时两处必一致）
+    handwritingFontChoice:(j.uiSettings&&j.uiSettings.handwritingFontChoice)
+      ||(j.canvasParams&&j.canvasParams.fontSource&&j.canvasParams.fontSource.handwriting&&j.canvasParams.fontSource.handwriting.choice)
+      ||null,
     // 题目图：内嵌 base64 优先（离线可开），其次 url；画不画由 boardPlan.image 决定
     problemImage: pick(j,['screenshotDataUrl','screenshotUrl','sourceImageUrl','problemImage'])||'',
     rows: rowsRaw.map(normRow)
@@ -1516,6 +1543,7 @@ function normData(j){
    单文件双击即播，免手动导入（与 server/renderDeliverableHtml.js 的注入契约一致） ---- */
 if(window.__INITIAL_DELIVERABLE__){try{
   const _nd=normData(window.__INITIAL_DELIVERABLE__);
+  applyHandFontChoice(_nd.handwritingFontChoice);          // ★ v2.1 字体随档（注入交付单首排就对）
   if(_nd.projectCode)DATA.projectCode=_nd.projectCode;
   if(_nd.problemText)DATA.problemText=_nd.problemText;
   if(_nd.boardPlan)DATA.boardPlan=_nd.boardPlan;
@@ -1540,6 +1568,7 @@ document.getElementById('fJson').onchange=e=>{
   const r=new FileReader(); r.onload=()=>{
     try{
       const nd=normData(JSON.parse(r.result));
+      applyHandFontChoice(nd.handwritingFontChoice);       // ★ v2.1 导入 JSON 也切字体（与交付单同源）
       if(nd.projectCode)DATA.projectCode=nd.projectCode;
       if(nd.problemText)DATA.problemText=nd.problemText;
       DATA.rows=nd.rows;
@@ -1571,7 +1600,7 @@ function warmBoardFonts(){
   if(!document.fonts||!document.fonts.load)return Promise.resolve();
   const txt=collectBoardText();
   return Promise.all([
-    document.fonts.load('38px "平方乔木体"',txt)
+    document.fonts.load('38px "'+HAND_FONT_FAMILY[FONT_CHOICE]+'"',txt)   // ★ v2.1 预热当前选定主字体
   ]).catch(function(){}).then(function(){
     FONT_VER++; ROW_CACHE.clear();                   // 字体到位后旧行图全部作废，必须整批重建
     // ★ 布局在编译期算死 → 字宽变了必须整轴重排（时序不变，只有坐标换；reflowWithRealDuration 同款手法）
@@ -1584,8 +1613,10 @@ function reportFontState(txt){
   const t=txt.slice(0,12);
   MCTX.font='38px '+HAND_FONT; const a=MCTX.measureText(t).width;
   MCTX.font='38px serif';      const b=MCTX.measureText(t).width;
-  if(Math.abs(a-b)<0.5&&C){
-    const el=document.getElementById('note');
+  if(!C)return;
+  const el=document.getElementById('note');
+  if(el)el.innerHTML+='<br>✍ 板书字体：'+HAND_FONT_FAMILY[FONT_CHOICE]+'（'+(FONT_CHOICE==='shaohua'?'157 韶华主链':'507 乔木主链')+'）';
+  if(Math.abs(a-b)<0.5){
     if(el)el.innerHTML+='<br><span class="warn">⚠️ 手写字体未生效（渲染宽度与回退字体一致），检查 @import 网络与 fonts.load 的 text 参数</span>';
   }
 }
@@ -1623,6 +1654,7 @@ window.AgentCanvas={
   load(json){
     try{
       const nd=normData(json);
+      applyHandFontChoice(nd.handwritingFontChoice);       // ★ v2.1 控制桥整体换题：字体也随新档切
       if(nd.projectCode)DATA.projectCode=nd.projectCode;
       if(nd.problemText)DATA.problemText=nd.problemText;
       if(nd.boardPlan)DATA.boardPlan=nd.boardPlan;

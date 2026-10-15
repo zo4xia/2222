@@ -18,6 +18,9 @@
  *   - 画布 1726×980px（以实际硬编码画布尺寸为准）
  *   - 题目：微软雅黑 30px（印刷体）；题目之外：板书 38px 手写体
  *   - 板书字体 2 种可选：默认平方乔木体(507)；备选链 157韶华→511上上谦→510三生→509韶拓→490栗坚（按栈自动降级）
+ *   - ★ v2.1（2026-10-15 同日）：UI 下拉切换器接入。选择值 = uiSettings.handwritingFontChoice
+ *     （数据键，随档走），全消费端用 resolveHandwritingFont(choice) 派生，禁止手写字面量；
+ *     备选态 = 韶华(157)主链（157→511→510→509→490→楷体，不含乔木 507——选了韶华就不要乔木）
  *   - 颜色：分析区红色，其余全部黑色（渲染端色值唯一真源 = ANALYSIS_TEXT_COLOR / BOARD_TEXT_COLOR）
  *   - 行高 = 自然行高（CSS line-height: normal / 字体自身度量），不设强制行高规范（旧 1.65 / 1.7± 已废止）
  *   - 每个标签区域内 CSS 流动自适应：行内段落自然间距、自然换行；布局由渲染层编译期度量排版（唯一布局权威）
@@ -36,6 +39,13 @@ export const BOARD_FONT_RATIO_TEXT = '约题目的1.2~1.5倍，推荐38px'
 export const HANDWRITING_FAMILY = '平方乔木体'
 export const HANDWRITING_FAMILY_ALT = '平方韶华体'
 export const HANDWRITING_CSS_HREF = 'https://fontsapi.zeoseven.com/507/main/result.css'
+// ★ v2.1 字体切换器（UI 下拉 2 选 1）：选择值全链路唯一键 = uiSettings.handwritingFontChoice
+//   注册表/解析器/字体源构造器是选择态唯一派生口，消费端禁止手写备选栈字面量
+export const HANDWRITING_FONT_CHOICES = [
+  { id: 'qiaomu', label: '平方乔木体（默认）', family: HANDWRITING_FAMILY },
+  { id: 'shaohua', label: '平方韶华体', family: HANDWRITING_FAMILY_ALT },
+]
+export const HANDWRITING_FONT_CHOICE_DEFAULT = 'qiaomu'
 // ★ Task 10: 完整字体栈（与 row-player.html line 116-122 同步镜像）
 //   顺序：507 平方乔木体（主）→ 157 平方韶华体 → 511 平方上上谦体 → 510 平方三生体 → 509 平方韶拓体 → 490 栗壳坚坚体 → 系统楷体
 export const HANDWRITING_FONT_STACK = [
@@ -59,6 +69,58 @@ export const HANDWRITING_CSS_HREF_FALLBACKS = [
   'https://fontsapi.zeoseven.com/509/main/result.css',  // 平方韶拓体
   'https://fontsapi.zeoseven.com/490/main/result.css',  // 栗壳坚坚体（原主字体降为降级）
 ]
+// ★ v2.1 备选态字体栈：韶华(157) 主链 = 夏夏链路 157→511→510→509→490→楷体（不含乔木 507）
+export const HANDWRITING_FONT_STACK_ALT = [
+  '"平方韶华体"',
+  '"平方上上谦体"',
+  '"平方三生体"',
+  '"PingFangSaTuoTi"',
+  '"LikeJianJianTi"',
+  'KaiTi',
+  'STKaiti',
+  '"PingFang SC"',
+  'serif',
+].join(', ')
+// 选择值解析器（唯一派生口）：未知值一律兑底默认 qiaomu（旧档/手改 JSON 防污染）
+export function resolveHandwritingFont(choice) {
+  const normalized = choice === 'shaohua' ? 'shaohua' : 'qiaomu'
+  if (normalized === 'shaohua') {
+    return {
+      choice: 'shaohua',
+      family: HANDWRITING_FAMILY_ALT,
+      cdn: '157',
+      fontStack: HANDWRITING_FONT_STACK_ALT,
+      cssHrefs: HANDWRITING_CSS_HREF_FALLBACKS.filter(h => !h.includes('/507/')),
+    }
+  }
+  return {
+    choice: 'qiaomu',
+    family: HANDWRITING_FAMILY,
+    cdn: '507',
+    fontStack: HANDWRITING_FONT_STACK,
+    cssHrefs: [...HANDWRITING_CSS_HREF_FALLBACKS],
+  }
+}
+// fontSource.handwriting 完整对象唯一构造器（buildCanvasParams 与消费端覆写共用，不出现第二份拼装）
+export function handwritingFontSourceFor(fontChoice) {
+  const sel = resolveHandwritingFont(fontChoice)
+  return {
+    family: sel.family,
+    choice: sel.choice,
+    fontStack: sel.fontStack,
+    label: `手写体（分析/解答/总结板书，主字体=${sel.family} CDN ${sel.cdn}）`,
+    fontWeight: 'normal',
+    cssHref: sel.cssHrefs[0],
+    cssHrefFallbacks: sel.cssHrefs,
+    loadSnippet: `<link href="${sel.cssHrefs[0]}" onload="this.rel='stylesheet'" rel="preload" as="style" crossorigin />`,
+    // ★ Task 10: 多 CDN 字体降级栈（异步按需加载，不阻塞首屏）
+    loadSnippetFallbacks: sel.cssHrefs.slice(1).map(
+      href => `<link rel="stylesheet" href="${href}" media="print" onload="this.media='all'" />`
+    ).join('\n        '),
+    fallbackSnippet: `<noscript><link rel="stylesheet" href="${sel.cssHrefs[0]}" /></noscript>`,
+    usage: `渲染前必须先加载该 CSS（font-family: "${sel.family}"; font-weight: normal），字体栈 fallback 顺序见 fontStack；${sel.cdn} 不可用时按栈降级`,
+  }
+}
 // ★ 字体宪法 v2（2026-10-15 夏夏拍板）：自然行高，不设强制行高规范。
 //   渲染口径：DOM 用 line-height: normal；画布用字体度量（fontBoundingBoxAscent+Descent），两者同源。
 //   估算口径（B 感知垂直跨度 / 服务端换行预判）用 LINE_HEIGHT_ESTIMATE_RATIO 保守比数。
@@ -74,29 +136,19 @@ export const BOARD_SPEED_CHARS_PER_SEC = 4.5  // 1秒4~5字（2026-10-15 夏夏�
 export const BOARD_SPEED_JITTER = 0.14       // ±30ms/220ms ≈ ±14% 轻微抖动（timing.js jitter ±30ms 真源换算）
 export const BOARD_SPEED_ADAPTIVE_COMPRESS = true  // 书写时长超出音频窗口时自适应加速压进音频内
 
-/** 生成 handoff 的 canvasParams：stepHandoff 生成与 server 兜底补全共用同一份 */
-export function buildCanvasParams() {
+/** 生成 handoff 的 canvasParams：stepHandoff 生成与 server 兜底补全共用同一份
+ *  v2.1：可选 fontChoice 参数（默认 qiaomu）——A→B 交接契约永远默认态；
+ *  用户态选择（B 工作台下拉）由消费端用 handwritingFontSourceFor(choice) 覆写 fontSource.handwriting */
+export function buildCanvasParams(fontChoice = HANDWRITING_FONT_CHOICE_DEFAULT) {
+  const fontSel = resolveHandwritingFont(fontChoice)
   const boardFamily =
-    `${HANDWRITING_FAMILY}（手写体，网络字体 fontSource.handwriting 主 CDN 507，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`
+    `${fontSel.family}（手写体，网络字体 fontSource.handwriting 主 CDN ${fontSel.cdn}，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`
   return {
     canvasSize: { ...CANVAS_SIZE },
     coordinateSystem: COORDINATE_SYSTEM,
     fontSource: {
-      handwriting: {
-        family: HANDWRITING_FAMILY,
-        fontStack: HANDWRITING_FONT_STACK,
-        label: '手写体（分析/解答/总结板书，主字体=平方乔木体 CDN 507）',
-        fontWeight: 'normal',
-        cssHref: HANDWRITING_CSS_HREF,
-        cssHrefFallbacks: HANDWRITING_CSS_HREF_FALLBACKS,
-        loadSnippet: `<link href="${HANDWRITING_CSS_HREF}" onload="this.rel='stylesheet'" rel="preload" as="style" crossorigin />`,
-        // ★ Task 10: 多 CDN 字体降级栈（异步按需加载，不阻塞首屏）
-        loadSnippetFallbacks: HANDWRITING_CSS_HREF_FALLBACKS.slice(1).map(
-          href => `<link rel="stylesheet" href="${href}" media="print" onload="this.media='all'" />`
-        ).join('\n        '),
-        fallbackSnippet: `<noscript><link rel="stylesheet" href="${HANDWRITING_CSS_HREF}" /></noscript>`,
-        usage: `渲染前必须先加载该 CSS（font-family: "${HANDWRITING_FAMILY}"; font-weight: normal），字体栈 fallback 顺序见 fontStack；507 不可用时按栈降级`,
-      },
+      // ★ v2.1：handwriting 字段唯一构造点 = handwritingFontSourceFor（默认/备选双态共用拼装器）
+      handwriting: handwritingFontSourceFor(fontChoice),
       question: {
         family: QUESTION_FONT_FAMILY_TEXT,
         stack: QUESTION_FONT_FAMILY,

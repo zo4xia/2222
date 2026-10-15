@@ -56,11 +56,18 @@ import VisualTimeline from '../components/VisualTimeline.vue'
 import { showGlobalLoading, hideGlobalLoading } from '../services/globalLoading.js'
 // 画布参数唯一真源：src/services/stepHandoff.js
 // ★ 字体宪法 v2（2026-10-15）：题目字体/行高口径全部真源派生，不再硬编码
+// ★ v2.1（同日）：板书字体下拉切换器——选择值唯一键 uiSettings.handwritingFontChoice，
+//   派生口 = resolveHandwritingFont + buildCanvasParams(fontChoice)（交付态整体构造），
+//   注册表 = HANDWRITING_FONT_CHOICES
 import {
   QUESTION_FONT_SIZE,
+  BOARD_FONT_SIZE,
   QUESTION_FONT_FAMILY,
   LINE_HEIGHT_POLICY_TEXT,
   CANVAS_SIZE,
+  HANDWRITING_FONT_CHOICES,
+  HANDWRITING_FONT_CHOICE_DEFAULT,
+  resolveHandwritingFont,
   buildCanvasParams,
 } from '../services/stepHandoff.js'
 // ponytail: 拆分 composables (从 AgentBDirect.vue 抽出纯逻辑)
@@ -259,6 +266,23 @@ const canvasParams = ref({
   rowGapMs: AGENT_B_V2_ROW_GAP_MS,
   speechSpeed: AGENT_B_V2_SPEECH_RATE,
 })
+
+// ★ v2.1 板书字体下拉切换器：qiaomu(平方乔木体 507，默认) / shaohua(平方韶华体 157)
+//   选择随 uiSettings.handwritingFontChoice 写入交付物（数据随档走）；跨会话 localStorage 记忆
+const BOARD_FONT_CHOICE_LS_KEY = 'agent-b-font-choice'
+function readStoredFontChoice() {
+  try {
+    const saved = localStorage.getItem(BOARD_FONT_CHOICE_LS_KEY)
+    // 真源解析器兑底（白名单归一不再另写一套，注册表扩项时这里自动跟上）
+    return resolveHandwritingFont(saved).choice
+  } catch { return HANDWRITING_FONT_CHOICE_DEFAULT }
+}
+const boardFontChoice = ref(readStoredFontChoice())
+const boardFontOptions = HANDWRITING_FONT_CHOICES.map(o => ({ value: o.id, label: o.label }))
+function onBoardFontChange(val) {
+  boardFontChoice.value = resolveHandwritingFont(val).choice
+  try { localStorage.setItem(BOARD_FONT_CHOICE_LS_KEY, boardFontChoice.value) } catch { /* 私密模式静默 */ }
+}
 
 // board 列编辑状态：-1 表示无编辑，>=0 表示正在编辑的行索引
 const editingBoardIndex = ref(-1)
@@ -1139,6 +1163,8 @@ function exportSpeech() {
     model: generatedModel.value || agentBApiConfig.model || '',
     generatedAt: new Date().toLocaleString('zh-CN', { hour12: false }),
     handoffCanvasParams: handoff.value?.canvasParams || null,
+    // ★ v2.1：板书区字体行随当前下拉选择派生（否则导出 MD 恒写 handoff 默认态乔木 507）
+    handwritingFontChoice: boardFontChoice.value,
   })
   message.success('口播稿 MD 已导出')
 }
@@ -1152,6 +1178,8 @@ function exportStoryboard() {
     generatedAt: new Date().toLocaleString('zh-CN', { hour12: false }),
     canvasParams: JSON.parse(JSON.stringify(canvasParams.value)),
     handoffCanvasParams: handoff.value?.canvasParams || null,
+    // ★ v2.1：板书区字体行随当前下拉选择派生（同 exportSpeech）
+    handwritingFontChoice: boardFontChoice.value,
     handoffBoardPlan: handoff.value?.boardPlan || null,
     screenshotUrl: handoff.value?.screenshotUrl || '',
     problemType: handoff.value?.problemType || '',
@@ -1169,6 +1197,9 @@ function exportStoryboard() {
 function serializeCurrentDeliverableState() {
   const code = deliverableResult.value?.projectCode || handoff.value?.projectCode || `deliverable-${Date.now()}`
   const hcp = handoff.value?.canvasParams || buildCanvasParams()
+  // ★ v2.1：用户态字体选择（下拉）——交付物里的 fontSource.handwriting 必须与选择一致；
+  //   handoff 契约层永远是默认态，此处用真源构造器覆写，保证只有一个构造点
+  const boardFontSel = resolveHandwritingFont(boardFontChoice.value)
   const fallbackBoardPlan = {
     question: { x: 6, y: 13.32, w: 40.32, h: '' },
     analysis: { x: 6, y: 40.62, w: 44, h: 54.38 },
@@ -1252,6 +1283,9 @@ function serializeCurrentDeliverableState() {
     canvasParams: {
       source: 'handoff (Agent A 根据题目实时判断，为唯一真相源)',
       ...hcp,
+      // ★ v2.1：字体域整体按用户选择重建（fontSource 与 fontSize 三区文案一并双态——半边
+      //   覆写会让 shaohua 档的描述标签仍写"乔木 507"）；handoff 契约层保持默认态不被污染
+      ...buildCanvasParams(boardFontChoice.value),
     },
     // handoff 四区布局（真相源）+ Label 坐标（row-player 标签贴纸位置真源）
     boardPlan: {
@@ -1267,12 +1301,16 @@ function serializeCurrentDeliverableState() {
       image: hbp.image || null,
     },
     // UI 可调参数（B 页面设置）—— 字体宪法 v2：全部真源派生（stepHandoff.js），不再硬编码
+    // ★ v2.1：handwritingFontChoice 是数据键（随档走，下游 row-player/预览据此切字体栈）；
+    //   handwritingFont 是人读冗余标签。两者在服务端 deliverableStoreHandler 二次归一。
     uiSettings: {
       coordinateMode: '百分比',
       questionFontSize: `${QUESTION_FONT_SIZE}px`,
       questionFontFamily: QUESTION_FONT_FAMILY,
       lineHeightPolicy: LINE_HEIGHT_POLICY_TEXT,
       audioSpeedPolicy: AUDIO_SPEED_POLICY_TEXT,
+      handwritingFontChoice: boardFontSel.choice,
+      handwritingFont: boardFontSel.family,
     },
     // 题目信息与环节配比
     problemInfo: {
@@ -2064,8 +2102,22 @@ function isRefineFieldEqual(original, refined) {
 
               <div class="param-control-item">
                 <span class="param-coord-pill secondary">
-                  🔤 题 {{ handoff?.canvasParams?.fontSize?.question?.px || 30 }}px / 文 {{ handoff?.canvasParams?.fontSize?.analysis?.px || 24 }}px
+                  🔤 题 {{ handoff?.canvasParams?.fontSize?.question?.px || 30 }}px / 文 {{ handoff?.canvasParams?.fontSize?.analysis?.px || BOARD_FONT_SIZE }}px
                 </span>
+              </div>
+
+              <!-- ★ v2.1 板书字体下拉切换器：选择随交付物 uiSettings.handwritingFontChoice 走，
+                   生成预览 / 导出 / 播放页全链路同一字体（真源 stepHandoff.resolveHandwritingFont） -->
+              <div class="param-control-item board-font-switch-item">
+                <span class="board-font-switch-label">✍ 板书字体</span>
+                <a-select
+                  :value="boardFontChoice"
+                  class="board-font-select"
+                  style="width: 150px;"
+                  size="small"
+                  :options="boardFontOptions"
+                  @change="onBoardFontChange"
+                />
               </div>
             </div>
           </div>
@@ -3341,6 +3393,30 @@ function isRefineFieldEqual(original, refined) {
   padding: 2px 8px;
   border-radius: 9999px;
   font-weight: 600;
+}
+
+/* ★ v2.1 板书字体下拉切换器：与坐标 pill 同一视觉族（手账淡青底） */
+.board-font-switch-item {
+  gap: 7px;
+}
+
+.board-font-switch-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted, #708786);
+  white-space: nowrap;
+}
+
+.board-font-select :deep(.ant-select-selector) {
+  border-radius: 9999px;
+  border-color: var(--line-strong, #b9cdc5);
+  background: var(--positive-pale, #dff4ea);
+}
+
+.board-font-select :deep(.ant-select-selection-item) {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--positive-strong, #116b5b);
 }
 
 /* 空状态：可爱手账治愈系 */

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * test-font-single-source.mjs — 字体宪法 v2 归一哨兵（2026-10-15 夏夏拍板）
+ * test-font-single-source.mjs — 字体宪法 v2 + v2.1 切换器归一哨兵（2026-10-15 夏夏拍板）
  *
  * 背景（普查发现的散点，本哨兵守卫不再复发）：
  *   ① R8-④：board-preview.html 只挂 490 单链 → 预览页渲染栈尾栗壳坚坚体，与工作台/播放页 507 主字体不一致
@@ -10,10 +10,16 @@
  *   ⑤ 颜色两套：RealBoardPreview #b42318/#17202a vs 播放器 #dc2626/#000000 → 真源 ANALYSIS_TEXT_COLOR/BOARD_TEXT_COLOR
  *   ⑥ 旧档 uiSettings 携带旧字体口径覆盖（audioSpeedPolicy 同款病）
  *
- * 唯一真源 = src/services/stepHandoff.js（字体宪法 v2）。
- * 注意：lite-player.html 是带防护声明的孤儿档案（字体历史参考），不在本哨兵扫描范围。
+ * 唯一真源 = src/services/stepHandoff.js（字体宪法 v2 + v2.1 切换器）。
+ * ★ v2.1（2026-10-15 同日，夏夏拍板"UI 做下拉选择切换"）：板书字体 2 选 1（qiaomu 乔木 507 默认 /
+ *   shaohua 韶华 157），选择值全链路唯一键 = uiSettings.handwritingFontChoice（数据键随档走），
+ *   派生口 = resolveHandwritingFont / handwritingFontSourceFor / buildCanvasParams(fontChoice)，
+ *   消费端 = AgentBDirect 下拉 + row-player 双胞胎（applyHandFontChoice 六入口 + 换档重预热）+
+ *   deliverableStoreHandler 字体域整体重授 + RealBoardPreview fontStack 派生 + speechMarkdown 导出 MD。
+ *   H 组锁死以上新契约；E5/G2 断言随 v2.1 派生模式更新（锁得更紧而非放松）。
+ * 注意：lite-player.html 已于 2026-10-13 删除（Task 36 记档笔误），仓库中不存在。
  */
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -25,7 +31,10 @@ import {
   BOARD_FONT_SIZE,
   HANDWRITING_FAMILY,
   HANDWRITING_FAMILY_ALT,
+  HANDWRITING_FONT_CHOICES,
+  HANDWRITING_FONT_CHOICE_DEFAULT,
   HANDWRITING_FONT_STACK,
+  HANDWRITING_FONT_STACK_ALT,
   HANDWRITING_CSS_HREF,
   HANDWRITING_CSS_HREF_FALLBACKS,
   LINE_HEIGHT_POLICY_TEXT,
@@ -33,6 +42,8 @@ import {
   LINE_HEIGHT_ESTIMATE_RATIO,
   ANALYSIS_TEXT_COLOR,
   BOARD_TEXT_COLOR,
+  resolveHandwritingFont,
+  handwritingFontSourceFor,
   buildCanvasParams,
 } from '../src/services/stepHandoff.js'
 
@@ -163,8 +174,13 @@ console.log('── E. 消费端 import 派生 ──')
     /fontFamily:\s*QUESTION_FONT_FAMILY/.test(bcl) && /color:\s*BOARD_TEXT_COLOR/.test(bcl) && !/line-height:\s*1\.65/.test(bcl))
 
   const rbp = read('src/components/RealBoardPreview.vue')
-  check('E5 RealBoardPreview：字体栈模板内联真源 + CSS 无硬编码栈',
-    /fontFamily:\s*HANDWRITING_FONT_STACK/.test(rbp) && !rbp.includes('PingFangSaTuoTi'))
+  check('E5 RealBoardPreview：字体栈 = fontSource 派生计算属性 + 真源常量兑底（v2.1，全文件无栈字面量）',
+    /const handwritingFontStack\s*=\s*computed/.test(rbp)
+    && /props\.canvasParams\?\.fontSource\?\.handwriting\?\.fontStack/.test(rbp)
+    && /:\s*HANDWRITING_FONT_STACK$/m.test(rbp)                     // 兑底必须 = 真源常量
+    && /fontFamily:\s*handwritingFontStack/.test(rbp)               // 模板绑定派生值
+    && /HANDWRITING_FONT_STACK,/.test(rbp)                           // import 自真源
+    && !rbp.includes('PingFangSaTuoTi') && !rbp.includes('平方乔木体') && !rbp.includes('平方韶华体'))
   check('E5b RealBoardPreview：颜色走 CSS var 真源注入（旧 #b42318/#17202a 清零）',
     /'--board-analysis-color':\s*ANALYSIS_TEXT_COLOR/.test(rbp) && /'--board-ink-color':\s*BOARD_TEXT_COLOR/.test(rbp) && !rbp.includes('#b42318') && !rbp.includes('#17202a'))
   check('E5c RealBoardPreview：行高自然（旧 1.5 拔除）', /line-height:\s*normal/.test(rbp) && !/line-height:\s*1\.5;/.test(rbp))
@@ -194,8 +210,10 @@ console.log('── G. 教法层对齐 ──')
   check('G1c meta.json v3.3.0 + v3_3_changes 记档', meta.version === '3.3.0' && Array.isArray(meta.v3_3_changes) && meta.v3_3_changes.some(s => s.includes('自然行高')))
 
   const hfp = read('skills/handwriting-font-policy/SKILL.md')
-  check('G2 handwriting-font-policy：L1 印刷体微软雅黑 + L3 无"用户可切换"（无用户态下拉）',
-    hfp.includes('微软雅黑 Microsoft YaHei 主') && !/✅ 用户可切换/.test(hfp))
+  check('G2 handwriting-font-policy：L1 印刷体微软雅黑永久 + L3 v2.1 用户可切换（下拉 2 选 1 随档走）',
+    hfp.includes('微软雅黑 Microsoft YaHei 主') && hfp.includes('印刷体永久')
+    && hfp.includes('用户可切换（v2.1 下拉 2 选 1')
+    && hfp.includes('uiSettings.handwritingFontChoice') && hfp.includes('resolveHandwritingFont'))
   check('G2b handwriting-font-policy：7.2 表行高自然（活表格旧值清零，墓碑注释豁免）',
     hfp.includes('| 题目区 | 印刷体（微软雅黑） | ~30px') && !/\| ~1\.65 \|/.test(hfp) && !/\| ~1\.7 /.test(hfp))
 
@@ -204,6 +222,77 @@ console.log('── G. 教法层对齐 ──')
 
   const prompt = read('src/agent-b-v2/prompt.js')
   check('G4 B prompt 教法：题目字号 30px 微软雅黑（与宪法一致）', prompt.includes('题目字号 ${QUESTION_FONT_SIZE}px 微软雅黑'))
+}
+
+/* ========== H. v2.1 字体切换器（下拉 2 选 1，夏夏拍板） ========== */
+console.log('── H. v2.1 字体切换器 ──')
+{
+  const rp = read('row-player.html')
+  const noWs = (s) => String(s).replace(/\s+/g, '')
+  check('H1 注册表恰 2 项（qiaomu 默认 / shaohua）+ DEFAULT = qiaomu',
+    HANDWRITING_FONT_CHOICES.length === 2
+    && HANDWRITING_FONT_CHOICES[0].id === 'qiaomu' && HANDWRITING_FONT_CHOICES[0].label === '平方乔木体（默认）'
+    && HANDWRITING_FONT_CHOICES[1].id === 'shaohua' && HANDWRITING_FONT_CHOICES[1].label === '平方韶华体'
+    && HANDWRITING_FONT_CHOICE_DEFAULT === 'qiaomu')
+  check('H2 shaohua 态栈/CDN 不含乔木 507（157 主链；双胞胎镜像与真源逐字同构）',
+    resolveHandwritingFont('shaohua').fontStack === HANDWRITING_FONT_STACK_ALT
+    && !HANDWRITING_FONT_STACK_ALT.includes('平方乔木体')
+    && resolveHandwritingFont('shaohua').cdn === '157'
+    && resolveHandwritingFont('shaohua').cssHrefs.every(h => !h.includes('/507/'))
+    && noWs(rp).includes("qiaomu:'" + noWs(HANDWRITING_FONT_STACK))
+    && noWs(rp).includes("shaohua:'" + noWs(HANDWRITING_FONT_STACK_ALT)))
+  check('H3 resolveHandwritingFont 非法/空值一律兑底 qiaomu（行为断言）',
+    ['SANSHENG', undefined, null, '', 157, {}].every(v => resolveHandwritingFont(v).choice === 'qiaomu')
+    && handwritingFontSourceFor('shaohua').cssHref.includes('/157/')
+    && handwritingFontSourceFor('garbage').choice === 'qiaomu')
+  {
+    // 全库字面量清零：代码层（剥注释）不出现手写字体族/CDN 字面量；
+    // 真源 stepHandoff.js 与 row-player 受控镜像、board-preview.html、技能包文档域外豁免
+    const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '').replace(/<!--[\s\S]*?-->/g, '')
+    const black = /平方乔木体|平方韶华体|平方上上谦体|平方三生体|PingFangSaTuoTi|LikeJianJianTi|fontsapi\.zeoseven\.com/
+    const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((d) => {
+      const p = join(dir, d.name)
+      return d.isDirectory() ? walk(p) : (/\.(js|vue)$/.test(d.name) ? [p] : [])
+    })
+    const targets = [...walk(join(ROOT, 'src')), ...walk(join(ROOT, 'server'))]
+      .filter((p) => !p.endsWith('stepHandoff.js'))
+    const bad = targets.filter((p) => black.test(strip(readFileSync(p, 'utf8'))))
+    check('H4 全库（src/ + server/）手写字体字面量清零（注释豁免；真源/双胞胎/board-preview/技能包域外）',
+      bad.length === 0, bad.map((p) => p.replace(ROOT + '/', '')).join(','))
+  }
+  {
+    const ahfc = (rp.match(/function applyHandFontChoice\(choice\)\{[\s\S]*?\n\}/) || [''])[0]
+    const entries = (rp.match(/applyHandFontChoice\((?:_?nd)\.handwritingFontChoice\)/g) || []).length
+    check('H5 row-player 换档接线（六入口全调 + let HAND_FONT 双态初始化）',
+      rp.includes('function applyHandFontChoice(choice)')
+      && rp.includes('let HAND_FONT=HAND_FONT_STACKS.qiaomu')
+      && rp.includes('handwritingFontChoice:(j.uiSettings&&j.uiSettings.handwritingFontChoice)')
+      && rp.includes('ROW_CACHE.clear()')
+      && entries === 6, `entries=${entries}`)
+    check('H5b applyHandFontChoice 换字体后重预热 warmBoardFonts（canvas 不触发 @font-face 下载，防静默回退）',
+      ahfc.includes('warmBoardFonts()'))
+  }
+  {
+    const store = read('server/deliverableStoreHandler.js')
+    check('H6 deliverableStoreHandler 字体域整体归一（选择态重建 defaultHcp + 剥皮 + spread 后必胜重授）',
+      store.includes('_legacyHandwritingFont') && store.includes('_legacyFontChoiceForPeelOnly')
+      && /handwritingFontChoice:\s*fontSel\.choice/.test(store) && /handwritingFont:\s*fontSel\.family/.test(store)
+      && /handwriting:\s*handwritingFontSourceFor\(rawFontChoice\)/.test(store)
+      && /defaultHcp\s*=\s*buildCanvasParams\(fontSel\.choice\)/.test(store)
+      && /fontSize:\s*defaultHcp\.fontSize/.test(store))
+  }
+  {
+    const agent = read('src/agent-b-v2/AgentBDirect.vue')
+    const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '').replace(/<!--[\s\S]*?-->/g, '')
+    const black = /平方乔木体|平方韶华体|PingFangSaTuoTi|LikeJianJianTi/
+    check('H7 AgentBDirect 下拉/序列化/导出全真源派生（无栈字面量，选择值随档走）',
+      agent.includes('HANDWRITING_FONT_CHOICES.map')
+      && agent.includes("localStorage.getItem(BOARD_FONT_CHOICE_LS_KEY)")
+      && /buildCanvasParams\(boardFontChoice\.value\)/.test(agent)
+      && /handwritingFontChoice:\s*boardFontSel\.choice/.test(agent)
+      && /handwritingFontChoice:\s*boardFontChoice\.value/.test(agent)
+      && !black.test(strip(agent)))
+  }
 }
 
 /* ========== 收尾 ========== */

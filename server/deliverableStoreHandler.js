@@ -12,6 +12,8 @@ import { renderDeliverableHtml } from './renderDeliverableHtml.js'
 import { computeRowGroupTimeline, AUDIO_SPEED_POLICY_TEXT } from '../src/agent-b-v2/timing.js'
 import {
   buildCanvasParams,
+  handwritingFontSourceFor,
+  resolveHandwritingFont,
   CANVAS_SIZE,
   QUESTION_FONT_SIZE,
   QUESTION_FONT_FAMILY,
@@ -186,21 +188,45 @@ export function writeDeliverableFile(data) {
   // ★ 2026-10-13 第五轮：canvasWidth/canvasHeight 异名键亦删除——全仓属性读取零命中
   // （下游 RealBoardPreview/BoardContentLayer/AgentBDirect 全读 canvasSize.width/height），
   // 此前“下游消费的异名键”注释与事实不符，属注释谎言
-  const defaultHcp = buildCanvasParams()
   const rawCanvasParams = data.canvasParams || {}
+  // ★ v2.1：字体选择双重入口归一——uiSettings.handwritingFontChoice（数据键，随档走）优先；
+  //   旧档/手改 JSON 的 canvasParams.fontSource.handwriting.choice 只作兑底。
+  //   归一后 fontSource.handwriting 由真源构造器重授：选什么字体只有一个控制点（stepHandoff）。
+  const rawFontChoice = (data.uiSettings && data.uiSettings.handwritingFontChoice)
+    || (rawCanvasParams.fontSource && rawCanvasParams.fontSource.handwriting && rawCanvasParams.fontSource.handwriting.choice)
+    || null
+  const fontSel = resolveHandwritingFont(rawFontChoice)
+  // ★ v2.1：默认画布参数按归一后的选择态构建（fontSize 三区文案 + fontSource 一并双态）——
+  //   字体宪法域不随档走：旧档/手改档的 stale 标签（shaohua 档仍写"乔木 507"）在此治好
+  const defaultHcp = buildCanvasParams(fontSel.choice)
   const canvasParams = {
     source: 'handoff (Agent A 根据题目实时判断，为唯一真相源)',
     ...defaultHcp,
     ...rawCanvasParams,
+    // ★ v2.1 必胜重授（写在 spread 之后）：字体宪法域不吃旧档值——
+    //   fontSize 三区文案（随选择双态）/ lineHeight 自然行高政策 / fontSource（含题目层印刷体重授）
+    fontSize: defaultHcp.fontSize,
+    lineHeight: defaultHcp.lineHeight,
+    fontSource: {
+      ...(rawCanvasParams.fontSource || defaultHcp.fontSource),
+      // 服务端重授：不信任档里的旧 fontSource（可能携带已废止字体口径）
+      question: defaultHcp.fontSource.question,
+      handwriting: handwritingFontSourceFor(rawFontChoice),
+    },
   }
 
   // audioSpeedPolicy / questionFontFamily / lineHeightPolicy 是说明性文案（真源 timing.js / stepHandoff.js），
-  // 旧存档带来的旧口径必须丢弃——文案不是数据，不随档走（同 Task 35 audioSpeedPolicy 先例）
+  // 旧存档带来的旧口径必须丢弃——文案不是数据，不随档走（同 Task 35 audioSpeedPolicy 先例）。
+  // ★ v2.1 例外：handwritingFontChoice 是数据键（用户下拉选择），随档走；
+  //   handwritingFont 标签与 fontSource 一样由真源重授，旧值丢弃。
   const {
     audioSpeedPolicy: _legacyAudioSpeedPolicy,
     questionFontFamily: _legacyQuestionFontFamily,
     questionLineHeight: _legacyQuestionLineHeight,
     lineHeightPolicy: _legacyLineHeightPolicy,
+    handwritingFont: _legacyHandwritingFont,
+    // 剥皮防 spread 残留；归一入口在上方 rawFontChoice（uiSettings.fontSource 双入口取值）
+    handwritingFontChoice: _legacyFontChoiceForPeelOnly,
     ...restUiSettings
   } = data.uiSettings || {}
   const uiSettings = {
@@ -210,6 +236,9 @@ export function writeDeliverableFile(data) {
     lineHeightPolicy: LINE_HEIGHT_POLICY_TEXT,
     audioSpeedPolicy: AUDIO_SPEED_POLICY_TEXT,
     ...restUiSettings,
+    // 字体选择数据键放 spread 之后：旧档残留 handwritingFontChoice 已剥出，此处写入归一值必胜
+    handwritingFontChoice: fontSel.choice,
+    handwritingFont: fontSel.family,
   }
 
   const rawProblemInfo = data.problemInfo || {}

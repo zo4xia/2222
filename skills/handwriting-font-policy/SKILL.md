@@ -79,7 +79,7 @@ HTML 方式（推荐渲染层用，便于 `crossOrigin` 与懒加载控制）：
 |---|---|---|---|---|
 | L1 | 题目层（question） | **印刷体永久**（微软雅黑 Microsoft YaHei 主，PingFang SC 降级；字体宪法 v2 夏夏拍板） | ❌ 永久禁止 | ❌ 永久禁止 |
 | L2 | 标签层（topicLabel / analysisLabel / solutionLabel / summaryLabel） | 印刷体（UI 默认） | ❌ 系统固定 | ❌ |
-| **L3** | **板书层（analysis / solution / summary 的 board 内容）** | **手写体（默认平方乔木体 507；备选链 157→511→510→509→490 自动降级）** | ❌ 无用户态切换（宪法 v2） | ❌ 不涉及题文 |
+| **L3** | **板书层（analysis / solution / summary 的 board 内容）** | **手写体（默认平方乔木体 507；备选平方韶华体 157 → 511→510→509→490 自动降级）** | ✅ 用户可切换（v2.1 下拉 2 选 1：乔木/韶华；随档 uiSettings.handwritingFontChoice） | ❌ 不涉及题文 |
 | L4 | 用户透明层（手写体浮层、注释） | — | — | — |
 
 ### 2.2 层级越权校验（时代注：函数已移除）
@@ -173,7 +173,7 @@ export async function ensureHandwritingFont(fontId) {
 
 ## 四、字体偏好持久化（方案档案·未接线）
 
-> **时代注**：本节方案从未接线（`qinghuabu.boardTypography.v1` 全仓零消费者）。现行字体选择无用户态持久化，由真源常量 + 降级栈自动处理。
+> **时代注**：本节方案（`qinghuabu.boardTypography.v1`）从未接线，全仓零消费者。现行用户态切换走 v2.1 通道：B 工作台下拉（localStorage `agent-b-font-choice` 跨会话记忆）→ 交付物 `uiSettings.handwritingFontChoice` 随档走 → 各渲染端 `resolveHandwritingFont` 派生（见 7.1），与本节历史方案无继承关系。
 
 ### 4.1 localStorage 存储
 
@@ -253,7 +253,11 @@ saveBoardTypographyConfig({ fontId: 'like-jianjianti' })
 
 ### 7.1 handoff 携带 fontSource（现行事实）
 
-`handoff.canvasParams.fontSource.handwriting` 携带真源字体配置（family / fontStack / cssHref / cssHrefFallbacks / loadSnippet），由 `buildCanvasParams()` 从 stepHandoff 常量生成。不存在用户态字体下拉。
+`handoff.canvasParams.fontSource.handwriting` 携带真源字体配置（family / choice / fontStack / cssHref / cssHrefFallbacks / loadSnippet），由 `buildCanvasParams(fontChoice)` 从 stepHandoff 常量生成。
+
+**v2.1（2026-10-15）用户态切换器已接线**：B 工作台演播室面板有「✍ 板书字体」下拉（2 选 1：平方乔木体默认 / 平方韶华体）。选择值全链路唯一键 = 交付物 `uiSettings.handwritingFontChoice`（数据键，随档走），所有消费端（row-player 双胞胎 / RealBoardPreview / 服务端归一）用 `resolveHandwritingFont(choice)` / `handwritingFontSourceFor(choice)` 从 stepHandoff 真源派生，手写字体栈字面量全库仍禁止。旧档无此键一律兑底 qiaomu 默认态。
+
+备选态（shaohua）栈序：157 韶华 → 511 上上谦 → 510 三生 → 509 韶拓 → 490 栗坚 → 楷体（选了韶华就不含乔木 507）。
 
 ### 7.2 字号基准与字体协同
 
@@ -288,9 +292,10 @@ saveBoardTypographyConfig({ fontId: 'like-jianjianti' })
 ```
 主字体: 平方乔木体 (ZeoSeven CDN 507 remote-css, stepHandoff.js HANDWRITING_FAMILY)
 降级栈: 507 → 157 → 511 → 510 → 509(PingFangSaTuoTi) → 490(LikeJianJianTi) → KaiTi/STKaiti/serif
-层级: L1 题目层=印刷体(永久) / L3 板书层=手写体(栈内降级,非用户选)
+层级: L1 题目层=印刷体(永久) / L3 板书层=手写体(栈内降级; v2.1 用户可下拉 2 选 1, 选择随档走)
+切换: uiSettings.handwritingFontChoice(qiaomu|shaohua) → resolveHandwritingFont 派生 (shaohua 态栈不含 507)
 加载: link rel=stylesheet + onload=stylesheet + 多 CDN 降级 (真源 loadSnippet)
 fallback: HANDWRITING_FONT_STACK (真源常量, 勿手抄)
 授权: 教育与培训允许 ✅ / 修改衍生待释明 / 不改字体保留名
-持久化: 无 (localStorage 方案未接线, 已标注档案)
+持久化: 工作台下拉 localStorage agent-b-font-choice (v2.1)；旧 qinghuabu.boardTypography.v1 方案仍为档案未接线
 ```

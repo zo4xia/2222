@@ -46,6 +46,9 @@ function extractDecl(name) {
     `function ${name} (`,
     `const ${name}=`,
     `const ${name} =`,
+    // ★ v2.1：HAND_FONT 改为 let 声明（字体切换器需要重赋值），提取器同步认 let
+    `let ${name}=`,
+    `let ${name} =`,
   ]
   for (const pat of patterns) {
     const start = script.indexOf(pat)
@@ -76,7 +79,8 @@ const NEEDED = [
   'mulberry32', 'hashStr', 'jit', 'parseCoord',          // 第 2 节：抖动与坐标
   'measureLine', 'isRuleLine', 'readBrace', 'tokenizeLine', // 第 5 节：量宽与记号
   'isAudioSrc', 'pick',                                    // 第 8 节：装载区散件
-  'BASE_CHAR_MS', 'HAND_FONT',                             // 常量
+  // ★ v2.1：HAND_FONT = let HAND_FONT_STACKS.qiaomu —— 初始化依赖 HAND_FONT_STACKS，须先提取
+  'BASE_CHAR_MS', 'HAND_FONT_STACKS', 'HAND_FONT',         // 常量
 ]
 const decls = NEEDED.map(extractDecl)
 check('全部散件依赖可提取', decls.every(Boolean), NEEDED.filter((n, i) => !decls[i]).join(','))
