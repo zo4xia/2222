@@ -1,9 +1,12 @@
-/* @qh-core LANE=B-V2 POINT=TIMING 160cpm + 1D single-hand row-group timeline */
+/* @qh-core LANE=B-V2 POINT=TIMING FALLBACK-160cpm + 1D single-hand row-group timeline */
 // 2026-10-13 归一：动作抬笔间隔唯一真源 = boardToolTiming.js（调度器硬下限）。
 // 此前本文件平行写死 600ms，与执行器强制 ≥1000ms 打架，估算系统性偏快、长板书音画漂移。
 import { MIN_HAND_LIFT_GAP_MS } from '../board-tools/boardToolTiming.js'
 
+// 2026-10-15 夏夏定性：160 是兜位不是功能——有音频一律跟音频（音频自带真实语速与自然语句停顿），
+// 仅当用户没生成音频（懒得点/随便试用）时拿 160cpm 匀速估算凑数，保证演示能跑。改它只影响兜底演示节奏。
 export const AGENT_B_V2_SPEECH_RATE = 160
+export const AUDIO_SPEED_POLICY_TEXT = `（有音频 url 的，以音频自然播放时间为准，一组一组自然播放；无音频 url 的，用兜底演示数据占位，按 ${AGENT_B_V2_SPEECH_RATE} 字/分估算凑数演示）`
 export const AGENT_B_V2_ROW_GAP_MS = 1000
 // 2026-10-15 夏夏拍板提速：写字 1秒4~5字（400ms/字 → 220ms/字），row 间自然停顿 1500→1000ms（口播语句间停顿）
 export const BASE_CHAR_WRITE_MS = 220 // 1秒4~5字（基准 4.5 字/秒 = 220ms/字，抖动 ±30ms → 190~250ms = 4.0~5.3 字/秒）
@@ -31,6 +34,7 @@ export function countPunctuationPauseMs(speech) {
 }
 
 // ponytail: 唯一口播时长估算 — UI 与 timing 共用，统一含 1500ms 下限 + 标点停顿
+// 兜位口径：仅无音频时凑数估算，有音频一律用实测时长（见 computeRowGroupTimeline 优先级）
 export function estimateSpeechDurationMs(speech, { speed = AGENT_B_V2_SPEECH_RATE } = {}) {
   const chars = countCharacters(speech)
   if (chars <= 0) return 1500
@@ -127,7 +131,7 @@ export function computeRowGroupTimeline(row, options = {}) {
   const speechCharacters = countCharacters(speech)
   const punctuationPauseMs = countPunctuationPauseMs(speech)
 
-  // 1. 口播时长：语音贯穿全程
+  // 1. 口播时长：语音贯穿全程（有实测音频用实测，无音频才按 160cpm 兜底凑数，见文件头定性）
   const measuredAudioDurationMs = Number(row.audioDurationMs)
   const speechDurationMs = Number.isFinite(measuredAudioDurationMs) && measuredAudioDurationMs > 0
     ? Math.round(measuredAudioDurationMs)

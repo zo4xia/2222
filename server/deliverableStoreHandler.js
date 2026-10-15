@@ -9,7 +9,7 @@ import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { isOptions, readJsonBody, sendJson } from './http.js'
 import { renderDeliverableHtml } from './renderDeliverableHtml.js'
-import { computeRowGroupTimeline } from '../src/agent-b-v2/timing.js'
+import { computeRowGroupTimeline, AUDIO_SPEED_POLICY_TEXT } from '../src/agent-b-v2/timing.js'
 import { layoutBoardRows } from '../src/utils/boardLayout.js'
 import { buildCanvasParams, CANVAS_SIZE, QUESTION_FONT_SIZE } from '../src/services/stepHandoff.js'
 
@@ -194,12 +194,14 @@ export function writeDeliverableFile(data) {
     ...rawCanvasParams,
   }
 
+  // audioSpeedPolicy 是说明性文案（真源 timing.js），旧存档带来的旧文案必须丢弃——文案不是数据，不随档走
+  const { audioSpeedPolicy: _legacyAudioSpeedPolicy, ...restUiSettings } = data.uiSettings || {}
   const uiSettings = {
     coordinateMode: '百分比',
     questionFontSize: `${QUESTION_FONT_SIZE}px`,
     questionFontFamily: '"Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
-    audioSpeedPolicy: '（若有音频url的，以音频自然播放时间为时间，一组一组自然播放即可，如果没有音频url信息的，用填充演示数据占位，）速度计算 160字/分',
-    ...(data.uiSettings || {}),
+    audioSpeedPolicy: AUDIO_SPEED_POLICY_TEXT,
+    ...restUiSettings,
   }
 
   const rawProblemInfo = data.problemInfo || {}

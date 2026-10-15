@@ -12,6 +12,10 @@
 */
 
 import { formatMathSpeechToChinese } from '../lib/mathAsrConverter.js'
+import { AGENT_B_V2_SPEECH_RATE } from '../agent-b-v2/timing.js'
+
+// 兑底秒/字系数：真源派生（60/160 = 0.375 秒/字）。仅无音频时的初始预估用，有音频以实测时长为准。
+const FALLBACK_SEC_PER_CHAR = 60 / AGENT_B_V2_SPEECH_RATE
 
 /**
  * 优化单行 speech 口播稿文本（结合数学算式口播转换库）
@@ -44,7 +48,8 @@ export function normalizeBoardContent(content) {
 
 /**
  * 语义板书时机估算器：
- * 结合口播与板书内容，寻找最自然的落笔关键词，换算为本行语音播放后的秒数（基准 160 字/分，约 0.375s/字）
+ * 结合口播与板书内容，寻找最自然的落笔关键词，换算为本行语音播放后的秒数
+ * （兑位口径：按 FALLBACK_SEC_PER_CHAR 真源派生，160cpm 时 = 0.375 秒/字；仅无音频初始预估用）
  */
 export function estimateKeywordStartDelay(speech, boardContent, stage) {
   if (stage === '题目' || !boardContent || !boardContent.trim()) return 0
@@ -82,9 +87,9 @@ export function estimateKeywordStartDelay(speech, boardContent, stage) {
     }
   }
 
-  // 若找到动笔关键词且不是第0字，按 0.375 秒/字计算
+  // 若找到动笔关键词且不是第0字，按兑底秒/字系数计算（真源派生，防散）
   if (bestIndex > 2) {
-    const calculatedSec = Number((bestIndex * 0.375).toFixed(1))
+    const calculatedSec = Number((bestIndex * FALLBACK_SEC_PER_CHAR).toFixed(1))
     return Math.min(20.0, Math.max(0.5, calculatedSec))
   }
 

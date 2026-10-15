@@ -18,6 +18,7 @@ import {
   BASE_CHAR_WRITE_MS,
   calculateBoardWritingDuration,
   estimateSpeechDurationMs,
+  computeRowGroupTimeline,
 } from '../src/agent-b-v2/timing.js'
 
 let pass = 0, fail = 0
@@ -129,6 +130,35 @@ const chars = [...sample.replace(/\s+/g, '').replace(/[。，、；：？！“�
 const punct = (sample.match(/。/g) || []).length * 700 + (sample.match(/，/g) || []).length * 500 + (sample.match(/…+/g) || []).length * 1000
 const playerMs = Math.max(1500, Math.round(chars * 60 / 160 * 1000) + punct)
 check('G1 播放器兜底估算 == App 估算（同一句不再分叉）', appMs === playerMs, `app=${appMs} player=${playerMs}`)
+
+// ═══ H. 兜位定位归一（2026-10-15 夏夏定性：160 是兜位不是功能，有音频跟音频）═══
+// 兜位不越权 = 有实测音频时 160 完全不参与；文案/系数全部真源派生，无平行字面量
+const asrSrc = read('src/check-agent/asrPolish.js')
+check('H1 asrPolish 秒/字系数真源派生（60/SPEECH_RATE），无 0.375 计算字面量',
+  /FALLBACK_SEC_PER_CHAR = 60 \/ AGENT_B_V2_SPEECH_RATE/.test(asrSrc) && !/bestIndex \* 0\.375/.test(asrSrc))
+
+check('H2 音频速度文案唯一真源：timing.js 导出 AUDIO_SPEED_POLICY_TEXT',
+  /export const AUDIO_SPEED_POLICY_TEXT/.test(read('src/agent-b-v2/timing.js')))
+
+for (const [tag, p] of [
+  ['AgentBDirect', 'src/agent-b-v2/AgentBDirect.vue'],
+  ['speechMarkdown', 'src/lib/speechMarkdown.js'],
+  ['deliverableStoreHandler', 'server/deliverableStoreHandler.js'],
+]) {
+  const src = read(p)
+  check(`H3 ${tag} audioSpeedPolicy 文案 import 真源（旧"速度计算 160字/分"字面量清零）`,
+    /AUDIO_SPEED_POLICY_TEXT/.test(src) && !/速度计算 160字\/分/.test(src))
+}
+
+check('H4 兜位不越权：有 audioDurationMs 时口播时长 = 实测值（160 不参与）',
+  computeRowGroupTimeline({ speech: '这道题我们来看一下。', audioDurationMs: 5200 }).speechDurationMs === 5200)
+check('H5 无 audioDurationMs 时才走 160 兜底估算',
+  computeRowGroupTimeline({ speech: '这道题我们来看一下。' }).speechDurationMs === estimateSpeechDurationMs('这道题我们来看一下。'))
+
+check('H6 B 提示词语速行兜底定性（有音频真实语速由音频决定）', /兜底估算语速/.test(bPrompt))
+check('H7 Check 提示词兜位语境完好（仅在无音频 URL 时初始预估）', /仅在无音频 URL/.test(checkPrompt) && /兜位估算口径/.test(checkPrompt))
+check('H8 播放器优先级链：audioRow 实测优先 / estSpeechMs 末位兜底', /audioRow/.test(rpA) && /: estSpeechMs/.test(rpA))
+check('H9 存档覆盖防御：旧档 uiSettings 旧文案被剥（文案不随档走）', /_legacyAudioSpeedPolicy/.test(read('server/deliverableStoreHandler.js')))
 
 console.log(`\n== 结果: ${pass} 通过, ${fail} 失败 ==`)
 process.exit(fail ? 1 : 0)
