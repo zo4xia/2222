@@ -40,8 +40,11 @@ export function normalizeBoardContent(content) {
   text = text.replace(/×|✕|\\times/g, 'x')
   text = text.replace(/\\cdot/g, 'x')
 
-  // 2. 斜杠分数转为 KaTeX 上下结构 \frac{a}{b}
-  text = text.replace(/(?<!\d\/)(?<!\\frac\{)(\b\d+)\/(\d+\b)/g, '\\frac{$1}{$2}')
+  // 2. 斜杠分数转为上下结构 \frac{a}{b}
+  // ★ Task 43 全局归一（夏夏拍板「全局归一化过，不要冲突」）：与 superFilter ⑩ 同款正则——
+  //   小数/单位保护（183.6/9、12/5kg 不误伤）；旧版 (?<!\d\/)(\b\d+)\/(\d+\b) 无保护，
+  //   会把 183.6/9 误转成 183.\frac{6}{9}——与真源 superFilter 冲突的第三套平行实现销账
+  text = text.replace(/(^|[^\w.])(?<!\.)(\d+)\s*\/\s*(\d+)(?!\.)(?=$|[^\w.])/g, '$1\\frac{$2}{$3}')
 
   return text
 }

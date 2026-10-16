@@ -137,5 +137,36 @@ ok('service.js 未越权：前端请求体仍只传 rows（配比由服务端活
   assert.ok(!/stageRatio|配比/.test(serviceSource), '前端不应自带配比（避免双源漂移）')
 })
 
+console.log('── Task 43：Check 三职能扩展（口播/板书/动作 + 特殊字符全局归一 + row 互斥）──')
+
+ok('Task 43 §8 在场：row 互斥铁律 + triggerKeyword 逐字校验 + 三动作白名单', () => {
+  assert.ok(CHECK_AGENT_SYSTEM_PROMPT.includes('### 8. 板书与动作时序计算'), '§8 时序计算段应存在')
+  assert.ok(CHECK_AGENT_SYSTEM_PROMPT.includes('不允许一个时间两个地方再动'), '夏夏互斥铁律原话应入教义')
+  assert.ok(CHECK_AGENT_SYSTEM_PROMPT.includes('逐字存在于本行 speech 原文'), 'triggerKeyword 逐字校验应入教义')
+  assert.ok(CHECK_AGENT_SYSTEM_PROMPT.includes('action_timing'), 'action_timing 字段枚举应入教义')
+})
+
+ok('Task 43 §1.6 分数口径反转：非题目区零 LaTeX + superFilter 全局归一', () => {
+  assert.ok(CHECK_AGENT_SYSTEM_PROMPT.includes('分数直接写 a/b 纯字符'), 'a/b 字符凑法应入教义')
+  assert.ok(CHECK_AGENT_SYSTEM_PROMPT.includes('superFilter 字符转换规则'), 'superFilter 全局归一应入教义')
+  assert.ok(!CHECK_AGENT_SYSTEM_PROMPT.includes('板书中的分数必须使用 KaTeX 上下结构'), '旧 \\frac 必须教义不得回归')
+})
+
+ok('Task 43 handler：头注释 8 项 + ALLOWED_FIELDS 含 action_timing', () => {
+  assert.ok(handlerSource.includes('做 8 项把关'), '头注释应为 8 项')
+  assert.ok(handlerSource.includes("'action_timing'"), 'ALLOWED_FIELDS 应含 action_timing')
+})
+
+const asrPolishMod = await import('../src/check-agent/asrPolish.js')
+ok('Task 43 asrPolish：分数正则与 superFilter ⑩ 同款（小数/单位保护）', () => {
+  const asrSrc = readFileSync(join(root, 'src/check-agent/asrPolish.js'), 'utf8')
+  assert.ok(asrSrc.includes('Task 43 全局归一'), '归一注释应存在')
+  assert.ok(asrSrc.includes('(?<!\\.)'), 'superFilter 同款小数保护正则应在场')
+  assert.ok(!asrSrc.includes('(?<!\\d\\/)(?<!\\\\frac\\{)'), '旧无保护正则不得回归')
+  // 行为验证：小数/单位不误伤，纯分数转换
+  const out = asrPolishMod.normalizeBoardContent('183.6/9 和 7/15')
+  assert.ok(out.includes('183.6/9') && out.includes('\\frac{7}{15}'), `归一行为：${out}`)
+})
+
 console.log(`\n${pass + fail} 用例：${pass} 通过 / ${fail} 失败`)
 process.exit(fail ? 1 : 0)

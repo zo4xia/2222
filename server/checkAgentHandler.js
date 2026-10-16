@@ -1,11 +1,12 @@
-/* Check Agent — 独立模块，做 7 项把关（与 src/check-agent/prompt.js 顶部清单同源）：
-   1. 口播/板书字符转义 & ASR 发音校正
+/* Check Agent — 独立模块，做 8 项把关（与 src/check-agent/prompt.js 顶部清单同源；★ Task 43 三职能归拢）：
+   1. 口播优化——字符转义 & ASR 发音校正
    2. 答案数学正确性校验（只报告，不自己改答案）
    3. 易错点（commonMistakes）防坑核验与把关
    4. 冗余建议（只报告不执行：行数守恒硬约束，结构性冗余只进 changes 报告，绝不直接删/并行）
    5. 语气衔接去课后答案腔
-   6. 板书时机语义校准（startDelay 校准）
-   7. 板书内容与自然排版交付
+   6. 板书优化——时机校准（startDelay 校准）
+   7. 板书优化——内容对错与特殊字符（非题目区零 LaTeX，superFilter 凑法全局归一）
+   8. 动作与时序——triggerKeyword 逐字校验 + 三动作白名单 + row 内互斥（action_timing）
 
    数据来源：从 boardResultStore 读当前 B 生成结果（文件即真相源）
    修改方式：生成建议版本，写回独立文件，前端弹窗让用户确认后才应用
@@ -79,7 +80,7 @@ export function buildStageRatioGuidance(ratioData) {
 // ---------- 解析 Check Agent 返回 ----------
 // ★ 行数守恒：structure 类是"只报告不动手"的冗余建议通道（夏夏终裁：
 // 行数/配比 Agent B 自己决定，收尾金句绝不可删）
-const ALLOWED_FIELDS = new Set(['speech', 'board', 'board_timing', 'actionSpec', 'answer_error', 'common_mistake', 'structure'])
+const ALLOWED_FIELDS = new Set(['speech', 'board', 'board_timing', 'actionSpec', 'action_timing', 'answer_error', 'common_mistake', 'structure'])
 
 // export 供测试直测（test-check-ratio.mjs / 行数守恒用例）
 export function parseCheckResponse(text, originalRows) {
