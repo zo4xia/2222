@@ -114,6 +114,20 @@ export function checkSkillViolations(row, rowIdx = 0) {
       v.push({ path: sat + '.seed', from: 'hand-action-control §二', msg: 'roughjs 随机种子由程序生成, Agent 不得填' })
     }
 
+    // ★ Task 43 动作 1.0：triggerKeyword entry 级逐字校验（口播触发词必须逐字存在于本行 speech）
+    // 程序兑底与 Check Agent prompt §8 同口径：miss → 违规报告（编译层自行退串行，不丢动作）
+    const kw = spec?.triggerKeyword
+    if (typeof kw === 'string' && kw.trim()) {
+      const speech = String(row?.speech || '')
+      if (!speech.includes(kw)) {
+        v.push({ path: sat + '.triggerKeyword', from: 'hand-action-control §六', msg: `触发词 "${kw}" 不在本行 speech 原文中（必须逐字存在，miss 退串行）` })
+      }
+    }
+    // 写错层：triggerKeyword 落在 action 内部会被忽略（entry 级才生效）
+    if (action.triggerKeyword != null && spec?.triggerKeyword == null) {
+      v.push({ path: sat + '.action.triggerKeyword', from: 'hand-action-control §六', msg: 'triggerKeyword 写在 action 内部会被忽略——它是 entry 级字段（与 action 平级）' })
+    }
+
     // skill 1: 坐标越界
     v.push(...checkCoordBounds(action, sat))
   })

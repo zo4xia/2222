@@ -52,7 +52,7 @@
 </head>
 <body>
 <h1>speech-board-timing · 口播板书节奏</h1>
-<p class="sub">160 cpm 语速 + 标点停顿（。700 / ，500 / ……1000ms）· 板书 220ms/字 + 190—250 抖动（1秒4~5字，2026-10-15 提速）· 动作间隔 1000ms（MIN_HAND_LIFT_GAP_MS 真源 boardToolTiming.js，2026-10-13 勘误曾标 600）· Row 间 1000ms（2026-10-15 夏夏拍板）</p>
+<p class="sub">160 cpm 语速 + 标点停顿（。700 / ，500 / ……1000ms）· 板书 220ms/字 + 190—250 抖动（1秒4~5字，2026-10-15 提速）· 动作间隔 1000ms（MIN_HAND_LIFT_GAP_MS 真源 boardToolTiming.js，2026-10-13 勘误曾标 600）· Row 间 1000ms（2026-10-15 夏夏拍板）· ★ Task 43 关键词触发：actionSpec entry 级 triggerKeyword（逐字存在于本行 speech）→ 动作起点 = kwTimeMs（比例映射）再经互斥钳制，miss 退默认串行（本页估算器按串行分支算上界；真实排期程序按实测音频重算）</p>
 
 <div class="grid">
   <div class="panel">

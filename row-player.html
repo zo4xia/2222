@@ -155,6 +155,7 @@
           <tr><td>board.startCoord</td><td>（<b>可选</b>，不写也行）下笔位置，格式 <code>"[8%, 44%]"</code>（横%, 竖%）。不给的话自动落在本环节区域左上角，四区照样板开</td></tr>
           <tr><td>board.content</td><td>板书写什么。一行一个，写完一个再写一个（可直接给数组，或用 <code>\n</code> 换行）。乘写 x、除写分数 <code>\frac{3}{4}</code>（不写 ÷）、平方写 ²、立方写 ³、三角形写"三角形"三个字</td></tr>
           <tr><td>actionSpec</td><td>这一段要强调就放这里。动作 1.0 三动作（夏夏拍板，颜色统一红）：圈字 <code>{tool:"rough-notation",action:"circle",target:{exactText:"要圈的字"}}</code>、下划线同理改 <code>"underline"</code>、横线 <code>rough-line</code>（白名单真源 boardToolCatalog；highlight/箭头已砍）。必须锚定已写出的文字（exactText）</td></tr>
+          <tr><td>actionSpec[].triggerKeyword</td><td>（<b>可选</b>，★ Task 43）口播触发词：与 <code>action</code> 平级写在每项外层（不写在 action 内部），如 <code>{ "triggerKeyword":"5吨", "action":{...} }</code>。填了它，动作会在口播念到这个词的时刻起笔；必须是本段 speech 里<b>逐字存在的原文</b>，填错则该动作退回板书写完后串行。一行内不许两处同时动，早了程序自动顺延，无需填任何时长</td></tr>
         </table>
       </div>
     </div>

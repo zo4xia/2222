@@ -12,7 +12,7 @@ export const outputFormat = `
 | \`stage\` | 只能是这四个值之一：**题目 / 分析 / 解答 / 总结** |
 | \`speech\` | 口播文本（纯文字，口语化） |
 | \`board\` | 结构化对象 \`{ "startDelay": 秒数, "content": "板书文字" }\`；读题行 content 为空字符串、startDelay 为 0；没有新内容时 content 为空 |
-| \`actionSpec\` | 动作数组（没有动作就写空数组 \`[]\`） |
+| \`actionSpec\` | 动作数组（没有动作就写空数组 \`[]\`）；每项 entry 级可带 \`triggerKeyword\`（口播触发词，与 action 平级，念到该词时刻起笔，见动作规则） |
 
 ### stage 划分
 - **题目**：开场、读题、拆解题目条件；
@@ -34,6 +34,7 @@ export const outputFormat = `
 11. ✅ 坐标都是 0-100 的百分比，且落在声明的 region 范围内
 12. ✅ order 都是正整数，从 1 开始
 13. ✅ 没有自己加 durationMs / gapAfterMs / seed 等时间字段
-14. ✅ 整体是聊天式口语，不是书面语、不是念稿子
-15. ✅ board 是 { "startDelay", "content" } 对象，读题行 startDelay=0、content=""；板书乘号用小写 x，不用 × 符号
+14. ✅ 若填了 triggerKeyword：它与 action 平级（不在 action 内部）、逐字存在于本行 speech 原文；没把握就不填，走默认串行
+15. ✅ 整体是聊天式口语，不是书面语、不是念稿子
+16. ✅ board 是 { "startDelay", "content" } 对象，读题行 startDelay=0、content=""；板书乘号用小写 x，不用 × 符号
 `

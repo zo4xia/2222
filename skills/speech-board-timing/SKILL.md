@@ -170,16 +170,22 @@ rowTotalDurationMs = max(speechDurationMs, handWorkEndMs)
 
 > **核心**：口播与手部动作是并行轨道，但手部内部（板书+动作）是绝对串行。Row 总耗时 = max(口播, 手部)。
 
+> ★ Task 43 关键词触发（triggerKeyword，夏夏拍板「动作以关键词锚定」）：上伪码是无触发词的**默认串行分支**。
+> actionSpec entry 级填了 `triggerKeyword`（逐字存在于本行 speech）时，该动作的起点改为**关键词时点**
+> `kwTimeMs = speechDurationMs × 关键词字符位置 / speech 字数`（真源 timing.js `resolveKeywordTimeMs`，clamp 0.95）；
+> 再经**互斥钳制**：`startMs = max(kwTimeMs, 前序手部动作结束)`——关键词时点早于板书写完/上一动作结束时自动顺延（夏夏拍板铁律「每个 row 内不允许一个时间两个地方在动」）。
+> Agent B 只负责选对触发词，不填任何时长；估算总时长时按串行分支算上界即可（真实排期由程序在 TTS 后按实测音频重算）。
+
 ### 4.2 跨 Row 全局时间线
 
 ```
 Row 1: estimatedStartMs = 0
        estimatedEndMs = T1
-       globalCursorMs = T1 + 1500  // ROW_GAP
+       globalCursorMs = T1 + 1000  // ROW_GAP（AGENT_B_V2_ROW_GAP_MS，2026-10-15 夏夏拍板 1500→1000）
 
 Row 2: estimatedStartMs = globalCursorMs
        estimatedEndMs = estimatedStartMs + rowTotalDurationMs
-       globalCursorMs = estimatedEndMs + 1500
+       globalCursorMs = estimatedEndMs + 1000
 ...
 ```
 
@@ -266,7 +272,7 @@ validateSpeechDecimalReading(speech)
 |---|---|
 | `duration` / `durationMs` | 由下游按 160cpm + 220ms/字 + 标点停顿算 |
 | `startAt` / `endAt` | 由 Row 时间线全局累加 |
-| `triggerAt` 可填参考 | 但下游会重算 |
+| `triggerAt` | 已弃用（contract 告警并忽略）。Task 43 起动作触发用 entry 级 `triggerKeyword`（口播触发词，B 只选词、不填时间） |
 
 ---
 

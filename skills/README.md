@@ -14,8 +14,8 @@
 |---|---|---|---|
 | 1 | [board-zone-layout](./board-zone-layout/SKILL.md) | 画布四区布局与坐标控制 | 画布 1726×980，0—100% 原点左上，不出画布=硬约束，越界邻区=软约束 |
 | 2 | [handwriting-font-policy](./handwriting-font-policy/SKILL.md) | 板书手写字体加载与层级锁定 | L3 板书层独占手写体，L1 题目层永久印刷体，ZeoSeven CSS + crossOrigin |
-| 3 | [hand-action-control](./hand-action-control/SKILL.md) | 手部动作互斥调度与工具白名单 | teacher-hand-exclusive 互斥，3 个注册工具，时长由程序算 Agent 不得填 |
-| 4 | [speech-board-timing](./speech-board-timing/SKILL.md) | 口播语速与板书书写时间节奏 | 160 cpm，220ms/字（1秒4~5字）+ 抖动，B 不输出时间，口播发音硬规范 |
+| 3 | [hand-action-control](./hand-action-control/SKILL.md) | 手部动作互斥调度与工具白名单 | teacher-hand-exclusive 互斥，3 个注册工具，时长由程序算 Agent 不得填，entry 级 triggerKeyword 口播触发词（Task 43） |
+| 4 | [speech-board-timing](./speech-board-timing/SKILL.md) | 口播语速与板书书写时间节奏 | 160 cpm，220ms/字（1秒4~5字）+ 抖动，B 不输出时间，关键词触发排期（Task 43），口播发音硬规范 |
 | 5 | [field-char-escape-filter](./field-char-escape-filter/SKILL.md) | 板书字段字符转义与规范化 | 车同轨·书同文 superFilter 10 步流水线，`&amp;` 最后解，`$` 绝不字面落板，除号转 `\frac`，ESC DOM 最后闸 |
 
 ### 下游渲染端与浏览器侧（落地上游约束）

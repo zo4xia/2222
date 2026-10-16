@@ -205,10 +205,10 @@ board 是对象，不是字符串：
 
 | 字段 | 说明 |
 |---|---|
-| `triggerAt` | 起手时刻，格式 `"+00:00:08"`，指**本行 row 开始播放后第几秒起笔**。只定起笔时刻，不定动作时长 |
+| `triggerKeyword`（entry 级） | ★ Task 43 口播触发词：与 `action` 平级写在 actionSpec 每一项外层（不写在 action 内部）。填了它，动作在口播**念到该词的时刻**起笔（比例映射，真源 timing.js resolveKeywordTimeMs）；必须逐字存在于本行 speech 原文，miss 退回串行。旧版 `triggerAt` 时间戳已弃用（contract 告警并忽略，不要再填） |
 | `order` | 全表唯一正整数，按播放顺序递增。写在 action 内 |
 | `region` | 动作所在区域：question/analysis/solution/summary |
-| **禁止填写** | durationMs、estimatedDurationMs、gapAfterMs、seed |
+| **禁止填写** | durationMs、estimatedDurationMs、gapAfterMs、seed、triggerAt |
 
 ### 5.3 坐标规则
 
@@ -232,7 +232,7 @@ board 是对象，不是字符串：
 ### 5.6 读题行下划线规则
 
 - 挑 1-3 处真正关键的词（数字、单位、问题词如"一共""还剩""超标部分"）
-- 每个下划线动作带 triggerAt，对准口播念到该词的时刻
+- ★ Task 43：每个下划线动作带 entry 级 `triggerKeyword`（就是挑出的那个关键数字/词本身，逐字存在于本行 speech），动作在念到该词时刻起笔；互斥由程序钳制，不填时长
 - 随朗读顺序递增 order
 - 不必逐字全标；念完最后一句时最后一笔要画完
 
@@ -265,13 +265,13 @@ board 是对象，不是字符串：
 | `stage` | string | 仅限："题目"/"分析"/"解答"/"总结" |
 | `speech` | string | 可直接朗读的口播稿（给第三方 TTS） |
 | `board` | object | `{startCoord, content}`，读题阶段均为空字符串 |
-| `actionSpec` | array | 动作数组，无动作时为 `[]` |
+| `actionSpec` | array | 动作数组，无动作时为 `[]`；每项 entry 级可带 `triggerKeyword`（口播触发词，与 action 平级，★ Task 43 受控放行：逐字存在于本行 speech 原文，念到该词时刻起笔，miss 退串行；不填走默认串行） |
 
 ### 6.3 约束
 
 - 第一行 stage 必须是"题目"且 board 为空
 - 严格 JSON 格式，不含 Markdown 或解释
-- actionSpec 只输出已注册工具（rough-notation 下划线/画圈 + rough-line 横线，Task 43 动作 1.0），不得输出 draw、答语 stage、userPayload 或其他不存在的字段
+- actionSpec 只输出已注册工具（rough-notation 下划线/画圈 + rough-line 横线，Task 43 动作 1.0），不得输出 draw、答语 stage、userPayload 或其他不存在的字段；entry 级允许的字段只有 `triggerKeyword`（口播触发词，可选）
 - speech 和 board 含义一致、出现顺序同步，但表达形式分开
 - 建议至少有一个分析步骤；特殊题型可将分析揉进解答或省略，以题目实际需要为准，不强制
 
@@ -319,7 +319,7 @@ board 是对象，不是字符串：
 - 分数用 `\frac{}`，口播念"分母分之分子"
 - 字母 x 在复合表达式里念"艾克斯"
 - 动作只有 3 个：rough-notation（下划线/画圈）+ rough-line（横线）——Task 43 动作 1.0
-- 动作 triggerAt 是"本 row 开始后多少秒"，格式 `+00:00:SS`
+- ★ Task 43：动作口播触发用 entry 级 `triggerKeyword`（与 action 平级，逐字存在于本行 speech，念到该词时刻起笔）；旧版 triggerAt 时间戳已弃用
 - 动作坐标必须落在 region 区域内，不得跨区域
 - 读题行 board 为空，可标 question 区下划线
 - 开场"同学你好！很高兴为你讲解这道题。"，结尾"路虽远，行则将至，加油！"

@@ -3,6 +3,8 @@
  *   actionSpec 用 action/target(region,exactText,occurrence)/order（不再是旧版 type/text/color）；
  *   board 是结构化对象 { startDelay, content }（不再是纯字符串）；
  *   板书乘号用小写 x（不用 ×）；speech 数字保留阿拉伯数字（TTS 自然读出）。
+ * ★ Task 44 (2026-10-16)：示例 1 动作补 entry 级 triggerKeyword 示范（与 action 平级，
+ *   逐字存在于本行 speech，口播念到该词时刻起笔，miss 退串行）——与主提示词 §5.2 同口径。
  */
 export const examples = `
 ## 示例（照着这个感觉和节奏来）
@@ -24,6 +26,7 @@ export const examples = `
       "board": { "startDelay": 0, "content": "" },
       "actionSpec": [
         {
+          "triggerKeyword": "12吨",
           "action": {
             "tool": "rough-notation",
             "action": "underline",
@@ -39,6 +42,7 @@ export const examples = `
       "board": { "startDelay": 0, "content": "" },
       "actionSpec": [
         {
+          "triggerKeyword": "超标",
           "action": {
             "tool": "rough-notation",
             "action": "underline",
@@ -47,6 +51,7 @@ export const examples = `
           }
         },
         {
+          "triggerKeyword": "一共要交多少水费",
           "action": {
             "tool": "rough-notation",
             "action": "underline",
@@ -60,7 +65,7 @@ export const examples = `
 }
 \`\`\`
 
-读题拆成几行，别一口气念完；下划线跟口播同步，念到哪标到哪（question 区的 exactText 必须逐字匹配题目原文）。
+读题拆成几行，别一口气念完；下划线跟口播同步，念到哪标到哪（question 区的 exactText 必须逐字匹配题目原文）。【Task 43 动作 1.0】triggerKeyword 是 **entry 级可选字段（与 action 平级、不写在 action 内部）**：口播触发词，动作会在念到该词的时刻起笔——必须逐字存在于本行 speech 原文（上例 "12吨"、"超标"、"一共要交多少水费" 都是 speech 里逐字出现的），选「念到这个词正需要强调它」的词；不填则动作按串行顺序排在板书写完之后，时间互斥由程序钳制保证，不要填任何时长字段。
 
 ### 示例 2：递归拆解（设问后换行）
 

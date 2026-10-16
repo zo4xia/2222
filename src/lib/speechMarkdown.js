@@ -226,17 +226,20 @@ function summarizeActionSpec(actionSpec) {
   return actionSpec.map((entry) => {
     const action = entry?.action
     if (!action) return '能力缺口'
+    // ★ Task 43 动作 1.0：三动作标签对齐白名单（highlight/rough-arrow 已砍，死分支清除）
+    // entry 级 triggerKeyword（口播触发词）随动作摘要展示
+    const kw = typeof entry?.triggerKeyword === 'string' && entry.triggerKeyword.trim()
+      ? `（口播触发"${entry.triggerKeyword}"）` : ''
     if (action.tool === 'rough-notation') {
-      const label = action.action === 'highlight' ? '高亮' : '下划线'
+      const label = action.action === 'circle' ? '画圈' : '下划线'
       const text = action.target?.exactText || action.targetId || '?'
-      return `${label}「${text}」`
+      return `${label}「${text}」${kw}`
     }
-    if (action.tool === 'rough-line' || action.tool === 'rough-arrow') {
-      const label = action.tool === 'rough-arrow' ? '箭头' : '辅助线'
+    if (action.tool === 'rough-line') {
       const region = action.region ? `[${action.region}]` : ''
       const start = Array.isArray(action.start) ? `(${action.start[0]},${action.start[1]})` : ''
       const end = Array.isArray(action.end) ? `→(${action.end[0]},${action.end[1]})` : ''
-      return `${label}${region}${start}${end}`
+      return `横线${region}${start}${end}${kw}`
     }
     return action.tool || '未知动作'
   }).join('｜')

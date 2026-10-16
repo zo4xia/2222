@@ -188,6 +188,18 @@ function main() {
       if (a.durationMs !== undefined || a.startMs !== undefined) {
         err(`${sat} 禁止携带 durationMs/startMs，时间由渲染层按音频时钟推算`);
       }
+      // ★ Task 43 v2.2：actionSpec entry 级 triggerKeyword（口播触发词）受控校验
+      if (typeof s.triggerKeyword === 'string' && s.triggerKeyword.trim()) {
+        if (typeof r.speech === 'string' && r.speech && !r.speech.includes(s.triggerKeyword)) {
+          warn(`${sat}.triggerKeyword="${s.triggerKeyword}" 不在本行 speech 原文中（必须逐字存在，渲染层将按 miss 退回串行）`);
+        }
+      } else if (s.triggerKeyword !== undefined) {
+        warn(`${sat}.triggerKeyword 非非空字符串，忽略`);
+      }
+      // 写错层：triggerKeyword 落在 action 内部不生效（entry 级才生效）
+      if (a.triggerKeyword !== undefined && s.triggerKeyword === undefined) {
+        warn(`${sat}.action.triggerKeyword 会被忽略——triggerKeyword 是 entry 级字段（与 action 平级）`);
+      }
     });
   });
 

@@ -1,7 +1,7 @@
 ---
 name: hand-action-control
-description: "板书手部动作互斥调度与一维单手时间线技巧蒸馏。teacher-hand-exclusive 互斥模式（任意时刻只允许一笔），generation-based cancelAll 防越界残留，动作 1.0 三动作（rough-notation underline/circle + rough-line 横线）白名单（Task 43 夏夏拍板，highlight/rough-arrow/draw 已砍），Agent 不得自造调用，时长由程序分档计算（画圈 1s；下划线按字数 1/1.5/2s；横线 1s）（Agent 不得填秒数），order 正整数顺序入队，抬笔间隔 MIN_HAND_LIFT_GAP_MS=1000ms（真源 boardToolTiming.js）。用于 Agent B 写 actionSpec / 渲染层动作调度 / Check Agent 校验工具合法性。"
-version: "1.1.0"
+description: "板书手部动作互斥调度与一维单手时间线技巧蒸馏。teacher-hand-exclusive 互斥模式（任意时刻只允许一笔），generation-based cancelAll 防越界残留，动作 1.0 三动作（rough-notation underline/circle + rough-line 横线）白名单（Task 43 夏夏拍板，highlight/rough-arrow/draw 已砍），Agent 不得自造调用，时长由程序分档计算（画圈 1s；下划线按字数 1/1.5/2s；横线 1s）（Agent 不得填秒数），order 正整数顺序入队，抬笔间隔 MIN_HAND_LIFT_GAP_MS=1000ms（真源 boardToolTiming.js），entry 级 triggerKeyword 口播触发词锚定（Task 43：动作在说到该词时刻起笔，逐字存在于本行 speech，互斥钳制由程序保证，真源 timing.js resolveKeywordTimeMs）。用于 Agent B 写 actionSpec / 渲染层动作调度 / Check Agent 校验工具合法性。"
+version: "1.3.0"
 archetype: workflow
 trigger: "写 actionSpec/调度手部动作/校验工具合法性/手部互斥控制/抬笔间隔/动作时长估算"
 ---
@@ -270,9 +270,11 @@ Row 2: estimatedStartMs = T1 + ROW_GAP_MS, estimatedEndMs = ...
   targetId: 'string',                 // rough-notation 方式 A
   start: [x, y], end: [x, y],         // rough-line，百分比 0—100
   style: { colorId, strokeWidthId },  // rough-line（colorId 仅 red，ink 已砍）
-  options: { multiline, rtl },        // rough-notation
-  triggerAt: '+00:00:SS'              // 本 Row 开始后多少秒触发（B 输出参考）
+  options: { multiline, rtl }         // rough-notation
 }
+// ⚠ 上表是 action 内部字段。entry 级（与 action 平级、不写在 action 内部）
+// 只有一个受控字段 triggerKeyword（口播触发词，见 §6.4）；
+// 旧版 triggerAt 已弃用（contract 归一层告警并忽略，不要再输出）。
 ```
 
 ### 6.2 B 不得填的字段
@@ -294,6 +296,29 @@ Row 2: estimatedStartMs = T1 + ROW_GAP_MS, estimatedEndMs = ...
 | `region` | rough-line 必填，限定绘图不跨区 |
 | `start` / `end` | rough-line 必填，百分比 0—100 |
 
+### 6.4 触发词锚定 triggerKeyword（Task 43 动作 1.0，entry 级）
+
+`triggerKeyword` 是 **entry 级字段：与 `action` 平级，写在 actionSpec 数组每一项的外层，绝不写在 `action` 内部**。填了它，动作会在口播**说到该词的时刻**起笔（按词在本行 `speech` 中的字符位置比例映射到行时长，真源 timing.js `resolveKeywordTimeMs`，渲染端 row-player 同款镜像）；不填则动作按既定串行顺序排在板书写完之后。
+
+```json
+{
+  "triggerKeyword": "5吨",
+  "action": {
+    "tool": "rough-notation",
+    "action": "circle",
+    "target": { "region": "question", "exactText": "超标部分5吨", "occurrence": 1 },
+    "order": 2
+  }
+}
+```
+
+三条硬规则（与 Agent B 主提示词 §5.2 同口径）：
+1. **逐字存在**：必须是本行 `speech` 里逐字存在的连续原文（禁止改写、禁止拼接）；
+2. **选强调词**：选「念到这个词时正需要强调它」的词（如要圈/划的那个数字、术语本身）；
+3. **不填时长**：时间互斥铁律（夏夏拍板「每个 row 内不允许一个时间两个地方在动」）由程序钳制保证——关键词时点早于板书写完/上一动作结束时自动顺延，绝不允许输出 `durationMs` / `startMs` 等任何时长字段。
+
+关键词不在 speech 原文中时，编译层视为 miss：动作退回默认串行排期（不报错、不丢动作）。board 域仍**零 keyword**（`keyword` / `keywords` / `cue` / `triggerAtWords` 等同步字段禁用，见 board-lecture-player contract-upstream §1.2 v2.2）；`triggerKeyword` 是 actionSpec entry 级唯一受控例外。
+
 ---
 
 ## 七、反模式与失败模式
@@ -303,6 +328,8 @@ Row 2: estimatedStartMs = T1 + ROW_GAP_MS, estimatedEndMs = ...
 | 自造工具 | `tool: 'box'` | 白名单只有 3 个动作，返回缺口给 Check Agent；注：`action: 'circle'`（rough-notation 内）是合法动作，勿混淆 |
 | 改下划线颜色 | `options.colorId: 'blue'` | 颜色锁定，抛 `颜色固定为 red` |
 | 填 durationMs | `action.durationMs: 2000` | 抛 `Agent 不得覆盖` |
+| 把 triggerKeyword 写进 action 内部 | `{ action: { triggerKeyword: '5吨', ... } }` | entry 级字段错位到 action 内会被忽略，动作退回串行——必须写在 action 平级（§6.4） |
+| triggerKeyword 改写原文 | speech 说「超标部分」，却填「超标的那部分」 | 编译层 miss 退回串行——必须逐字存在于本行 speech |
 | 抬笔间隔过短 | `gapAfterMs: 300` | 抛 `抬笔间隔不得小于 1000ms` |
 | 跨区画线 | region=analysis 但 end 落在 solution 区 | region 校验 + bounds clamp |
 | 坐标越界 | `start: [150, 50]` | 抛 `必须是 0—100 的百分比坐标` |
@@ -316,6 +343,7 @@ Row 2: estimatedStartMs = T1 + ROW_GAP_MS, estimatedEndMs = ...
 ```
 互斥: teacher-hand-exclusive, 任意时刻只一笔
 工具白名单: rough-notation(underline/circle) / rough-line（Task 43 动作 1.0 夏夏拍板三动作；highlight/rough-arrow/draw 已砍）
+触发词: entry 级 triggerKeyword（与 action 平级）, 逐字存在于本行 speech, 说到该词时刻起笔, miss 退串行, 互斥钳制由程序保证（真源 timing.js resolveKeywordTimeMs）
 颜色锁定: 动作 1.0 颜色统一红 #dc2626（underline / circle 同红；yellow #f8e58c 荧光黄、ink 墨黑已废弃）
 笔宽: normal=2 / emphasis=3
 坐标: 百分比 0—100, 原点左上

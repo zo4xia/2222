@@ -24,8 +24,10 @@ export const boardRules = `
 actionSpec 是一个数组，每一项的结构是：
 
 \`\`\`
-{ action: { tool, ...工具参数, order } }
+{ triggerKeyword: "口播触发词（可选，entry 级）", action: { tool, ...工具参数, order } }
 \`\`\`
+
+> ★ Task 43 动作 1.0：\`triggerKeyword\` 是 **entry 级字段——与 \`action\` 平级，写在 actionSpec 每一项的外层，不写在 action 内部**。填了它，动作会在口播**念到该词的时刻**起笔；不填则按串行顺序排在板书写完之后。必须**逐字存在于本行 speech 原文**（禁止改写拼接），选「念到正需要强调」的词；时间互斥由程序钳制保证，不要填任何时长字段。
 
 **动作只有三个（Task 43 夏夏拍板「动作 1.0」：下划线/画圈/横线），不要自己发明：**
 

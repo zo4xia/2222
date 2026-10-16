@@ -140,5 +140,56 @@ check('skills README 不再教「一期动作 circle+underline」', !skillsReadm
 const playerSrc = read('public/row-player.html')
 check('row-player 播放端无 box 幽灵分支（白名单外动作零残留）', !playerSrc.includes("sub==='box'"))
 
+console.log('━━ 6. Task 44 triggerKeyword 教法全链同步（夏夏拍板「提示词处也同步更新告诉 agent 用法」）')
+// 6a. 注入 Agent B 的技能包三件（few-shot 示例是 agent 模仿第一教学源）
+const lyExamples = read('src/agent-b-v2/skills/liyongle-elementary/examples.js')
+check('liyongle examples.js few-shot 动作示例带 entry 级 triggerKeyword',
+  lyExamples.includes('"triggerKeyword"') && lyExamples.includes('entry 级'))
+const lyBoardRules = read('src/agent-b-v2/skills/liyongle-elementary/board-rules.js')
+check('liyongle board-rules.js actionSpec 结构模板含 triggerKeyword（entry 级位置）',
+  lyBoardRules.includes('triggerKeyword') && lyBoardRules.includes('entry 级字段——与') && lyBoardRules.includes('不写在 action 内部'))
+const lyOutputFormat = read('src/agent-b-v2/skills/liyongle-elementary/output-format.js')
+check('liyongle output-format.js 字段表+自检清单含 triggerKeyword',
+  lyOutputFormat.includes('triggerKeyword') && lyOutputFormat.includes('逐字存在于本行 speech'))
+// 6b. 动作技能正主文档 + 排期文档 + 口播板书规则
+check('hand-action-control SKILL.md §6.4 触发词锚定在场（含三条硬规则）',
+  hacSkill.includes('### 6.4 触发词锚定 triggerKeyword') && hacSkill.includes('绝不写在 `action` 内部') && hacSkill.includes('resolveKeywordTimeMs'))
+check('hand-action-control SKILL.md triggerAt 幽灵已拔（不再当现行字段教）',
+  !hacSkill.includes("triggerAt: '+00:00:SS'"))
+const hacMeta = read('skills/hand-action-control/meta.json')
+check('hand-action-control meta.json key_rules 含 triggerKeyword（entry 级）',
+  hacMeta.includes('triggerKeyword 是 entry 级字段'))
+const bsrSkill = read('skills/board-speech-rules/SKILL.md')
+check('board-speech-rules SKILL.md §5.2 字段表教 triggerKeyword 而非 triggerAt',
+  bsrSkill.includes('`triggerKeyword`（entry 级）') && !bsrSkill.includes('每个下划线动作带 triggerAt'))
+const bsrMeta = read('skills/board-speech-rules/meta.json')
+check('board-speech-rules meta.json triggerAt 幽灵行已换 triggerKeyword',
+  bsrMeta.includes('triggerKeyword') && !bsrMeta.includes('动作triggerAt是本row开始后多少秒'))
+check('speech-board-timing SKILL.md §四 排期模型含关键词触发分支 + §4.2 无 1500 漂移',
+  sbtSkill.includes('kwTimeMs') && !sbtSkill.includes('+ 1500'))
+check('speech-board-timing meta.json key_rules 含关键词触发',
+  sbtMeta.includes('resolveKeywordTimeMs'))
+// 6c. 用户侧用法说明（row-player 三胞胎 + skills-hub 镜像 + integration-guide）
+check('row-player.html 使用说明表含 triggerKeyword 用法行',
+  playerSrc.includes('actionSpec[].triggerKeyword'))
+check('skills README 索引行含 triggerKeyword', skillsReadme.includes('triggerKeyword'))
+const skill3 = read('public/skills-hub/skill-3.html')
+const skill4 = read('public/skills-hub/skill-4.html')
+check('skills-hub skill-3/skill-4 文案含 triggerKeyword', skill3.includes('triggerKeyword') && skill4.includes('triggerKeyword'))
+const ig = read('public/skills-hub/integration-guide.html')
+check('integration-guide 字段表声明 actionSpec[].triggerKeyword（受控例外）',
+  ig.includes('actionSpec[].triggerKeyword'))
+// 6d. 程序兜底三道防线
+const sv = read('src/check-agent/skillViolations.js')
+check('skillViolations 程序检测 triggerKeyword 逐字性 + 写错层',
+  sv.includes('不在本行 speech 原文中') && sv.includes('写在 action 内部会被忽略'))
+const vc = read('skills/board-lecture-player/scripts/validate_contract.cjs')
+check('validate_contract.cjs 第三道防线校验 triggerKeyword',
+  vc.includes('triggerKeyword') && vc.includes('entry 级字段'))
+// 6e. 导出摘要三动作标签对齐（circle 不得再错标「下划线」）
+const smd = read('src/lib/speechMarkdown.js')
+check('speechMarkdown 动作摘要 circle=画圈 / 横线 / 带触发词（死分支清除）',
+  smd.includes("'circle' ? '画圈'") && !smd.includes("'highlight' ? '高亮'") && !smd.includes("rough-arrow' ? '箭头'") && smd.includes('口播触发'))
+
 console.log(`\n  动作白名单同步哨兵: ${pass}/${pass + fail} 通过${fail ? `, ${fail} 失败` : ''}`)
 process.exit(fail ? 1 : 0)
