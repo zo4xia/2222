@@ -368,5 +368,19 @@ ok('Task 40-②：updateBoardStartDelay 真源写入口（时间轴重算 + bCac
   assert.ok(/board-delay-input/.test(src) && /updateBoardStartDelay\(index, value\)/.test(src), '编辑卡应有延迟输入控件接线')
 })
 
+ok('Task 43 动作编辑器：写入口函数组 + 铁律（具象化落地）', () => {
+  assert.ok(/function updateRowActions\(rowIndex, mutate\)[\s\S]{0,800}?applyAgentBV2Timeline\(rows\.value\)[\s\S]{0,300}?bCacheSet\(rows\.value,\s*generatedModel\.value\)/.test(src),
+    'updateRowActions 应走真源+时间轴重算+bCache 铁律')
+  for (const fn of ['changeActionType', 'updateActionExactText', 'updateActionKeyword', 'addRowAction', 'removeRowAction', 'updateActionCoord']) {
+    assert.ok(new RegExp(`function ${fn}\\(`).test(src), `${fn} 应存在`)
+  }
+  assert.ok(src.includes('ACTION_TYPE_OPTIONS'), '三动作下拉选项应存在')
+  assert.ok(/value: 'underline'/.test(src) && /value: 'circle'/.test(src) && /value: 'rough-line'/.test(src), '选项应恰为三动作')
+  assert.ok(/function actionAnchorStatus/.test(src) && /function actionKeywordStatus/.test(src), '锚定/关键词实时校验应存在')
+  assert.ok(/triggerKeyword = kw/.test(src) && /delete cur\.triggerKeyword/.test(src), 'triggerKeyword entry 级写入（空则删除）')
+  assert.ok(/x\.action\.order = i \+ 1/.test(src), 'order 重编应在场')
+  assert.ok(/colorId: 'red'/.test(src), '新增动作颜色统一红')
+})
+
 console.log(`\n${pass + fail} 用例：${pass} 通过 / ${fail} 失败`)
 process.exit(fail ? 1 : 0)

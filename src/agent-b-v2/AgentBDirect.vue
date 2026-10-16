@@ -590,6 +590,127 @@ function updateBoardStartDelay(index, delay) {
   try { bCacheSet(rows.value, generatedModel.value) } catch (_e) { /* 缓存失败不阻断 */ }
 }
 
+/* ══════ ★ Task 43 动作 1.0 动作编辑器（夏夏拍板「具象化」——branch2 任何血统从未有过，纯新增）══════
+ * 数据结构 actionSpec 全链路本就存在（LLM 产出 → contract 归一 → timing/row-player 消费），
+ * 此处只补 UI 写入口。铁律（同 setRowAudioUrl / updateBoardStartDelay 先例）：
+ * 写真源 rows.value + applyAgentBV2Timeline 重算 + bCacheSet 同步刷（防刷新蒸发）。
+ * 白名单三动作（下划线/画圈/横线，颜色统一红）；triggerKeyword entry 级（与 action 平级）。 */
+const ACTION_TYPE_OPTIONS = [
+  { value: 'underline', label: '下划线' },
+  { value: 'circle', label: '画圈' },
+  { value: 'rough-line', label: '横线' },
+]
+
+function actionToolValue(item) {
+  const a = item?.action || {}
+  if (a.tool === 'rough-line') return 'rough-line'
+  return a.action || 'underline'
+}
+
+function updateRowActions(rowIndex, mutate) {
+  const row = rows.value[rowIndex]
+  if (!row) return
+  invalidateCheck()
+  const next = (Array.isArray(row.actionSpec) ? row.actionSpec : []).filter(Boolean).map((x) => JSON.parse(JSON.stringify(x)))
+  mutate(next)
+  next.forEach((x, i) => { if (x.action) x.action.order = i + 1 })   // order 重编（1 起，与 moveRow 同款）
+  rows.value[rowIndex] = { ...row, actionSpec: next }
+  rows.value = applyAgentBV2Timeline(rows.value)
+  try { bCacheSet(rows.value, generatedModel.value) } catch (_e) { /* 缓存失败不阻断 */ }
+}
+
+function changeActionType(rowIndex, ai, value) {
+  updateRowActions(rowIndex, (list) => {
+    const cur = list[ai]
+    if (!cur) return
+    const old = cur.action || {}
+    const keepKw = cur.triggerKeyword != null ? { triggerKeyword: cur.triggerKeyword } : {}
+    if (value === 'rough-line') {
+      list[ai] = { ...keepKw, action: {
+        tool: 'rough-line',
+        region: old?.target?.region || old?.region || 'solution',
+        start: Array.isArray(old?.start) ? old.start : [20, 52],
+        end: Array.isArray(old?.end) ? old.end : [50, 52],
+        order: old.order || ai + 1,
+        style: { colorId: 'red', strokeWidthId: 'normal' },   // ★ Task 43 颜色统一红
+      } }
+    } else {
+      list[ai] = { ...keepKw, action: {
+        tool: 'rough-notation',
+        action: value,
+        target: {
+          region: old?.target?.region || old?.region || 'solution',
+          exactText: old?.target?.exactText || '',
+          occurrence: Math.round(old?.target?.occurrence ?? 1) || 1,
+        },
+        order: old.order || ai + 1,
+        options: {},
+      } }
+    }
+  })
+}
+
+function updateActionExactText(rowIndex, ai, value) {
+  updateRowActions(rowIndex, (list) => {
+    const cur = list[ai]
+    if (cur?.action?.tool === 'rough-notation' && cur.action.target) {
+      cur.action.target = { ...cur.action.target, exactText: String(value ?? '') }
+    }
+  })
+}
+
+function updateActionKeyword(rowIndex, ai, value) {
+  updateRowActions(rowIndex, (list) => {
+    const cur = list[ai]
+    if (!cur) return
+    const kw = String(value ?? '').trim()
+    if (kw) cur.triggerKeyword = kw
+    else delete cur.triggerKeyword
+  })
+}
+
+function addRowAction(rowIndex) {
+  updateRowActions(rowIndex, (list) => {
+    list.push({ action: {
+      tool: 'rough-notation', action: 'underline',
+      target: { region: 'solution', exactText: '', occurrence: 1 },
+      order: list.length + 1, options: {},
+    } })
+  })
+}
+
+function removeRowAction(rowIndex, ai) {
+  updateRowActions(rowIndex, (list) => { list.splice(ai, 1) })
+}
+
+function updateActionCoord(rowIndex, ai, key, axis, value) {
+  updateRowActions(rowIndex, (list) => {
+    const cur = list[ai]
+    if (cur?.action?.tool !== 'rough-line') return
+    const n = typeof value === 'number' && !isNaN(value) ? Math.max(0, Math.min(100, value)) : 0
+    const pair = Array.isArray(cur.action[key]) ? [...cur.action[key]] : [0, 0]
+    pair[axis] = n
+    cur.action[key] = pair
+  })
+}
+
+/* 锚定存在性校验（字符串层近似，语义对齐 row-player findRange：板书池 = 先前行+本行 board.content，
+ * 题目原文兜底）。⚠ \frac 记号在渲染字池是占位符——提示引导按板书字面写 exactText。 */
+function actionAnchorStatus(rowIndex, item) {
+  const text = String(item?.action?.target?.exactText || '').trim()
+  if (!text) return ''
+  const pool = rows.value.slice(0, rowIndex + 1).map((r) => String(r?.board?.content || '')).join('\n')
+  const problem = String(handoff.value?.problemText || '')
+  return (pool.includes(text) || problem.includes(text)) ? '' : 'error'
+}
+
+/* 触发关键词校验：必须逐字存在于本行口播原文（Task 43 契约），miss 走默认串行 */
+function actionKeywordStatus(rowIndex, item) {
+  const kw = String(item?.triggerKeyword || '').trim()
+  if (!kw) return ''
+  return String(rows.value[rowIndex]?.speech || '').includes(kw) ? '' : 'error'
+}
+
 // 视觉时间轴事件：点击某 Row 组定位并高亮表格对应行
 function onSelectRowFromTimeline(index) {
   editingBoardIndex.value = index
@@ -2620,38 +2741,119 @@ function isRefineFieldEqual(original, refined) {
                   <span v-else class="action-empty-dash">—</span>
                 </div>
 
-                <!-- 动作列展开态 -->
+                <!-- 动作列展开态：★ Task 43 动作 1.0 编辑器（具象化——三动作/锚定文字/触发关键词，夏夏拍板） -->
                 <a-popover
                   v-else-if="record.actionSpec && record.actionSpec.length"
                   trigger="click"
                   placement="left"
                 >
                   <template #content>
-                    <div class="action-popover-title">当前行板书动作详情</div>
-                    <a-list
-                      :data-source="record.actionSpec"
-                      size="small"
-                      style="width: 360px; max-height: 400px; overflow: auto"
-                    >
-                      <template #renderItem="{ item }">
-                        <a-list-item>
-                          <a-space direction="vertical" size="small" style="width: 100%;">
-                            <a-space :size="4" wrap>
-                              <a-tag v-if="item.action?.order" color="blue">#{{ item.action.order }}</a-tag>
-                              <a-tag color="cyan">{{ actionLabel(item) }}</a-tag>
-                            </a-space>
-                            <div class="action-popover-content">{{ actionContent(item) }}</div>
+                    <div class="action-popover-title">板书动作编辑（三动作 · 红色 · row 内互斥）</div>
+                    <div class="action-edit-list">
+                      <div v-for="(item, ai) in record.actionSpec" :key="ai" class="action-edit-item">
+                        <a-space :size="4" wrap style="width: 100%;">
+                          <a-tag color="blue">#{{ ai + 1 }}</a-tag>
+                          <a-select
+                            :value="actionToolValue(item)"
+                            size="small"
+                            style="width: 108px"
+                            :options="ACTION_TYPE_OPTIONS"
+                            @change="(v) => changeActionType(index, ai, v)"
+                          />
+                          <a-button
+                            type="text"
+                            size="small"
+                            danger
+                            title="删除该动作"
+                            @click="removeRowAction(index, ai)"
+                          >
+                            删
+                          </a-button>
+                        </a-space>
+                        <template v-if="item.action?.tool === 'rough-notation'">
+                          <div class="action-edit-label">锚定文字（须在已写板书 / 题目原文中，按板书字面写）</div>
+                          <a-input
+                            :value="item.action?.target?.exactText"
+                            size="small"
+                            placeholder="要标记的完整原文"
+                            :status="actionAnchorStatus(index, item)"
+                            @change="(e) => updateActionExactText(index, ai, e.target.value)"
+                          />
+                          <div v-if="actionAnchorStatus(index, item) === 'error'" class="action-edit-warn">
+                            ⚠ 板书与题目均未找到该文字，播放时此动作会被跳过（分数请按板书字面写）
+                          </div>
+                          <div class="action-edit-label">触发关键词（可选：口播说到该词时起笔）</div>
+                          <a-input
+                            :value="item.triggerKeyword"
+                            size="small"
+                            placeholder="本行口播原文中的词，空则默认串行"
+                            :status="actionKeywordStatus(index, item)"
+                            @change="(e) => updateActionKeyword(index, ai, e.target.value)"
+                          />
+                          <div v-if="actionKeywordStatus(index, item) === 'error'" class="action-edit-warn">
+                            ⚠ 关键词不在本行口播原文中，播放时将退回默认串行
+                          </div>
+                        </template>
+                        <template v-else>
+                          <div class="action-edit-label">横线起止（百分比坐标，红色）</div>
+                          <a-space :size="4">
+                            <a-input-number
+                              :value="item.action?.start?.[0]"
+                              size="small"
+                              :min="0"
+                              :max="100"
+                              style="width: 72px"
+                              @change="(v) => updateActionCoord(index, ai, 'start', 0, v)"
+                            />
+                            <a-input-number
+                              :value="item.action?.start?.[1]"
+                              size="small"
+                              :min="0"
+                              :max="100"
+                              style="width: 72px"
+                              @change="(v) => updateActionCoord(index, ai, 'start', 1, v)"
+                            />
+                            <span class="action-edit-sep">→</span>
+                            <a-input-number
+                              :value="item.action?.end?.[0]"
+                              size="small"
+                              :min="0"
+                              :max="100"
+                              style="width: 72px"
+                              @change="(v) => updateActionCoord(index, ai, 'end', 0, v)"
+                            />
+                            <a-input-number
+                              :value="item.action?.end?.[1]"
+                              size="small"
+                              :min="0"
+                              :max="100"
+                              style="width: 72px"
+                              @change="(v) => updateActionCoord(index, ai, 'end', 1, v)"
+                            />
                           </a-space>
-                        </a-list-item>
-                      </template>
-                    </a-list>
+                        </template>
+                      </div>
+                    </div>
+                    <a-button size="small" type="dashed" block style="margin-top: 8px" @click="addRowAction(index)">
+                      ＋ 添加动作
+                    </a-button>
                   </template>
-                  <div class="action-badge-pill active" title="点击查看动作指令参数">
+                  <div class="action-badge-pill active" title="点击编辑动作（三动作 · 红色）">
                     <span class="action-badge-icon">⚡</span>
                     <span>{{ record.actionSpec.length }} 个动作</span>
                   </div>
                 </a-popover>
-                <span v-else class="action-empty-dash">—</span>
+                <!-- 无动作：一键添加 -->
+                <a-button
+                  v-else
+                  type="dashed"
+                  size="small"
+                  class="action-add-btn"
+                  title="添加第一个动作（下划线）"
+                  @click="addRowAction(index)"
+                >
+                  ＋ 动作
+                </a-button>
               </div>
 
               <!-- 操作列 (Operations) -->
@@ -4407,6 +4609,46 @@ function isRefineFieldEqual(original, refined) {
   font-size: 12px;
   color: #475569;
   line-height: 1.5;
+}
+
+/* ★ Task 43 动作 1.0 编辑器样式（夏夏拍板「具象化」） */
+.action-edit-list {
+  width: 340px;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.action-edit-item {
+  padding: 8px;
+  margin-bottom: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.action-edit-label {
+  font-size: 11px;
+  color: #64748b;
+  margin: 6px 0 3px;
+}
+
+.action-edit-warn {
+  font-size: 11px;
+  color: #dc2626;
+  margin-top: 3px;
+  line-height: 1.4;
+}
+
+.action-edit-sep {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.action-add-btn {
+  font-size: 11px;
+  color: #64748b;
+  height: 22px;
+  padding: 0 6px;
 }
 
 /* 操作列按钮 */
