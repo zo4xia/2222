@@ -201,7 +201,7 @@ tablePxToPct(x, y) → canvasPxToPct(tablePxToCanvasPx(x, y))
 
 | 反模式 | 现象 | 修正 |
 |---|---|---|
-| 死板对齐 | 板书像 Word 排版 | 加字间距 0—2px 微抖动，行间距 1.55—1.85 微抖动 |
+| 死板对齐 | 板书像 Word 排版 | 手写体承载手稿感（书写抖动 2026-10-17 夏夏拍板全拔），行距自然由渲染层保证 |
 | 跨区硬越界 | 板书超出画布边缘 | 用 `clampBoxBottom` 强制裁剪到底安全边 95% |
 | 严重叠字 | 后写板书压在已存在板书上 | 渲染层使用 `textTargetRegistry` 注册目标，新行 y 递增 |
 | 编造坐标 | handoff 缺 boardPlan 时硬套默认 | 宁可返回 `[]`，不要编造；告知 Check Agent 缺口 |

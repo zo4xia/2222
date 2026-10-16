@@ -185,7 +185,7 @@ npm run test:refine-degrade
 | Agent B 输出 | board 只输出 {content, startDelay}，不输出 startCoord | src/agent-b-v2/contract.js |
 | 解析 | parseLLMJson 唯一真源 | src/lib/parseLLMJson.js |
 | 动作 | rough-notation 三动作 underline/highlight/circle（underline+circle 为夏夏钦定两大核心兜底）+ rough-line + rough-arrow，锚定 exactText | src/board-tools/boardToolCatalog.js |
-| 渲染 | 微抖动/微倾斜是渲染层职责，B 不算 | row-player.html + RealBoardPreview.vue |
+| 渲染 | 书写抖动已全拔（2026-10-17），排版细节是渲染层职责，B 不算 | row-player.html + RealBoardPreview.vue |
 | 下游契约 | 交付物 JSON 规范 | 导出 JSON 本体（apiSpecVersion 2.0.0 + specificationSummary/specAnnotation 自描述字段） |
 
 ## 常见问题

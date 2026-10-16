@@ -4,7 +4,7 @@
   "archetype": "workflow",
   "description": "小学数学AI讲题系统——板书与口播稿规则蒸馏",
   "created": "2026-08-20",
-  "updated": "2026-10-16",
+  "updated": "2026-10-17",
   "sources": [
     "src/agent-b-v2/prompt.js",
     "src/agent-b-v2/contract.js",
@@ -43,6 +43,9 @@
     "题目印刷体归一为微软雅黑（旧 Segoe UI 优先栈废止；真源 stepHandoff.QUESTION_FONT_FAMILY）",
     "B 估算行高公式：字号 × 1.2（真源 stepHandoff.LINE_HEIGHT_ESTIMATE_RATIO）",
     "颜色口径：分析区红色，其余全部黑色（渲染端色值真源 stepHandoff.ANALYSIS_TEXT_COLOR/BOARD_TEXT_COLOR）"
+  ],
+  "v3_3_1_changes": [
+    "书写抖动全拔：位置抖动/逐字旋转 ±0.8°/整行微倾 ±1° 归零退役（2026-10-17 夏夏拍板「太奇怪」），手写感由手写字体 + rough 笔触承载；速度域抖动（190—250ms/字、行配速 ±10%）保留不动"
   ],
   "v3_2_changes": [
     "板书速度提速：1秒2字±10% → 1秒4~5字（220ms/字 ±30ms，2026-10-15 夏夏拍板，对齐 timing.js 真源）",

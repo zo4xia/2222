@@ -36,8 +36,8 @@ row = { stage, mp3|audioBase64, duration(仅占位), speech, board:{startDelay, 
 2. 坐标格式由 `coordinateMode` 决定（percentage/pixel），默认 percentage。
 3. **`board` 是 v3.0 对象 `{startDelay, content, region}`，不含坐标。** 旧数据若带 `startCoord`：当作**过时软提示**接受，但仍要以实测容量重新定位，绝不盲信。
 4. **行时长由真实音频决定**（`audio.duration`），不是下游算出来的。
-5. 板书字号是题目的 1.2~1.5 倍（题目区微软雅黑 30px，其他区 38px；真源 stepHandoff.js 字体宪法 v2），行间距自然 + 2px 分数余量（无强制行高规范；分数上下结构越出行盒，真源 stepHandoff.NATURAL_LINE_HEIGHT_EXTRA_PX）+ 字间距轻微抖动。
-6. 板书速度别太慢；样式要像手写（逐字位移/旋转抖动、整行轻微倾斜），不要板板正正。
+5. 板书字号是题目的 1.2~1.5 倍（题目区微软雅黑 30px，其他区 38px；真源 stepHandoff.js 字体宪法 v2），行间距自然 + 2px 分数余量（无强制行高规范；分数上下结构越出行盒，真源 stepHandoff.NATURAL_LINE_HEIGHT_EXTRA_PX）+ 字距均匀（书写抖动 2026-10-17 夏夏拍板全拔）。
+6. 板书速度别太慢；样式要像手写（手写体 + rough 笔触承载；逐字位移/旋转抖动、整行微倾已于 2026-10-17 夏夏拍板全拔），不要板板正正。
 7. 分数用 `\frac{num}{den}` 渲染上下结构；`^2`/`_x` → 上下标；`\begin{aligned}`/`\\`/`&` → 分行/对齐。口播念「分母分之分子」（上游稿已处理）。
 8. 字母 x 在复合式里念「艾克斯」（上游稿已写谐音，代码不动）。
 9. 动作白名单 `underline` / `circle` + `rough-line`（Task 43 动作 1.0 三动作，见 §输入契约，与 boardToolCatalog 真源对齐），**可操作区域是整个画布**（SVG overlay 覆盖全画布）。
@@ -157,8 +157,8 @@ assets/sample-rows.json             合法样例（跑 validate 应为 ERROR 0 /
 | 2. coordinateMode 决定坐标格式 | board-zone-layout §一 |
 | 3. board v3.0 不含坐标（occupancy map 自动排版） | board-zone-layout §四（越界容错） |
 | 4. 真实音频唯一时长真相源 | speech-board-timing（**改写**：原 160 cpm 估算在本播放器降级为黑名单，真相源改为 audio.duration） |
-| 5. 板书字号 1.2~1.5 倍 + 抖动 | handwriting-font-policy §七 + speech-board-timing §二 |
-| 6. 板书手写感（位移/旋转/行倾抖动） | handwriting-font-policy §三 |
+| 5. 板书字号 1.2~1.5 倍 + 速度微抖（190—250ms） | handwriting-font-policy §七 + speech-board-timing §二 |
+| 6. 板书手写感（手写体 + rough 笔触；书写抖动 2026-10-17 全拔） | row-player.html 渲染真源 |
 | 7. 分数 \frac / ^2 _x / \begin{aligned} | field-char-escape-filter §五 + §六 |
 | 8. 字母 x 念艾克斯 | speech-board-timing §五 |
 | 9. 动作白名单 underline/circle + rough-line 横线（Task 43 动作 1.0） | hand-action-control §二（白名单与 boardToolCatalog 真源对齐） |

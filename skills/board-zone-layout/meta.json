@@ -4,7 +4,7 @@
   "archetype": "workflow",
   "description": "画布四区板书布局与坐标控制技巧蒸馏。固定画布 1726×980px，四区百分比坐标，竖版/横版自适应，越界容错，达芬奇手稿毛料感。",
   "created": "2026-09-19",
-  "updated": "2026-09-19",
+  "updated": "2026-10-17",
   "sources": [
     "src/utils/boardLayout.js",
     "src/utils/canvasCoords.js",

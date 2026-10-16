@@ -347,7 +347,7 @@ function naturalLhRatio(font,size){
 }
 /* 行布局唯一真源：compile 期算死，drawWriting 直接消费（回退路径走同一函数，口径必然一致）。
    自适应书写流（用户拍板 2026-09-17）原样搬入：向下写 → 画布底换列 → 行超宽自适应缩字号。
-   行距 = 自然行高（字体度量，逐行无抖动——手写感由字内基线抖动/字距抖动/整行微倾承载）。 */
+   行距 = 自然行高（字体度量，逐行无抖动——手写感由手写字体本身与 rough 笔触承载；2026-10-17 夏夏拍板书写抖动全拔：位置抖动/逐字旋转/整行微倾一并退役）。 */
 function layoutBoardLines(content,x,y,W,H){
   const size=38, marginX=10, marginY=10, colGap=Math.round(size*0.9);
   const maxX=W-marginX, maxY=H-marginY;
@@ -623,11 +623,12 @@ function getScratch(W,H){
   return SCRATCH;
 }
 // 一行一张图：bbox 用主画布绝对像素记，运行时 drawImage 直接对齐，不做任何偏移换算
-// 三路抖动抄自旧作 renderBoardTextStickerImage.ts（字号/基线/字距）——领地 E 的美学我们缺的正是这个。
-// 旧版只有这三路（无位置抖动）；我们保留自己原有的位置抖动，两边叠加，别互相覆盖
+// 三路抖动抄自旧作 renderBoardTextStickerImage.ts（字号/基线/字距）——已全数归零退役，仅留常量作口径记档：
+// 2026-09-16 三路归零（夏夏定版：字风格=handwrite-compare，别再加戏）
+// 2026-10-17 书写抖动全拔（夏夏拍板「太奇怪」）：位置抖动 amp=0 + 逐字旋转 0 + 整行微倾 0，手写感只由手写字体 + rough 笔触承载
 const GLYPH_FONT_JITTER=0;         // 归零：compare D 档字号不抖（2026-09-16 夏夏定版：字风格=handwrite-compare，别再加戏）
-const GLYPH_BASELINE_JITTER=0;     // 归零：D 档基线不抖，手稿感只来自位置/旋转/行倾
-const GLYPH_SPACING_JITTER=0;      // 归零：D 档字距不抖
+const GLYPH_BASELINE_JITTER=0;     // 归零：D 档基线不抖（2026-09-16；2026-10-17 位置/旋转/行倾同批全拔）
+const GLYPH_SPACING_JITTER=0;      // 归零：D 档字距不抖（2026-09-16）
 const MAX_ROW_CACHE=120;            // LRU 上限（旧版 100）
 const MCTX=(function(){const c=document.createElement('canvas');return c.getContext('2d');})();  // 只用于量字宽
 // \frac{a}{b} → 分子在上、横线、分母在下（真排版，不走公式图）
@@ -680,7 +681,7 @@ function rowImage(o){
   const key=[o.content,o.li,o.x|0,o.y|0,o.size,o.font,o.color,FONT_VER,DPR].join('|');
   const hit=ROW_CACHE.get(key);
   if(hit){ROW_CACHE.delete(key);ROW_CACHE.set(key,hit);return hit;}   // 命中即提到队尾（LRU）
-  // 逐字 layout：字号 / 基线 / 字距三路抖动 + 我们原有的位置抖动，全部由 seed 派生 → 幂等
+  // 逐字 layout：字号/基线/字距/位置四路抖动已全部归零（2026-09-16 三路 + 2026-10-17 位置/旋转/行倾，夏夏两轮拍板）；seed 派生机制保留，仅供 rough 笔触与行配速复用 → 幂等
   const rnd=mulberry32(o.seed+o.li*7919+13);
   const toks=tokenizeLine(o.text);
   // 竖式/长除横线行：rough 手绘横线（用户拍板 2026-09-17，不渲染下划线字符）
@@ -739,7 +740,7 @@ function rowImage(o){
       const w=Math.max(1,MCTX.measureText(ch).width);
       const jx=jit(o.seed+idx,1,o.amp)[0], jy=jit(o.seed+idx+7777,1,o.amp)[0];
       const dy=(rnd()*2-1)*o.size*GLYPH_BASELINE_JITTER;
-      const rot=(rnd()*2-1)*0.014;   // 达芬奇手感：逐字 ±0.8°（用户 2026-09-17：歪过头，轻微斜即可）
+      const rot=0;   // 逐字旋转全拔（2026-10-17 夏夏：书写抖动太奇怪；2026-09-17 曾「歪过头」减到 ±0.8°，本轮归零）
       gs.push({ch:ch,fs:fs,x:cx,w:w,y:o.y+dy+jy,jx:jx,rot:rot});
       cx+=w+(/\s/.test(ch)?0:(rnd()*2-1)*o.size*GLYPH_SPACING_JITTER);   // 空格不吃字距抖动（旧版同款细节）
     }
@@ -1085,12 +1086,12 @@ function drawWriting(task,p,W,H,stage){
     const pr=Math.min(1,(shown-w0)/s.w);            // 该行局部进度
     const L=layout[s.li];                            // 自适应书写流：行位置/字号由布局决定（不溢出画布）
     const R=rowImage({content:String(task.content||''),li:s.li,text:s.text,x:L.x,y:L.y,size:L.size,
-                      font:HAND_FONT,color:color,seed:seed,chIdx0:s.ci,amp:1.2});
+                      font:HAND_FONT,color:color,seed:seed,chIdx0:s.ci,amp:0});  // 位置抖动全拔（2026-10-17 夏夏：书写抖动太奇怪，amp 1.2→0）
     // 揭示进度必须按「含字距抖动的真实行宽」映射，否则 pr=1 时行尾几个字永远揭不出来
     const lw=R.w;
     // 斜边斜率按行随机 2%~5%（旧作写死 3%，固定值看多了会假），方向也随机，别永远同向
     const rnd=mulberry32(seed+31+s.li);
-    const tilt=(rnd()-0.5)*2*0.0175;               // 达芬奇手感保留：整行 ±1° 微倾（用户 2026-09-17：歪过头，轻微即可）
+    const tilt=0;                                    // 整行微倾全拔（2026-10-17 夏夏：书写抖动太奇怪；2026-09-17 曾「歪过头」减到 ±1°，本轮归零）
     const sl=0.02+rnd()*0.03, dir=rnd()<0.5?-1:1;
     // 顶边比底边超前（旧作 top+1.8% / bottom-1.2%，约 1.5:1）→ 切出一条斜推进边
     const at=pr+(dir>0?sl:-sl*0.6), ab=pr+(dir>0?-sl*0.6:sl);
