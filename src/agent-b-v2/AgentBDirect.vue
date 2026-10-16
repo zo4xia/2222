@@ -415,7 +415,15 @@ const totalEstimatedStats = computed(() => {
   let totalSpeechMs = 0
   rows.value.forEach((r) => {
     totalChars += countCharacters(r.speech)
-    totalSpeechMs += estimateSpeechDurationMs(r.speech, { speed: canvasParams.value?.speechSpeed || AGENT_B_V2_SPEECH_RATE })
+    // ★ Task 43 C 口径（夏夏拍板）：行时长认实测音频 audioDurationMs 唯一主时钟，
+    // 无音频才退 160cpm 估算——对齐 timing.js computeRowGroupTimeline / row-player 同款优先链，
+    // 总时长不再系统性高估（160cpm 慢于 TTS 真实语速）
+    const measuredMs = Number(r.audioDurationMs)
+    if (Number.isFinite(measuredMs) && measuredMs > 0) {
+      totalSpeechMs += Math.round(measuredMs)
+    } else {
+      totalSpeechMs += estimateSpeechDurationMs(r.speech, { speed: canvasParams.value?.speechSpeed || AGENT_B_V2_SPEECH_RATE })
+    }
   })
   const totalGapMs = (rows.value.length - 1) * (canvasParams.value?.rowGapMs || AGENT_B_V2_ROW_GAP_MS)
   const totalSec = Math.round((totalSpeechMs + totalGapMs) / 1000)
@@ -660,6 +668,9 @@ async function recordAudioMetadata(index, url) {
     // 旧版写 record（tableRows 浅克隆），applyAgentBV2Timeline 重建克隆后 audioDurationMs 蒸发
     rows.value[index] = { ...rows.value[index], audioDurationMs: durationMs }
     rows.value = applyAgentBV2Timeline(rows.value)
+    // ★ Task 43 G 缺口销账：audioDurationMs 也刷 bCache（setRowAudioUrl 铁律同款）——
+    // 旧版只刷 audioUrl 不刷时长，刷新页面后播放器 hasMeasuredAudio=false 虚拟时钟退估算，音画漂移
+    try { bCacheSet(rows.value, generatedModel.value) } catch (_e) { /* 缓存失败不阻断 */ }
   }
 }
 
@@ -1077,7 +1088,7 @@ function actionContent(entry) {
   return action.content || action.target?.exactText || ''
 }
 
-// B 生成缓存：localStorage，24小时过期，Shift+点击强制刷新
+// B 生成缓存：localStorage，2 小时过期（夏夏拍板 Task 43，原 24h），Shift+点击强制刷新
 // ponytail: 抽到 composables/useBCache.js，传 getter 避免循环依赖
 const { bCacheKey, bCacheGet, bCacheSet } = useBCache({
   getHandoff: () => handoff.value,

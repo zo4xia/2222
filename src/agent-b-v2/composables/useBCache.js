@@ -1,5 +1,5 @@
 /**
- * useBCache.js — B 生成 localStorage 缓存（24h TTL + 超限清理 + Shift 强制刷新）
+ * useBCache.js — B 生成 localStorage 缓存（2h TTL 夏夏拍板 Task 43 + 惰性全扫清理 + 超限清理 + Shift 强制刷新）
  *
  * ponytail: 从 AgentBDirect.vue 956-1031 行抽出，纯逻辑无模板依赖。
  * 调用方传 handoff / selectedSkillId 的 getter，避免双向耦合。
@@ -25,7 +25,9 @@ function fieldDigest(value, max = 120) {
 
 export function useBCache({ getHandoff, getSelectedSkillId, getModel }) {
   const B_CACHE_PREFIX = 'b-gen:'
-  const B_CACHE_TTL = 24 * 60 * 60 * 1000
+  // ★ Task 43 夏夏拍板：TTL 24h→2h（“我就是2小时，否则服务器要垃圾了”）——
+  // 超过 2h 点“生成”（非 Shift）不再命中缓存，真调 LLM 重新生成
+  const B_CACHE_TTL = 2 * 60 * 60 * 1000
 
   const bCacheKey = () => {
     const h = getHandoff() || {}
@@ -61,6 +63,21 @@ export function useBCache({ getHandoff, getSelectedSkillId, getModel }) {
 
   const bCacheGet = () => {
     try {
+      // ★ Task 43 惰性全扫（夏夏“垃圾堆积”诉求）：读缓存时顺带清掉其它键的
+      // 过期/损坏条目——旧版只删当前键，多题目的陈年条目永久堆积撑爆 5MB 限额。
+      // 删除统一收集后执行，不干扰遍历索引；当前键由下方逻辑白行处理。
+      const now = Date.now()
+      const expiredKeys = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i)
+        if (!k || !k.startsWith(B_CACHE_PREFIX)) continue
+        if (k === bCacheKey()) continue
+        try {
+          const d = JSON.parse(localStorage.getItem(k) || 'null')
+          if (!d || typeof d.timestamp !== 'number' || now - d.timestamp > B_CACHE_TTL) expiredKeys.push(k)
+        } catch { expiredKeys.push(k) }
+      }
+      expiredKeys.forEach((k) => localStorage.removeItem(k))
       const raw = localStorage.getItem(bCacheKey())
       if (!raw) return null
       const data = JSON.parse(raw)

@@ -5,6 +5,7 @@
  * 模型进键 + bCacheGet 模型比对防御、原有字段行为回归、键稳定性。
  */
 import { strict as assert } from 'node:assert'
+import { readFileSync } from 'node:fs'
 
 // mock localStorage（useBCache 唯一环境依赖）
 const store = new Map()
@@ -114,6 +115,48 @@ ok('稳定性：同 handoff + 同 model → 键一致，且命中路径含 TTL �
   // TTL 过期路径
   store.set(c1.bCacheKey(), JSON.stringify({ rows: [], model: '', timestamp: Date.now() - 25 * 60 * 60 * 1000 }))
   assert.equal(c2.bCacheGet(), null, 'TTL 过期未清理')
+})
+
+console.log('── Task 43：TTL 2h（夏夏拍板）+ 惰性全扫 ──')
+
+ok('源码级：B_CACHE_TTL = 2 小时字面锁定（防悄悄改回 24h）', () => {
+  const src = readFileSync('src/agent-b-v2/composables/useBCache.js', 'utf8')
+  assert.ok(src.includes('B_CACHE_TTL = 2 * 60 * 60 * 1000'), 'TTL 应为 2h 字面')
+  assert.ok(!src.includes('24 * 60 * 60 * 1000'), '24h 字面残留')
+})
+
+ok('TTL=2h 边界：1h 前条目存活、3h 前条目过期', () => {
+  store.clear()
+  const c = mkCache(baseHandoff())
+  const key = c.bCacheKey()
+  store.set(key, JSON.stringify({ rows: [{ stage: 'a' }], model: 'gemini-2.5-flash-lite', timestamp: Date.now() - 60 * 60 * 1000 }))
+  assert.notEqual(c.bCacheGet(), null, '1h 前条目在 2h TTL 内应存活')
+  store.set(key, JSON.stringify({ rows: [], model: 'gemini-2.5-flash-lite', timestamp: Date.now() - 3 * 60 * 60 * 1000 }))
+  assert.equal(c.bCacheGet(), null, '3h 前条目应过期')
+})
+
+ok('惰性全扫：读当前键顺带清掉其它键的过期条目（防堆积）', () => {
+  store.clear()
+  const c1 = mkCache(baseHandoff())
+  const c2 = mkCache({ ...baseHandoff(), problemText: '另一道题：水池进出水……' })
+  // c2 键写一条 3h 前的过期条目（模型一致，仅键不同）
+  store.set(c2.bCacheKey(), JSON.stringify({ rows: [], model: 'gemini-2.5-flash-lite', timestamp: Date.now() - 3 * 60 * 60 * 1000 }))
+  c1.bCacheSet([{ stage: 'a' }], 'gemini-2.5-flash-lite')
+  assert.notEqual(c1.bCacheGet(), null)
+  assert.equal(store.has(c2.bCacheKey()), false, '惰性全扫未清掉其它键的过期条目')
+})
+
+ok('惰性全扫边界：未过期条目保留、损坏条目一并清理', () => {
+  store.clear()
+  const c1 = mkCache(baseHandoff())
+  const cFresh = mkCache({ ...baseHandoff(), problemText: '第三道题：行程问题……' })
+  const cBroken = mkCache({ ...baseHandoff(), problemText: '第四道题：浓度问题……' })
+  store.set(cFresh.bCacheKey(), JSON.stringify({ rows: [], model: 'm', timestamp: Date.now() - 30 * 60 * 1000 })) // 30min 未过期
+  store.set(cBroken.bCacheKey(), '{broken-json') // 损坏条目
+  c1.bCacheSet([{ stage: 'a' }], 'gemini-2.5-flash-lite')
+  c1.bCacheGet()
+  assert.equal(store.has(cFresh.bCacheKey()), true, '未过期条目被误删')
+  assert.equal(store.has(cBroken.bCacheKey()), false, '损坏条目未被清理')
 })
 
 console.log(`\n结果: ${pass + fail} 用例, ${pass} 通过, ${fail} 失败`)

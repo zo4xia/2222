@@ -415,7 +415,7 @@ function compactActionsIntoWindow(plan,dur){
 function compile(data){
   const bp=data.boardPlan||{};
   const W=(bp.canvas&&bp.canvas.w)||1726, H=(bp.canvas&&bp.canvas.h)||980;
-  const GAP=1500;
+  const GAP=1000;   // ★ Task 43 夏夏拍板：全局 1000 对齐真源 timing.js AGENT_B_V2_ROW_GAP_MS（销 GAP=1500 挂账）
   const tagAnchor=resolveTagAnchor(bp);   // 装载即定死：render(0) 起标签就在导出物给的位置上
   let acc=0;
   const stageFlow={};            // ★ 同 stage 多行顺序排版游标（px）：stage -> {x,y,anchorY,colMaxW}

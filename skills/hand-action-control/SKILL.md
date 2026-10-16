@@ -333,5 +333,5 @@ Row 2: estimatedStartMs = T1 + ROW_GAP_MS, estimatedEndMs = ...
 时长: 程序按汉字宽度 400ms/字 / 几何长度 180px/s 自动算, Agent 不得填
 箭头: 程序自动生成, Agent 只给 start/end
 取消: cancelAll() → generation += 1, 在途任务抛 "已取消"
-时间线: 单 Row 内口播+板书+动作取最大, 跨 Row 加 ROW_GAP_MS=1500ms
+时间线: 单 Row 内口播+板书+动作取最大, 跨 Row 加 ROW_GAP_MS=1000ms
 ```

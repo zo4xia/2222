@@ -247,6 +247,18 @@ ok('AgentBDirect：recordAudioMetadata 新签名（真源模式，无 record 形
   assert.ok(/async function recordAudioMetadata\(index, url\)/.test(src), '签名应为 (index, url)')
 })
 
+ok('Task 43 G 缺口：recordAudioMetadata 也刷 bCache（audioDurationMs 防刷新丢）', () => {
+  assert.ok(/async function recordAudioMetadata\(index, url\)[\s\S]{0,900}?bCacheSet\(rows\.value,\s*generatedModel\.value\)/.test(src),
+    'recordAudioMetadata 函数体应含 bCacheSet（时长元数据写入缓存）')
+})
+
+ok('Task 43 C 口径：totalEstimatedStats 认实测音频优先链', () => {
+  assert.ok(/totalEstimatedStats[\s\S]{0,1400}?Number\(r\.audioDurationMs\)[\s\S]{0,300}?estimateSpeechDurationMs/.test(src),
+    '总时长统计应先认 audioDurationMs 再退估算')
+  assert.ok(!/totalSpeechMs \+= estimateSpeechDurationMs\(r\.speech, \{ speed: canvasParams\.value\?\.speechSpeed \|\| AGENT_B_V2_SPEECH_RATE \}\)\s*\}\)\s*\n\s*\}\)\s*\n\s*const totalGapMs/.test(src),
+    '无音频优先链的旧写法不得回归')
+})
+
 ok('AgentBDirect：序列化补 mp3 契约字段（真 URL 透传 / 空串兜底）', () => {
   assert.ok(/mp3:\s*r\.audioUrl\s*\|\|\s*''/.test(src), 'cleanRows 应写 mp3: r.audioUrl || \'\'')
 })
@@ -267,6 +279,14 @@ ok('row-player 三胞胎 md5 一致（root/public/dist）+ onerror 可观测性'
   }
   assert.ok(twinA.includes("[row-player] 音频加载失败"), 'onerror 应留 warn 痕迹（哑巴可诊断）')
   assert.ok(twinB.includes("[row-player] 音频加载失败"), '双胞胎同步携带 warn')
+})
+
+ok('Task 43 GAP=1000：三胞胎对齐真源 AGENT_B_V2_ROW_GAP_MS（销 1500 挂账）', () => {
+  assert.ok(/const GAP=1000;/.test(twinA), 'row-player GAP 应为 1000')
+  assert.ok(!/const GAP=1500;/.test(twinA), 'GAP=1500 旧值不得回归')
+  assert.ok(/const GAP=1000;/.test(twinB), '双胞胎同步 GAP=1000')
+  const timingSrc = readFileSync(join(root, 'src/agent-b-v2/timing.js'), 'utf8')
+  assert.ok(timingSrc.includes('AGENT_B_V2_ROW_GAP_MS = 1000'), '真源 ROW_GAP 应为 1000（锚点不动）')
 })
 
 ok('row-player Task 40：题目图兜底链 + 标题装载咽喉接线', () => {
