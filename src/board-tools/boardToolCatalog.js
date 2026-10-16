@@ -14,20 +14,16 @@ import {
   ROUGH_DRAWING_TOOL_IDS,
   validateRoughDrawingAction,
 } from './roughDrawingTool.js'
-import {
-  DRAW_INTENT_TOOL_ID,
-  getDrawIntentAgentTool,
-  prepareDrawIntentAction,
-  validateDrawIntentAction,
-} from './drawIntentTool.js'
 
-export const BOARD_TOOL_CATALOG_VERSION = '1.4.0'
+export const BOARD_TOOL_CATALOG_VERSION = '1.5.0'  // ★ Task 43 动作 1.0：砍 drawIntent（R6 半孤岛销账）
 
 export function getAgentBoardToolCatalog() {
   return {
     version: BOARD_TOOL_CATALOG_VERSION,
     rule: '只能使用 tools 中已声明的工具和 action；没有工具就返回缺口，禁止自造调用',
-    tools: [getRoughNotationAgentTool(), ...getRoughDrawingAgentTools(), getDrawIntentAgentTool()],
+    // ★ Task 43 夏夏拍板「动作 1.0」：三动作白名单（下划线/横线/画圈），
+    // highlight / rough-arrow / draw 全砍（「其他做我怕做不好」）
+    tools: [getRoughNotationAgentTool(), ...getRoughDrawingAgentTools()],
   }
 }
 
@@ -49,8 +45,7 @@ export function getAgentBDirectorView() {
 export function validateBoardToolAction(action) {
   if (action?.tool === ROUGH_NOTATION_TOOL_ID) return validateRoughNotationAction(action)
   if (ROUGH_DRAWING_TOOL_IDS.includes(action?.tool)) return validateRoughDrawingAction(action)
-  if (action?.tool === DRAW_INTENT_TOOL_ID) return validateDrawIntentAction(action)
-  return { ok: false, error: `未支持的板书工具: ${action?.tool || '空'}` }
+  return { ok: false, error: `未支持的板书工具: ${action?.tool || '空'}（Task 43 动作 1.0 白名单：下划线/横线/画圈）` }
 }
 
 export function createBoardToolRuntime({
@@ -98,11 +93,6 @@ export function createBoardToolRuntime({
           resolveCanvas,
           resolveRegionBounds: resolveRegionBounds || ((region) => boardPlan?.[region]),
         })
-        preparedPlans.add(plan)
-        return plan
-      }
-      if (action?.tool === DRAW_INTENT_TOOL_ID) {
-        const plan = prepareDrawIntentAction(action, { resolveCanvas })
         preparedPlans.add(plan)
         return plan
       }

@@ -39,13 +39,12 @@ const check = (name, cond) => {
 }
 
 console.log('━━ 1. 真源派生（代码层唯一真源）')
-check('真源 = 三动作 underline/highlight/circle', ROUGH_NOTATION_ENABLED_ACTIONS.length === 3
+check('真源 = 动作 1.0 两 notation 动作 underline/circle（Task 43 夏夏拍板）', ROUGH_NOTATION_ENABLED_ACTIONS.length === 2
   && ROUGH_NOTATION_ENABLED_ACTIONS.includes('underline')
-  && ROUGH_NOTATION_ENABLED_ACTIONS.includes('highlight')
   && ROUGH_NOTATION_ENABLED_ACTIONS.includes('circle'))
 const catalog = getAgentBoardToolCatalog()
-check('catalog 工具集 = rough-notation/line/arrow/draw 四件',
-  JSON.stringify(catalog.tools.map((t) => t.id)) === JSON.stringify(['rough-notation', 'rough-line', 'rough-arrow', 'draw']))
+check('catalog 工具集 = 动作 1.0 三件 rough-notation/rough-line（arrow/draw 已砍）',
+  JSON.stringify(catalog.tools.map((t) => t.id)) === JSON.stringify(['rough-notation', 'rough-line']))
 check('catalog notation 动作表与真源一致（不再平行漂移）',
   JSON.stringify(catalog.tools[0].actions.map((a) => a.action)) === JSON.stringify([...ROUGH_NOTATION_ENABLED_ACTIONS]))
 
@@ -77,21 +76,21 @@ const sample = JSON.parse(read('skills/board-lecture-player/assets/sample-rows.j
 const tmp = resolve(root, 'scripts/.tmp-whitelist-fixture.json')
 const writeFixture = (rows) => writeFileSync(tmp, JSON.stringify({ rows }, null, 2), 'utf8')
 try {
-  // 4a. 官方示例（含 highlight）必须 PASS
+  // 4a. 官方示例（动作 1.0 三动作示范）必须 PASS
   const r0 = runValidator(resolve(root, 'skills/board-lecture-player/assets/sample-rows.json'))
-  check('官方 sample-rows.json（含 highlight 示范）PASS', r0.code === 0)
+  check('官方 sample-rows.json（动作 1.0 三动作示范）PASS', r0.code === 0)
 
-  // 4b. 真源三动作 + line/arrow 全放行（旧校验器会误杀）
+  // 4b. 动作 1.0 三动作全放行（旧校验器会误杀）
   const okRows = sample.rows.map((row, i) => i === 2
     ? { ...row, actionSpec: [
-        { action: { tool: 'rough-notation', action: 'highlight', target: { region: 'solution', exactText: '244.8', occurrence: 1 }, options: { multiline: false }, order: 5 } },
-        { action: { tool: 'rough-line', region: 'solution', start: [20, 52], end: [50, 52], order: 6 } },
-        { action: { tool: 'rough-arrow', region: 'solution', start: [30, 60], end: [40, 70], order: 7 } },
+        { action: { tool: 'rough-notation', action: 'underline', target: { region: 'solution', exactText: '244.8', occurrence: 1 }, options: { multiline: false }, order: 5 } },
+        { action: { tool: 'rough-notation', action: 'circle', target: { region: 'solution', exactText: '244.8', occurrence: 1 }, options: { multiline: false }, order: 6 } },
+        { action: { tool: 'rough-line', region: 'solution', start: [20, 52], end: [50, 52], order: 7 } },
       ] }
     : row)
   writeFixture(okRows)
   const r1 = runValidator(tmp)
-  check('highlight + rough-line + rough-arrow 全部放行（不再与 contract-upstream 动作表打架）', r1.code === 0)
+  check('underline + circle + rough-line 全部放行（动作 1.0 白名单与真源同口径）', r1.code === 0)
 
   // 4c. 真源外动作仍拒收（白名单语义不松）
   const badRows = sample.rows.map((row, i) => i === 2
@@ -101,13 +100,13 @@ try {
   const r2 = runValidator(tmp)
   check('box 动作仍拒收（白名单未放宽）', r2.code === 1 && r2.out.includes('不在白名单'))
 
-  // 4d. draw 拒收（R6 待拍板，不进播放器契约）
+  // 4d. draw 拒收（Task 43 已砍 + R6 半孤岛销账，不进播放器契约）
   const drawRows = sample.rows.map((row, i) => i === 2
     ? { ...row, actionSpec: [{ action: { tool: 'draw', region: 'solution', order: 5 } }] }
     : row)
   writeFixture(drawRows)
   const r3 = runValidator(tmp)
-  check('draw 拒收（R6 待拍板半孤岛不进本契约）', r3.code === 1 && r3.out.includes('不在白名单'))
+  check('draw 拒收（Task 43 动作 1.0 白名单外）', r3.code === 1 && r3.out.includes('不在白名单'))
 
   // 4e. line 坐标形状校验
   const coordRows = sample.rows.map((row, i) => i === 2
@@ -122,19 +121,19 @@ try {
 
 console.log('━━ 5. 文档摘要行与真源同步（多点定义一致性）')
 const hacSkill = read('skills/hand-action-control/SKILL.md')
-check('hand-action-control §八 快速参考含三动作（曾漏 circle）',
-  hacSkill.includes('rough-notation(underline/highlight/circle)'))
+check('hand-action-control §八 快速参考 = 动作 1.0 三动作口径',
+  hacSkill.includes('rough-notation(underline/circle) / rough-line'))
 const sbtSkill = read('skills/speech-board-timing/SKILL.md')
 const sbtMeta = read('skills/speech-board-timing/meta.json')
-check('speech-board-timing SKILL.md 时长行含 circle 1500（timing.js 真源对齐）', sbtSkill.includes('circle 1500'))
-check('speech-board-timing meta.json 同步 circle 1500', sbtMeta.includes('circle 1500'))
+check('speech-board-timing SKILL.md 时长行 = 分档口径（画圈固定 1000）', sbtSkill.includes('画圈固定 1000'))
+check('speech-board-timing meta.json 同步分档口径', sbtMeta.includes('画圈固定 1000'))
 const blpSkill = read('skills/board-lecture-player/SKILL.md')
 check('board-lecture-player SKILL.md 不再有「一期只有 circle/underline」收口', !blpSkill.includes('一期') || !blpSkill.includes('circle` / `underline'))
-check('board-lecture-player SKILL.md 输入契约含 highlight + line/arrow',
-  blpSkill.includes('underline` / `highlight` / `circle') && blpSkill.includes('rough-line` / `rough-arrow'))
+check('board-lecture-player SKILL.md 输入契约 = 动作 1.0 三动作',
+  blpSkill.includes('underline` / `circle') && blpSkill.includes('+ `rough-line` 横线'))
 const cu = read('skills/board-lecture-player/references/contract-upstream.md')
-check('contract-upstream 自检清单与动作表同口径（三动作+line/arrow）',
-  cu.includes('underline/highlight/circle）/ rough-line / rough-arrow'))
+check('contract-upstream 自检清单 = 动作 1.0 三动作口径',
+  cu.includes('underline/circle）/ rough-line（Task 43 动作 1.0 三动作）'))
 check('contract-upstream 指向 .cjs（.js 双胞胎已删）', cu.includes('validate_contract.cjs') && !cu.includes('validate_contract.js'))
 const skillsReadme = read('skills/README.md')
 check('skills README 不再教「一期动作 circle+underline」', !skillsReadme.includes('一期动作 circle+underline'))

@@ -27,10 +27,10 @@ export const outputFormat = `
 4. ✅ speech 里没有任何标签、括号说明、舞台提示
 5. ✅ speech 数字保留阿拉伯数字（小数读"点"、分数读"分母分之分子"），没有 LaTeX / Markdown / 斜杠分数
 6. ✅ 数学计算正确，自己先算一遍
-7. ✅ actionSpec 里的工具只有 rough-notation / rough-line / rough-arrow
-8. ✅ 所有 line / arrow 动作都写了 region（question/analysis/solution/summary）
-9. ✅ rough-notation 用的是 underline / highlight / circle，target 里有 region + exactText（question 区匹配题目原文）
-10. ✅ 颜色用 colorId（ink/red），不是直接写色值；粗细用 strokeWidthId（normal/emphasis）
+7. ✅ actionSpec 里的工具只有 rough-notation / rough-line（Task 43 动作 1.0 三动作）
+8. ✅ 所有 rough-line 横线动作都写了 region（question/analysis/solution/summary）
+9. ✅ rough-notation 用的是 underline / circle（highlight 已砍），target 里有 region + exactText（question 区匹配题目原文）
+10. ✅ 颜色用 colorId（统一 red，ink 已砍），不是直接写色值；粗细用 strokeWidthId（normal/emphasis）
 11. ✅ 坐标都是 0-100 的百分比，且落在声明的 region 范围内
 12. ✅ order 都是正整数，从 1 开始
 13. ✅ 没有自己加 durationMs / gapAfterMs / seed 等时间字段

@@ -12,7 +12,7 @@ export const boardRules = `
 - 没有新内容要写时 content 就为空字符串，不要重复写前面的内容。
 
 ### 常用内容类型
-- **关键词**：题目里的关键条件，用下划线或高亮标出来；
+- **关键词**：题目里的关键条件，用下划线或画圈标出来；
 - **公式**：用到的公式顺手记一笔，配简单标注；
 - **算式**：一步步列出来，重要步骤标出来；
 - **结论**：每一段的小结，用一句话。
@@ -27,13 +27,13 @@ actionSpec 是一个数组，每一项的结构是：
 { action: { tool, ...工具参数, order } }
 \`\`\`
 
-**工具只有三个，不要自己发明：**
+**动作只有三个（Task 43 夏夏拍板「动作 1.0」：下划线/画圈/横线），不要自己发明：**
 
 ---
 
 ### 1. rough-notation —— 给已有文字加标记
 
-**用途**：在已有文字下方画手绘下划线、加荧光高亮，或圈出关键词（圈关键数字或条件是核心兑底动作）。
+**用途**：在已有文字下方画手绘下划线，或圈出关键词（圈关键数字或条件是核心兜底动作）。
 
 **参数结构：**
 \`\`\`json
@@ -52,7 +52,7 @@ actionSpec 是一个数组，每一项的结构是：
 \`\`\`
 
 **字段说明：**
-- \`action\`：支持 \`underline\`（固定红色下划线）、\`highlight\`（固定浅黄高亮）、\`circle\`（固定红色画圈）三选一；颜色由程序固定，不要传 color 之类的字段；
+- \`action\`：支持 \`underline\`（固定红色下划线）、\`circle\`（固定红色画圈）二选一；颜色由程序固定统一红 #dc2626，不要传 color 之类的字段（Task 43 动作 1.0：highlight 已砍）；
 - \`target.region\`：在哪个区域找文字，只能是 \`question / analysis / solution / summary\` 之一；
 - \`target.exactText\`：要标记的**精确文字**：region 为 question 时必须逐字匹配题目区展示的原文，其他区域必须和 board 里写的一模一样，差一个字都找不到；
 - \`target.occurrence\`：第几次出现，默认 1（同一个词出现多次时用）；
@@ -87,44 +87,26 @@ actionSpec 是一个数组，每一项的结构是：
 - \`region\`：这条线属于哪个区域，只能是 \`question / analysis / solution / summary\` 之一；
 - \`start\`：起点坐标 \`[x%, y%]\`，百分比 0-100，原点左上角；
 - \`end\`：终点坐标 \`[x%, y%]\`；
-- \`style.colorId\`：颜色，只能是 \`ink\`（墨黑）或 \`red\`（红色）；
+- \`style.colorId\`：颜色，只能是 \`red\`（红色；Task 43 动作 1.0 颜色统一红，ink 墨黑已砍）；
 - \`style.strokeWidthId\`：粗细，只能是 \`normal\`（细）或 \`emphasis\`（粗）；
 - \`order\`：动作顺序，正整数，从 1 开始。
 
 ---
 
-### 3. rough-arrow —— 画一个手绘箭头
+### 3. rough-arrow —— 已砍（Task 43 动作 1.0）
 
-**用途**：表示关系、指向重点、从条件指向结论。
-
-**参数结构：**
-\`\`\`json
-{
-  "action": {
-    "tool": "rough-arrow",
-    "region": "analysis",
-    "start": [20, 30],
-    "end": [60, 50],
-    "style": {
-      "colorId": "ink",
-      "strokeWidthId": "normal"
-    },
-    "order": 1
-  }
-}
-\`\`\`
-
-**字段同 rough-line**：region / start / end / style / order。
+> 夏夏拍板「其他做我怕做不好」：rough-arrow 箭头与 highlight 高亮一起退出白名单，
+> 动作 1.0 只保留下划线/画圈/横线三动作。不要再输出 rough-arrow。
 
 ---
 
 ### 几个硬规则（违反会被程序直接丢弃）
 
-1. 工具名只能是 \`rough-notation / rough-line / rough-arrow\`；
-2. 所有绘图动作（line 和 arrow）都必须写 \`region\`；
-3. 颜色用 \`colorId\`，不是直接写色值；只有 \`ink\` 和 \`red\` 两种；
+1. 工具名只能是 \`rough-notation / rough-line\`（动作 1.0 三动作：下划线/画圈/横线）；
+2. 绘图动作（rough-line 横线）必须写 \`region\`；
+3. 颜色用 \`colorId\`，不是直接写色值；只有 \`red\` 一种（统一红）；
 4. 笔画粗细用 \`strokeWidthId\`，只有 \`normal\` 和 \`emphasis\` 两种；
 5. \`order\` 必须是正整数，从 1 开始；
 6. 不要自己加 \`durationMs / gapAfterMs / seed\` 这些时间字段，程序会自动算；
-7. rough-notation 只有 \`underline / highlight / circle\`（与程序侧 boardToolCatalog 白名单对齐），没有 box / strike-through / 其他。
+7. rough-notation 只有 \`underline / circle\`（与程序侧 boardToolCatalog 白名单对齐，Task 43 动作 1.0），没有 box / strike-through / highlight / 其他。
 `

@@ -125,20 +125,25 @@ boardEndDelayMs = boardStartDelayMs + boardDurationMs
 
 > 真实时长由 `hand-action-control` skill 的程序算，这里只给 Agent B 估算总时长参考。
 
-| 工具 | 估算时长 | 算法 |
+| 动作 | 估算时长 | 算法 |
 |---|---|---|
-| `rough-notation` | 1200ms | 按目标宽度 1 汉字 400ms 折算 |
-| `rough-line` | 800ms | 按几何长度 180px/s |
-| `rough-arrow` | 900ms | 按几何长度（含 2 个 head） |
-| 其他/兜底 | 1000ms | — |
+| 画圈（rough-notation circle） | 1000ms | 固定 |
+| 下划线（rough-notation underline） | 1000 / 1500 / 2000ms | 按 exactText 字数：≤5字 1000 / >5字 1500 / >10字 2000 |
+| 横线（rough-line） | 1000ms | 固定 |
+| 其他/兜底 | 1000ms | —（严格 1~2 秒区间） |
 
 ```js
 function estimateActionDuration(action) {
-  const tool = action?.tool || ''
-  if (tool === 'rough-notation') return 1200
-  if (tool === 'rough-line')     return 800
-  if (tool === 'rough-arrow')    return 900
-  return 1000
+  const inner = action?.action || action
+  const tool = inner?.tool || ''
+  if (tool === 'rough-notation') {
+    if (inner?.action === 'circle') return 1000
+    const textLen = [...String(inner?.target?.exactText || '')].length
+    if (textLen > 10) return 2000
+    if (textLen > 5)  return 1500
+    return 1000
+  }
+  return 1000  // rough-line 固定；兜底 1s（Task 43 动作 1.0 分档，highlight/rough-arrow 已砍）
 }
 ```
 
@@ -290,7 +295,7 @@ validateSpeechDecimalReading(speech)
 口播时长: max(1500, 字数*375 + 标点停顿)  空口播=1500ms
 板书: 220ms/字 + 190—250 抖动 (1秒4~5字, 2026-10-15 提速)
 板书起手: max(1000, min(2000, speech*0.2))，可被 startDelay 覆盖
-动作估算: notation underline 1200 / highlight 1400 / circle 1500 / line 1000 / arrow 1200 / 其他 1200 ms（timing.js 真源）
+动作估算: 画圈固定 1000 / 下划线按字数 ≤5字 1000 / >5字 1500 / >10字 2000 / 横线固定 1000 ms（Task 43 夏夏拍板分档，timing.js 真源）
 动作间隔: MIN_HAND_LIFT_GAP_MS = 1000ms（与动作调度共用，真源 boardToolTiming.js；2026-10-13 勘误：曾标 600ms，估算偏快致长板书音画漂移）
 Row 间: 1000ms (AGENT_B_V2_ROW_GAP_MS, 2026-10-15 夏夏拍板 1500→1000)
 Row 总: max(speechDurationMs, handWorkEndMs)

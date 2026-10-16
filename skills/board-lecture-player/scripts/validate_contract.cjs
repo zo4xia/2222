@@ -14,9 +14,10 @@
  * 更新人：Super Z（代表夏夏）
  * 来源：references/contract-upstream.md（该文件的机器执行版）
  * 本项目定位：board-lecture-player/scripts/validate_contract.cjs（.js 双胞胎已删：ESM 下 require 必崩）
- * 版本：v1.1（动作白名单对齐真源 src/board-tools/boardToolCatalog.js：notation 三动作
- *       + rough-line/rough-arrow。v1.0 曾只认 circle/underline 并拒 line/arrow，与
- *       contract-upstream.md 动作表同文档内自相矛盾）
+ * 版本：v1.2（Task 43 夏夏拍板「动作 1.0」：白名单收紧三动作——notation underline/circle
+ *       + rough-line 横线；highlight / rough-arrow / draw 全砍。v1.1 曾收 notation 三动作
+ *       + line/arrow；v1.0 曾只认 circle/underline 并拒 line/arrow，与 contract-upstream.md
+ *       动作表同文档内自相矛盾）
  */
 
 'use strict';
@@ -24,10 +25,11 @@
 const fs = require('fs');
 
 const VALID_STAGES = ['题目', '分析', '解答', '总结'];
-// 动作白名单与真源 src/board-tools/boardToolCatalog.js 对齐（2026-10-13 第七轮全链接通）。
-// rough-notation 三动作 + rough-line/rough-arrow；draw 属 R6 待拍板半孤岛，不进本播放器契约。
-const PHASE1_TOOLS = ['rough-notation', 'rough-line', 'rough-arrow'];
-const PHASE1_ACTIONS = ['underline', 'highlight', 'circle'];
+// 动作白名单与真源 src/board-tools/boardToolCatalog.js 对齐。
+// ★ Task 43 夏夏拍板「动作 1.0」：收紧为三动作（underline/circle + rough-line），
+// highlight / rough-arrow / draw 全砍（「其他做我怕做不好」）；draw 半孤岛 R6 一并销账。
+const PHASE1_TOOLS = ['rough-notation', 'rough-line'];
+const PHASE1_ACTIONS = ['underline', 'circle'];
 const VALID_REGIONS = ['question', 'analysis', 'solution', 'summary'];
 const ILLEGAL_COORD_KEYS = ['startCoord', 'coord', 'x', 'y', 'left', 'top', 'position'];
 const ILLEGAL_SYNC_KEYS = ['keyword', 'keywords', 'cue', 'triggerAtWords'];
@@ -169,7 +171,7 @@ function main() {
           }
         }
       }
-      if (a.tool === 'rough-line' || a.tool === 'rough-arrow') {
+      if (a.tool === 'rough-line') {  // Task 43 动作 1.0：rough-arrow 已砍（白名单门已拦，不留死分支）
         // 几何工具：region + start/end 百分比坐标（0—100，原点左上）
         if (!VALID_REGIONS.includes(a.region)) {
           err(`${sat} ${a.tool} 需要 region（question/analysis/solution/summary），得到: ${JSON.stringify(a.region)}`);

@@ -54,7 +54,7 @@
 </head>
 <body>
 <h1>hand-action-control · 工具白名单与互斥队列</h1>
-<p class="sub">rough 工具家族白名单校验（另: draw 意图工具见 boardToolCatalog）· teacher-hand-exclusive 互斥 · 时长由程序算 Agent 不得填 · 抬笔间隔 1000ms 硬下限（2026-10-13 勘误：曾误标 600ms）</p>
+<p class="sub">动作 1.0 三动作白名单（rough-notation underline/circle + rough-line 横线；Task 43 夏夏拍板，highlight/rough-arrow/draw 已砍）· teacher-hand-exclusive 互斥 · 时长由程序分档算（画圈 1s / 下划线按字数 1/1.5/2s / 横线 1s）· 抬笔间隔 1000ms 硬下限</p>
 
 <div class="presets" id="presets"></div>
 
@@ -76,19 +76,19 @@
 </div>
 
 <script>
-// ─── 工具白名单与时长算法（本 demo 聚焦 rough 家族三工具；完整白名单含 draw 见 boardToolCatalog.js）────
-const TOOLS=['rough-notation','rough-line','rough-arrow'];
+// ─── 工具白名单与时长算法（Task 43 动作 1.0 三动作：rough-notation underline/circle + rough-line；highlight/rough-arrow/draw 已砍）────
+const TOOLS=['rough-notation','rough-line'];
 const REGIONS=['question','analysis','solution','summary'];
 const MIN_GAP_MS=1000;   // = MIN_HAND_LIFT_GAP_MS（真源 src/board-tools/boardToolTiming.js）
-const NOTATION_COLORS={underline:'red',highlight:'yellow',circle:'red'};  // circle 2026-10-13 第七轮接入
-const LOCKED_COLORS={red:'#d64545',yellow:'#f8e58c'};
-const DRAW_COLORS={ink:'#263238',red:'#d64545'};
+const NOTATION_COLORS={underline:'red',circle:'red'};  // Task 43 动作 1.0：颜色统一红，highlight 已砍
+const LOCKED_COLORS={red:'#dc2626'};  // 统一红 #dc2626（yellow #f8e58c 已废弃）
+const DRAW_COLORS={red:'#dc2626'};  // ink 墨黑已砍
 const STROKE_W={normal:2,emphasis:3};
 
 function validateAction(a){
   if(!a||!TOOLS.includes(a.tool))return{ok:false,err:`未支持的板书工具: ${a?.tool||'空'}`};
   if(a.tool==='rough-notation'){
-    if(!['underline','highlight','circle'].includes(a.action))return{ok:false,err:`action 只支持 underline|highlight|circle`};
+    if(!['underline','circle'].includes(a.action))return{ok:false,err:`action 只支持 underline|circle（highlight 已砍）`};
     if(!a.targetId&&!a.target?.region)return{ok:false,err:'需要 targetId 或 target.region'};
     if(a.durationMs!=null||a.gapAfterMs!=null)return{ok:false,err:'标记时长与抬笔间隔由程序工具计算，Agent 不得覆盖'};
     if(a.options?.colorId&&NOTATION_COLORS[a.action]!==a.options.colorId)
@@ -97,19 +97,24 @@ function validateAction(a){
       color:LOCKED_COLORS[NOTATION_COLORS[a.action]]}};
   }
   if(!REGIONS.includes(a.region))return{ok:false,err:`rough 图形只能画在 ${REGIONS.join('|')} 区域`};
-  if(!a.start||!a.end)return{ok:false,err:'rough-line/arrow 需要 start 和 end'};
+  if(!a.start||!a.end)return{ok:false,err:'rough-line 需要 start 和 end'};
   if(a.start[0]<0||a.start[0]>100||a.start[1]<0||a.start[1]>100)return{ok:false,err:'start 必须 0—100 百分比'};
   if(a.end[0]<0||a.end[0]>100||a.end[1]<0||a.end[1]>100)return{ok:false,err:'end 必须 0—100 百分比'};
   if(a.durationMs!=null||a.gapAfterMs!=null||a.seed!=null)
     return{ok:false,err:'绘制时长、抬笔间隔与随机种子由程序计算，Agent 不得覆盖'};
   return{ok:true,v:{tool:a.tool,region:a.region,order:a.order||1,start:a.start,end:a.end,
-    color:DRAW_COLORS[a.style?.colorId||'ink'],stroke:STROKE_W[a.style?.strokeWidthId||'normal']}};
+    color:DRAW_COLORS[a.style?.colorId||'red'],stroke:STROKE_W[a.style?.strokeWidthId||'normal']}};
 }
 
 function estimateDuration(a){
-  if(a.tool==='rough-notation')return ({underline:1200,highlight:1400,circle:1500})[a.action]||1200;  // 与 src/agent-b-v2/timing.js 对齐
-  if(a.tool==='rough-line')return 800;
-  if(a.tool==='rough-arrow')return 900;
+  // 与 timing.js 分档真源对齐（Task 43 动作 1.0）：画圈固定 1000；下划线按 exactText
+  // 字数分档 ≤5字 1000 / >5字 1500 / >10字 2000；横线固定 1000（highlight/rough-arrow 已砍）
+  if(a.tool==='rough-notation'){
+    if(a.action==='circle')return 1000;
+    const n=[...String((a.target&&a.target.exactText)||'')].length;
+    return n>10?2000:(n>5?1500:1000);
+  }
+  if(a.tool==='rough-line')return 1000;
   return 1000;
 }
 
@@ -162,7 +167,7 @@ function renderQueue(){
   const wPct=ms=>(ms/total*100);
   queuePlans.forEach(p=>{
     const b=document.createElement('div');
-    b.className='bar '+(p.tool==='rough-notation'?'notation':p.tool==='rough-line'?'line':'arrow');
+    b.className='bar '+(p.tool==='rough-notation'?'notation':'line');
     b.style.left=wPct(p.startMs)+'%';
     b.style.width=wPct(p.durMs)+'%';
     b.textContent=`${p.order}·${p.tool.split('-')[1]}`;
@@ -183,16 +188,16 @@ function renderQueue(){
 }
 
 const PRESETS=[
-  {name:'合法 underline', s:JSON.stringify({tool:'rough-notation',action:'underline',
+  {name:'合法 underline（≤5字 1000ms）', s:JSON.stringify({tool:'rough-notation',action:'underline',
     target:{region:'question',exactText:'长方形',occurrence:1},order:1},null,2)},
-  {name:'合法 highlight', s:JSON.stringify({tool:'rough-notation',action:'highlight',
+  {name:'合法 underline（>5字 1500ms 分档）', s:JSON.stringify({tool:'rough-notation',action:'underline',
     target:{region:'analysis',exactText:'9 × 20.4',occurrence:1},order:2},null,2)},
   {name:'合法 circle（核心兜底·第七轮接入）', s:JSON.stringify({tool:'rough-notation',action:'circle',
     target:{region:'question',exactText:'15 米',occurrence:1},order:3},null,2)},
   {name:'合法 rough-line', s:JSON.stringify({tool:'rough-line',region:'analysis',order:4,
     start:[10,45],end:[50,45],style:{colorId:'red',strokeWidthId:'emphasis'}},null,2)},
-  {name:'合法 rough-arrow', s:JSON.stringify({tool:'rough-arrow',region:'solution',order:5,
-    start:[10,40],end:[40,60],style:{colorId:'ink',strokeWidthId:'normal'}},null,2)},
+  {name:'合法 rough-line（解答区横线）', s:JSON.stringify({tool:'rough-line',region:'solution',order:5,
+    start:[10,40],end:[40,40],style:{colorId:'red',strokeWidthId:'normal'}},null,2)},
   {name:'错误: 自造工具', s:JSON.stringify({tool:'circle',region:'analysis',start:[10,10],end:[50,50]},null,2)},
   {name:'错误: 改颜色', s:JSON.stringify({tool:'rough-notation',action:'underline',
     target:{region:'question',exactText:'test'},options:{colorId:'blue'},order:1},null,2)},
@@ -203,7 +208,7 @@ const PRESETS=[
   {name:'综合: 多动作入队', s:JSON.stringify([
     {tool:'rough-notation',action:'underline',target:{region:'question',exactText:'长方形',occurrence:1},order:1},
     {tool:'rough-line',region:'analysis',start:[10,45],end:[50,45],order:2,style:{colorId:'red'}},
-    {tool:'rough-arrow',region:'solution',start:[20,40],end:[50,60],order:3}
+    {tool:'rough-line',region:'solution',start:[20,40],end:[50,40],order:3}
   ],null,2)}
 ];
 const presetsEl=document.getElementById('presets');

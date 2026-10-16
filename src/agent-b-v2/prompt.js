@@ -200,7 +200,7 @@ actionSpec 是动作数组，每个动作是一个对象，结构为：\`{ "acti
 
 - **坐标规则**：\`percentage\` 模式输出如 \`[10, 20]\`（数字即百分比数值，不含 % 号），\`pixel\` 模式输出如 \`[173, 196]\`。必须严格落在 region 对应区域范围内，不得跨区域画线。没有可用布局信息时，宁可返回 \`[]\`。
 
-**工具 1：rough-notation — 文字标记（下划线 / 高亮 / 画圈）**
+**工具 1：rough-notation — 文字标记（下划线 / 画圈）**
 用于给已有的文字标重点。只能标记 board 上已经存在的原文（region 为 question 时匹配题目区展示的原文）。
 \`\`\`json
 {
@@ -217,9 +217,9 @@ actionSpec 是动作数组，每个动作是一个对象，结构为：\`{ "acti
   }
 }
 \`\`\`
-- action: \`underline\`（下划线，固定红色 #d64545） / \`highlight\`（高亮，固定浅黄色 #f8e58c） / \`circle\`（圈出关键词，固定红色 #d64545）；不得传 \`options.colorId\`。
+- action: \`underline\`（下划线，固定红色 #dc2626） / \`circle\`（圈出关键词，固定红色 #dc2626）；不得传 \`options.colorId\`。
   - underline 和 circle 是核心兜底动作（契约真源：boardToolCatalog 白名单，与播放端 row-player 时序对齐），underline 用于划重点词，circle 用于圈关键数字或条件。
-  - highlight 用于整段文字底色高亮。
+  - ★ Task 43 动作 1.0（夏夏拍板）：highlight 已砍（「其他做我怕做不好」），颜色统一红 #dc2626。
 
 **工具 2：rough-line — 画直线**
 \`\`\`json
@@ -234,10 +234,9 @@ actionSpec 是动作数组，每个动作是一个对象，结构为：\`{ "acti
   }
 }
 \`\`\`
-- 颜色仅可为 \`ink\`（墨黑）或 \`red\`；笔画：\`normal\`（细）或 \`emphasis\`（粗）。
+- 颜色统一为 \`red\`（★ Task 43：颜色统一红，\`ink\` 墨黑已砍）；笔画：\`normal\`（细）或 \`emphasis\`（粗）。
 
-**工具 3：rough-arrow — 画箭头**
-同上，tool 换成 \`rough-arrow\`。
+（★ Task 43：rough-arrow 箭头已砍，动作 1.0 只保留下划线/横线/画圈三动作）
 
 ---
 
@@ -312,7 +311,7 @@ actionSpec 坐标参考 handoff.boardPlan 对应区域的 x/y/w/h，确保动作
       "speech": "..来啊，咱们来算算。标准以内的7吨，每吨2元，就是7乘2等于14元。超标的5吨呢，也是每吨2元，5乘2等于10元。那加起来呢，14加10等于24元。对不对呀？",
       "board": { "startDelay": 1.2, "content": "7 x 2 = 14\\n5 x 2 = 10\\n14 + 10 = 24" },
       "actionSpec": [
-        { "action": { "tool": "rough-arrow", "region": "solution", "start": [58, 15], "end": [85, 15], "order": 5, "style": { "colorId": "ink", "strokeWidthId": "emphasis" } } }
+        { "action": { "tool": "rough-line", "region": "solution", "start": [58, 15], "end": [85, 15], "order": 5, "style": { "colorId": "red", "strokeWidthId": "emphasis" } } }
       ]
     },
     {
@@ -348,7 +347,7 @@ actionSpec 坐标参考 handoff.boardPlan 对应区域的 x/y/w/h，确保动作
 
 ### 7.3 结构检查
 1. 是否只使用题目、分析、解答、总结四种 stage？
-2. actionSpec 是否只使用已注册工具（rough-line/rough-arrow/rough-notation），\`order\` 是否在 \`action\` 内且全表唯一？
+2. actionSpec 是否只使用已注册工具（rough-notation 下划线/画圈 + rough-line 横线，Task 43 动作 1.0 三动作白名单），\`order\` 是否在 \`action\` 内且全表唯一？
 3. actionSpec 的 start/end 坐标（格式由 coordinateMode 决定）是否落在 boardPlan / zoneAnchors 对应区域内？board 是否只输出 \`content\` 与 \`startDelay\`、没有夹带起手坐标？
 4. 是否只返回符合合同的 JSON 对象？
 5. 过程用到的公式/定理/原理，是否都在分析区 board 上以凝练随手形式记了一笔（英文公式用英文、无则中文关键词+算式、≤10汉字），且 cue 比重没有挤掉解题主线？

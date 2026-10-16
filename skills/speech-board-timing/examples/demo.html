@@ -114,12 +114,17 @@ function calcBoardMs(content){
   }
   return d;
 }
-function estimateActionMs(tool){
-  // 与 timing.js 真源对齐（2026-10-13 勘误）：notation 分动作、line 1000、arrow 1200、兜底 1200
-  if(tool==='rough-notation')return 1200;  // underline=1200 / highlight=1400 / circle=1500（本 demo 取基准 1200）
-  if(tool==='rough-line')return 1000;
-  if(tool==='rough-arrow')return 1200;
-  return 1200;
+function estimateActionMs(a){
+  // 与 timing.js 真源对齐（Task 43 动作 1.0 分档）：画圈固定 1000；下划线按 exactText 字数
+  // ≤5字 1000 / >5字 1500 / >10字 2000；横线固定 1000（highlight/rough-arrow 已砍）
+  const inner=(a&&a.action)?a.action:a;
+  const tool=inner&&inner.tool;
+  if(tool==='rough-notation'){
+    if(inner.action==='circle')return 1000;
+    const n=[...String((inner.target&&inner.target.exactText)||'')].length;
+    return n>10?2000:(n>5?1500:1000);
+  }
+  return 1000;  // rough-line 固定 / 兜底 1s
 }
 
 function computeRow(row){
@@ -145,7 +150,7 @@ function computeRow(row){
   let cursor=hasBoard?boardEndMs+HAND_LIFT:500;
   const tl=[];
   actions.forEach((a,i)=>{
-    const d=estimateActionMs(a.tool);
+    const d=estimateActionMs(a);
     tl.push({i,tool:a.tool,startMs:cursor,durMs:d,endMs:cursor+d});
     cursor=cursor+d+HAND_LIFT;
   });

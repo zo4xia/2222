@@ -72,18 +72,30 @@ export function calculateBoardWritingDuration(content) {
 // roughNotationTool 白名单（underline|highlight|circle），估算永远走不到 → 删。
 // circle 于同日第七轮回归白名单（1500ms 对齐 row-player L319 播放时序），
 // 依据见 roughNotationTool.js 契约拍板注释。
-const NOTATION_DURATION_MS = {
-  highlight: 1400, underline: 1200, circle: 1500,
-}
-const TOOL_DURATION_MS = { 'rough-line': 1000, 'rough-arrow': 1200 }
+// ★ Task 43 夏夏拍板「动作 1.0」：白名单收紧为三动作（下划线/横线/画圈），颜色统一红。
+// 时长分档（严格 1~2 秒内）：画圈固定 1000ms；下划线按 exactText 字数——
+// ≤5 字 1000ms / >5 字 1500ms / >10 字 2000ms；横线（rough-line）无 exactText 固定 1000ms。
+// highlight / rough-arrow / draw 已砍（「其他做我怕做不好」）。
+// 旧表 {highlight:1400, underline:1200, circle:1500} 同步废弃。
+const NOTATION_DURATION_MS = { underline: 1000, circle: 1000 }
+const TOOL_DURATION_MS = { 'rough-line': 1000 }
+const UNDERLINE_LONG_MS = 1500        // >5 字
+const UNDERLINE_XLONG_MS = 2000       // >10 字
+const UNDERLINE_MID_CHARS = 5
+const UNDERLINE_XLONG_CHARS = 10
 
 export function estimateActionDuration(action) {
   const inner = action?.action || action
   const tool = inner?.tool || ''
   if (tool === 'rough-notation') {
-    return NOTATION_DURATION_MS[inner?.action] || 1200
+    if (inner?.action === 'circle') return NOTATION_DURATION_MS.circle
+    // underline：按锚定文本字数分档（夏夏拍板「超过5字的1.5秒 超过10字的2秒」）
+    const textLen = [...String(inner?.target?.exactText || '')].length
+    if (textLen > UNDERLINE_XLONG_CHARS) return UNDERLINE_XLONG_MS
+    if (textLen > UNDERLINE_MID_CHARS) return UNDERLINE_LONG_MS
+    return NOTATION_DURATION_MS.underline
   }
-  return TOOL_DURATION_MS[tool] || 1200 // 兜底 1.2s，确保在 1-2 秒内
+  return TOOL_DURATION_MS[tool] || 1000 // rough-line 1000；兜底 1s 确保在 1-2 秒内
 }
 
 /**

@@ -154,7 +154,7 @@
           <tr><td>board.startDelay</td><td>这一段开始后几秒才下笔，如 <code>1.5</code></td></tr>
           <tr><td>board.startCoord</td><td>（<b>可选</b>，不写也行）下笔位置，格式 <code>"[8%, 44%]"</code>（横%, 竖%）。不给的话自动落在本环节区域左上角，四区照样板开</td></tr>
           <tr><td>board.content</td><td>板书写什么。一行一个，写完一个再写一个（可直接给数组，或用 <code>\n</code> 换行）。乘写 x、除写分数 <code>\frac{3}{4}</code>（不写 ÷）、平方写 ²、立方写 ³、三角形写"三角形"三个字</td></tr>
-          <tr><td>actionSpec</td><td>这一段要强调就放这里。标记三动作：圈字 <code>{tool:"rough-notation",action:"circle",target:{exactText:"要圈的字"}}</code>、划线同理改 <code>"underline"</code>、高亮改 <code>"highlight"</code>；另有画线 <code>rough-line</code> / 画箭头 <code>rough-arrow</code>（白名单真源 boardToolCatalog）。必须锚定已写出的文字（exactText）</td></tr>
+          <tr><td>actionSpec</td><td>这一段要强调就放这里。动作 1.0 三动作（夏夏拍板，颜色统一红）：圈字 <code>{tool:"rough-notation",action:"circle",target:{exactText:"要圈的字"}}</code>、下划线同理改 <code>"underline"</code>、横线 <code>rough-line</code>（白名单真源 boardToolCatalog；highlight/箭头已砍）。必须锚定已写出的文字（exactText）</td></tr>
         </table>
       </div>
     </div>
@@ -236,7 +236,7 @@ const DATA = {
       speech: "首先，我们观察图形，平行四边形沿高分割后，会形成一个直角三角形和一个梯形。",
       board: { startDelay: 1.8, startCoord: "[8%, 44%]",
                content: "1. 分析分割特征\n沿高 DE 分割成 三角形ADE 和 梯形DEBC" },
-      actionSpec: []   /* 动作白名单 = underline|highlight|circle + rough-line/rough-arrow（真源 boardToolCatalog；circle 2026-10-13 第七轮接通全链） */
+      actionSpec: []   /* 动作 1.0 白名单 = underline|circle + rough-line（Task 43 夏夏拍板三动作，颜色统一红；highlight/arrow 已砍） */
     },
     {
       stage: "解答",
@@ -245,7 +245,7 @@ const DATA = {
       speech: "接下来我们列式计算。平行四边形面积公式是底乘以高，也就是 9 乘以 20.4，算得面积为 183.6 平方厘米。",
       board: { startDelay: 1.5, startCoord: "[56%, 16%]",
                content: "方法一：面积公式\nS = 底 x 高\n  = 9 x 20.4\n  = 183.6 (cm²)\n平方：9² = 81\n分数：\\frac{3}{4} x 20.4 = 15.3" },
-      actionSpec: []   /* rough-arrow 在白名单内（真源 boardToolCatalog），本示例未用到 */
+      actionSpec: []   /* Task 43 动作 1.0：白名单收紧为下划线/横线/画圈三动作 */
     },
     {
       stage: "总结",
@@ -384,18 +384,18 @@ function boardCharPool(L){
 }
 
 // 动作分档时长（镜像 src/agent-b-v2/timing.js estimateActionDuration；离线单文件自带一份，改档两边同改）
+// ★ Task 43 夏夏拍板「动作 1.0」：画圈固定 1000；下划线按 exactText 字数分档——
+//   ≤5 字 1000 / >5 字 1500 / >10 字 2000；横线固定 1000。highlight/rough-arrow/draw 已砍。
 function actionDurationMs(a){
   const inner=(a&&a.action)||a||{}, tool=inner.tool||'', sub=inner.action||'';
   if(tool==='rough-notation'){
-    if(sub==='circle')return 1500;
-    if(sub==='highlight')return 1400;
-    if(sub==='bracket')return 1300;
-    if(sub==='strike-through'||sub==='crossed-off')return 1100;
-    return 1200;
+    if(sub==='circle')return 1000;
+    const textLen=[...String((inner.target&&inner.target.exactText)||'')].length;
+    if(textLen>10)return 2000;
+    if(textLen>5)return 1500;
+    return 1000;
   }
-  if(tool==='rough-line')return 1000;
-  if(tool==='rough-arrow')return 1200;
-  return 1200;
+  return 1000;   // rough-line 固定 1s；兜底 1s（严格 1~2s 区间）
 }
 // 有音频但动作排不下：只压动作间抬笔间隔把动作收进音频窗口（首动作起点不动、不重叠、不延长音频行）
 function compactActionsIntoWindow(plan,dur){
@@ -1102,24 +1102,16 @@ function drawWriting(task,p,W,H,stage){
 
 function drawAction(task,p,Q,W,H){
   const a=task.action||{};
-  // ── rough-line / rough-arrow：渲染分支完整支持（与 boardToolCatalog 白名单、prompt §5.2 工具 2/3 教学对齐）──
+  // ── rough-line 横线（★ Task 43 动作 1.0：rough-arrow 已砍；颜色统一红 #dc2626，墨黑已砍）──
   const tool=a.tool||'';
-  if(tool==='rough-line'||tool==='rough-arrow'){
+  if(tool==='rough-line'){
     const st=a.start||[0,0], en=a.end||[0,0];
     const x1=W*st[0]/100, y1=H*st[1]/100, x2=W*en[0]/100, y2=H*en[1]/100;
-    const red=(a.style&&a.style.colorId)==='red';
-    ctx.strokeStyle=red?'#dc2626':'#1a1a1a';
+    ctx.strokeStyle='#dc2626';                    // 统一红（与 STAGE_COLOR 分析区红同值）
     ctx.lineWidth=(a.style&&a.style.strokeWidthId)==='emphasis'?4:2.5;
     ctx.globalAlpha=0.9;
     const ex=x1+(x2-x1)*p, ey=y1+(y2-y1)*p;      // 逐段生长，p 由上游时长钉死
     rline(ctx,x1,y1,ex,ey,hashStr(JSON.stringify(a.start)+JSON.stringify(a.end)),2.0);
-    if(tool==='rough-arrow'&&p>0.9){              // 箭头头部在收笔时出现
-      const ang=Math.atan2(y2-y1,x2-x1), L=14;
-      ctx.beginPath();
-      ctx.moveTo(ex,ey); ctx.lineTo(ex-L*Math.cos(ang-0.45),ey-L*Math.sin(ang-0.45));
-      ctx.moveTo(ex,ey); ctx.lineTo(ex-L*Math.cos(ang+0.45),ey-L*Math.sin(ang+0.45));
-      ctx.stroke();
-    }
     ctx.globalAlpha=1;
     return;
   }
@@ -1139,15 +1131,10 @@ function drawAction(task,p,Q,W,H){
     const yy=by2+4, xx1=bx1, xx2=bx1+(bx2-bx1)*p;
     rline(ctx,xx1,yy,xx2,yy,seed,1.6);
     if(p>0.5)rline(ctx,xx1,yy+1.5,xx2,yy+1.5,seed+11,1.6);   // 第二遍，微微错位
-  }else if(act==='box'){
-    rrect(ctx,bx1,by1,(bx2-bx1)*p+2,(by2-by1)*p+2,seed);
   }else if(act==='circle'){
     const cx=(bx1+bx2)/2, cy=(by1+by2)/2;
     rellipse(ctx,cx,cy,((bx2-bx1)/2)*p+2,((by2-by1)/2)*p+2,seed);
     if(p>0.6)rellipse(ctx,cx,cy,((bx2-bx1)/2)*p+2,((by2-by1)/2)*p+2,seed+23);
-  }else if(act==='highlight'){
-    ctx.globalAlpha=0.5; ctx.fillStyle='#fde047';
-    ctx.fillRect(bx1,by1+4,(bx2-bx1)*p,by2-by1-6);
   }
   ctx.globalAlpha=1;
 }

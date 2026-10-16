@@ -1,6 +1,6 @@
 ---
 name: hand-action-control
-description: "板书手部动作互斥调度与一维单手时间线技巧蒸馏。teacher-hand-exclusive 互斥模式（任意时刻只允许一笔），generation-based cancelAll 防越界残留，4 个已注册工具（rough-notation/rough-line/rough-arrow/draw）白名单（2026-10-13 勘误：曾漏计 draw），Agent 不得自造调用，时长由程序按汉字宽度自动计算（Agent 不得填秒数），order 正整数顺序入队，抬笔间隔 MIN_HAND_LIFT_GAP_MS=1000ms（真源 boardToolTiming.js）。用于 Agent B 写 actionSpec / 渲染层动作调度 / Check Agent 校验工具合法性。"
+description: "板书手部动作互斥调度与一维单手时间线技巧蒸馏。teacher-hand-exclusive 互斥模式（任意时刻只允许一笔），generation-based cancelAll 防越界残留，动作 1.0 三动作（rough-notation underline/circle + rough-line 横线）白名单（Task 43 夏夏拍板，highlight/rough-arrow/draw 已砍），Agent 不得自造调用，时长由程序分档计算（画圈 1s；下划线按字数 1/1.5/2s；横线 1s）（Agent 不得填秒数），order 正整数顺序入队，抬笔间隔 MIN_HAND_LIFT_GAP_MS=1000ms（真源 boardToolTiming.js）。用于 Agent B 写 actionSpec / 渲染层动作调度 / Check Agent 校验工具合法性。"
 version: "1.1.0"
 archetype: workflow
 trigger: "写 actionSpec/调度手部动作/校验工具合法性/手部互斥控制/抬笔间隔/动作时长估算"
@@ -82,23 +82,23 @@ function cancelAll() {
 
 ---
 
-## 二、工具白名单（注册 4 个，不得自造）
+## 二、工具白名单（动作 1.0 三动作，不得自造）
 
-### 2.1 工具清单（boardToolCatalog v1.4.0）
+### 2.1 工具清单（boardToolCatalog v1.5.0，动作 1.0）
 
 | tool id | 用途 | actions |
 |---|---|---|
-| `rough-notation` | 只用于给已存在文字划重点，不画几何图形 | `underline` / `highlight` / `circle` |
-| `rough-line` | 画辅助线、边线、高线 | — |
-| `rough-arrow` | 画带箭头的关系连线 | — |
-| `draw` | 意图绘图（半结构化 startCoord + intent，Agent C 解析执行） | — |
+| `rough-notation` | 只用于给已存在文字划重点，不画几何图形 | `underline` / `circle`（highlight 已砍） |
+| `rough-line` | 画横线（辅助线、边线、高线） | — |
+
+> ★ Task 43 夏夏拍板「动作 1.0」：highlight / rough-arrow / draw 已砍（「其他做我怕做不好」），白名单只剩上表三动作。
 
 ### 2.2 注册与校验
 
 ```js
 // 注册表
 getAgentBoardToolCatalog()
-// → { version, rule, tools: [roughNotation, roughLine, roughArrow, drawIntent] }
+// → { version, rule, tools: [roughNotation, roughLine] }（动作 1.0 三动作；arrow/draw 已砍）
 
 // 校验单个 action
 validateBoardToolAction(action)
@@ -118,7 +118,7 @@ createBoardToolRuntime({ resolveTarget, resolveRegion, resolveCanvas, resolveReg
 | 填 `gapAfterMs` < 1000ms | 抬笔间隔硬下限，<1000 抛错 |
 | 填 `seed` | roughjs 随机种子由程序生成，避免 Agent 控制笔触 |
 | 跨区画图 | rough 图形只能画在 question/analysis/solution/summary 区域内 |
-| 坐标超 0—100 | rough-line/rough-arrow 的 start/end 必须是百分比 0—100 |
+| 坐标超 0—100 | rough-line 的 start/end 必须是百分比 0—100 |
 
 ---
 
@@ -128,9 +128,10 @@ createBoardToolRuntime({ resolveTarget, resolveRegion, resolveCanvas, resolveReg
 
 | action | 颜色 | 用途 |
 |---|---|---|
-| `underline` | **红色** `#d64545`（固定，不可改） | 在关键词/数字下方画手绘下划线 |
-| `highlight` | **黄色** `#f8e58c`（固定，不可改） | 在关键词/数字上画荧光高亮 |
-| `circle` | **红色** `#d64545`（固定，不可改） | 在关键词/数字外画手绘圈（夏夏指定的两大核心兜底之一，2026-10-13 第七轮接入，估算 1500ms 对齐播放端） |
+| `underline` | **红色** `#dc2626`（固定，不可改） | 在关键词/数字下方画手绘下划线 |
+| `circle` | **红色** `#dc2626`（固定，不可改） | 在关键词/数字外画手绘圈（夏夏指定的核心兜底动作，2026-10-13 第七轮接入；Task 43 动作 1.0：固定 1000ms） |
+
+> ★ Task 43 夏夏拍板：highlight 黄色荧光已砍，动作 1.0 颜色统一红 `#dc2626`（yellow `#f8e58c`、旧红 `#d64545` 已废弃）。
 
 > Agent 传 `options.colorId` 与锁定值不符 → 抛 `颜色固定为 xxx`。
 
@@ -143,7 +144,7 @@ createBoardToolRuntime({ resolveTarget, resolveRegion, resolveCanvas, resolveReg
 // 方式 B: 区域 + 原文 + 出现次（推荐 Agent B 用）
 {
   tool: 'rough-notation',
-  action: 'highlight',
+  action: 'underline',
   target: { region: 'question', exactText: '题目中要标记的原文', occurrence: 1 },
   order: 2,
   options: { multiline: false, rtl: false }
@@ -152,24 +153,27 @@ createBoardToolRuntime({ resolveTarget, resolveRegion, resolveCanvas, resolveReg
 
 > **`exactText` 必须是完整原文，禁止改写**。`occurrence` 默认 1，同文重复时指定第几个。
 
-### 3.3 时长自动计算（按汉字宽度）
+### 3.3 时长自动计算（Task 43 分档口径，真源 timing.js estimateActionDuration）
 
 ```js
-MARK_DURATION_PER_HAN_WIDTH_MS = 400  // 1 个汉字宽度 = 400ms
+NOTATION_DURATION_MS = { underline: 1000, circle: 1000 }
+UNDERLINE_LONG_MS  = 1500   // >5 字
+UNDERLINE_XLONG_MS = 2000   // >10 字
 
-function estimateMarkDurationMs(element, { multiline }) {
-  const totalWidth = element 总渲染宽度（multiline 时累加各 rect）
-  const hanWidth = max(computedFontSize, fallbackFontSize)
-  const equivalentHanWidth = totalWidth / hanWidth
-  return max(1, round(equivalentHanWidth * 400))  // ms
+function estimateActionDuration(action) {
+  if (action.action === 'circle') return 1000         // 画圈固定 1s
+  const textLen = [...String(action.target.exactText || '')].length
+  if (textLen > 10) return 2000                        // 下划线按字数分档
+  if (textLen > 5)  return 1500
+  return 1000
 }
 ```
 
-> 例：3 个汉字宽度 ≈ 1200ms。Agent 不填，程序按目标实际渲染宽度折算。
+> 例：`长方形`（3 字）≈ 1000ms，`9 × 20.4`（8 字符）≈ 1500ms。Agent 不填，程序分档计算（严格 1~2 秒区间；旧「按汉字宽度 400ms/字」口径已废弃，DOM 宽度度量仅作渲染层兜底）。
 
 ---
 
-## 四、rough-line / rough-arrow 工具（画几何）
+## 四、rough-line 工具（画横线）
 
 ### 4.1 坐标格式（百分比 0—100）
 
@@ -180,7 +184,7 @@ function estimateMarkDurationMs(element, { multiline }) {
   order: 3,
   start: [10, 45],   // 百分比 [x, y]，0—100
   end:   [50, 45],
-  style: { colorId: 'ink', strokeWidthId: 'normal' }
+  style: { colorId: 'red', strokeWidthId: 'normal' }
 }
 ```
 
@@ -188,38 +192,24 @@ function estimateMarkDurationMs(element, { multiline }) {
 
 | colorId | 值 |
 |---|---|
-| `ink` | `#263238`（墨色，默认） |
-| `red` | `#d64545`（强调红） |
+| `red` | `#dc2626`（统一红，默认；Task 43 拍板，ink 墨黑已砍） |
 
 | strokeWidthId | 值 |
 |---|---|
 | `normal` | 2（默认） |
 | `emphasis` | 3（粗，用于高线/关键线） |
 
-### 4.3 时长自动计算（按几何长度）
+### 4.3 时长自动计算（Task 43 固定档）
 
 ```js
-DRAWING_SPEED_DESIGN_PX_PER_SECOND = 180  // 设计像素/秒
-MIN_DRAWING_DURATION_MS = 600             // 最短 600ms
-
-function estimateDrawingDurationMs(action) {
-  const lengthDesignPx = geometryLength(action)  // 直线=distance(start,end)
-                                                   // 箭头=shaft + 2 * head
-  const durationMs = lengthDesignPx / 180 * 1000
-  return max(600, round(durationMs))
-}
+ROUGH_LINE_DURATION_MS = 1000  // 横线固定 1000ms（与画圈同级，1~2 秒区间低档）
 ```
 
-> 例：300px 直线 ≈ 1667ms。箭头额外算两个 head 边长。
+> 真源 roughDrawingTool.js ROUGH_LINE_DURATION_MS（与 timing.js TOOL_DURATION_MS 同值）。旧「几何长度 180px/s + 最短 600ms」速度口径已废弃。
 
-### 4.4 箭头自动生成
+### 4.4 箭头已砍（Task 43 动作 1.0）
 
-箭头头部由程序按 shaft 长度自动算：
-- `headLength = clamp(18, shaftLength * 0.12, 42)`
-- `spread = π/7`（约 25.7°）
-- 两条 head 边从 end 反向延伸
-
-> Agent 只给 `start` 和 `end`，箭头形状由程序决定。
+> rough-arrow 及其箭头头部自动生成逻辑已退出白名单（「其他做我怕做不好」）；三动作之外不再有箭头叙事。
 
 ---
 
@@ -272,14 +262,14 @@ Row 2: estimatedStartMs = T1 + ROW_GAP_MS, estimatedEndMs = ...
 
 ```js
 {
-  tool: 'rough-notation' | 'rough-line' | 'rough-arrow' | 'draw',
-  action: 'underline' | 'highlight' | 'circle',  // 仅 rough-notation 需要
+  tool: 'rough-notation' | 'rough-line',        // 动作 1.0 三动作（arrow/draw 已砍）
+  action: 'underline' | 'circle',  // 仅 rough-notation 需要（highlight 已砍）
   region: 'question' | 'analysis' | 'solution' | 'summary',
   order: 正整数,                       // 单手队列顺序
   target: { region, exactText, occurrence },  // rough-notation 方式 B
   targetId: 'string',                 // rough-notation 方式 A
-  start: [x, y], end: [x, y],         // rough-line / rough-arrow，百分比 0—100
-  style: { colorId, strokeWidthId },  // rough-line / rough-arrow
+  start: [x, y], end: [x, y],         // rough-line，百分比 0—100
+  style: { colorId, strokeWidthId },  // rough-line（colorId 仅 red，ink 已砍）
   options: { multiline, rtl },        // rough-notation
   triggerAt: '+00:00:SS'              // 本 Row 开始后多少秒触发（B 输出参考）
 }
@@ -289,7 +279,7 @@ Row 2: estimatedStartMs = T1 + ROW_GAP_MS, estimatedEndMs = ...
 
 | 字段 | 原因 |
 |---|---|
-| `durationMs` / `estimatedDurationMs` | 程序按汉字宽度/几何长度算 |
+| `durationMs` / `estimatedDurationMs` | 程序分档算（画圈/横线固定 1000，下划线按字数 1000~2000） |
 | `gapAfterMs` | 默认 = MIN_HAND_LIFT_GAP_MS |
 | `seed` | roughjs 随机种子 |
 | 任意未注册字段 | 白名单外的字段直接被 validate 拒 |
@@ -298,11 +288,11 @@ Row 2: estimatedStartMs = T1 + ROW_GAP_MS, estimatedEndMs = ...
 
 | 字段 | 要求 |
 |---|---|
-| `tool` | 白名单四选一 |
+| `tool` | 动作 1.0 三选一（rough-notation underline/circle + rough-line） |
 | `order` | 正整数，单手队列顺序 |
 | `target` 或 `targetId` | rough-notation 二选一 |
-| `region` | rough-line/rough-arrow 必填，限定绘图不跨区 |
-| `start` / `end` | rough-line/rough-arrow 必填，百分比 0—100 |
+| `region` | rough-line 必填，限定绘图不跨区 |
+| `start` / `end` | rough-line 必填，百分比 0—100 |
 
 ---
 
@@ -310,7 +300,7 @@ Row 2: estimatedStartMs = T1 + ROW_GAP_MS, estimatedEndMs = ...
 
 | 反模式 | 现象 | 修正 |
 |---|---|---|
-| 自造工具 | `tool: 'box'` | 白名单只有 4 个，返回缺口给 Check Agent；注：`action: 'circle'`（rough-notation 内）是合法动作，勿混淆 |
+| 自造工具 | `tool: 'box'` | 白名单只有 3 个动作，返回缺口给 Check Agent；注：`action: 'circle'`（rough-notation 内）是合法动作，勿混淆 |
 | 改下划线颜色 | `options.colorId: 'blue'` | 颜色锁定，抛 `颜色固定为 red` |
 | 填 durationMs | `action.durationMs: 2000` | 抛 `Agent 不得覆盖` |
 | 抬笔间隔过短 | `gapAfterMs: 300` | 抛 `抬笔间隔不得小于 1000ms` |
@@ -325,13 +315,13 @@ Row 2: estimatedStartMs = T1 + ROW_GAP_MS, estimatedEndMs = ...
 
 ```
 互斥: teacher-hand-exclusive, 任意时刻只一笔
-工具白名单: rough-notation(underline/highlight/circle) / rough-line / rough-arrow / draw(意图绘图)
-颜色锁定: underline=red #d64545 / highlight=yellow #f8e58c / circle=red #d64545
+工具白名单: rough-notation(underline/circle) / rough-line（Task 43 动作 1.0 夏夏拍板三动作；highlight/rough-arrow/draw 已砍）
+颜色锁定: 动作 1.0 颜色统一红 #dc2626（underline / circle 同红；yellow #f8e58c 荧光黄、ink 墨黑已废弃）
 笔宽: normal=2 / emphasis=3
 坐标: 百分比 0—100, 原点左上
 抬笔间隔: MIN_HAND_LIFT_GAP_MS = 1000ms (硬下限; 2026-10-13 勘误: 曾误标 600ms)
-时长: 程序按汉字宽度 400ms/字 / 几何长度 180px/s 自动算, Agent 不得填
-箭头: 程序自动生成, Agent 只给 start/end
+时长: 程序分档自动算——画圈 1000 / 下划线按字数 ≤5字 1000 / >5字 1500 / >10字 2000 / 横线 1000 ms（Task 43 动作 1.0，真源 timing.js）, Agent 不得填
+箭头: 已砍（Task 43 动作 1.0：rough-arrow 退出白名单）
 取消: cancelAll() → generation += 1, 在途任务抛 "已取消"
 时间线: 单 Row 内口播+板书+动作取最大, 跨 Row 加 ROW_GAP_MS=1000ms
 ```

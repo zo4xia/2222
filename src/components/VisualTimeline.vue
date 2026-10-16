@@ -201,8 +201,8 @@ const emit = defineEmits(['select-row', 'play-audio'])
 
 const trackRef = ref(null)
 
-// ★ 标注动作类型标签（underline/highlight/circle 三大动作，白名单见 roughNotationTool）
-const ACTION_LABELS = { underline: '下划线', highlight: '高亮', circle: '圈' }
+// ★ 标注动作类型标签（Task 43 动作 1.0：underline/circle 两 notation + rough-line 横线；highlight 已砍）
+const ACTION_LABELS = { underline: '下划线', circle: '圈', 'rough-line': '横线' }
 
 // ★ 提取本行的合法标注动作（actionSpec 数组，排除 capabilityGap 缺口项）
 function getActions(row) {

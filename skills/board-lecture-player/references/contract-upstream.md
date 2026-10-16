@@ -101,15 +101,15 @@
 
 结构：`{ "action": { "tool": ..., "order": N, ... } }`，`order` 写在 action **内部**，全表唯一正整数。
 
-动作白名单（契约真源：`src/board-tools/boardToolCatalog.js`，2026-10-13 第七轮 circle 接通全链）：
+动作白名单（契约真源：`src/board-tools/boardToolCatalog.js` v1.5.0；Task 43 夏夏拍板「动作 1.0」三动作；2026-10-13 第七轮 circle 接通全链）：
 
 | tool | 用途 | 必须锚定 |
 |---|---|---|
 | `rough-notation` · `circle` | 圈关键词（核心兜底） | `target.exactText` |
 | `rough-notation` · `underline` | 划关键词（核心兜底） | `target.exactText` |
-| `rough-notation` · `highlight` | 荧光高亮 | `target.exactText` |
-| `rough-line` | 画辅助线 | region + start/end 百分比 |
-| `rough-arrow` | 画带箭头连线 | region + start/end 百分比 |
+| `rough-line` | 画横线（辅助线/高线） | region + start/end 百分比 |
+
+> ★ Task 43 夏夏拍板「动作 1.0」：`highlight`（荧光高亮）/ `rough-arrow`（带箭头连线）/ `draw` 已砍（「其他做我怕做不好」），上表即全部白名单。
 
 ```json
 { "action": {
@@ -121,7 +121,7 @@
 ```
 
 - `rough-notation` **必须锚定 `target.exactText` 文字**，否则会飘（禁止用具数坐标代替命名锚点）
-- `rough-line` / `rough-arrow` 已在白名单内（prompt §5.2 工具 2/3，播放端渲染分支完整支持）
+- `rough-line` 已在白名单内（prompt §5.2 工具 2；Task 43 动作 1.0：highlight / rough-arrow 已砍，箭头渲染分支退出契约）
 
 ---
 
@@ -134,7 +134,7 @@
 - [ ] 没有任何 keyword 字段
 - [ ] 没有出现 `字/160` 之类估算产物写进 `duration` 并被当真
 - [ ] `stage` 取值合法
-- [ ] actionSpec 工具只 rough-notation（underline/highlight/circle）/ rough-line / rough-arrow，且 `order` 全表唯一递增
+- [ ] actionSpec 工具只 rough-notation（underline/circle）/ rough-line（Task 43 动作 1.0 三动作），且 `order` 全表唯一递增
 - [ ] exactText 能在对应 region 文本中原样命中
 - [ ] content 中分数均为 `\frac{}{}`
 
@@ -148,3 +148,4 @@
 |---|---|---|---|
 | 2026-09-18 23:55 | v2.0 | 小阿星 | 首次成文：坐标退场(board v3.0 无坐标)、零 keyword、真实音频唯一时长真相源、一期动作收口为 circle+underline |
 | 2026-10-13 | v2.1 | Super Z（代表夏夏） | 动作白名单对齐真源 boardToolCatalog（第七轮全链接通后补齐本档）：notation 三动作 + rough-line/rough-arrow 进白名单；自检清单同步；校验器 PHASE1 白名单同步（曾拒绝 highlight/line/arrow 与本表打架）；补指回 .cjs（.js 双胞胎已删） |
+| Task 43（动作 1.0） | v2.2 | Super Z（代表夏夏） | 夏夏拍板「其他做我怕做不好」：白名单收紧三动作（notation underline/circle + rough-line 横线），highlight / rough-arrow / draw 全砍（draw 半孤岛 R6 一并销账）；颜色统一红 #dc2626；时长分档真源 timing.js（画圈 1000 / 下划线按字数 1000~2000 / 横线 1000） |

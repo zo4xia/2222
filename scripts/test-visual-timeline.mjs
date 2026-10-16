@@ -60,11 +60,11 @@ ok('动作提取：getActions 过滤 capabilityGap 缺口项（脏数据容错�
     '应排除缺口项')
 })
 
-ok('动作指标行：块内 action-row + 类型徽章（underline/highlight/circle）', () => {
+ok('动作指标行：块内 action-row + 类型徽章（Task 43 动作 1.0：underline/circle/rough-line）', () => {
   assert.ok(/class=\\"block-metric-row\\", \\"action-row\\"|'block-metric-row', 'action-row'/.test(src),
     '动作指标行应存在')
-  assert.ok(/ACTION_LABELS = \{ underline: '下划线', highlight: '高亮', circle: '圈' \}/.test(src),
-    '三类动作中文标签应齐')
+  assert.ok(/ACTION_LABELS = \{ underline: '下划线', circle: '圈', 'rough-line': '横线' \}/.test(src),
+    '动作 1.0 三动作中文标签应齐（highlight 已砍）')
   assert.ok(/act-\$\{t\.type\}|:class=\[?'action-badge'/.test(src) || /action-badge/.test(src),
     '类型徽章渲染应存在')
 })

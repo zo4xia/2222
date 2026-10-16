@@ -4,16 +4,16 @@ import { BOARD_DESIGN_SIZE } from '../utils/canvasCoords.js'
 
 export const ROUGH_DRAWING_TOOL_IDS = Object.freeze([
   'rough-line',
-  'rough-arrow',
 ])
 
 export const ROUGH_DRAWING_REGIONS = Object.freeze(['question', 'analysis', 'solution', 'summary'])
-export const DRAWING_SPEED_DESIGN_PX_PER_SECOND = 180
-export const MIN_DRAWING_DURATION_MS = 600
+// ★ Task 43 夏夏拍板「动作 1.0」：横线固定 1000ms（与画圈同级，1~2s 区间低档），
+// 对齐真源 timing.js TOOL_DURATION_MS['rough-line']=1000；旧几何长度速度第四套时长分叉同日废弃。
+export const ROUGH_LINE_DURATION_MS = 1000
 
+// ★ Task 43 颜色统一红 #dc2626（与 row-player STAGE_COLOR 分析区红同值）；ink 墨黑已砍
 export const ROUGH_DRAWING_COLORS = Object.freeze({
-  ink: '#263238',
-  red: '#d64545',
+  red: '#dc2626',
 })
 
 export const ROUGH_DRAWING_STROKE_WIDTHS = Object.freeze({
@@ -22,8 +22,7 @@ export const ROUGH_DRAWING_STROKE_WIDTHS = Object.freeze({
 })
 
 const TOOL_DESCRIPTIONS = Object.freeze({
-  'rough-line': '画一条辅助线、边线或高线',
-  'rough-arrow': '画一条带箭头的关系连线',
+  'rough-line': '画一条辅助线、边线或高线（红色）',
 })
 
 function requireFiniteNumber(value, name) {
@@ -48,7 +47,8 @@ function normalizePercentPoint(point, name) {
 }
 
 function normalizeStyle(style = {}) {
-  const colorId = style.colorId || 'ink'
+  // ★ Task 43：默认红（ink 已砍，颜色统一红）
+  const colorId = style.colorId || 'red'
   const strokeWidthId = style.strokeWidthId || 'normal'
   if (!ROUGH_DRAWING_COLORS[colorId]) throw new Error(`未知画笔颜色 ID: ${colorId}`)
   if (!ROUGH_DRAWING_STROKE_WIDTHS[strokeWidthId]) throw new Error(`未知笔画宽度 ID: ${strokeWidthId}`)
@@ -80,23 +80,6 @@ function normalizeCommonAction(action) {
 
 function distance(left, right) {
   return Math.hypot(right[0] - left[0], right[1] - left[1])
-}
-
-function arrowHeadPoints(start, end) {
-  const shaftLength = distance(start, end)
-  const headLength = Math.min(42, Math.max(18, shaftLength * 0.12))
-  const angle = Math.atan2(end[1] - start[1], end[0] - start[0])
-  const spread = Math.PI / 7
-  return [
-    [end[0] - headLength * Math.cos(angle - spread), end[1] - headLength * Math.sin(angle - spread)],
-    [end[0] - headLength * Math.cos(angle + spread), end[1] - headLength * Math.sin(angle + spread)],
-  ]
-}
-
-function geometryLength(action) {
-  if (action.tool === 'rough-line') return distance(action.start, action.end)
-  const heads = arrowHeadPoints(action.start, action.end)
-  return distance(action.start, action.end) + distance(action.end, heads[0]) + distance(action.end, heads[1])
 }
 
 function actionPoints(action) {
@@ -178,17 +161,8 @@ function roughOptions(action) {
 function appendRoughShape(svg, action) {
   const renderer = rough.svg(svg)
   const options = roughOptions(action)
-  if (action.tool === 'rough-line') {
-    return renderer.line(...action.start, ...action.end, options)
-  }
-  const group = document.createElementNS('http://www.w3.org/2000/svg', 'g')
-  const heads = arrowHeadPoints(action.start, action.end)
-  group.append(
-    renderer.line(...action.start, ...action.end, options),
-    renderer.line(...action.end, ...heads[0], options),
-    renderer.line(...action.end, ...heads[1], options),
-  )
-  return group
+  // ★ Task 43：rough-arrow 已砍，仅剩 rough-line 直线分支
+  return renderer.line(...action.start, ...action.end, options)
 }
 
 function animatePaths(group, durationMs) {
@@ -213,11 +187,9 @@ function animatePaths(group, durationMs) {
 export function estimateRoughDrawingDurationMs(action) {
   const result = validateRoughDrawingAction(action)
   if (!result.ok) throw new Error(result.error)
-  const drawingAction = toDesignPixels(result.value)
-  return Math.max(
-    MIN_DRAWING_DURATION_MS,
-    Math.round((geometryLength(drawingAction) / DRAWING_SPEED_DESIGN_PX_PER_SECOND) * 1000),
-  )
+  // ★ Task 43 夏夏拍板：横线固定 1000ms（1~2s 区间低档，与画圈同级）——
+  // 对齐真源 timing.js estimateActionDuration，旧「几何长度×180px/s」速度分叉废弃
+  return ROUGH_LINE_DURATION_MS
 }
 
 export function validateRoughDrawingAction(action) {
@@ -323,8 +295,7 @@ export function getRoughDrawingAgentTools() {
     },
     timing: {
       owner: 'program',
-      rule: `按实际几何路径长度计算，最短 ${MIN_DRAWING_DURATION_MS}ms；Agent 不填时长`,
-      minimumDurationMs: MIN_DRAWING_DURATION_MS,
+      rule: `横线固定 ${ROUGH_LINE_DURATION_MS}ms（Task 43 夏夏拍板，1~2s 区间低档）；Agent 不填时长`,
     },
     actionSchema: schemaFor(tool),
     example: exampleFor(tool),

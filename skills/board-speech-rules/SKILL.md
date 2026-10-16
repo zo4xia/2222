@@ -192,13 +192,14 @@ board 是对象，不是字符串：
 
 ## 五、动作工具规则
 
-### 5.1 已注册工具（仅 3 个，禁止使用未注册工具）
+### 5.1 已注册工具（动作 1.0 三动作，Task 43 夏夏拍板，禁止使用未注册工具）
 
 | 工具 | 用途 |
 |---|---|
-| `rough-notation` | 文字标记：下划线/高亮 |
-| `rough-line` | 画直线 |
-| `rough-arrow` | 画箭头 |
+| `rough-notation` | 文字标记：下划线/画圈 |
+| `rough-line` | 画横线 |
+
+> ★ Task 43 动作 1.0（夏夏拍板）：highlight / rough-arrow / draw 已砍，只保留下划线/画圈/横线三动作。
 
 ### 5.2 通用字段
 
@@ -217,7 +218,7 @@ board 是对象，不是字符串：
 
 ### 5.4 动作坐标区域约束（硬约束）
 
-- rough-line/rough-arrow 的 start/end 坐标**必须严格落在 region 对应区域范围内**
+- rough-line 的 start/end 坐标**必须严格落在 region 对应区域范围内**
 - 参考 handoff.boardPlan 中该区域的 x/y/w/h，start 和 end 都不得超出区域边界，**不得跨区域画线**
 
 ### 5.5 rough-notation（文字标记）
@@ -225,7 +226,7 @@ board 是对象，不是字符串：
 - 只能标记 board 上已经存在的原文，不能标不存在的文字
 - `target.exactText` 必须是 board 上已有的原文，逐字一致
 - `target.occurrence`：同样的文字出现多次时，标第几个，默认 1
-- 下划线固定红色，高亮固定浅黄色；不得传 options.colorId
+- 动作颜色统一红色（Task 43 动作 1.0：高亮已砍）；不得传 options.colorId
 - region 为 question 时，exactText 匹配题目区展示的题目原文，不是 board——读题行 board 为空，照样可以标 question 区
 
 ### 5.6 读题行下划线规则
@@ -270,7 +271,7 @@ board 是对象，不是字符串：
 
 - 第一行 stage 必须是"题目"且 board 为空
 - 严格 JSON 格式，不含 Markdown 或解释
-- actionSpec 只输出已注册工具（rough-line/rough-arrow/rough-notation），不得输出 draw、答语 stage、userPayload 或其他不存在的字段
+- actionSpec 只输出已注册工具（rough-notation 下划线/画圈 + rough-line 横线，Task 43 动作 1.0），不得输出 draw、答语 stage、userPayload 或其他不存在的字段
 - speech 和 board 含义一致、出现顺序同步，但表达形式分开
 - 建议至少有一个分析步骤；特殊题型可将分析揉进解答或省略，以题目实际需要为准，不强制
 
@@ -284,7 +285,7 @@ board 是对象，不是字符串：
 | 起手坐标超出区域范围 | 板书会画到其他区域或画布外 | 参考 boardPlan，坐标落在对应区域内 |
 | 把口播转写形式写入板书 | 板书不规范，学生看到的是口语不是数学格式 | 板书始终用规范数学格式（\frac、×、÷等） |
 | speech 里出现 LaTeX 命令 | TTS 无法朗读，会读成"反斜杠 frac" | speech 是纯口播文本，复杂符号转标准读法 |
-| 动作坐标跨区域 | 直线/箭头会穿过其他区域，视觉混乱 | start/end 都落在 region 对应区域内 |
+| 动作坐标跨区域 | 横线会穿过其他区域，视觉混乱 | start/end 都落在 region 对应区域内 |
 | 删改口播毛料 | 失去真人直播感，变成教案腔 | 保留自然口语、口癖、接话、犹豫，只在改变数学事实时删改 |
 | 用 TTS 控制标签 | 第三方 TTS 不识别，会原样读出 | 长停顿靠拆行获得 row gap，行内靠中文标点 |
 | 输出 duration 或时间字段 | 时间由下游动态计算，B 不输出时间 | 只输出内容字段（stage/speech/board/actionSpec） |
@@ -317,7 +318,7 @@ board 是对象，不是字符串：
 - 口播约 160 字/分，长停顿靠拆行
 - 分数用 `\frac{}`，口播念"分母分之分子"
 - 字母 x 在复合表达式里念"艾克斯"
-- 动作只有 3 个：rough-notation/rough-line/rough-arrow
+- 动作只有 3 个：rough-notation（下划线/画圈）+ rough-line（横线）——Task 43 动作 1.0
 - 动作 triggerAt 是"本 row 开始后多少秒"，格式 `+00:00:SS`
 - 动作坐标必须落在 region 区域内，不得跨区域
 - 读题行 board 为空，可标 question 区下划线

@@ -221,10 +221,9 @@ const checkFieldLabels = {
 
 const toolLabels = {
   underline: '下划线',
-  highlight: '高亮',
   circle: '画圈', // 2026-10-13 第七轮：circle 接入白名单后的弹层中文标签
-  'rough-line': '辅助线',
-  'rough-arrow': '箭头',
+  'rough-line': '横线',
+  // ★ Task 43 动作 1.0（夏夏拍板）：highlight / rough-arrow 已砍，只留三动作
 }
 
 function formatToolFields(schema) {
@@ -2862,14 +2861,7 @@ function isRefineFieldEqual(original, refined) {
               </a-typography-title>
               <div class="qh-tool-common">
                 <div><b>action.order</b>：全表唯一正整数，按播放顺序递增</div>
-                <div><b>标记颜色</b>：下划线红色；高亮浅黄色</div>
-                <div>
-                  <b>直线 / 箭头颜色</b>：<a-tag color="default">
-                    ink
-                  </a-tag> <a-tag color="red">
-                    red
-                  </a-tag>
-                </div>
+                <div><b>标记颜色</b>：动作 1.0 颜色统一红（下划线/画圈/横线，夏夏拍板 Task 43）</div>
                 <div><b>笔画 strokeWidthId</b>：normal（细）/ emphasis（粗）</div>
               </div>
             </a-col>

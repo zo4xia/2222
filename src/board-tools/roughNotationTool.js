@@ -4,25 +4,22 @@ import { MIN_HAND_LIFT_GAP_MS } from './boardToolTiming.js'
 export { MIN_HAND_LIFT_GAP_MS } from './boardToolTiming.js'
 
 export const ROUGH_NOTATION_TOOL_ID = 'rough-notation'
-// 2026-10-13 第七轮：circle 接入白名单。
-// 契约拍板依据（四方对齐）：夏夏原话#33（underline+circle 两大核心兜底）、
-// prompt.js §5.2 教学（circle 固定红 #d64545）、row-player 播放端 L1029 渲染分支 + 1500ms 时序、
-// README 核心约束表。此前生成侧拒绝 circle → B 产的圈被静默降级丢弃 + check 误报违规 —— 契约分裂修复。
+// ★ Task 43 夏夏拍板「动作 1.0」：白名单收紧为 underline/circle 两 notation 动作（+rough-line 横线
+// 在 roughDrawingTool），highlight 砍掉（「其他做我怕做不好」）；颜色统一红 #dc2626
+// （与 row-player STAGE_COLOR 分析区红同值，销 #d64545/#dc2626 双红分裂）。
+// 历史依据：2026-10-13 第七轮 circle 回归白名单（夏夏原话#33 underline+circle 兜底）。
 export const ROUGH_NOTATION_ENABLED_ACTIONS = Object.freeze([
   'underline',
-  'highlight',
   'circle',
 ])
 export const MARK_DURATION_PER_HAN_WIDTH_MS = 400
 
 export const BOARD_MARK_COLORS = Object.freeze({
-  red: '#d64545',
-  yellow: '#f8e58c',
+  red: '#dc2626',
 })
 
 const TYPE_DESCRIPTIONS = Object.freeze({
-  underline: '在已存在的关键词或数字下方画手绘下划线',
-  highlight: '在已存在的关键词或数字上画荧光高亮',
+  underline: '在已存在的关键词或数字下方画手绘下划线（红色）',
   circle: '在已存在的关键词或数字外画手绘圈（固定红色，粗圈关键词/关键数字）',
 })
 
@@ -42,7 +39,8 @@ function normalizeOptions(action, options = {}) {
   if (!ROUGH_NOTATION_ENABLED_ACTIONS.includes(action)) {
     throw new Error(`当前未开放的 RoughNotation 动作: ${action || '空'}`)
   }
-  const colorId = action === 'highlight' ? 'yellow' : 'red'
+  // ★ Task 43：颜色统一红（highlight 已砍，yellow 色板同步删除）
+  const colorId = 'red'
   return {
     type: action,
     animate: true,
@@ -167,8 +165,9 @@ export function getRoughNotationAgentTool() {
     },
     timing: {
       owner: 'program',
-      rule: '3 个汉字宽度 = 1200ms；按目标实际渲染宽度折算，Agent 不填秒数',
-      millisecondsPerHanWidth: MARK_DURATION_PER_HAN_WIDTH_MS,
+      // ★ Task 43 分档口径（真源 timing.js estimateActionDuration，画圈 1000ms；
+      // 下划线 ≤5字 1000 / >5字 1500 / >10字 2000），Agent 不填秒数
+      rule: '画圈固定 1s；下划线按 exactText 字数分档（≤5字 1s / >5字 1.5s / >10字 2s），Agent 不填秒数',
     },
     actionSchema: {
       tool: ROUGH_NOTATION_TOOL_ID,

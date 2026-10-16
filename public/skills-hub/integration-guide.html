@@ -121,7 +121,7 @@ for (const row of rows) {
     switch (step.type) {
       case 'speech':  /* 口播进行中 */ break;
       case 'board':   /* 板书写 step.content */ break;
-      case 'action':  /* 动作 step.action (rough-notation/line/arrow) */ break;
+      case 'action':  /* 动作 step.action (rough-notation underline/circle + rough-line 横线, Task 43 动作 1.0) */ break;
     }
     // 等到 step.endOffsetMs
     await new Promise(r => setTimeout(r, step.endOffsetMs - currentTime));
@@ -179,8 +179,8 @@ for (const row of rows) {
   <tr><td><code>board.startDelay</code></td><td>number</td><td class="req">必</td><td>本 row 音频开始后几秒落笔（秒）</td></tr>
   <tr><td><code>board.region</code></td><td>enum</td><td class="req">必</td><td>板书所在区（v3.0，不含坐标）</td></tr>
   <tr><td><code>actionSpec</code></td><td>array</td><td class="req">必</td><td>动作数组，无动作为 []</td></tr>
-  <tr><td><code>action.tool</code></td><td>enum</td><td class="req">必</td><td>'rough-notation' / 'rough-line' / 'rough-arrow'</td></tr>
-  <tr><td><code>action.action</code></td><td>enum</td><td class="opt">选</td><td>'underline' / 'highlight' / 'circle' (rough-notation 专属)</td></tr>
+  <tr><td><code>action.tool</code></td><td>enum</td><td class="req">必</td><td>'rough-notation' / 'rough-line'（Task 43 动作 1.0，rough-arrow 已砍）</td></tr>
+  <tr><td><code>action.action</code></td><td>enum</td><td class="opt">选</td><td>'underline' / 'circle' (rough-notation 专属, highlight 已砍)</td></tr>
   <tr><td><code>action.order</code></td><td>number</td><td class="req">必</td><td>单手队列正整数顺序，全表唯一</td></tr>
   <tr><td><code>action.target.exactText</code></td><td>string</td><td class="req">必</td><td>rough-notation 必须锚定原文（禁止改写）</td></tr>
   <tr><td><code>mp3</code> / <code>audioBase64</code></td><td>string</td><td class="req">必</td><td>真实音频（二者至少其一，缺即规格冲突）</td></tr>
