@@ -113,16 +113,46 @@ function appendBoard(startOffsetMs, boardDurationMs, boardContent, exclusiveExec
   return endOffsetMs
 }
 
+/**
+ * ★ Task 43 关键词触发真源（夏夏拍板「动作以关键词锚定」）：
+ * actionSpec entry 级 triggerKeyword → 语音内时点（毫秒）。比例映射算法（3025bad anchorMs 复活）：
+ * 关键词在口播中的字符位置比例 × 行时长，clamp 0.95 防越界；miss（空/找不到）返回 null 走原串行排期。
+ * 与板书起笔共用「字符位置×时长」同一套法则；受互斥钳制（不早于前序结束，夏夏铁律：
+ * 「每个 row 内所有板书和动作互斥，不允许一个时间两个地方再动」）。
+ */
+export function resolveKeywordTimeMs(speech, keyword, speechDurationMs) {
+  const kw = String(keyword ?? '').trim()
+  if (!kw) return null
+  const text = String(speech ?? '')
+  const idx = text.indexOf(kw)
+  if (idx < 0) return null
+  const totalChars = Math.max(1, [...text].length)
+  const beforeChars = [...text.slice(0, idx)].length
+  const ratio = Math.min(0.95, Math.max(0, beforeChars / totalChars))
+  return Math.round(speechDurationMs * ratio)
+}
+
 // ponytail: 抽 appendAction + appendActionLoop — 3 处重复的 action for 循环统一到这里
 // appendAction 返回 nextCursorMs (推进 HAND_LIFT_GAP_MS)
-function appendAction(actionSpec, idx, cursorMs, actionTimeline, exclusiveExecutionPlan) {
+// ★ Task 43：keywordCtx={speech,speechDurationMs} 可选——动作支持 entry 级 triggerKeyword
+// 关键词时点；互斥钳制 startMs=max(kwTime, cursorMs)（不得早于板书写完+抬笔/上一动作结束）
+function appendAction(actionSpec, idx, cursorMs, actionTimeline, exclusiveExecutionPlan, keywordCtx) {
   const act = actionSpec[idx]
   const dur = estimateActionDuration(act)
-  const startMs = cursorMs
+  let startMs = cursorMs
+  let keywordStartOffsetMs = null
+  if (keywordCtx) {
+    const kwTime = resolveKeywordTimeMs(keywordCtx.speech, act?.triggerKeyword, keywordCtx.speechDurationMs)
+    if (kwTime != null) {
+      keywordStartOffsetMs = kwTime
+      startMs = Math.max(kwTime, cursorMs)   // 互斥铁律：关键词不得提前到前序未结束
+    }
+  }
   const endMs = startMs + dur
   actionTimeline.push({
     index: idx, action: act, role: 'punctuation_pause',
     startOffsetMs: startMs, durationMs: dur, endOffsetMs: endMs,
+    ...(keywordStartOffsetMs != null ? { keywordStartOffsetMs, triggerKeyword: act.triggerKeyword } : {}),
   })
   exclusiveExecutionPlan.push({
     type: 'action', role: 'punctuation_pause', index: idx,
@@ -131,9 +161,9 @@ function appendAction(actionSpec, idx, cursorMs, actionTimeline, exclusiveExecut
   return endMs + HAND_LIFT_GAP_MS
 }
 
-function appendActionLoop(actionSpec, cursorMs, actionTimeline, exclusiveExecutionPlan) {
+function appendActionLoop(actionSpec, cursorMs, actionTimeline, exclusiveExecutionPlan, keywordCtx) {
   for (let idx = 0; idx < actionSpec.length; idx++) {
-    cursorMs = appendAction(actionSpec, idx, cursorMs, actionTimeline, exclusiveExecutionPlan)
+    cursorMs = appendAction(actionSpec, idx, cursorMs, actionTimeline, exclusiveExecutionPlan, keywordCtx)
   }
   return cursorMs
 }
@@ -157,8 +187,14 @@ export function computeRowGroupTimeline(row, options = {}) {
   const boardDurationMs = hasBoard ? calculateBoardWritingDuration(boardContent) : 0
 
   // 3. 动作提取与严格 1-2 秒时长计算
+  // ★ Task 43：按 action.order 排序（3025bad 有而现行丢失的回归——动作顺序信任输入顺序的隐患）；
+  // entry 级 triggerKeyword 经 {...entry} 透传归一（contract.js），此处消费
   const rawActions = Array.isArray(row.actionSpec) ? row.actionSpec : []
-  const actionSpec = rawActions.filter(Boolean)
+  const actionSpec = rawActions.filter(Boolean).slice().sort((a, b) => {
+    const oa = Number(a?.action?.order ?? a?.order ?? 0) || 0
+    const ob = Number(b?.action?.order ?? b?.order ?? 0) || 0
+    return oa - ob
+  })
   const hasAction = actionSpec.length > 0
 
   let boardStartDelayMs = 0
@@ -185,8 +221,9 @@ export function computeRowGroupTimeline(row, options = {}) {
     boardEndDelayMs = appendBoard(boardStartDelayMs, boardDurationMs, boardContent, exclusiveExecutionPlan)
   } else if (!hasBoard && hasAction) {
     // 分支 2: 纯动作（如题目行圈关键词）— 动作按标点停顿排布，每个动作 1-2s
+    // ★ Task 43：支持 entry 级 triggerKeyword 关键词时点（互斥钳制）
     let cursorMs = Math.min(1200, Math.max(600, Math.round(speechDurationMs * 0.12)))
-    appendActionLoop(actionSpec, cursorMs, actionTimeline, exclusiveExecutionPlan)
+    appendActionLoop(actionSpec, cursorMs, actionTimeline, exclusiveExecutionPlan, { speech, speechDurationMs })
   } else if (hasBoard && hasAction) {
     // 分支 3: 既有板书又有动作 — 板书与动作绝对互斥！动作作为标点停顿！
     const firstAct = actionSpec[0]?.action || actionSpec[0]
@@ -194,8 +231,9 @@ export function computeRowGroupTimeline(row, options = {}) {
 
     if (isTargetingQuestion) {
       // 模式 A: 前置动作（标点停顿） → 换手 → 后置板书
+      // ★ Task 43：支持 entry 级 triggerKeyword 关键词时点（互斥钳制）
       let actCursor = Math.min(1000, Math.max(500, Math.round(speechDurationMs * 0.1)))
-      actCursor = appendActionLoop(actionSpec, actCursor, actionTimeline, exclusiveExecutionPlan)
+      actCursor = appendActionLoop(actionSpec, actCursor, actionTimeline, exclusiveExecutionPlan, { speech, speechDurationMs })
       // 动作结束并抬手后，板书才开始（绝对互斥）
       boardStartDelayMs = actCursor
       boardEndDelayMs = appendBoard(boardStartDelayMs, boardDurationMs, boardContent, exclusiveExecutionPlan)
@@ -207,8 +245,9 @@ export function computeRowGroupTimeline(row, options = {}) {
       boardStartDelayMs = rawDelay
       boardEndDelayMs = appendBoard(boardStartDelayMs, boardDurationMs, boardContent, exclusiveExecutionPlan)
       // 板书完全写完并抬手换笔后，再串行执行动作（绝对互斥）
+      // ★ Task 43：支持 entry 级 triggerKeyword 关键词时点（互斥钳制：不早于板书写完+抬笔）
       let actCursor = boardEndDelayMs + HAND_LIFT_GAP_MS
-      appendActionLoop(actionSpec, actCursor, actionTimeline, exclusiveExecutionPlan)
+      appendActionLoop(actionSpec, actCursor, actionTimeline, exclusiveExecutionPlan, { speech, speechDurationMs })
     }
   }
 

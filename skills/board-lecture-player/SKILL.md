@@ -15,7 +15,7 @@ blingbling小眼睛 结合这个skills 能看到效果；
 | # | 规矩 | 反面（黑名单） |
 |---|---|---|
 | 1 | **真实音频是唯一时长真相源** | ❌ 禁止 `speech.length/160*60` 之类**按字数估算时长**。假时钟会把口癖、停顿、换气全丢掉，且错位无规律无法校准。缺 mp3/audioBase64 = **规格冲突**，显式报错停下，**不许静默降级成估算** |
-| 2 | **零 keyword** | ❌ 合同里**没有 keyword 字段**（历史上加过又被改没了）。渲染端**不得依赖**任何关键词/anchor 字段做同步 |
+| 2 | **keyword 管制（Task 43 v2.2 修订）** | ❌ board 域**零 keyword**（keyword/keywords/cue/triggerAtWords 禁用）；✅ actionSpec entry 级 `triggerKeyword` 受控放行（动作在说到该词时刻起笔，互斥钳制，比例映射镜像 timing.js resolveKeywordTimeMs） |
 | 3 | **board 零坐标** | ❌ `board` 不带 x/y/startCoord。位置由渲染层按区域**自动感知排版**，上游只说「属于哪个区」 |
 
 > 第 1 条是夏夏反复纠错过多次的点：要的是**真实音频**，不是按字数算出来的假时长。
@@ -60,7 +60,7 @@ const writeWin = Math.max(0.8, SEC - board.startDelay - actionTail);
 const p = clamp01((t - board.startDelay) / writeWin);
 ```
 
-- **row 即一组单位：一行 = 一个意群 + 板书，真实音频就在这 row 里 → 天然对齐，**这就是零 keyword 也能同步的原理**
+- **row 即一组单位：一行 = 一个意群 + 板书，真实音频就在这 row 里 → 天然对齐，这就是 board 域零 keyword 也能同步的原理**；动作域 Task 43 起用 entry 级 triggerKeyword 辅助定位（比例映射估算，非时间戳，受互斥钳制）
 - `writeWin <= 0` → 规格冲突（内容多音频短），报错，**不静默压缩**
 - 板书未完成 → 动作不起笔；动作内部按 `order` 串行；row 之间 ~0.6s 呼吸停顿
 - 可选精化：`SpeechSynthesisUtterance.onboundary` 拿到字符 index 做词级插值（锦上添花，不是依赖）

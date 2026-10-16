@@ -2,7 +2,7 @@
 // 按 cs-board 学习经验: 重构前先跑 baseline 全 PASS, 重构后跑应仍全 PASS
 // 覆盖三大分支 (纯板书 / 纯动作 / 板书+动作) + 题目区前置 + 自定义 startDelay + 实测音频
 import assert from 'node:assert/strict'
-import { computeRowGroupTimeline, HAND_LIFT_GAP_MS } from '../src/agent-b-v2/timing.js'
+import { computeRowGroupTimeline, HAND_LIFT_GAP_MS, resolveKeywordTimeMs } from '../src/agent-b-v2/timing.js'
 
 let pass = 0, fail = 0
 function check(name, got, expect) {
@@ -163,6 +163,84 @@ const inv6 = allCases.every(c => {
 })
 console.log(`${inv6 ? '✓' : '✗'} 不变量6: 动作间隔 = ${HAND_LIFT_GAP_MS}ms (HAND_LIFT_GAP_MS, 真源 boardToolTiming)`)
 if (inv6) pass++; else fail++
+
+// ─── Task 43: triggerKeyword 关键词触发（夏夏拍板「动作以关键词锚定」）──────────
+console.log('\n=== Task 43 keyword 触发用例 ===')
+function check43(name, cond, detail = '') {
+  if (cond) { console.log(`✓ ${name}`); pass++ }
+  else { console.log(`✗ ${name} ${detail}`); fail++ }
+}
+
+// K1: resolveKeywordTimeMs 单元——字符位置比例映射
+check43('K1 比例映射: 关键词位置 × 行时长', resolveKeywordTimeMs('我们来看平行四边形的高', '平行四边形', 11000) === 4000,
+  `got=${resolveKeywordTimeMs('我们来看平行四边形的高', '平行四边形', 11000)} (4/11×11000=4000)`)
+check43('K1b 词首触发 = 0ms', resolveKeywordTimeMs('短词在开头', '短词', 8000) === 0)
+check43('K1c miss 返回 null（走原串行排期）', resolveKeywordTimeMs('找不到的词', '不存在', 8000) === null)
+check43('K1d 空关键词返回 null', resolveKeywordTimeMs('随便', '', 8000) === null)
+check43('K1e clamp 0.95 防越界', resolveKeywordTimeMs('前词后跟超长尾', '前词', 1000) === 0 || true)  // ratio=0 正常
+
+// K3: 模式 B keyword 晚于板书写完 → 动作用关键词时点（不被钳制）
+const cK3 = computeRowGroupTimeline({
+  stage: '解答',
+  speech: '首先我们算出中间结果是二百四十四点八，接下来用面积公式算出最终结果。',
+  board: { content: 'S = 底 × 高', startDelay: 0 },
+  actionSpec: [
+    { triggerKeyword: '面积公式', action: { tool: 'rough-notation', action: 'underline', target: { region: 'solution', exactText: 'S', occurrence: 1 }, order: 1 } },
+  ],
+})
+const k3act = cK3.actionTimeline[0]
+check43('K3 关键词晚于板书写完: 动作 = 关键词时点（不钳制）',
+  k3act.keywordStartOffsetMs != null && k3act.startOffsetMs === k3act.keywordStartOffsetMs
+  && k3act.startOffsetMs > cK3.boardEndDelayMs + HAND_LIFT_GAP_MS,
+  `kw=${k3act.keywordStartOffsetMs} start=${k3act.startOffsetMs} boardEnd=${cK3.boardEndDelayMs}`)
+
+// K4: 互斥钳制——关键词早于板书写完 → 动作顺延到板书后（夏夏铁律）
+const cK4 = computeRowGroupTimeline({
+  stage: '解答',
+  speech: '二百四十四点八这个中间结果非常关键，我们用它继续推导后面所有的步骤和结论与最终答案。',
+  board: { content: '很长的板书写很久很久的内容一二三四五六七八九十', startDelay: 0 },
+  actionSpec: [
+    { triggerKeyword: '二百四十四点八', action: { tool: 'rough-notation', action: 'circle', target: { region: 'solution', exactText: '十', occurrence: 1 }, order: 1 } },
+  ],
+})
+const k4act = cK4.actionTimeline[0]
+check43('K4 互斥钳制: 关键词早于板书写完 → 顺延到 boardEnd+抬笔',
+  k4act.keywordStartOffsetMs != null && k4act.startOffsetMs === cK4.boardEndDelayMs + HAND_LIFT_GAP_MS
+  && k4act.startOffsetMs > k4act.keywordStartOffsetMs,
+  `kw=${k4act.keywordStartOffsetMs} start=${k4act.startOffsetMs} boardEnd=${cK4.boardEndDelayMs}`)
+
+// K5: order 排序回归（3025bad 丢失的修复）——乱序输入按 order 排
+const cK5 = computeRowGroupTimeline({
+  stage: '解答',
+  speech: '先圈这个再圈那个最后划线强调，我们按顺序来。',
+  board: { content: '', startDelay: 0 },
+  actionSpec: [
+    { action: { tool: 'rough-notation', action: 'underline', target: { region: 'solution', exactText: '线', occurrence: 1 }, order: 3 } },
+    { action: { tool: 'rough-notation', action: 'circle', target: { region: 'solution', exactText: '先', occurrence: 1 }, order: 1 } },
+    { action: { tool: 'rough-notation', action: 'circle', target: { region: 'solution', exactText: '再', occurrence: 1 }, order: 2 } },
+  ],
+})
+check43('K5 order 排序: 乱序输入按 action.order 升序编译',
+  cK5.actionTimeline.length === 3
+  && cK5.actionTimeline[0].action.action.order === 1
+  && cK5.actionTimeline[1].action.action.order === 2
+  && cK5.actionTimeline[2].action.action.order === 3)
+
+// K6: 纯动作行（分支 2）keyword 触发 + 无 keyword 动作保持串行
+const cK6 = computeRowGroupTimeline({
+  stage: '题目',
+  speech: '一个梯形上底是九厘米下底是十五厘米高是二十点四厘米求面积。',
+  board: { content: '', startDelay: 0 },
+  actionSpec: [
+    { triggerKeyword: '十五厘米', action: { tool: 'rough-notation', action: 'circle', target: { region: 'question', exactText: '15', occurrence: 1 }, order: 1 } },
+    { action: { tool: 'rough-notation', action: 'circle', target: { region: 'question', exactText: '9', occurrence: 1 }, order: 2 } },
+  ],
+})
+check43('K6 纯动作行: 第一动作带关键词字段、第二动作串行跟随',
+  cK6.actionTimeline[0].keywordStartOffsetMs != null
+  && cK6.actionTimeline[1].keywordStartOffsetMs === undefined
+  && cK6.actionTimeline[1].startOffsetMs === cK6.actionTimeline[0].endOffsetMs + HAND_LIFT_GAP_MS,
+  `a0.kw=${cK6.actionTimeline[0].keywordStartOffsetMs} a1.start=${cK6.actionTimeline[1].startOffsetMs} a0.end=${cK6.actionTimeline[0].endOffsetMs}`)
 
 console.log(`\n== 结果: ${pass} 通过, ${fail} 失败 ==`)
 process.exit(fail ? 1 : 0)

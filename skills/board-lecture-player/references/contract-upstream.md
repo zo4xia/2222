@@ -22,9 +22,9 @@
 
 上游只需要说「这段板书属于哪个区」（`region: question|analysis|solution|summary`），**不需要、也不允许给 x/y**。
 
-### 1.2 零 keyword：字典里没有这个词
+### 1.2 keyword 管制：板书域零 keyword，actionSpec 域受控放行 triggerKeyword（Task 43 v2.2 修订）
 
-合同里**不存在 `keyword` 字段**，历史上加过又被改没了。渲染端**不得依赖**任何关键词字段做同步——
+旧口径「合同里不存在 keyword 字段」为 v2.0（2026-09-18）教义，Task 43（2026-10-16）夏夏拍板「动作以关键词锚定」后**精准反转**：`actionSpec` entry 级（与 action 平级）允许 `triggerKeyword`（口播触发词，动作在说到该词的时刻起笔，受互斥钳制）；**board 域仍零 keyword**——`board.triggerKeyword` 等旧同步字段（keyword/keywords/cue/triggerAtWords）仍然禁用（validate_contract ILLEGAL_SYNC_KEYS 精确键名匹配，triggerKeyword 不命中非法键）。渲染端 row-player compile 消费 actionSpec 级 triggerKeyword（比例映射，镜像 timing.js resolveKeywordTimeMs 真源）。
 依赖不存在的字段 = 运行时拿 `undefined` = 同步静默失效。
 
 > 同步机制见 `render-downstream.md` §2（音频时钟），与关键词无关。
@@ -131,7 +131,7 @@
 
 - [ ] 每个 row 都有真实音频（mp3 / audioBase64）
 - [ ] 没有任何 board 带坐标字段
-- [ ] 没有任何 keyword 字段
+- [ ] board 域没有任何 keyword 字段（actionSpec entry 级 triggerKeyword 为唯一受控例外）
 - [ ] 没有出现 `字/160` 之类估算产物写进 `duration` 并被当真
 - [ ] `stage` 取值合法
 - [ ] actionSpec 工具只 rough-notation（underline/circle）/ rough-line（Task 43 动作 1.0 三动作），且 `order` 全表唯一递增

@@ -176,9 +176,9 @@ check('区域缺位 → src:"fallback"（模板常量兜底）',
   void act
 }
 
-/* 动作字池注入结构：plan.push 带 boardChars:boardCharsRegistry.slice() */
+/* 动作字池注入结构：plan.push 带 boardChars:boardCharsRegistry.slice()（Task 43 起中间可插 keyword 展开行） */
 check('compile 动作段带板书字池快照（boardChars:boardCharsRegistry.slice()）',
-  /type:'action',startOffsetMs:cursor,durationMs:adur,action:a,\s*\n\s*boardChars:boardCharsRegistry\.slice\(\)/.test(script))
+  /type:'action',startOffsetMs:cursor,durationMs:adur,action:a,[\s\S]{0,200}?boardChars:boardCharsRegistry\.slice\(\)/.test(script))
 
 /* ---------- 6) 结构断言：drawWriting / drawAction / 字体门 ---------- */
 check('drawWriting 消费编译期布局（task.layout 优先 + layoutBoardLines 回退同函数）',

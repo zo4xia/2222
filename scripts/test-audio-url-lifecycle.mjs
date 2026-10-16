@@ -289,6 +289,31 @@ ok('Task 43 GAP=1000：三胞胎对齐真源 AGENT_B_V2_ROW_GAP_MS（销 1500 �
   assert.ok(timingSrc.includes('AGENT_B_V2_ROW_GAP_MS = 1000'), '真源 ROW_GAP 应为 1000（锚点不动）')
 })
 
+ok('Task 43 keyword 触发：row-player 三胞胎编译消费 entry 级 triggerKeyword', () => {
+  assert.ok(/const kwTimeMs=\(a\)=>\{/.test(twinA), 'kwTimeMs 比例映射函数应存在')
+  assert.ok(/kwRaw\!=null\)cursor=Math\.max\(kwRaw,cursor\)/.test(twinA), '互斥钳制 max(kwRaw,cursor) 应存在')
+  assert.ok(/keywordStartOffsetMs:kwRaw/.test(twinA), 'plan 项应携带 keywordStartOffsetMs 可观测字段')
+  assert.ok(/const actsSorted=\[\.\.\.acts\]\.sort/.test(twinA), '动作按 action.order 排序应存在')
+  assert.ok(twinB.includes('const kwTimeMs=(a)=>{'), '双胞胎同步 kwTimeMs')
+})
+
+ok('Task 43 幽灵槽拔除：board 级 triggerKeyword 不再清零 startDelay（3025bad 反语义陷阱销账）', () => {
+  assert.ok(!/const sd=keyword\?0:/.test(twinA), 'keyword?0:startDelay 反语义分支不得残留')
+  assert.ok(/const sd=Math\.max\(0,Number\(r\.board\?\.startDelay/.test(twinA), 'sd 应只认 startDelay')
+  // normRow：startDelay 无条件透传（不与 triggerKeyword 互斥）
+  assert.ok(/startDelay: Number\(startDelay\)\|\|0,\n      \.\.\.\(triggerKeyword\?\{triggerKeyword:triggerKeyword\}:\{\}\)/.test(twinA),
+    'normRow board 槽 startDelay 应无条件透传')
+})
+
+ok('Task 43 keyword 触发：timing.js 真源 + prompt 教学接线', () => {
+  const timingSrc = readFileSync(join(root, 'src/agent-b-v2/timing.js'), 'utf8')
+  assert.ok(/export function resolveKeywordTimeMs/.test(timingSrc), 'resolveKeywordTimeMs 真源应导出')
+  assert.ok(/Math\.max\(kwTime, cursorMs\)/.test(timingSrc), 'timing 互斥钳制应存在')
+  const promptSrc = readFileSync(join(root, 'src/agent-b-v2/prompt.js'), 'utf8')
+  assert.ok(promptSrc.includes('triggerKeyword'), '生成 prompt 应教 triggerKeyword')
+  assert.ok(/triggerKeyword.*逐字存在/.test(promptSrc) || /triggerKeyword（若填）是否逐字存在/.test(promptSrc), '§7.3 检查项应验关键词在 speech 中逐字存在')
+})
+
 ok('row-player Task 40：题目图兜底链 + 标题装载咽喉接线', () => {
   assert.ok(/function setProblemImage\(src,fallbacks\)/.test(twinA), 'setProblemImage 应携带兜底链参数')
   assert.ok(twinA.includes('problemImageFallbacks: imgCands.slice(1)'), 'normData 应产出兜底链候选')

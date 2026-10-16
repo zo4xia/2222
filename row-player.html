@@ -443,8 +443,9 @@ function compile(data){
     const bContent = (r.board && r.board.content) || (Array.isArray(r.boards) && r.boards.map(function(x){ return (x&&typeof x==='object')?(x.content??x.text??''):String(x??''); }).filter(Boolean).join('\n')) || '';
     const lines=bContent?boardLineCount(bContent):[];
     if(lines.length){
-      const keyword=typeof (r.board?.triggerKeyword ?? r.boards?.[0]?.triggerKeyword)==='string'?(r.board?.triggerKeyword ?? r.boards?.[0]?.triggerKeyword).trim():'';
-      const sd=keyword?0:Math.max(0,Number(r.board?.startDelay ?? r.boards?.[0]?.startDelay)||0)*1000;
+      /* ★ Task 43 幽灵槽拔除：board 级 triggerKeyword 是 3025bad 遗留半尸（keyword→0 清零延迟的反语义
+         陷阱，生成端零写入）。板书起笔唯一时间手势 = startDelay（契约）；关键词只活在 actionSpec entry 级（见下方动作段）。 */
+      const sd=Math.max(0,Number(r.board?.startDelay ?? r.boards?.[0]?.startDelay)||0)*1000;
       // 书写时长超出窗口自适应加速压进窗口；动作按分档定量（镜像 timing.estimateActionDuration）
       const charCount=Math.max(1,lines.reduce((a,l)=>a+(isRuleLine(l)?2:visualLen(l)),0));   // 横线行快写（用户拍板）
       const actionTotal=acts.reduce((s,a)=>s+actionDurationMs(a),0);
@@ -474,10 +475,33 @@ function compile(data){
                  ...(rowChars.length?{chars:rowChars}:{})});
       cursor=sd+bw+HAND_LIFT_MS;
     }
-    acts.forEach((a,ai)=>{
+    /* ★ Task 43 关键词触发（夏夏拍板「动作以关键词锚定」）：actionSpec entry 级 triggerKeyword →
+       语音内时点（比例映射，镜像 timing.js resolveKeywordTimeMs 真源）；互斥铁律：关键词时点不得早于
+       前序结束（板书写完+抬笔/上一动作结束）——「每个 row 内所有板书和动作互斥，不允许一个时间两个地方再动」。
+       另按 action.order 排序（3025bad 有而现行丢失的回归）。 */
+    const kwTimeMs=(a)=>{
+      const kw=String((a&&(a.triggerKeyword??(a.action&&a.action.triggerKeyword)))||'').trim();
+      if(!kw)return null;
+      const txt=String(r.speech||'');
+      const idx=txt.indexOf(kw);
+      if(idx<0)return null;
+      const total=Math.max(1,[...txt].length);
+      const before=[...txt.slice(0,idx)].length;
+      const ratio=Math.min(0.95,Math.max(0,before/total));
+      return Math.round(dur*ratio);
+    };
+    const actsSorted=[...acts].sort((x,y)=>{
+      const ox=Number((x&&x.action&&x.action.order)??(x&&x.order)??0)||0;
+      const oy=Number((y&&y.action&&y.action.order)??(y&&y.order)??0)||0;
+      return ox-oy;
+    });
+    actsSorted.forEach((a,ai)=>{
       if(!lines.length&&ai===0)cursor=Math.min(1200,Math.max(600,Math.round(dur*0.12))); // 纯动作行（题目行）首动作前置
+      const kwRaw=kwTimeMs(a);
+      if(kwRaw!=null)cursor=Math.max(kwRaw,cursor);   // 关键词时点 + 互斥钳制（不早于前序结束）
       const adur=actionDurationMs(a);
       plan.push({type:'action',startOffsetMs:cursor,durationMs:adur,action:a,
+                 ...(kwRaw!=null?{keywordStartOffsetMs:kwRaw,triggerKeyword:String((a&&(a.triggerKeyword??(a.action&&a.action.triggerKeyword)))||'').trim()}:{}),
                  boardChars:boardCharsRegistry.slice()});   // 动作锚定池：本行+先前行已写文字（B 契约"必须锚定已写出的文字"）
       cursor+=adur+HAND_LIFT_MS;
     });
@@ -1520,16 +1544,16 @@ function normRow(r){
     board:{
       content: content||'',
       ...(rawCoord?{startCoord:rawCoord}:{}),
-      ...(triggerKeyword
-        ? { triggerKeyword: triggerKeyword }
-        : { startDelay: Number(startDelay)||0 })
+      /* ★ Task 43：拔 triggerKeyword/startDelay 互斥（旧版有关键词就丢延迟）——startDelay 无条件
+         透传（板书唯一时间手势）；triggerKeyword 仅第三方兼容槽保留透传，compile 已不消费（板书域零 keyword） */
+      startDelay: Number(startDelay)||0,
+      ...(triggerKeyword?{triggerKeyword:triggerKeyword}:{})
     },
     boards: rawBoards || [{
       content: content||'',
       ...(rawCoord?{startCoord:rawCoord}:{}),
-      ...(triggerKeyword
-        ? { triggerKeyword: triggerKeyword }
-        : { startDelay: Number(startDelay)||0 })
+      startDelay: Number(startDelay)||0,
+      ...(triggerKeyword?{triggerKeyword:triggerKeyword}:{})
     }],
     actionSpec: pick(r,['actionSpec','actions'])||[]
   };

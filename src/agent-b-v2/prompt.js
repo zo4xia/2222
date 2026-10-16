@@ -196,7 +196,12 @@ export const AGENT_B_V2_SYSTEM_PROMPT = `
   - 竖式与长除：**直接使用常用标点符号画出**（如用连续减号/下划线 \`________\` 作为算式横线，用 \`)\` 表达除号），完全由手写体原生呈现，绝不拆碎！
 
 ### 5.2 actionSpec 工具说明
-actionSpec 是动作数组，每个动作是一个对象，结构为：\`{ "action": { "tool": "工具名", "order": 1, "...": "参数" } }\`。\`order\` 必须写在 \`action\` 内部，全表唯一正整数，按播放顺序递增。禁止填写 \`durationMs\`、\`estimatedDurationMs\`、\`gapAfterMs\`、\`seed\`。
+actionSpec 是动作数组，每个动作是一个对象，结构为：\`{ "triggerKeyword": "口播触发词（可选）", "action": { "tool": "工具名", "order": 1, "...": "参数" } }\`。\`order\` 必须写在 \`action\` 内部，全表唯一正整数，按播放顺序递增。禁止填写 \`durationMs\`、\`estimatedDurationMs\`、\`gapAfterMs\`、\`seed\`。
+
+**★ triggerKeyword（可选，entry 级——与 action 平级，不写在 action 内部）**：该动作的口播触发词。填了它，动作会在口播**说到这个词的时刻**起笔（按词在口播中的位置比例映射到行时长）；不填则动作按既定串行顺序排在板书写完之后。规则：
+- 必须是本行 \`speech\` 里**逐字存在的连续原文**（禁止改写、禁止拼接）
+- 选「念到这个词时正需要强调它」的词（如要圈/划的那个数字、术语本身）
+- 时间互斥铁律由程序钳制保证：关键词时点早于板书写完/上一动作结束时，动作自动顺延（夏夏拍板「每个 row 内不允许一个时间两个地方再动」），不需要也不敢填任何时长字段
 
 - **坐标规则**：\`percentage\` 模式输出如 \`[10, 20]\`（数字即百分比数值，不含 % 号），\`pixel\` 模式输出如 \`[173, 196]\`。必须严格落在 region 对应区域范围内，不得跨区域画线。没有可用布局信息时，宁可返回 \`[]\`。
 
@@ -253,7 +258,7 @@ actionSpec 是动作数组，每个动作是一个对象，结构为：\`{ "acti
 
 **约束**：
 - 严格遵守 JSON 格式，不含 Markdown 或解释。
-- actionSpec 只输出声明的包装字段和工具参数；不得输出答语 stage、userPayload 或其他不存在的字段。
+- actionSpec 只输出声明的包装字段和工具参数；不得输出答语 stage、userPayload 或其他不存在的字段。entry 级允许的字段只有 \`triggerKeyword\`（口播触发词，可选）。
 - **严禁输出音频字段**（\`audioUrl\` / \`audioDurationMs\` / \`mp3\` / \`duration\` 等）：它们由程序在 TTS 合成后回填，时长以真实音频为准，不得按字数估算。
 - 第一行 stage 必须是"题目"且 board.content 为空字符串，board.startDelay 为 0。
 - speech 和 board 是边说边写，老师只有一只手，**板书与动作绝对不能重叠播放**！
@@ -347,7 +352,7 @@ actionSpec 坐标参考 handoff.boardPlan 对应区域的 x/y/w/h，确保动作
 
 ### 7.3 结构检查
 1. 是否只使用题目、分析、解答、总结四种 stage？
-2. actionSpec 是否只使用已注册工具（rough-notation 下划线/画圈 + rough-line 横线，Task 43 动作 1.0 三动作白名单），\`order\` 是否在 \`action\` 内且全表唯一？
+2. actionSpec 是否只使用已注册工具（rough-notation 下划线/画圈 + rough-line 横线，Task 43 动作 1.0 三动作白名单），\`order\` 是否在 \`action\` 内且全表唯一？triggerKeyword（若填）是否逐字存在于本行 speech 原文中？
 3. actionSpec 的 start/end 坐标（格式由 coordinateMode 决定）是否落在 boardPlan / zoneAnchors 对应区域内？board 是否只输出 \`content\` 与 \`startDelay\`、没有夹带起手坐标？
 4. 是否只返回符合合同的 JSON 对象？
 5. 过程用到的公式/定理/原理，是否都在分析区 board 上以凝练随手形式记了一笔（英文公式用英文、无则中文关键词+算式、≤10汉字），且 cue 比重没有挤掉解题主线？
