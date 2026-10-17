@@ -1,7 +1,7 @@
 ---
 name: board-speech-rules
 description: "小学数学AI讲题系统——板书与口播稿规则蒸馏。包含坐标系统、板书格式、口播发音、动作工具规范、输出schema。用于Agent B生成五字段执行表时的硬约束+软引导。"
-version: "3.2.0"
+version: "3.3.1"
 archetype: workflow
 trigger: "生成讲题执行表/板书/口播稿/五字段JSON/Agent B输出"
 ---
@@ -12,7 +12,7 @@ trigger: "生成讲题执行表/板书/口播稿/五字段JSON/Agent B输出"
 
 ## 蒸馏合同
 
-`Distill [板书+口播稿规则] as a [workflow] pack so it can help with [Agent B生成五字段执行表/后续画布执行/Check Agent校验], using [src/agent-b-v2/prompt.js + src/agent-b-v2/contract.js + doc/建议提示.md], while respecting [松门槛原则/题型兼容/教学过程不被结构化压扁].`
+`Distill [板书+口播稿规则] as a [workflow] pack so it can help with [Agent B生成五字段执行表/后续画布执行/Check Agent校验], using [src/agent-b-v2/prompt.js + src/agent-b-v2/contract.js], while respecting [松门槛原则/题型兼容/教学过程不被结构化压扁].`
 
 ---
 

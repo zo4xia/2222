@@ -42,7 +42,7 @@ flowchart TD
 | `qh-sched-serial-001` | event | `🔄` | `src/board-tools/handActionScheduler.js` | 单手串行、抬笔间隔、断点调度 | 隔离单步崩溃，保证后置动作平滑执行 |
 | `qh-board-render-001` | ui | `🎨` | `src/components/RealBoardPreview.vue` | L1 底图、L2 固定四区、L3 生成层 | 1726×980 等比缩放，坐标防溢出 |
 | `qh-font-link-001` | done | `✅` | `index.html <link onerror>` | ZeoSeven 490 字体 link 标签 + onerror 降级系统楷体 | 已上线，cdnLoader.js 已废弃删除 |
-| `qh-loop-verify-001` | verify | `🔐` | `PROJECT_STATE.md` | `npm run check:proxy` 与实时热更 | 保证主链路纯净无阻断 |
+| `qh-loop-verify-001` | verify | `🔐` | `AGENTS.md` | `npm run check:proxy` 与实时热更 | 保证主链路纯净无阻断 |
 
 ## 三、锚点类型统计 (Xiaxia Anchor Stats)
 

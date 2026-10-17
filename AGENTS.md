@@ -84,24 +84,28 @@ Before project work starts:
 4. **🔌 管线铺设**：黄金三角API优先接入、非核心API分批接入、统一数据交互规则、校验数据流解耦。
 5. **🎨 精装验收**：数据驱动UI改造、本地化合规、自动化修复、冒烟测试、固化规范、最终交付。
 
-### 必维护核心记录
-- `PROJECT_STATE.md`：实时真相 + 已知问题 + 接力棒（2026-10-13 第七轮起承接 SYSTEM_MAP 职责）
-- `ENGINEERING_LOG.md`：自包含工作单元
-- `DECISIONS.md`：决策溯源、坑点、踩坑经验
-- `README.md`：结构全景与业务流图（架构变化时同步）
+### 必维护核心记录（2026-10-17 Task 47 归一：三大文档退役）
+- `README.md`：结构全景、业务流图、核心约束表（架构变化时同步）——唯一活文档
+- `AGENTS.md`：本宪法（契约口径变化时同步）
+- git commit message：每轮工作记录唯一真源——背景（为什么做）→ 执行（改了什么）→ 验证（怎么验证）→ 接力棒（下轮继续点）浓缩进提交信息
+- 本地 `worklog.md`（不入库）：会话级多 agent 协作日志，不作为仓库真相源
+- 史档：`PROJECT_STATE.md` / `ENGINEERING_LOG.md` / `DECISIONS.md` 已于 2026-10-17（Task 47）砍除（停更档案冒充「实时真相」= 二皮脸），git 历史可溯；禁止再建平行状态档案
+
+### 冲突仲裁原则（源自 DECISIONS 第七/八轮拍板，Task 47 提炼收录防失传）
+- 契约四方分裂时锚定顺序 = **用户钦定规格 > 播放端事实 > 生成侧白名单**；文档层一律引用代码真源，不写平行叙事档。
+- 教模型产废品的过期提示词与过期文件同罪：skill 教出的输出若会被 validate / normalize / superFilter 拒收，必须对齐真源或砍除。
+- 契约形状以生产端（写入方）为真源，读取口唯一化（如 `knowledgeItemText()`），禁止消费端各写 `k.xxx || k.yyy` 猜测链。
 
 ### 收尾流程（每个任务完结强制执行）
-1. `PROJECT_STATE.md`：同步当前状态；架构有变时更新运行主链。
-2. `ENGINEERING_LOG.md` 加新条目：背景（为什么做）→ 思路（怎么想）→ 执行步骤（具体做了什么）→ 代码变更（改了什么文件）→ 发现和确认（新发现了什么）→ 验证结果（怎么验证的）→ 接力棒（下轮继续点）。
-3. `DECISIONS.md` 加新决策（如有）：决策内容 → 背景 → 考虑的方案 → 最终决策 → 理由 → 风险 → 验证。
-4. 新坑记录进 `PROJECT_STATE.md` 已知问题/风险段；架构变化同步 `README.md` 结构图。
-5. 清缓存：删除 AI 工具侧 `project:state` / `project:decisions` / `project:architecture` / `project:issues` 等项目上下文缓存 key（如当前会话提供此类缓存）。
-6. 检查清单：
-   - [ ] PROJECT_STATE.md 更新了吗
-   - [ ] ENGINEERING_LOG.md 加了新条目吗
-   - [ ] 有重要决策吗，DECISIONS.md 更新了吗
-   - [ ] 发现新坑吗，PROJECT_STATE.md 已知问题更新了吗
-   - [ ] 架构有变吗，README.md 结构图更新了吗
+1. 架构有变：同步 `README.md` 结构图与核心约束表。
+2. 提交信息按真源规格写全：背景 → 执行 → 验证 → 接力棒。
+3. 契约口径有变：AGENTS.md 与对应 SKILL.md 同步。
+4. 清缓存：删除 AI 工具侧 `project:state` / `project:decisions` / `project:architecture` / `project:issues` 等项目上下文缓存 key（如当前会话提供此类缓存）。
+5. 检查清单：
+   - [ ] commit message 写全了吗（背景/执行/验证/接力棒）
+   - [ ] 架构有变吗，README.md 结构图与核心约束表更新了吗
+   - [ ] 契约口径有变吗，AGENTS.md 与对应 SKILL.md 同步了吗
+   - [ ] 哨兵断言跟上了吗（新口径必须有新断言锁死）
    - [ ] 所有信息都落档了吗（图 + 变更树，不依赖会话记忆）
    - [ ] 接力棒清楚吗
 
@@ -127,7 +131,7 @@ Before project work starts:
 
 ## Current B Prompt Source
 
-- Teaching source is `doc/建议提示.md`. Its long examples and child-development guidance are intentionally retained in `src/agent-b-v2/prompt.js`; never replace them with a shorter “contract-first” prompt.
+- Teaching narrative lives directly in `src/agent-b-v2/prompt.js`: long examples and child-development guidance are intentionally retained there; never replace them with a shorter “contract-first” prompt.（史档 `doc/建议提示.md` 已于 2026-10-17 Task 47 退役砍除，教学叙事真源 = prompt.js 本体，git 历史可溯。）
 - Only translate real incompatibilities: seven columns -> current five fields; `notes` teaching intent -> `speech`/`board`; answer wording -> final `解答` row; old `userPayload` wording -> `handoff`.
 - `speech` 是导出给第三方 TTS 的纯口播文本，不使用任何 TTS 控制标签；标签不得出现在 `board` 或 `actionSpec` 中。
 - `board` and `actionSpec` feed the following canvas stage. They share the same teaching moment as speech, but are never narration.

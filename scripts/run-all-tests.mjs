@@ -39,6 +39,7 @@ const tests = [
   { name: 'playback speed sync (提速归一哨兵 69 用例)', cmd: 'node scripts/test-playback-speed-sync.mjs' },
   { name: 'font single source (字体宪法v2+v2.1切换器归一哨兵 55 用例)', cmd: 'node scripts/test-font-single-source.mjs' },
   { name: 'audio url lifecycle (哑巴根因链 16 用例)', cmd: 'node scripts/test-audio-url-lifecycle.mjs' },
+  { name: 'repo hygiene (仓库卫生哨兵·版本/镜像/死档/宪法 30 用例)', cmd: 'node scripts/test-repo-hygiene.mjs' },
 ]
 
 let pass = 0, fail = 0

@@ -167,16 +167,18 @@ npm run test:refine-degrade
 │   ├── canvas.png            画布底图 1726×980（四区图 question/analysis/solution/summary/topic.png）
 │   ├── row-player.html       播放页镜像（与根目录真相源逐字节同步，哨兵把关）
 │   ├── snapdom.js / rough.js 播放页与快照功能依赖的本地库
-├── skills/                   7 个 skill 沉淀 (SKILL.md + meta.json + demo)
-├── doc/                      教学文档 + 知识库 + 施工索引
-├── scripts/                  测试脚本
+├── skills/                   8 个 skill 沉淀 (SKILL.md + meta.json + demo；hub 镜像 7 页，board-speech-rules 无独立 demo)
+├── doc/                      知识库数据（knowledge-a.compact.json 活数据）+ 资源索引档案
+├── scripts/                  27 个测试套件脚本 + 运维工具
 ├── row-player.html           演播单页播放器（真相源，含 superFilter 镜像）
 ├── board-preview.html        全屏画布预览（按钮直连 vite 入口）
-└── PROJECT_STATE.md / ENGINEERING_LOG.md / DECISIONS.md / AGENTS.md   活文档链
+└── AGENTS.md                 仓库宪法（每轮工作记录真源 = git commit message）
 ```
 
 > 2026-10-13 第七轮：入口归一——业务流唯一入口 = `index.html`（agent-b-v2.html 重复入口退役）；
 > 过期档 truth/ / SYSTEM_MAP.md / PONYTAIL_DEBT.md / RTK.md / api_spec.yaml / lite-player.html 已砍，git 历史可溯。
+> 2026-10-17 Task 47：档案减肥第二轮——PROJECT_STATE / ENGINEERING_LOG / DECISIONS 三大停更文档 + doc/ 五件 10-13 契约大战死档
+> + 建议提示/起始语话术旧稿共 10 件砍除（git 历史可溯）；工作记录真源归一为 git commit message，宪法详见 AGENTS.md。
 
 ## 核心约束（契约真源 = 代码，非文档）
 

@@ -1,0 +1,28 @@
+{
+  "name": "blingbling小眼睛",
+  "version": "1.0.0",
+  "archetype": "reference",
+  "description": "Lightweight browser perception skill for structured websites: understand the current webpage through DOM structure first, instead of starting with heavy screenshot/browser automation. Best for forms, admin panels, search pages, settings pages, and other pages with clear interactive elements. 用户导入包（_user_meta.json source=userImport），配套 hub skill-7 可交互示例。",
+  "created": "2026-10-13",
+  "updated": "2026-10-17",
+  "sources": [
+    "skills/blingbling小眼睛/references/page-state-v1.md",
+    "public/skills-hub/skill-7.html"
+  ],
+  "distillation_contract": "Import [browser DOM perception] as a [reference] pack so it can help with [agent 需要先通过 DOM 结构理解当前网页], using [references/page-state-v1.md + scripts/observe-page.mjs], while respecting [轻量优先 / 结构化页面适用 / 重截图场景不适用].",
+  "core_sections": [
+    "DOM 观察流程",
+    "page-state 结构",
+    "observe-page 脚本用法"
+  ],
+  "key_rules": [
+    "先用 DOM 结构理解页面，再考虑截图/自动化",
+    "适用于表单、后台、设置页等结构化页面",
+    "_user_meta.json 是用户导入元数据，保留不动"
+  ],
+  "confidence": "medium",
+  "boundaries": [
+    "不覆盖动作/板书/口播域（见对应 skill）",
+    "重交互页面仍需浏览器自动化兜底"
+  ]
+}

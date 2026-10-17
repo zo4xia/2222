@@ -1,0 +1,36 @@
+{
+  "name": "board-lecture-player",
+  "version": "2.2.0",
+  "archetype": "workflow",
+  "description": "把 handoff/deliverable JSON（Agent B 口播+板书产物）渲染成「真实音频驱动 + 自动感知布局 + 手绘动作」的 standalone HTML 讲学页：写字跟着念、内容多了自动找空位排版。含 keyword 锚点排期（v2.2 管制）与 rough-notation 圈划动作渲染。",
+  "created": "2026-10-13",
+  "updated": "2026-10-17",
+  "sources": [
+    "row-player.html",
+    "src/agent-b-v2/timing.js",
+    "src/lib/speechMarkdown.js"
+  ],
+  "distillation_contract": "Distill [口播板书讲学 HTML 播放器] as a [workflow] pack so it can help with [把讲题 JSON 渲染成单文件播放页 / 音画同步 / 自动排版 / 动作渲染], using [row-player.html + src/agent-b-v2/timing.js + src/lib/speechMarkdown.js], while respecting [真实音频时钟唯一时间轴 / 零坐标自动排版 / 契约包裹格式 entry.action 解包 / triggerKeyword 排期（v2.2 keyword 管制）].",
+  "core_sections": [
+    "三条非协商修订",
+    "契约包裹格式与解包",
+    "keyword 锚点排期（v2.2 管制）",
+    "排期模型（timing.js 同构镜像）",
+    "自动感知布局",
+    "导出与病头防御"
+  ],
+  "key_rules": [
+    "真实音频是唯一时钟，禁止用估算时长替代实测",
+    "actionSpec entry 级契约包裹格式必须解包 entry.action 再消费",
+    "board 域零 keyword；actionSpec entry 级 triggerKeyword 是唯一受控例外（v2.2）",
+    "渲染端动作白名单 = rough-notation(underline/circle) + rough-line，统一红",
+    "交付 HTML 导出闸门过 normalizeAgentBV2ActionSpec 与生成端同门",
+    "模板 DOCTYPE 防御层（ensureDoctype）挡怪异模式"
+  ],
+  "confidence": "high",
+  "boundaries": [
+    "只管播放渲染，不管生成（见 board-speech-rules）",
+    "不管字体加载（见 handwriting-font-policy）",
+    "预览域（RealBoardPreview/board-preview）无排期语义，完整排期只在 row-player"
+  ]
+}

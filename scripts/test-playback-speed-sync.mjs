@@ -86,7 +86,7 @@ const sbtSkill = read('skills/speech-board-timing/SKILL.md')
 check('E1 speech-board-timing SKILL: 220ms 基准', /\*\*220ms\*\*/.test(sbtSkill))
 check('E2 speech-board-timing SKILL: 无板书字速旧值 400ms（动作标记 400ms/汉字宽属另一语义，不算）', !/400ms\/字/.test(sbtSkill) && !/\*\*400ms\*\*[^|]*书写基准/.test(sbtSkill))
 check('E3 speech-board-timing SKILL: Row 间 1000ms', /`AGENT_B_V2_ROW_GAP_MS` \| \*\*1000ms\*\*/.test(sbtSkill) && !/\| \*\*1500ms\*\*/.test(sbtSkill))
-check('E4 speech-board-timing SKILL: 版本 1.2.0', /version: "1\.2\.0"/.test(sbtSkill))
+check('E4 speech-board-timing SKILL: 版本 1.3.0（Task 47 与 meta.json 双源归一）', /version: "1\.3\.0"/.test(sbtSkill))
 check('E5 speech-board-timing SKILL: 抖动区间 190—250', /190—250ms/.test(sbtSkill) && !/360—440/.test(sbtSkill))
 check('E6 speech-board-timing SKILL: 快慢诊断线已提速（6字/3字）', /1 秒 6 字/.test(sbtSkill) && !/1 秒 5 字 \| 基准 400/.test(sbtSkill))
 

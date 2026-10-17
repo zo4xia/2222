@@ -2,6 +2,7 @@
 name: board-lecture-player
 description: 把 handoff/deliverable JSON（Agent B 口播+板书产物）渲染成「真实音频驱动 + 自动感知布局 + 手绘动作」的 standalone HTML 讲学页，做到写字跟着念、内容多了自动找空位排版。当用户给出讲题 JSON 与分镜表要做播放页，或遇到音画同步、按字数估算时长、板书坐标与自动排版、装不下压字溢出、keyword 锚点、rough-notation 圈划动作时使用。适用于数学讲题视频与口播板书播放页。
 agent_created: true
+version: "2.2.0"
 ---
 
 # board-lecture-player — 口播板书讲学 HTML 播放器

@@ -4,12 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>handwriting-font-policy · 字体加载与层级锁定示例</title>
-<!-- ZeoSeven 5 种字体（主字体同步加载，其他异步按需） -->
+<!-- ZeoSeven 6 种字体（与真源 HANDWRITING_FONT_STACK 同序：主字体同步加载，其他异步按需） -->
 <link rel="stylesheet" href="https://fontsapi.zeoseven.com/507/main/result.css" />
 <link rel="stylesheet" href="https://fontsapi.zeoseven.com/157/main/result.css" media="print" onload="this.media='all'" />
 <link rel="stylesheet" href="https://fontsapi.zeoseven.com/490/main/result.css" media="print" onload="this.media='all'" />
 <link rel="stylesheet" href="https://fontsapi.zeoseven.com/511/main/result.css" media="print" onload="this.media='all'" />
 <link rel="stylesheet" href="https://fontsapi.zeoseven.com/510/main/result.css" media="print" onload="this.media='all'" />
+<link rel="stylesheet" href="https://fontsapi.zeoseven.com/509/main/result.css" media="print" onload="this.media='all'" />
 <style>
   :root{--bg:#0f172a;--surface:#1e293b;--surface-2:#334155;--ink:#f1f5f9;--muted:#94a3b8;
         --brand:#22d3ee;--warn:#fbbf24;--ok:#4ade80;--err:#f87171;--line:#334155}
@@ -60,7 +61,7 @@
 </head>
 <body>
 <h1>handwriting-font-policy · 字体加载与层级锁定</h1>
-<p class="sub">5 种手写体切换 · L1 题目层永久印刷体 · L3 板书层独占手写体 · ZeoSeven CSS + crossOrigin 双保险加载</p>
+<p class="sub">6 种手写体切换 · L1 题目层永久印刷体 · L3 板书层独占手写体 · ZeoSeven CSS + crossOrigin 双保险加载</p>
 
 <div class="grid">
   <div class="panel">
@@ -84,7 +85,7 @@
 </div>
 
 <script>
-// ─── 6 字体清单（与 src/services/stepHandoff.js HANDWRITING_FONT_STACK 降级栈对齐） ──────
+// ─── 6 字体清单（与真源 src/services/stepHandoff.js HANDWRITING_FONT_STACK 同序） ──────
 const FONTS=[
   {id:'qiaomu-507',label:'平方乔木体',family:'平方乔木体',source:'ZeoSeven 507·主字体'},
   {id:'pingfang-shaohua',label:'平方韶华体',family:'平方韶华体',source:'ZeoSeven 157'},

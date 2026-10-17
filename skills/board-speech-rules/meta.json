@@ -7,11 +7,9 @@
   "updated": "2026-10-17",
   "sources": [
     "src/agent-b-v2/prompt.js",
-    "src/agent-b-v2/contract.js",
-    "doc/建议提示.md",
-    "DECISIONS.md（时间不预计算决策）"
+    "src/agent-b-v2/contract.js"
   ],
-  "distillation_contract": "Distill [板书+口播稿规则] as a [workflow] pack so it can help with [Agent B生成五字段执行表/后续画布执行/Check Agent校验], using [src/agent-b-v2/prompt.js + src/agent-b-v2/contract.js + doc/建议提示.md], while respecting [松门槛原则/题型兼容/教学过程不被结构化压扁].",
+  "distillation_contract": "Distill [板书+口播稿规则] as a [workflow] pack so it can help with [Agent B生成五字段执行表/后续画布执行/Check Agent校验], using [src/agent-b-v2/prompt.js + src/agent-b-v2/contract.js], while respecting [松门槛原则/题型兼容/教学过程不被结构化压扁].",
   "core_sections": [
     "真相源与参数体系",
     "板书规则",
