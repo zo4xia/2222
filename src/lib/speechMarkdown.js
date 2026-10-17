@@ -93,7 +93,7 @@ export function buildStandardExplainParamsSection(meta = {}) {
     // ★ 字体宪法 v2.2：行高为自然 + 2px 分数余量口径（不随档走，文案/余量真源 stepHandoff），估算公式一并告知 B
     `| 行高（题目/板书通用） | ${LINE_HEIGHT_POLICY_TEXT}；估算行高 ≈ 字号 × ${LINE_HEIGHT_ESTIMATE_RATIO} + ${NATURAL_LINE_HEIGHT_EXTRA_PX}px |`,
     `| 板书速度 | ${hcp.boardSpeed || `下游渲染参数：1秒约${BOARD_SPEED_CHARS_PER_SEC}个汉字，每行±${BOARD_SPEED_JITTER * 100}%轻微抖动；书写时长超出音频窗口时自适应加速压进音频内（音频=行时长唯一主时钟）`} |`,
-    `| 动作速度 | ${hcp.actionSpeed || '差不多同样速度（rough-line/rough-arrow/rough-notation绘制速度）'} |`,
+    `| 动作速度 | ${hcp.actionSpeed || '差不多同样速度（rough-line/rough-notation 绘制速度，三动作白名单）'} |`,
     '',
     '| 区域 | 左% | 上% | 宽% | 高% |',
     '| --- | ---: | ---: | ---: | ---: |',

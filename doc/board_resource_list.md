@@ -9,8 +9,8 @@
 
 | 文件 | 职责 | 关键导出 | 复用评级 |
 |---|---|---|---|
-| `roughDrawingTool.js` | rough.js 画线/箭头/几何图形引擎；区域边界越界校验 | `getRoughDrawingAgentTools` / `prepareRoughDrawingAction` / `validateRoughDrawingRegion` / `ROUGH_DRAWING_REGIONS` | 核心，已跑通 |
-| `roughNotationTool.js` | rough-notation 文本标记（underline/highlight/circle/bracket）；依赖文本目标定位 | `getRoughNotationAgentTool` / `prepareRoughNotationAction` / `validateRoughNotationAction` | 核心；三区标记已由 RealBoardPreview L3 锚点修复（R1 降级 P3） |
+| `roughDrawingTool.js` | rough.js 画线引擎（动作 1.0 白名单：仅 rough-line；箭头/几何已砍 Task 43）；区域边界越界校验 | `getRoughDrawingAgentTools` / `prepareRoughDrawingAction` / `validateRoughDrawingRegion` / `ROUGH_DRAWING_REGIONS` | 核心，已跑通 |
+| `roughNotationTool.js` | rough-notation 文本标记（动作 1.0 白名单：underline/circle；highlight/bracket 已砍 Task 43）；依赖文本目标定位 | `getRoughNotationAgentTool` / `prepareRoughNotationAction` / `validateRoughNotationAction` | 核心；三区标记已由 RealBoardPreview L3 锚点修复（R1 降级 P3） |
 | `handActionScheduler.js` | 手部动作串行调度器：互斥锁 + 订阅/状态机，保证板书动作顺序播放 | `createHandActionScheduler` | 核心，已跑通 |
 | `boardToolCatalog.js` | 工具目录（Agent 可见 schema）+ 运行时 prepare/enqueue；唯一装配点 | `getAgentBoardToolCatalog` / `createBoardToolRuntime` / `validateBoardToolAction` | 核心装配点 |
 | `boardToolTiming.js` | 时序控制与 seed（确定性播放，避免字体/坐标漂移） | 时序/seed 工具 | 核心，全程序控制 |

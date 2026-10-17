@@ -184,7 +184,7 @@ export function buildCanvasParams(fontChoice = HANDWRITING_FONT_CHOICE_DEFAULT) 
     boardSpeedCharsPerSec: BOARD_SPEED_CHARS_PER_SEC,
     boardSpeedJitter: BOARD_SPEED_JITTER,
     boardSpeedAdaptiveCompress: BOARD_SPEED_ADAPTIVE_COMPRESS,
-    actionSpeed: '差不多同样速度（rough-line/rough-arrow/rough-notation绘制速度）',
+    actionSpeed: '差不多同样速度（rough-line/rough-notation 绘制速度，三动作白名单）',
     lineHeightPolicy: LINE_HEIGHT_POLICY_TEXT,
   }
 }

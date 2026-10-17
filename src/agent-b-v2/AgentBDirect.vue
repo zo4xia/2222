@@ -1382,7 +1382,7 @@ function serializeCurrentDeliverableState() {
   // 缺数据时逐字段"未提供"，不臆造固定比例污染导出产物（旧值 35/40/15/10 为臆造）
   const suggestedRatio = ratioData?.suggestedRatio || {}
 
-  // 逐行深层清洗并计算单手互斥执行计划（动作定量 1-2 秒作为标点停顿，绝不与板书重叠）
+  // 逐行深层清洗并计算单手互斥执行计划（动作分档时长 1~2s：画圈 1s、下划线按字数 1~1.5~2s、横线 1s，绝不与板书重叠）
   const cleanRows = (rows.value || []).map((r, idx) => {
     const parsedBoard = parseBoard(r.board)
     // ★ 用户硬约束: board 字段与 actionSpec 映射必须自带 stage，让 deliverable JSON 自描述
@@ -1444,7 +1444,7 @@ function serializeCurrentDeliverableState() {
 
   return {
     apiSpecVersion: '2.0.0',
-    specificationSummary: '每个 row 为一组原子单元；语音全程；板书与动作二者绝对互斥；动作时长定量 1~2 秒作为标点停顿。供下游课件制作与画布 Agent 直接消费。',
+    specificationSummary: '每个 row 为一组原子单元；语音全程；板书与动作单手互斥（程序钳制，Agent 不填时长）；动作 1.0 三动作白名单（下划线/横线/画圈，统一红）按时长分档执行：画圈 1s、下划线按字数 1~1.5~2s、横线 1s；可带 entry 级 triggerKeyword 锚定口播念到关键词时刻起笔。供下游课件制作与画布 Agent 直接消费。',
     specAnnotation: `画布规格批注：尺寸 ${CANVAS_SIZE.width}x${CANVAS_SIZE.height}、比例、题目/板书字号、stage 四区坐标落座区间、越界与手稿风格。`,
     projectCode: code,
     problemText: handoff.value?.problemText || '',
@@ -2960,29 +2960,8 @@ function isRefineFieldEqual(original, refined) {
                           stroke-linecap="round"
                         />
                       </svg>
-                      <svg
-                        v-else-if="item.key === 'highlight'"
-                        viewBox="0 0 120 40"
-                        width="100%"
-                        height="40"
-                      >
-                        <rect
-                          x="6"
-                          y="8"
-                          width="108"
-                          height="22"
-                          :fill="BOARD_MARK_COLORS.yellow"
-                          opacity="0.4"
-                          rx="3"
-                        />
-                        <text
-                          x="10"
-                          y="24"
-                          font-size="14"
-                          fill="#263238"
-                          font-family="serif"
-                        >高亮的文字</text>
-                      </svg>
+                      <!-- ★ Task 46 死分支拔除：highlight / rough-arrow 预览分支（白名单外工具永不触发，
+                           且引用已删除的 BOARD_MARK_COLORS.yellow）；真源 toolCatalog 只有三动作 -->
                       <svg
                         v-else-if="item.key === 'rough-line'"
                         viewBox="0 0 120 40"
@@ -2991,32 +2970,10 @@ function isRefineFieldEqual(original, refined) {
                       >
                         <path
                           d="M10 20 Q 60 18 110 22"
-                          :stroke="ROUGH_DRAWING_COLORS.ink"
-                          stroke-width="2"
-                          fill="none"
-                          stroke-linecap="round"
-                        />
-                      </svg>
-                      <svg
-                        v-else-if="item.key === 'rough-arrow'"
-                        viewBox="0 0 120 40"
-                        width="100%"
-                        height="40"
-                      >
-                        <path
-                          d="M10 20 Q 60 18 100 22"
                           :stroke="ROUGH_DRAWING_COLORS.red"
                           stroke-width="2"
                           fill="none"
                           stroke-linecap="round"
-                        />
-                        <path
-                          d="M100 22 L 110 16 M 100 22 L 108 28"
-                          :stroke="ROUGH_DRAWING_COLORS.red"
-                          stroke-width="2"
-                          fill="none"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
                         />
                       </svg>
                     </div>

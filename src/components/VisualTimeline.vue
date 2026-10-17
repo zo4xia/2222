@@ -35,7 +35,7 @@
         <span class="legend-divider">|</span>
         <span class="legend-item"><span class="legend-icon">🎵</span>MP3音频</span>
         <span class="legend-item"><span class="legend-icon">✍️</span>+n秒板书起手</span>
-        <span class="legend-item"><span class="legend-icon">🎭</span>标注动作(下划线/高亮/圈)</span>
+        <span class="legend-item"><span class="legend-icon">🎭</span>标注动作(下划线/画圈/横线)</span>
         <span class="legend-item"><span class="legend-icon">🎯</span>动作触发时点</span>
       </div>
     </div>
@@ -102,7 +102,7 @@
             </div>
           </div>
 
-          <!-- 核心指标3：标注动作（underline/highlight/circle）——动作在时间轴上的容身之地 -->
+          <!-- 核心指标3：标注动作（underline/circle/rough-line 三动作白名单，highlight 已砍）——动作在时间轴上的容身之地 -->
           <div
             :class="['block-metric-row', 'action-row', { 'no-action-row': !getActions(row).length }]"
             :title="getActionTitle(row)"
@@ -202,20 +202,36 @@ const emit = defineEmits(['select-row', 'play-audio'])
 const trackRef = ref(null)
 
 // ★ 标注动作类型标签（Task 43 动作 1.0：underline/circle 两 notation + rough-line 横线；highlight 已砍）
+// ★ Task 46：rough-line 映射已接活——getActionType 先判 tool==='rough-line'，横线徽章不再丢失（旧写法返回空串被 getActionTypeCounts continue 丢弃）
 const ACTION_LABELS = { underline: '下划线', circle: '圈', 'rough-line': '横线' }
 
 // ★ 提取本行的合法标注动作（actionSpec 数组，排除 capabilityGap 缺口项）
+// ★ Task 46 归一（三个幽灵之一）：entry.startDelay 无人写入恒 0——真源排期在
+//   row.rowTimeline.actionTimeline[].startOffsetMs（timing.js applyAgentBV2Timeline 产出，
+//   action 引用与 actionSpec 同源可对上）；这里解出注入克隆体 startDelay（秒），
+//   下游三处消费点（钉位置/钉 title/指标行 tooltip）不改。无时间线/对不上 → 兜底 0（口播一开即触发）。
 function getActions(row) {
   if (!Array.isArray(row?.actionSpec)) return []
-  return row.actionSpec.filter((e) => e && e.action && !e.capabilityGap)
+  const timeline = Array.isArray(row?.rowTimeline?.actionTimeline) ? row.rowTimeline.actionTimeline : []
+  return row.actionSpec
+    .filter((e) => e && e.action && !e.capabilityGap)
+    .map((e) => {
+      const tl = timeline.find((t) => t && t.action === e)
+      const sec = tl && Number.isFinite(Number(tl.startOffsetMs)) ? tl.startOffsetMs / 1000 : 0
+      return { ...e, startDelay: sec }
+    })
 }
 
 // 动作类型（entry.action 是工具对象 { tool, action: 'underline'|... }）
+// ★ Task 46 归一：rough-line 条目只有 tool 无 action 子字段——旧写法返回空串 →
+//   getActionTypeCounts continue 横线被丢弃；先判 tool 再回落 notation 的 action
 function getActionType(entry) {
+  if (entry?.action?.tool === 'rough-line') return 'rough-line'
   return entry?.action?.action || ''
 }
 
-// 动作触发延时（秒，entry.startDelay；无值时默认 0 = 口播一开就触发）
+// 动作触发延时（秒）：startDelay 由 getActions 从 rowTimeline.actionTimeline[].startOffsetMs
+// 解包注入（Task 46 归一，旧 entry.startDelay 幽灵字段无人写入）；无值时默认 0 = 口播一开就触发
 function getActionStartDelay(entry) {
   const v = Number(entry?.startDelay)
   return Number.isFinite(v) && v >= 0 ? v : 0
@@ -693,7 +709,8 @@ function onBlockClick(index) {
   white-space: nowrap;
 }
 .act-underline { background: #cfe8ff; color: #0369a1; }
-.act-highlight { background: #fde68a; color: #b45309; }
+/* ★ Task 46：highlight 已砍（死 CSS）→ 改为 rough-line 横线徽章（写法参考 .act-underline） */
+.act-rough-line { background: #fde68a; color: #b45309; }
 .act-circle { background: #fecdd3; color: #be123c; }
 .no-board-offset {
   background: var(--surface-soft, #edf7f0);

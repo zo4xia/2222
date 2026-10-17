@@ -96,8 +96,8 @@ export function normalizeAgentBV2ActionSpec(actionSpec) {
     // 弃用字段检测：triggerAt / durationMs / startMs / seed
     const warns = []
     const a = entry.action || {}
-    if (a.triggerAt !== undefined) warns.push('检测到旧版 actionSpec.triggerAt，已迁移到 startDelay（秒级偏移）')
-    if (a.durationMs !== undefined) warns.push('检测到 Agent 填写的 actionSpec.durationMs，已忽略（时长由程序按汉字宽度/几何长度自动计算）')
+    if (a.triggerAt !== undefined) warns.push('检测到旧版 actionSpec.triggerAt，已弃用：动作触发现行通道是 entry 级 triggerKeyword（Task 43），填了会被忽略')
+    if (a.durationMs !== undefined) warns.push('检测到 Agent 填写的 actionSpec.durationMs，已忽略（时长按分档自动计算：画圈1000/下划线按字数1000~2000/横线1000，真源 timing.js estimateActionDuration）')
     if (a.startMs !== undefined) warns.push('检测到 Agent 填写的 actionSpec.startMs，已忽略')
     if (a.seed !== undefined) warns.push('检测到 Agent 填写的 actionSpec.seed，已忽略（roughjs 随机种子由程序生成）')
     const out = { ...entry, action: action.value }

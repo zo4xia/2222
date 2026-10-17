@@ -5,7 +5,8 @@ import { handleRecognitionRequest } from './recognitionHandler.js'
 import { buildSpeechMarkdown } from '../src/lib/speechMarkdown.js'
 import { validateAgentBV2Rows } from '../src/agent-b-v2/contract.js'
 import { getAgentBDirectorView, getAgentBoardToolCatalog } from '../src/board-tools/boardToolCatalog.js'
-import { validateRoughNotationAction, ROUGH_NOTATION_ENABLED_ACTIONS } from '../src/board-tools/roughNotationTool.js'
+import { validateRoughNotationAction, ROUGH_NOTATION_ENABLED_ACTIONS, ROUGH_NOTATION_TOOL_ID } from '../src/board-tools/roughNotationTool.js'
+import { ROUGH_DRAWING_TOOL_IDS, ROUGH_DRAWING_COLORS } from '../src/board-tools/roughDrawingTool.js'
 import { buildStep1Handoff } from '../src/services/stepHandoff.js'
 
 function mockResponse() {
@@ -267,19 +268,22 @@ assert.equal(normalizedHandoff.coordinateSpec.coordinateSystem, '百分比坐标
 
 const directorCatalog = getAgentBDirectorView()
 const boardToolCatalog = getAgentBoardToolCatalog()
+// ★ Task 43 动作 1.0：工具清单从真源派生（rough-notation/rough-line；rough-arrow/draw 已砍），
+// 不再平行抄写旧四件清单——曾因抄写漂移导致 check:proxy 必炸（历史见 test-action-whitelist-sync 哨兵）。
 assert.deepEqual(
   directorCatalog.tools.map((tool) => tool.id),
-  ['rough-notation', 'rough-line', 'rough-arrow', 'draw'],
+  [ROUGH_NOTATION_TOOL_ID, ...ROUGH_DRAWING_TOOL_IDS],
 )
 assert.deepEqual(
   directorCatalog.tools[0].actions.map((item) => item.action),
   [...ROUGH_NOTATION_ENABLED_ACTIONS],
 )
-// ★ 白名单唯一真源 = roughNotationTool.ROUGH_NOTATION_ENABLED_ACTIONS（2026-10-13 第七轮收敛为
-// underline/highlight/circle 三动作）。本断言直接 import 真源派生期望值，不再平行抄写清单——
-// 曾因抄写 7 动作旧清单（含 box/bracket/strike-through/crossed-off）与真源漂移导致 check:proxy 必炸。
+// ★ 白名单唯一真源 = roughNotationTool.ROUGH_NOTATION_ENABLED_ACTIONS（Task 43 动作 1.0 收紧为
+// underline/circle 两 notation 动作 + rough-line 横线，highlight 已砍）。本断言直接 import 真源派生期望值，
+// 不再平行抄写清单——曾因抄写 7 动作旧清单（含 box/bracket/strike-through/crossed-off）与真源漂移导致 check:proxy 必炸。
 assert.equal(directorCatalog.tools[0].actionSchema.options.colorId, undefined)
-assert.equal(directorCatalog.tools[1].actionSchema.style.colorId, 'ink|red')
+// ★ Task 43 颜色统一红 #dc2626：色板唯一真源 ROUGH_DRAWING_COLORS（ink 墨黑已砍），同样从真源派生。
+assert.equal(directorCatalog.tools[1].actionSchema.style.colorId, Object.keys(ROUGH_DRAWING_COLORS).join('|'))
 assert.equal(boardToolCatalog.tools[1].coordinateSystem.unit, 'percent')
 assert.equal(boardToolCatalog.tools[1].coordinateSystem.range, '0-100')
 assert.equal(validateRoughNotationAction({

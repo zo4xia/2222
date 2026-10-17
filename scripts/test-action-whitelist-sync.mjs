@@ -191,5 +191,49 @@ const smd = read('src/lib/speechMarkdown.js')
 check('speechMarkdown 动作摘要 circle=画圈 / 横线 / 带触发词（死分支清除）',
   smd.includes("'circle' ? '画圈'") && !smd.includes("'highlight' ? '高亮'") && !smd.includes("rough-arrow' ? '箭头'") && smd.includes('口播触发'))
 
+// ===== 7. ★ Task 46 全链归一（夏夏「统一性·归一化·去歧义」）：player 认契约 + 时长单一体系 + 导出闸门 =====
+// 7a. row-player drawAction 解包包裹格式（「player 不认动作」根因修复）
+check('row-player drawAction 解包 entry.action 包裹格式（typeof raw.action===object 鉴别式）',
+  playerSrc.includes("typeof raw.action==='object'") && playerSrc.includes('白名单外工具'))
+check('row-player 内置样例已改契约包裹格式（entry 级 triggerKeyword 演示）',
+  playerSrc.includes('triggerKeyword: "9"') && playerSrc.includes('triggerKeyword: "20.4"'))
+check('row-player HAND_LIFT_MS=1000（镜像 MIN_HAND_LIFT_GAP_MS 真源，销 600 伪量纲）',
+  /const BASE_CHAR_MS=220, HAND_LIFT_MS=1000;/.test(playerSrc))
+check('row-player kwTimeMs 只认 entry 级 triggerKeyword（写错层=忽略，与 timing.js 同构）',
+  !playerSrc.includes('a.action&&a.action.triggerKeyword') && playerSrc.includes('只认 entry 级 triggerKeyword'))
+// 7b. 时长单一体系（第四套 400ms/字宽度体系销账）
+const rnt = read('src/board-tools/roughNotationTool.js')
+check('roughNotationTool estimateMarkDurationMs 分档归一（无 400ms/字宽度体系活代码）',
+  !/const MARK_DURATION_PER_HAN_WIDTH_MS/.test(rnt) && /const MARK_DURATION_MS/.test(rnt) && rnt.includes('Task 46'))
+check('roughNotationTool validate 禁填字段对称（含 durationMs）',
+  /durationMs/.test(rnt) && /estimatedDurationMs/.test(rnt) && /gapAfterMs/.test(rnt))
+// 7c. 导出闸门（存库导出端与生成端同门）
+const dsh = read('server/deliverableStoreHandler.js')
+check('deliverableStoreHandler 导出闸门过 normalizeAgentBV2ActionSpec 白名单',
+  dsh.includes('normalizeAgentBV2ActionSpec') && dsh.includes('导出闸门'))
+check('specificationSummary 自述文案升级动作 1.0 口径（分档 + triggerKeyword，双拷贝同文）',
+  dsh.includes('三动作白名单（下划线/横线/画圈，统一红）按时长分档') && dsh.includes('entry 级 triggerKeyword 锚定'))
+const abd = read('src/agent-b-v2/AgentBDirect.vue')
+check('AgentBDirect specificationSummary 双拷贝同文（与 server 版一致）',
+  abd.includes('三动作白名单（下划线/横线/画圈，统一红）按时长分档'))
+check('AgentBDirect 预览死分支拔除 + ink 幽灵色键清零（横线预览 stroke 用 red）',
+  !abd.includes("item.key === 'highlight'") && !abd.includes("item.key === 'rough-arrow'") && !abd.includes('ROUGH_DRAWING_COLORS.ink'))
+// 7d. Check 域归一
+const cPrompt = read('src/check-agent/prompt.js')
+check('check prompt 职责计数=8（动作校验第 8 项不再被 7 件包夹）',
+  !cPrompt.includes('7 件事') && !cPrompt.includes('7 项职责'))
+check('skillViolations gapAfterMs 填即违规（600 旧阈值口径废弃，tombstone 注释除外）',
+  !/gapAfterMs\s*<\s*600/.test(sv) && sv.includes('gapAfterMs != null'))
+// 7e. proxySelfCheck 白名单断言从真源派生（check:proxy 不再必炸）
+const psc = read('server/proxySelfCheck.js')
+check('proxySelfCheck 期望工具从真源派生（旧四件硬编码清单禁现；draw 仅作拒收测试数据）',
+  psc.includes('[ROUGH_NOTATION_TOOL_ID, ...ROUGH_DRAWING_TOOL_IDS]') && !psc.includes("'rough-arrow', 'draw'") && !psc.includes("'ink|red'"))
+check('AGENTS.md 宪法层动作白名单归一（无 arrows/highlight 活教法）',
+  read('AGENTS.md').includes('动作 1.0 白名单'))
+// 7f. B 技能包 arrow/高亮幽灵清零（coordinate-rules 劈腿拔除）
+const cr = read('src/agent-b-v2/skills/liyongle-elementary/coordinate-rules.js')
+check('liyongle coordinate-rules 无活箭头/高亮教法（仅剩已砍记档）',
+  !cr.includes('中间用箭头连') && !cr.includes('用高亮标'))
+
 console.log(`\n  动作白名单同步哨兵: ${pass}/${pass + fail} 通过${fail ? `, ${fail} 失败` : ''}`)
 process.exit(fail ? 1 : 0)

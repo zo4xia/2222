@@ -37,8 +37,8 @@ flowchart TD
 | `qh-b-edit-001` | state | `💾` | `src/agent-b-v2/AgentBDirect.vue` | 响应式 `rows` 五字段表 | 用户实时编辑作为最终交付真相 |
 | `qh-c-check-001` | api | `⚡` | `src/check-agent/service.js` | `POST /api/check-agent/check` | 可选双眼，失败不破坏 A/B 结果 |
 | `qh-act-norm-001` | state | `📦` | `src/components/RealBoardPreview.vue` | `actionSpec` 提取与归一化 | 过滤无效项与 capabilityGap |
-| `qh-tool-notation-001` | ui | `⚡` | `src/board-tools/roughNotationTool.js` | `underline`, `highlight`, `circle` | 找不到目标文字时安全降级，不中断（白名单唯一真源 ROUGH_NOTATION_ENABLED_ACTIONS） |
-| `qh-tool-draw-001` | ui | `⚡` | `src/board-tools/roughDrawingTool.js` | `rough-line`, `rough-arrow`, `draw` | 兼容 draw 意图并安全转换为真实绘制 |
+| `qh-tool-notation-001` | ui | `⚡` | `src/board-tools/roughNotationTool.js` | `underline`, `circle` | 找不到目标文字时安全降级，不中断（白名单唯一真源 ROUGH_NOTATION_ENABLED_ACTIONS；highlight 已砍 Task 43，Task 46 文档归一） |
+| `qh-tool-draw-001` | ui | `⚡` | `src/board-tools/roughDrawingTool.js` | `rough-line` | 动作 1.0 白名单仅 rough-line（rough-arrow/draw 已砍 Task 43，Task 46 文档归一） |
 | `qh-sched-serial-001` | event | `🔄` | `src/board-tools/handActionScheduler.js` | 单手串行、抬笔间隔、断点调度 | 隔离单步崩溃，保证后置动作平滑执行 |
 | `qh-board-render-001` | ui | `🎨` | `src/components/RealBoardPreview.vue` | L1 底图、L2 固定四区、L3 生成层 | 1726×980 等比缩放，坐标防溢出 |
 | `qh-font-link-001` | done | `✅` | `index.html <link onerror>` | ZeoSeven 490 字体 link 标签 + onerror 降级系统楷体 | 已上线，cdnLoader.js 已废弃删除 |

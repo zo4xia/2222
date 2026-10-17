@@ -129,12 +129,20 @@ function initRuntime() {
   })
 }
 
+// ★ Task 46 挂账记档：app 预览域无排期语义（挂载即播、不等板书/口播、不消费 triggerKeyword 时点）；
+//   完整排期在 row-player.html compile（真源 timing.js 同构镜像）。预览只保结构一致性。
 function normalizeActionSpecItem(item) {
   // B 输出格式：{ action: { tool, order, ... } } 或 { capabilityGap: {...} }
   // 代码期望格式：{ tool, order, ... }
   if (item?.capabilityGap) return null
   if (item?.action && typeof item.action === 'object') {
-    return { ...item.action }
+    // ★ Task 46 结构透传：解包 {...item.action} 会剥掉 entry 级 triggerKeyword/stage——
+    //   runtime 不消费也无害，保留可保结构不丢失（导出/Check/编辑器链路同款字段）
+    return {
+      ...item.action,
+      ...(item.triggerKeyword != null ? { triggerKeyword: item.triggerKeyword } : {}),
+      ...(item.stage != null ? { stage: item.stage } : {}),
+    }
   }
   return item
 }

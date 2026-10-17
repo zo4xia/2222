@@ -120,10 +120,10 @@ Before project work starts:
 - Knowledge callback is a necessary teaching action, not a label: a child may have forgotten multiplication facts, a formula, or the meaning of a quantity. First reconnect the knowledge in the current problem, then guide its use; never assume the child already has a usable solving starting point.
 - Grade adaptation is a teaching boundary: 1-2 years need concrete, gentle, short-step support; 4-6 years need reasoning prompts that help them discover a path. Preserve the child-facing intent when mapping content to program fields.
 - The five-field table is only an execution carrier. A stage may contain many rows; a row may contain many spoken sentences. Do not force one row per stage or collapse a child’s reasoning process to make the table shorter.
-- `speech` 是纯口播文本，直接给第三方 TTS。不使用 `[pause]`、`[excited]`、`[emphasis]` 等 TTS 控制标签；长停顿由 B 拆成独立 row 获得 1.5s row gap，行内停顿靠自然标点。`board` 和 `actionSpec` 是下一画布步的同步源，不混入口播内容。
+- `speech` 是纯口播文本，直接给第三方 TTS。不使用 `[pause]`、`[excited]`、`[emphasis]` 等 TTS 控制标签；长停顿由 B 拆成独立 row 获得 1000ms row gap（真源 AGENT_B_V2_ROW_GAP_MS），行内停顿靠自然标点。`board` 和 `actionSpec` 是下一画布步的同步源，不混入口播内容。
 - Board actions and speech share one fixed timeline: speech cadence, pauses, row gaps, and canvas actions must describe the same teaching moment. Agent B writes teaching content; program timing and later canvas execution make it happen.
 - Program compatibility is a translation layer only: map teaching intent to current `duration`, `stage`, `speech`, `board`, and `actionSpec` fields without deleting the intent. Do not introduce unsupported fields, but do not treat their teaching meaning as disposable.
-- Canvas stays light: use the existing `rough.js` runtime for hand-drawn lines, arrows, and shapes; use `rough-notation` for text underline, highlight, and marks. Agent B only emits the matching action parameters, while the later canvas layer executes them. Do not add another drawing framework, compatibility layer, or validation gate around these two libraries.
+- Canvas stays light: 动作 1.0 白名单 = `rough-notation`(underline/circle) + `rough-line`，颜色统一红；highlight / rough-arrow / draw 已砍（Task 43）。Agent B only emits the matching action parameters, while the later canvas layer executes them. Do not add another drawing framework, compatibility layer, or validation gate around these two libraries.
 
 ## Current B Prompt Source
 
@@ -131,7 +131,7 @@ Before project work starts:
 - Only translate real incompatibilities: seven columns -> current five fields; `notes` teaching intent -> `speech`/`board`; answer wording -> final `解答` row; old `userPayload` wording -> `handoff`.
 - `speech` 是导出给第三方 TTS 的纯口播文本，不使用任何 TTS 控制标签；标签不得出现在 `board` 或 `actionSpec` 中。
 - `board` and `actionSpec` feed the following canvas stage. They share the same teaching moment as speech, but are never narration.
-- Timeline baseline is 160 Chinese characters/minute with 1.5-second row gaps. 长停顿靠拆行获得 row gap，行内靠标点。B 不发明时间戳。
+- Timeline baseline is 160 Chinese characters/minute with 1000ms row gaps (AGENT_B_V2_ROW_GAP_MS). 长停顿靠拆行获得 row gap，行内靠标点。B 不发明时间戳。
 - Prompt may expand a stage into as many rows and sentences as the child needs. Do not collapse reasoning just to shorten a table.
 - Current next concern, not a license to redesign: keep one-click exported speech Markdown directly usable by the TTS handoff while preserving the exact speech text.
 

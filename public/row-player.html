@@ -222,13 +222,16 @@ const DATA = {
       speech: "同学们好，今天我们一起来看这道平行四边形面积的经典应用题。已知底是 9 厘米，高是 20.4 厘米。",
       board: { startDelay: 0.0, startCoord: "[6%, 12%]", content: "" },
       actionSpec: [
-        { tool: "rough-notation", action: "circle",
-          target: { region: "question", exactText: "9", occurrence: 1 },
-          options: { multiline: false }, order: 1, region: "question" },
-        { tool: "rough-notation", action: "underline",
-          target: { region: "question", exactText: "20.4 厘米", occurrence: 1 },
-          options: { multiline: false }, order: 2, region: "question" }
-      ]
+        { triggerKeyword: "9",
+          action: { tool: "rough-notation", action: "circle",
+                    target: { region: "question", exactText: "9", occurrence: 1 },
+                    options: { multiline: false }, order: 1 } },
+        { triggerKeyword: "20.4",
+          action: { tool: "rough-notation", action: "underline",
+                    target: { region: "question", exactText: "20.4 厘米", occurrence: 1 },
+                    options: { multiline: false }, order: 2 } }
+      ]   /* ★ Task 46 样例改契约包裹格式（entry 级 triggerKeyword + action 内 tool/target/order）——
+               旧裸格式（tool/target 平铺在 entry 上）只是兼容兜底，B 契约真源长这样 */
     },
     {
       stage: "分析",
@@ -399,6 +402,8 @@ function actionDurationMs(a){
   return 1000;   // rough-line 固定 1s；兜底 1s（严格 1~2s 区间）
 }
 // 有音频但动作排不下：只压动作间抬笔间隔把动作收进音频窗口（首动作起点不动、不重叠、不延长音频行）
+// ★ Task 46 记档：音频窗铁律是播放域最高优先级，gap 压缩下限 200 属有意压窗底档（估算域 timing.js
+//   不压窗，两者是「估算上界 vs 播放压缩」的分工，非镜像缺口）；正常档位间隔=HAND_LIFT_MS(1000)
 function compactActionsIntoWindow(plan,dur){
   const acts=plan.filter(k=>k.type==='action');
   if(acts.length<2)return;
@@ -481,7 +486,9 @@ function compile(data){
        前序结束（板书写完+抬笔/上一动作结束）——「每个 row 内所有板书和动作互斥，不允许一个时间两个地方再动」。
        另按 action.order 排序（3025bad 有而现行丢失的回归）。 */
     const kwTimeMs=(a)=>{
-      const kw=String((a&&(a.triggerKeyword??(a.action&&a.action.triggerKeyword)))||'').trim();
+      // ★ Task 46 归一：只认 entry 级 triggerKeyword（与 timing.js 真源同构）；
+      //   旧版还兜底读 action 内层 —— 与「写错层会被忽略」教义相悖，拔除。
+      const kw=String((a&&a.triggerKeyword)||'').trim();
       if(!kw)return null;
       const txt=String(r.speech||'');
       const idx=txt.indexOf(kw);
@@ -502,7 +509,7 @@ function compile(data){
       if(kwRaw!=null)cursor=Math.max(kwRaw,cursor);   // 关键词时点 + 互斥钳制（不早于前序结束）
       const adur=actionDurationMs(a);
       plan.push({type:'action',startOffsetMs:cursor,durationMs:adur,action:a,
-                 ...(kwRaw!=null?{keywordStartOffsetMs:kwRaw,triggerKeyword:String((a&&(a.triggerKeyword??(a.action&&a.action.triggerKeyword)))||'').trim()}:{}),
+                 ...(kwRaw!=null?{keywordStartOffsetMs:kwRaw,triggerKeyword:String((a&&a.triggerKeyword)||'').trim()}:{}),
                  boardChars:boardCharsRegistry.slice()});   // 动作锚定池：本行+先前行已写文字（B 契约"必须锚定已写出的文字"）
       cursor+=adur+HAND_LIFT_MS;
     });
@@ -587,7 +594,7 @@ function layoutText(ctx,text,x,y,maxW,size,lh,font){
   return {lines:lines,chars:chars,endY:ly+lh};
 }
 function findRange(chars,sub,occ){
-  if(!sub)return null;                // 防御：空串不再匹配（rough-line/arrow 无 target，曾致 chars[-1] 崩溃）
+  if(!sub)return null;                // 防御：空串不再匹配（rough-line 无 target，曾致 chars[-1] 崩溃；arrow 已砍）
   occ=occ||1; let hit=0;
   for(let i=0;i+sub.length<=chars.length;i++){
     let ok=true;
@@ -1033,10 +1040,11 @@ function drawProblemImage(ctx,W,H){
 }
 
 // 时间常量：板书 BASE_CHAR_MS/字 · 行间抬笔 HAND_LIFT_MS（板书换行节奏，本文件私有）
-// 2026-10-13 拍板消解伪冲突：HAND_LIFT_MS(行间)=600 与 boardToolTiming.js 的
-// MIN_HAND_LIFT_GAP_MS(动作换手硬下限)=1000 量纲不同、互不约束；原"991/timing.js"路径已不存在。
+// ★ Task 46 归一销账：旧注释声称 HAND_LIFT_MS 与 MIN_HAND_LIFT_GAP_MS「量纲不同互不约束」，
+//   实测 L507（动作→动作间隔）与 timing.js appendAction（endMs+HAND_LIFT_GAP_MS）是同一语义槽位——
+//   估算与播放系统性差 400ms/动作。统一 1000，镜像 boardToolTiming.MIN_HAND_LIFT_GAP_MS 真源。
 // 2026-10-15 夏夏拍板提速：400→220（1秒4~5字），镜像 timing.js BASE_CHAR_WRITE_MS（改两处同改）
-const BASE_CHAR_MS=220, HAND_LIFT_MS=600;
+const BASE_CHAR_MS=220, HAND_LIFT_MS=1000;
 const FEATHER_PX=2;   // 笔尖羽化：纯 clip 切口是硬的，抹一条软边更像笔推进（成本极低）
 
 function drawWriting(task,p,W,H,stage){
@@ -1127,9 +1135,18 @@ function drawWriting(task,p,W,H,stage){
 }
 
 function drawAction(task,p,Q,W,H){
-  const a=task.action||{};
+  // ★ Task 46 解包归一（「player 不认动作」根因修复）：actionSpec 契约是 entry 级包裹格式
+  //   {triggerKeyword?, action:{tool, action, target, order, ...}}（contract.js 归一链产出）；
+  //   旧 drawAction 直读裸字段导致契约格式动作 tool 为空 → findRange('') 拦截 → 画布零渲染。
+  //   鉴别式：包裹格式 entry.action 是对象；旧裸格式 action 是 'underline' 字符串（兼容保留）。
+  const raw=task.action||{};
+  const a=(raw.action&&typeof raw.action==='object')?raw.action:raw;
   // ── rough-line 横线（★ Task 43 动作 1.0：rough-arrow 已砍；颜色统一红 #dc2626，墨黑已砍）──
   const tool=a.tool||'';
+  if(tool!=='rough-notation'&&tool!=='rough-line'){
+    console.warn('[动作] 白名单外工具："'+(tool||'空')+'"（动作 1.0 只认 underline/circle/rough-line），该动作被跳过');
+    return;   // ★ 白名单门：未知工具不再静默落入 notation 兜底路径（可观测，去歧义）
+  }
   if(tool==='rough-line'){
     const st=a.start||[0,0], en=a.end||[0,0];
     const x1=W*st[0]/100, y1=H*st[1]/100, x2=W*en[0]/100, y2=H*en[1]/100;

@@ -69,7 +69,7 @@ export function calculateBoardWritingDuration(content) {
  */
 // ponytail: 嵌套 if/else 改表驱动（shrink -3 行）
 // 2026-10-13 砍死条目：box/bracket/strike-through/crossed-off 不在
-// roughNotationTool 白名单（underline|highlight|circle），估算永远走不到 → 删。
+// roughNotationTool 白名单（underline|circle），估算永远走不到 → 删。
 // circle 于同日第七轮回归白名单（1500ms 对齐 row-player L319 播放时序），
 // 依据见 roughNotationTool.js 契约拍板注释。
 // ★ Task 43 夏夏拍板「动作 1.0」：白名单收紧为三动作（下划线/横线/画圈），颜色统一红。

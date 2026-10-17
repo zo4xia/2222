@@ -101,12 +101,24 @@ const checkInfo = ref({
   asrPolished: false,
 })
 const rows = ref([])
+// ★ Task 46 归一（死代码复活）：order 注入进 entry.action.order——下游 RealBoardPreview
+//   normalizeActionSpecItem 解包 {...item.action} 只认 action 内字段，旧的 entry 级注入
+//   （rowIndex*1000+actionIndex）解包即丢=死代码。现在注进 action 内：跨行用 rowIndex*1000
+//   块 + 行内尊重已填 order（缺省 actionIndex+1 保正整数），预览单手队列才真正有序；
+//   entry.action 非对象（capabilityGap/裸格式）跳过注入。
 const actionSpec = computed(() => rows.value.flatMap((row, rowIndex) => (
   Array.isArray(row?.actionSpec)
-    ? row.actionSpec.map((action, actionIndex) => ({
-      ...action,
-      order: Number.isFinite(action?.order) ? action.order : rowIndex * 1000 + actionIndex,
-    }))
+    ? row.actionSpec.map((action, actionIndex) => {
+      if (action && typeof action.action === 'object') {
+        // 行内 order 必须为正整数（缺省 1 起，与 validate 的 ?? 1 同口径），否则
+        // 下游 validateRoughNotation/DrawingAction 会拒收 order<1
+        const innerOrder = Number.isFinite(action.action.order) && action.action.order >= 1
+          ? action.action.order
+          : actionIndex + 1
+        return { ...action, action: { ...action.action, order: rowIndex * 1000 + innerOrder } }
+      }
+      return action
+    })
     : []
 )))
 
@@ -347,6 +359,17 @@ function formatBoardDisplay(board) {
   if (typeof board === 'string') return board
   if (typeof board === 'object') return board.content || '(本步无新增板书)'
   return String(board)
+}
+
+// ★ Task 46：动作 pill 标签——契约包裹格式下 act.action 是对象（旧写法 act.tool || act.action
+//   会把整个对象渲染成 JSON）。解包优先级：包裹 → action.action（underline/circle）||
+//   action.tool（rough-line 无 action 子字段）；裸格式 → action || tool；全空（capabilityGap
+//   等）→ 'action' 兜底。
+function formatActionPillLabel(act) {
+  if (act?.action && typeof act.action === 'object') {
+    return act.action.action || act.action.tool || 'action'
+  }
+  return act?.action || act?.tool || 'action'
 }
 
 // 格式化的下游视频流水线 JSON
@@ -968,7 +991,7 @@ function getStageTagColor(stage) {
                           class="action-pill"
                           :title="JSON.stringify(act)"
                         >
-                          ⚡ {{ act.tool || act.action || 'action' }}
+                          ⚡ {{ formatActionPillLabel(act) }}
                         </span>
                       </div>
                     </td>

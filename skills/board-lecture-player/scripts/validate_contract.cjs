@@ -155,7 +155,7 @@ function main() {
         orderSeen.add(a.order);
       }
       if (typeof a.tool !== 'string' || !PHASE1_TOOLS.includes(a.tool)) {
-        err(`${sat}.action.tool=${JSON.stringify(a.tool)} 不在白名单 ${JSON.stringify(PHASE1_TOOLS)}（draw 属上游待拍板能力，不进本契约）`);
+        err(`${sat}.action.tool=${JSON.stringify(a.tool)} 不在白名单 ${JSON.stringify(PHASE1_TOOLS)}（draw 已被 Task 43 终裁砍除，动作 1.0 三动作白名单）`);
       }
       if (a.tool === 'rough-notation') {
         if (!PHASE1_ACTIONS.includes(a.action)) {
@@ -185,8 +185,8 @@ function main() {
           }
         }
       }
-      if (a.durationMs !== undefined || a.startMs !== undefined) {
-        err(`${sat} 禁止携带 durationMs/startMs，时间由渲染层按音频时钟推算`);
+      if (a.durationMs !== undefined || a.startMs !== undefined || a.estimatedDurationMs !== undefined || a.gapAfterMs !== undefined || a.seed !== undefined) {
+        err(`${sat} 禁止携带 durationMs/estimatedDurationMs/gapAfterMs/startMs/seed，时长与间隔由程序按分档与 MIN_HAND_LIFT_GAP_MS 定量（Task 46 与 B/Check 双 prompt 教法对齐）`);
       }
       // ★ Task 43 v2.2：actionSpec entry 级 triggerKeyword（口播触发词）受控校验
       if (typeof s.triggerKeyword === 'string' && s.triggerKeyword.trim()) {

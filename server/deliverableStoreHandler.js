@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url'
 import { isOptions, readJsonBody, sendJson } from './http.js'
 import { renderDeliverableHtml, normalizeDeliverableAssetPaths } from './renderDeliverableHtml.js'
 import { computeRowGroupTimeline, AUDIO_SPEED_POLICY_TEXT } from '../src/agent-b-v2/timing.js'
+import { normalizeAgentBV2ActionSpec } from '../src/agent-b-v2/contract.js'
 import {
   buildCanvasParams,
   handwritingFontSourceFor,
@@ -156,7 +157,9 @@ export function writeDeliverableFile(data) {
   const jsonFilePath = fullPath(jsonFilename)
   const htmlFilePath = fullPath(htmlFilename)
 
-  // 为每个 row 注入严格的单手互斥时序计划与定量 1-2 秒标点停顿动作计划
+  // 为每个 row 注入严格的单手互斥时序计划与动作分档时长（画圈 1s、下划线按字数 1~1.5~2s、横线 1s，真源 timing.js）
+  // ★ Task 46 导出闸门：actionSpec 与生成端同门过 normalizeAgentBV2ActionSpec 白名单校验——
+  //   存库导出端不再裸收手改/第三方 JSON 的白名单外动作（拒收即丢弃并 warn，与 Check 链同口径）
   // ★ 字体宪法 v2（2026-10-15）：不再补回 board.startCoord——布局唯一权威 = 播放器渲染层
   //   编译期度量排版（自然行高 + stageFlow 顺序续排），与 B 契约「板书不输出起手坐标」对齐；
   //   旧版服务端估算器（layoutBoardRows 1.2 比数注入）与渲染层度量双权威打架，已拔除。
@@ -165,8 +168,18 @@ export function writeDeliverableFile(data) {
         const computed = computeRowGroupTimeline(row)
         const estimatedDurationMs = row.estimatedDurationMs || computed.rowTotalDurationMs
         const exclusiveExecutionPlan = row.exclusiveExecutionPlan || computed.exclusiveExecutionPlan
+        // ★ Task 46 导出闸门：白名单外动作拒收（丢弃并 warn），拒收后空数组合法落盘
+        let actionSpec = row.actionSpec
+        if (Array.isArray(actionSpec) && actionSpec.length) {
+          const before = actionSpec.length
+          actionSpec = normalizeAgentBV2ActionSpec(actionSpec)
+          if (actionSpec.length < before) {
+            console.warn(`[deliverable] row ${row.stage || '?'}：actionSpec ${before}→${actionSpec.length} 条（白名单外动作被拒收，动作 1.0 三动作）`)
+          }
+        }
         return {
           ...row,
+          actionSpec,
           estimatedDurationMs,
           totalDurationMs: row.totalDurationMs || estimatedDurationMs,
           exclusiveExecutionPlan,
@@ -265,7 +278,7 @@ export function writeDeliverableFile(data) {
     // ★ Task 13：$schema / apiDocUrl 死链砍除——指向的 deliverable.schema.json 与
     // DELIVERABLE_API_SPEC.md 全仓从未存在（幽灵契约链），下游消费规范收敛到本 payload 自描述字段
     apiSpecVersion: '2.0.0',
-    specificationSummary: '每个 row 为一组原子单元；语音全程；板书与动作二者绝对互斥；动作时长定量 1~2 秒作为标点停顿。供下游课件制作与画布 Agent 直接消费。',
+    specificationSummary: '每个 row 为一组原子单元；语音全程；板书与动作单手互斥（程序钳制，Agent 不填时长）；动作 1.0 三动作白名单（下划线/横线/画圈，统一红）按时长分档执行：画圈 1s、下划线按字数 1~1.5~2s、横线 1s；可带 entry 级 triggerKeyword 锚定口播念到关键词时刻起笔。供下游课件制作与画布 Agent 直接消费。',
     specAnnotation: `画布规格批注：尺寸 ${CANVAS_SIZE.width}x${CANVAS_SIZE.height}、比例、题目/板书字号、stage 四区坐标落座区间、越界与手稿风格。`,
     ...data,
     canvasParams,

@@ -107,8 +107,10 @@ export function checkSkillViolations(row, rowIdx = 0) {
     if (action.durationMs != null || action.estimatedDurationMs != null) {
       v.push({ path: sat, from: 'hand-action-control §二', msg: '时长由程序算, Agent 不得填 durationMs/estimatedDurationMs' })
     }
-    if (action.gapAfterMs != null && action.gapAfterMs < 600) {
-      v.push({ path: sat + '.gapAfterMs', from: 'hand-action-control §一', msg: '抬笔间隔硬下限 600ms' })
+    // ★ Task 46 归一：Agent 不得填 gapAfterMs（任意值，含合法值）——间隔由程序按 MIN_HAND_LIFT_GAP_MS=1000 排期；
+    // 旧「< 600 才违规」双重劈腿（真源 1000 + 教义是 agent 根本不得填）同日废弃。
+    if (action.gapAfterMs != null) {
+      v.push({ path: sat + '.gapAfterMs', from: 'hand-action-control §一', msg: 'Agent 不得填写 gapAfterMs（程序按 MIN_HAND_LIFT_GAP_MS=1000 排期；旧 600 阈值口径已废弃，Task 46 归一）' })
     }
     if (action.seed != null) {
       v.push({ path: sat + '.seed', from: 'hand-action-control §二', msg: 'roughjs 随机种子由程序生成, Agent 不得填' })

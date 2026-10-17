@@ -50,6 +50,12 @@ const cases = [
     expectAtLeast: 1,
   },
   {
+    // ★ Task 46 归一：Agent 不得填 gapAfterMs（任意值含合法值都违规；旧「<600 才违规」口径废弃）
+    name: 'skill 3 违规: Agent 填 gapAfterMs（合法值 1000 也违规）',
+    row: { stage: '分析', speech: '解', board: { region: 'analysis', content: '' }, actionSpec: [{ action: { tool: 'rough-notation', action: 'underline', gapAfterMs: 1000, order: 1 } }] },
+    expectAtLeast: 1,
+  },
+  {
     // 2026-10-13 第七轮：circle 已接入白名单，非法动作 fixture 改用 box 保持违规语义
     name: 'skill 3 违规: rough-notation 动作非法',
     row: { stage: '分析', speech: '解', board: { region: 'analysis', content: '' }, actionSpec: [{ action: { tool: 'rough-notation', action: 'box', order: 1 } }] },

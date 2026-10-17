@@ -8,11 +8,21 @@ export const ROUGH_NOTATION_TOOL_ID = 'rough-notation'
 // 在 roughDrawingTool），highlight 砍掉（「其他做我怕做不好」）；颜色统一红 #dc2626
 // （与 row-player STAGE_COLOR 分析区红同值，销 #d64545/#dc2626 双红分裂）。
 // 历史依据：2026-10-13 第七轮 circle 回归白名单（夏夏原话#33 underline+circle 兜底）。
+// ★ Task 46 分档归一：estimateMarkDurationMs 不再按 DOM 宽度×400ms/字，改吃 timing.js 字数分档口径（2026-10-17，夏夏「统一性归一化去歧义」）
 export const ROUGH_NOTATION_ENABLED_ACTIONS = Object.freeze([
   'underline',
   'circle',
 ])
-export const MARK_DURATION_PER_HAN_WIDTH_MS = 400
+
+// ★ Task 46 分档归一：字数分档常量——镜像唯一真源 src/agent-b-v2/timing.js 的
+// NOTATION_DURATION_MS / UNDERLINE_*（同名同值，改档先改真源再同步这里，勿双头改）。
+// 旧 MARK_DURATION_PER_HAN_WIDTH_MS=400（DOM 量宽×400ms/字，8 字下划线≈3200ms、
+// 无 1~2s 钳制、circle 不固定 1000）已删，引用全文件清零。
+const MARK_DURATION_MS = { underline: 1000, circle: 1000 }
+const UNDERLINE_LONG_MS = 1500        // >5 字
+const UNDERLINE_XLONG_MS = 2000       // >10 字
+const UNDERLINE_MID_CHARS = 5
+const UNDERLINE_XLONG_CHARS = 10
 
 export const BOARD_MARK_COLORS = Object.freeze({
   red: '#dc2626',
@@ -53,26 +63,21 @@ function normalizeOptions(action, options = {}) {
   }
 }
 
-function targetRects(element, multiline) {
-  if (multiline) {
-    const rects = [...element.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0)
-    if (rects.length) return rects
-  }
-  return [element.getBoundingClientRect()]
-}
-
-/** @orphan [零外部调用估算函数] */
-export function estimateMarkDurationMs(element, { multiline = false } = {}) {
-  const target = requireElement(element)
-  const rects = targetRects(target, multiline)
-  const totalWidth = rects.reduce((sum, rect) => sum + rect.width, 0)
-  const computedFontSize = Number.parseFloat(getComputedStyle(target).fontSize)
-  const fallbackFontSize = Math.max(...rects.map((rect) => rect.height), 1)
-  const hanWidth = Number.isFinite(computedFontSize) && computedFontSize > 0
-    ? computedFontSize
-    : fallbackFontSize
-  const equivalentHanWidth = totalWidth / hanWidth
-  return Math.max(1, Math.round(equivalentHanWidth * MARK_DURATION_PER_HAN_WIDTH_MS))
+/**
+ * 标记动作时长估算（Task 46 分档归一后口径）：
+ *   circle 固定 1000ms；underline 按 exactText 字数分档——>10字 2000 / >5字 1500 / 其他 1000
+ *   （含 targetId 串式目标无 exactText → 0 字档，与真源 timing.js 的 target.exactText 缺省同口径）。
+ * 分档内参经第二参数 options 传入（options.type 由 normalizeOptions 填，options.exactText
+ * 由 prepareRoughNotationAction 从 result.value.target 注入）；element 形参保留仅为
+ * L127 调用点兼容（签名不动），时长计算不再读 DOM——旧 DOM 量宽逻辑（targetRects/
+ * getComputedStyle/字宽折算）已整段移除。
+ * @orphan [零外部调用估算函数] */
+export function estimateMarkDurationMs(element, { type, exactText } = {}) {
+  if (type === 'circle') return MARK_DURATION_MS.circle
+  const textLen = [...String(exactText || '')].length
+  if (textLen > UNDERLINE_XLONG_CHARS) return UNDERLINE_XLONG_MS
+  if (textLen > UNDERLINE_MID_CHARS) return UNDERLINE_LONG_MS
+  return MARK_DURATION_MS.underline
 }
 
 export function validateRoughNotationAction(action) {
@@ -95,7 +100,12 @@ export function validateRoughNotationAction(action) {
     }
     const order = Math.round(action.order ?? 1)
     if (!Number.isFinite(order) || order < 1) throw new Error('order 必须是正整数')
-    if (action.estimatedDurationMs != null || action.gapAfterMs != null) {
+    // ★ Task 46：禁填清单对称化（与 roughDrawingTool normalizeCommonAction 一致口径）——
+    // 补 durationMs；Agent 自填时长一律拒收（分档真源 timing.js，程序算）
+    if (
+      action.durationMs != null || action.estimatedDurationMs != null
+      || action.gapAfterMs != null
+    ) {
       throw new Error('标记时长与抬笔间隔由程序工具计算，Agent 不得覆盖')
     }
     const options = normalizeOptions(action.action, action.options)
@@ -124,6 +134,12 @@ export function prepareRoughNotationAction(action, resolveTarget) {
   const targetElement = resolveTarget(result.value.target)
   if (!targetElement) throw new Error('找不到标记目标')
   requireElement(targetElement)
+  // ★ Task 46 分档归一：exactText 作为时长分档内参挂进 options（下方调用点原样不动）——
+  //   仅本函数消费，execute() 里不进 annotate 配置；targetId 串式目标无 exactText
+  //   → 0 字档 1000ms（与 timing.js 同口径）
+  if (typeof result.value.target === 'object' && result.value.target.exactText) {
+    result.value.options.exactText = result.value.target.exactText
+  }
   const durationMs = estimateMarkDurationMs(targetElement, result.value.options)
   const targetKey = typeof result.value.target === 'string'
     ? result.value.target
@@ -137,8 +153,11 @@ export function prepareRoughNotationAction(action, resolveTarget) {
     gapAfterMs: MIN_HAND_LIFT_GAP_MS,
     execute() {
       annotation?.remove()
+      // ★ Task 46：exactText 是时长分档内参，不进 annotate 配置（保持传入键纯净）
+      const annotationOptions = { ...result.value.options }
+      delete annotationOptions.exactText
       annotation = annotate(targetElement, {
-        ...result.value.options,
+        ...annotationOptions,
         animationDuration: durationMs,
       })
       annotation.show()
