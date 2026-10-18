@@ -13,6 +13,17 @@
  * @qh-core LANE=COMPOSABLE POINT=USE_B_CACHE
  */
 import { knowledgeItemText } from '../../services/stepHandoff.js'
+import { AGENT_B_V2_SYSTEM_PROMPT } from '../prompt.js'
+
+/**
+ * ★ Task 50（2026-10-18）：prompt 版本摘要——djb2 摉取同串同值、异串高概率异值，进缓存键。
+ * 改提示词后旧缓存自动失效（Task 24 同款盲区修复模式：当年 refine 字段不进键导致修缮后仍吐旧 rows）。
+ */
+export function promptVersionDigest(prompt = AGENT_B_V2_SYSTEM_PROMPT, digits = 8) {
+  let h = 5381
+  for (let i = 0; i < prompt.length; i++) h = ((h << 5) + h + prompt.charCodeAt(i)) >>> 0
+  return h.toString(36).padStart(digits, '0').slice(-digits)
+}
 
 /** 稳定摘要：数组按元素逗号连接，字符串直取，统一截断防键超长 */
 function fieldDigest(value, max = 120) {
@@ -47,6 +58,8 @@ export function useBCache({ getHandoff, getSelectedSkillId, getModel }) {
     ].join('/')
     // ★ R8-⑤（env 化补丁）：生成模型进键——换 key/换模型/换预设后旧缓存不再命中
     const modelDigest = fieldDigest(getModel ? getModel() : '', 60)
+    // ★ Task 50：prompt 版本进键——提示词改动后旧缓存自动失效（逐句对齐拍板配套）
+    const promptDigest = promptVersionDigest()
     return B_CACHE_PREFIX + [
       h.problemText?.slice(0, 80) || '',
       h.problemType || '',
@@ -55,6 +68,7 @@ export function useBCache({ getHandoff, getSelectedSkillId, getModel }) {
       analysisDigest,
       refinedDigest,
       modelDigest,
+      promptDigest,
       h.stageRatioSuggestion?.type || '',
       h.boardPlan?.question?.x || '',
       getSelectedSkillId() || '',

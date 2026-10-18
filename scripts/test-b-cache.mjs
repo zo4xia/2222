@@ -17,7 +17,7 @@ globalThis.localStorage = {
   get length() { return store.size },
 }
 
-const { useBCache } = await import('../src/agent-b-v2/composables/useBCache.js')
+const { useBCache, promptVersionDigest } = await import('../src/agent-b-v2/composables/useBCache.js')
 
 let pass = 0, fail = 0
 function ok(name, fn) {
@@ -157,6 +157,22 @@ ok('惰性全扫边界：未过期条目保留、损坏条目一并清理', () =
   c1.bCacheGet()
   assert.equal(store.has(cFresh.bCacheKey()), true, '未过期条目被误删')
   assert.equal(store.has(cBroken.bCacheKey()), false, '损坏条目未被清理')
+})
+
+console.log('\n── Task 50 prompt 版本进键 ──')
+
+ok('promptVersionDigest 纯函数：同串同值、异串异值', () => {
+  assert.equal(promptVersionDigest('prompt-v1'), promptVersionDigest('prompt-v1'))
+  assert.notEqual(promptVersionDigest('prompt-v1'), promptVersionDigest('prompt-v2'))
+})
+
+ok('缓存键含当前 prompt 摘要（改提示词 → 键变 → 旧缓存失效）', () => {
+  store.clear()
+  const c = mkCache(baseHandoff())
+  const key = c.bCacheKey()
+  assert.ok(key.includes(promptVersionDigest()), '键未包含 prompt 摘要')
+  // 同 handoff 键稳定性不受影响（digest 是常量输入的纯函数）
+  assert.equal(key, mkCache(baseHandoff()).bCacheKey())
 })
 
 console.log(`\n结果: ${pass + fail} 用例, ${pass} 通过, ${fail} 失败`)
