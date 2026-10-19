@@ -9,8 +9,26 @@ export const AGENT_B_V2_SPEECH_RATE = 160
 export const AUDIO_SPEED_POLICY_TEXT = `（有音频 url 的，以音频自然播放时间为准，一组一组自然播放；无音频 url 的，用兜底演示数据占位，按 ${AGENT_B_V2_SPEECH_RATE} 字/分估算凑数演示）`
 export const AGENT_B_V2_ROW_GAP_MS = 1000
 // 2026-10-15 夏夏拍板提速：写字 1秒4~5字（400ms/字 → 220ms/字），row 间自然停顿 1500→1000ms（口播语句间停顿）
-export const BASE_CHAR_WRITE_MS = 220 // 1秒4~5字（基准 4.5 字/秒 = 220ms/字，抖动 ±30ms → 190~250ms = 4.0~5.3 字/秒）
+export const BASE_CHAR_WRITE_MS = 220 // 1秒4~5字（基准 4.5 字/秒 = 220ms/字）
 export const HAND_LIFT_GAP_MS = MIN_HAND_LIFT_GAP_MS // 动作抬笔换手间隔（真源 boardToolTiming.js）
+
+// ★ Task 52（2026-10-19 夏夏拍板「234 要统一」）：以下三块口径镜像 row-player 实播轴，改两处同改——
+//   ① 音频行判定（镜像 row-player isAudioSrc L1520）
+//   ② 板书字数口径（镜像 compile L283 visualLen / L683 isRuleLine / L449-459 charCount）
+//   ③ startDelay 字面语义 + 板书先动作后 + 音频行锁时长锁 gap（镜像 compile L454/L506/L517-525）
+//   估算轴（本文件/VisualTimeline/导出 estimated*）与实播轴（liteplayer）此前三处分叉：
+//   startDelay=0 暗改兜底、模式 A 动作前置、音频行 gap/时长——统一后估算轴如实反映实播。
+const AUDIO_SRC_RE = /(^data:audio\/|^blob:|^https?:\/\/|^\.{0,2}\/|\.(mp3|wav|m4a|aac|ogg|webm|mpeg)(\?|#|$))/i
+function isAudioSrc(v) {
+  if (typeof v !== 'string') return false
+  const s = v.trim()
+  return s !== '' && AUDIO_SRC_RE.test(s)
+}
+/** 行是否挂真实音频（可播 URL 或实测时长）——行 gap 与行时长锁定的统一判据（镜像 row-player audioRow||hasMeasuredAudio，L517/L525） */
+export function rowHasRealAudio(row) {
+  const url = row?.mp3 || row?.audioUrl || row?.audio
+  return isAudioSrc(url) || (Number.isFinite(Number(row?.audioDurationMs)) && Number(row?.audioDurationMs) > 0)
+}
 
 function normalizeSpeech(speech) {
   return String(speech || '').trim()
@@ -42,26 +60,47 @@ export function estimateSpeechDurationMs(speech, { speed = AGENT_B_V2_SPEECH_RAT
   return Math.max(1500, Math.round(chars * 60000 / speed) + pause)
 }
 
+// ★ Task 52：板书字数口径镜像 row-player compile——行切分（剥行尾空白、滤空行）、
+//   \frac{a}{b} 视觉字数 = a+b+1（+1 是分数线）、纯横线行按 2 字快写、每字 220ms 无抖动。
+//   旧口径剥 \frac 等 LaTeX 命令按字面字符计：分数行/横线行系统性低估，多行板书与实播漂移。
+//   行间抬笔在实播是板书窗口内的权重挤占（row-player drawWriting seg），两侧同窗口不加时。
+function readBrace(s, i) {
+  let depth = 0, j = i
+  for (; j < s.length; j++) {
+    if (s[j] === '{') depth++
+    else if (s[j] === '}') { depth--; if (depth === 0) return { text: s.slice(i + 1, j), next: j + 1 } }
+  }
+  return { text: s.slice(i + 1, j), next: j }
+}
+function splitBoardLines(content) {
+  return String(content || '').split('\n')
+    .map(l => l.replace(/\s+$/, ''))
+    .filter(l => l.trim().length > 0)
+}
+// 纯横线行（竖式/长除横线）：连续 2+ 个横线类字符，实播 rough 手绘快画，估算按 2 字（镜像 row-player L683）
+function isRuleLine(s) {
+  const t = String(s == null ? '' : s).replace(/\s/g, '')
+  return t.length >= 2 && /^[_—\-–―─~～═━=]+$/.test(t)
+}
+// 视觉字数：\frac{a}{b} 只算 a+b+1 个视觉单位，别把字面 \frac 算进去（镜像 row-player L283）
+function visualLen(line) {
+  let s = String(line), n = 0, i = 0
+  while (i < s.length) {
+    if (s.startsWith('\\frac', i)) {
+      const a = readBrace(s, i + 5); const b = readBrace(s, a.next)
+      n += a.text.length + b.text.length + 1; i = b.next
+    } else { n++; i++ }
+  }
+  return n
+}
 /**
- * 计算板书书写耗时预估（1秒4~5字，带微弱抖动区间）
+ * 计算板书书写耗时预估（1秒4~5字，与实播同窗口）
  */
 export function calculateBoardWritingDuration(content) {
-  const text = String(content || '').trim()
-  if (!text) return 0
-  // 去除 LaTeX 结构控制符后统计实际有效笔墨字符量
-  const clean = text
-    .replace(/\\(begin|end)\{[^}]+\}/g, '')
-    .replace(/\\(frac|times|div|aligned)/g, ' ')
-    .replace(/\s+/g, '')
-  const charCount = Math.max(1, [...clean].length)
-
-  let durationMs = 0
-  for (let i = 0; i < charCount; i++) {
-    // 微弱抖动感：在 190ms ~ 250ms 之间轻微浮动，呈现真人书写节奏（4.0~5.3 字/秒）
-    const jitter = ((i * 17) % 7 - 3) * 10
-    durationMs += Math.max(190, BASE_CHAR_WRITE_MS + jitter)
-  }
-  return durationMs
+  const lines = splitBoardLines(content)
+  if (!lines.length) return 0
+  const charCount = Math.max(1, lines.reduce((a, l) => a + (isRuleLine(l) ? 2 : visualLen(l)), 0))
+  return charCount * BASE_CHAR_WRITE_MS
 }
 
 /**
@@ -213,11 +252,12 @@ export function computeRowGroupTimeline(row, options = {}) {
   })
 
   if (hasBoard && !hasAction) {
-    // 分支 1: 纯板书 — 语音起手 0.8~1.5s 后落笔
-    const rawDelay = typeof row.board?.startDelay === 'number' && row.board.startDelay > 0
-      ? Math.round(row.board.startDelay * 1000)
-      : Math.min(1800, Math.max(800, Math.round(speechDurationMs * 0.15)))
-    boardStartDelayMs = rawDelay
+    // ★ Task 52（夏夏「234 统一」分叉 2）：startDelay 字面语义——0=语音一起笔即写
+    //   （与 row-player 实播 L454 及 AgentBDirect 表格 UI title 同口径）。
+    //   旧版 0/缺失时暗改兜底 max(800,min(1800,15%行时长))——App 时间轴显示延迟落笔、
+    //   导出实播却 0 秒开写，估算轴与实播轴分叉；生成侧防线 = Check Agent 校准 0 值行
+    //   （check prompt §6 时机判定第 5 条 + asrPolish estimateKeywordStartDelay）。
+    boardStartDelayMs = Math.round(Math.max(0, Number(row.board?.startDelay) || 0) * 1000)
     boardEndDelayMs = appendBoard(boardStartDelayMs, boardDurationMs, boardContent, exclusiveExecutionPlan)
   } else if (!hasBoard && hasAction) {
     // 分支 2: 纯动作（如题目行圈关键词）— 动作按标点停顿排布，每个动作 1-2s
@@ -226,29 +266,18 @@ export function computeRowGroupTimeline(row, options = {}) {
     appendActionLoop(actionSpec, cursorMs, actionTimeline, exclusiveExecutionPlan, { speech, speechDurationMs })
   } else if (hasBoard && hasAction) {
     // 分支 3: 既有板书又有动作 — 板书与动作绝对互斥！动作作为标点停顿！
-    const firstAct = actionSpec[0]?.action || actionSpec[0]
-    const isTargetingQuestion = firstAct?.target?.region === 'question' || row.stage === '题目'
-
-    if (isTargetingQuestion) {
-      // 模式 A: 前置动作（标点停顿） → 换手 → 后置板书
-      // ★ Task 43：支持 entry 级 triggerKeyword 关键词时点（互斥钳制）
-      let actCursor = Math.min(1000, Math.max(500, Math.round(speechDurationMs * 0.1)))
-      actCursor = appendActionLoop(actionSpec, actCursor, actionTimeline, exclusiveExecutionPlan, { speech, speechDurationMs })
-      // 动作结束并抬手后，板书才开始（绝对互斥）
-      boardStartDelayMs = actCursor
-      boardEndDelayMs = appendBoard(boardStartDelayMs, boardDurationMs, boardContent, exclusiveExecutionPlan)
-    } else {
-      // 模式 B: 前置板书 → 换手 → 后置动作（句末/阶段标点停顿）
-      const rawDelay = typeof row.board?.startDelay === 'number' && row.board.startDelay > 0
-        ? Math.round(row.board.startDelay * 1000)
-        : Math.min(1500, Math.max(600, Math.round(speechDurationMs * 0.12)))
-      boardStartDelayMs = rawDelay
-      boardEndDelayMs = appendBoard(boardStartDelayMs, boardDurationMs, boardContent, exclusiveExecutionPlan)
-      // 板书完全写完并抬手换笔后，再串行执行动作（绝对互斥）
-      // ★ Task 43：支持 entry 级 triggerKeyword 关键词时点（互斥钳制：不早于板书写完+抬笔）
-      let actCursor = boardEndDelayMs + HAND_LIFT_GAP_MS
-      appendActionLoop(actionSpec, actCursor, actionTimeline, exclusiveExecutionPlan, { speech, speechDurationMs })
-    }
+    // ★ Task 52（夏夏「234 统一」分叉 3）：模式 A（question 定向动作前置板书）已砍。
+    //   旧模式 A 触发面 = firstAct.target.region==='question' || row.stage==='题目'：App 时间轴
+    //   显示「先画线后写字」，导出实播（row-player 无此分支）却是「先写字后画线」——同一 JSON
+    //   两侧动作时序相反。统一为实播 + 生成侧教法（prompt §5.1「动作必须排在板书书写完毕之后
+    //   按 order 依次执行」）三方归一：一律板书先、动作后。题目行板书恒空走分支 2 纯动作路径。
+    // startDelay 字面语义（0=一起笔即写），同分支 1，无暗改兜底
+    boardStartDelayMs = Math.round(Math.max(0, Number(row.board?.startDelay) || 0) * 1000)
+    boardEndDelayMs = appendBoard(boardStartDelayMs, boardDurationMs, boardContent, exclusiveExecutionPlan)
+    // 板书完全写完并抬手换笔后，再串行执行动作（绝对互斥）
+    // ★ Task 43：支持 entry 级 triggerKeyword 关键词时点（互斥钳制：不早于板书写完+抬笔）
+    let actCursor = boardEndDelayMs + HAND_LIFT_GAP_MS
+    appendActionLoop(actionSpec, actCursor, actionTimeline, exclusiveExecutionPlan, { speech, speechDurationMs })
   }
 
   // 计算黑板/肢体物理操作总结束时间
@@ -258,8 +287,12 @@ export function computeRowGroupTimeline(row, options = {}) {
     handWorkEndMs = Math.max(handWorkEndMs, lastActionEnd)
   }
 
-  // Row 组总耗时：语音全程与黑板单手动作两者取最大值，留足时间
-  const rowTotalDurationMs = Math.max(speechDurationMs, handWorkEndMs)
+  // Row 组总耗时：★ Task 52 分叉 4c——有真实音频 → 锁音频时长（镜像 row-player「音频=行时长
+  // 唯一主时钟」L517-519；手活超载时板书/动作 endOffset 超出行窗 = 超载可见，实播域由
+  // compactActionsIntoWindow 压窗，「估算上界 vs 播放压缩」分工见 row-player L407 史档）。
+  // 无音频 → 虚拟时钟拉长完整呈现（镜像 row-player maxEnd 兜底 L521-522）。
+  const hasRealAudio = rowHasRealAudio(row)
+  const rowTotalDurationMs = hasRealAudio ? speechDurationMs : Math.max(speechDurationMs, handWorkEndMs)
 
   return {
     speechDurationMs,
@@ -270,6 +303,7 @@ export function computeRowGroupTimeline(row, options = {}) {
     exclusiveExecutionPlan,
     handWorkEndMs,
     rowTotalDurationMs,
+    hasRealAudio,
     // 明确声明互斥策略，给下游画布与课件 Agent 权威依据
     mutualExclusivityPolicy: 'single-hand-serial-1-2s-action-pause',
   }
@@ -292,7 +326,11 @@ export function applyAgentBV2Timeline(rows, options = {}) {
     const estimatedDurationMs = timeline.rowTotalDurationMs
     const estimatedStartMs = globalCursorMs
     const estimatedEndMs = estimatedStartMs + estimatedDurationMs
-    globalCursorMs = estimatedEndMs + rowGapMs
+    // ★ Task 52（夏夏「234 统一」分叉 4b）：gap 口径镜像 row-player L525——
+    //   (audioRow||hasMeasuredAudio) 行 gap=0（音频 onended 自然紧接，停顿靠 TTS 尾音），
+    //   仅无音频行保留 rowGapMs 演示停顿。旧版一律 +rowGapMs，音频行间估算轴比实播轴每行虚长 1 秒。
+    const gapAfterMs = rowHasRealAudio(row) ? 0 : rowGapMs
+    globalCursorMs = estimatedEndMs + gapAfterMs
 
     return {
       ...row,

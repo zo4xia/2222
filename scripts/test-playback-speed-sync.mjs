@@ -32,15 +32,15 @@ check('A1 真源常量: BASE_CHAR_WRITE_MS = 220 (一秒4~5字)', BASE_CHAR_WRIT
 check('A2 真源常量: AGENT_B_V2_ROW_GAP_MS = 1000 (夏夏拍板)', AGENT_B_V2_ROW_GAP_MS === 1000)
 check('A3 真源常量: AGENT_B_V2_SPEECH_RATE = 160 (语速不变)', AGENT_B_V2_SPEECH_RATE === 160)
 
-// 3 字板书: jitter 循环 i=0,1,2 → 190/220/250 = 660ms（旧 400 时代 1110ms）
+// 3 字板书: 无抖动口径（Task 52 与实播同窗口）→ 3×220 = 660ms（旧 jitter 190+220+250 巧合同为 660）
 const d3 = calculateBoardWritingDuration('三个字')
-check('A4 板书耗时真值: 3字 = 660ms (190+220+250)', d3 === 660, `got ${d3}`)
+check('A4 板书耗时真值: 3字 = 660ms (3×220 无抖动，镜像 row-player compile)', d3 === 660, `got ${d3}`)
 // 换算一致性: 1000/BASE_CHAR_WRITE_MS ≈ 4.5 字/秒（1秒4~5字区间的中值）
 const cps = 1000 / BASE_CHAR_WRITE_MS
 check('A5 字速换算: 4.4~4.6 字/秒（"一秒4~5字"中值）', cps > 4.4 && cps < 4.6, `got ${cps}`)
-// 抖动边界: 单字永远 ≥ 190（下限）
+// 抖动边界: 单字 = 220 基准（估算轴无抖动，实播抖动在渲染层行配速）
 const one = calculateBoardWritingDuration('单')
-check('A6 单字下限 ≥ 190ms', one >= 190, `got ${one}`)
+check('A6 单字 = 220ms 基准（估算轴无抖动）', one === 220, `got ${one}`)
 // 口播: 剥标点 + 停顿 + 1500 下限
 check('A7 空口播 = 1500ms', estimateSpeechDurationMs('') === 1500)
 check('A8 短口播走 1500 下限', estimateSpeechDurationMs('嗯。') === 1500)
@@ -159,6 +159,21 @@ check('H6 B 提示词语速行兜底定性（有音频真实语速由音频决�
 check('H7 Check 提示词兜位语境完好（仅在无音频 URL 时初始预估）', /仅在无音频 URL/.test(checkPrompt) && /兜位估算口径/.test(checkPrompt))
 check('H8 播放器优先级链：audioRow 实测优先 / estSpeechMs 末位兜底', /audioRow/.test(rpA) && /: estSpeechMs/.test(rpA))
 check('H9 存档覆盖防御：旧档 uiSettings 旧文案被剥（文案不随档走）', /_legacyAudioSpeedPolicy/.test(read('server/deliverableStoreHandler.js')))
+
+// ═══ I. Task 52 统一口径哨兵（夏夏拍板「234 要统一」，2026-10-19）═════════
+// 估算轴（timing.js）与实播轴（row-player）三方归一：startDelay 字面语义 / 板书先动作后 /
+// 字数口径 / 音频行 gap=0 与锁时长。任何人改一侧漏改另一侧，本区块立刻红。
+const timingSrc = read('src/agent-b-v2/timing.js')
+check('I1 timing.js 有 rowHasRealAudio/isAudioSrc 镜像（音频行统一判据）', /rowHasRealAudio/.test(timingSrc) && /AUDIO_SRC_RE/.test(timingSrc))
+check('I2 timing.js startDelay 兜底已拔（无 min(1800/min(1500 暗改）', !/Math\.min\(1800/.test(timingSrc) && !/Math\.min\(1500/.test(timingSrc))
+check('I3 timing.js 模式A动作前置已砍（无 isTargetingQuestion）', !/isTargetingQuestion/.test(timingSrc))
+check('I4 timing.js 板书字数口径镜像（visualLen/isRuleLine/readBrace）', /function visualLen/.test(timingSrc) && /function isRuleLine/.test(timingSrc) && /function readBrace/.test(timingSrc))
+check('I5 双源同步锚：row-player 同款 visualLen/isRuleLine 都在（改两处同改）', /function visualLen/.test(rpA) && /function isRuleLine/.test(rpA))
+check('I6 timing.js 音频行 gap=0（rowHasRealAudio(row) ? 0 : rowGapMs）', /rowHasRealAudio\(row\) \? 0 : rowGapMs/.test(timingSrc))
+check('I7 timing.js 有音频行时长锁音频（hasRealAudio ? speechDurationMs）', /hasRealAudio \? speechDurationMs/.test(timingSrc))
+check('I8 AgentBDirect totalGapMs 用 rowHasRealAudio（音频行 gap=0 同口径）', /rowHasRealAudio\(r\) \? 0 : gapUnitMs/.test(abSrc))
+check('I9 Check 提示词 §6 有 startDelay=0 必校准第 5 条（生成侧防线）', /必须按上述公式校准为大于 0/.test(checkPrompt) && /绝不能裸 0/.test(checkPrompt))
+check('I10 row-player 实播侧零改动（三胞胎 md5 不变 + BASE_CHAR_MS=220 仍在）', md5(rpA) === md5(rpB) && /const BASE_CHAR_MS=220/.test(rpA))
 
 console.log(`\n== 结果: ${pass} 通过, ${fail} 失败 ==`)
 process.exit(fail ? 1 : 0)

@@ -37,7 +37,7 @@ import { BOARD_MARK_COLORS } from '../board-tools/roughNotationTool.js'
 import { ROUGH_DRAWING_COLORS } from '../board-tools/roughDrawingTool.js'
 import { saveLiveBoardPreview } from '../board-preview/liveBoardPreview.js'
 import { generateAgentBV2Rows } from './service.js'
-import { applyAgentBV2Timeline, computeRowGroupTimeline, countCharacters, estimateSpeechDurationMs, AGENT_B_V2_SPEECH_RATE, AGENT_B_V2_ROW_GAP_MS, AUDIO_SPEED_POLICY_TEXT } from './timing.js'
+import { applyAgentBV2Timeline, computeRowGroupTimeline, countCharacters, estimateSpeechDurationMs, rowHasRealAudio, AGENT_B_V2_SPEECH_RATE, AGENT_B_V2_ROW_GAP_MS, AUDIO_SPEED_POLICY_TEXT } from './timing.js'
 import { listSkills, DEFAULT_SKILL_ID } from './skills/index.js'
 import { checkAgentRows, applyCheckResult } from '../check-agent/service.js'
 import { batchPolishRowsMathAsr } from '../lib/mathAsrConverter.js'
@@ -424,7 +424,10 @@ const totalEstimatedStats = computed(() => {
       totalSpeechMs += estimateSpeechDurationMs(r.speech, { speed: canvasParams.value?.speechSpeed || AGENT_B_V2_SPEECH_RATE })
     }
   })
-  const totalGapMs = (rows.value.length - 1) * (canvasParams.value?.rowGapMs || AGENT_B_V2_ROW_GAP_MS)
+  // ★ Task 52（夏夏「234 统一」分叉 4b）：gap 口径同步 timing.js/row-player——音频行 gap=0
+  //   （onended 自然紧接），仅无音频行计入演示停顿；旧版一律 (n-1)×gap，音频行间虚长 1 秒/行
+  const gapUnitMs = canvasParams.value?.rowGapMs || AGENT_B_V2_ROW_GAP_MS
+  const totalGapMs = rows.value.slice(0, -1).reduce((acc, r) => acc + (rowHasRealAudio(r) ? 0 : gapUnitMs), 0)
   const totalSec = Math.round((totalSpeechMs + totalGapMs) / 1000)
   const m = Math.floor(totalSec / 60)
   const s = totalSec % 60
