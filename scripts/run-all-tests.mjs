@@ -12,7 +12,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = resolve(__dirname, '..')
 
 const tests = [
-  { name: 'superFilter v2 (92 用例)',     cmd: 'node scripts/test-superFilter.mjs' },
+  { name: 'superFilter v2 (96 用例)',     cmd: 'node scripts/test-superFilter.mjs' },
   { name: 'parseLLMJson (16 用例)',     cmd: 'node scripts/test-parseLLMJson.mjs' },
   { name: 'timing fix (5 用例)',         cmd: 'node scripts/test-timing-fix.mjs' },
   { name: 'timing computeRowGroup (7+6)', cmd: 'node scripts/test-timing-computeRowGroup.mjs' },
@@ -36,11 +36,12 @@ const tests = [
   { name: 'validate_contract',          cmd: 'node skills/board-lecture-player/scripts/validate_contract.cjs skills/board-lecture-player/assets/sample-rows.json' },
   { name: 'action whitelist sync (真源同步哨兵 54 用例)', cmd: 'node scripts/test-action-whitelist-sync.mjs' },
   { name: 'proxy self check (动作白名单运行时自检)',      cmd: 'node server/proxySelfCheck.js' },
-  { name: 'playback speed sync (提速归一哨兵 69 用例)', cmd: 'node scripts/test-playback-speed-sync.mjs' },
-  { name: 'font single source (字体宪法v2+v2.1切换器归一哨兵 55 用例)', cmd: 'node scripts/test-font-single-source.mjs' },
+  { name: 'playback speed sync (提速归一哨兵 79 用例)', cmd: 'node scripts/test-playback-speed-sync.mjs' },
+  { name: 'font single source (字体宪法v2+v2.1切换器归一哨兵 61 用例)', cmd: 'node scripts/test-font-single-source.mjs' },
   { name: 'audio url lifecycle (哑巴根因链 16 用例)', cmd: 'node scripts/test-audio-url-lifecycle.mjs' },
   { name: 'repo hygiene (仓库卫生哨兵·版本/镜像/死档/宪法 30 用例)', cmd: 'node scripts/test-repo-hygiene.mjs' },
   { name: 'board layout single source (四区坐标单一真源哨兵 21 用例)', cmd: 'node scripts/test-board-layout-single-source.mjs' },
+  { name: 'player mirror parity (播放器镜像行为对拍哨兵 22 用例)', cmd: 'node scripts/test-player-mirror-parity.mjs' },
 ]
 
 let pass = 0, fail = 0

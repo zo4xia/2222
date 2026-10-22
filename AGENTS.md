@@ -158,3 +158,4 @@ Before project work starts:
 
 - 跨环境工具避坑 **Why:** Windows、严格云端 Node、Git 精确暂存和工具批次的默认行为会制造假失败或漏跑验证；必须依据真实退出码与文件状态定位。 **How to apply:** - ESM 配置路径：不使用 `_…
 - tool
+- 刻意平行实现（不是 bug，勿归一）**Why:** Task 61 普查确认以下差异是设计接受的分工口径，当 bug 修会引入真回归。 **How to apply:** - App 侧 roughjs/rough-notation 笔触 vs row-player 自绘 rline/rellipse：seed 机制不同，同一动作两侧笔触形状天然不同（保真自绘 vs 库渲染）；- App 题目层 KaTeX（mathText.js）vs 播放器题目纯文本层：播放器是离线单文件无 KaTeX；- timing.js readBrace slice 保留嵌套花括号 vs 播放器剥内层：估算域已知分工，test-player-mirror-parity B5 显式锁档；- compactActionsIntoWindow 播放域压窗（gap 下限 200）vs 估算域不压窗：音频窗铁律分工，Task 46 记档。row-player 镜像块（superFilter §5c / isRuleLine / actionDurationMs / estSpeech）与真源的行为一致性由 test-player-mirror-parity 哨兵对拍锁死，改任一侧先跑哨兵。

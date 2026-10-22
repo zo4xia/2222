@@ -15,11 +15,11 @@
 ### 完整功能
 - 📝 题目识别（文本/图片/混合）+ 自动落坐 1726×980 四区画布
 - 🎙️ 分步口播稿生成（160 cpm 语速 + 标点停顿 + 发音硬规范）
-- 🎨 板书内容生成（达芬奇手稿毛料感 + superFilter 10 步过滤 + LaTeX 渲染）
+- 🎨 板书内容生成（达芬奇手稿毛料感 + superFilter 12 步过滤 + LaTeX 渲染）
 - ⚡ 动作指令生成（rough-notation 圈划 + 单手串行 + 1-2s 标点停顿）
 - 🎬 演播单页播放器（真实音频驱动 + 手写体渲染 + 录制导出）
 - 📤 多格式导出（口播稿 MD / 分镜总表 / JSON / 下游 API 规范）
-- 🛡️ 7 个 skill 沉淀（5 上游约束 + 2 下游落地，含可交互 demo）
+- 🛡️ 8 个 skill 沉淀（上游产出端硬约束 + 下游渲染端落地，含可交互 demo）
 
 ## 技术栈
 
@@ -31,10 +31,10 @@
 | 图标库 | @ant-design/icons-vue 7.0.1 |
 | 数学渲染 | KaTeX 0.18.4 |
 | 手绘动画 | rough-notation 0.5.1 + roughjs 4.6.6 |
-| 手写字体 | ZeoSeven FontsAPI (平方乔木体 / 栗壳坚坚体 / 平方韶华等 5 种) |
+| 手写字体 | ZeoSeven FontsAPI (六级降级链：乔木507/韶华157/上上谦511/三生510/韶拓509/栗壳490) |
 | 后端代理 | Vite server middleware (9 个 API handler) |
 | 生产部署 | Node.js productionServer (独立 HTTP) / Vercel serverless (5 个 api/ thin wrapper) |
-| 测试 | Node.js assert/strict（run-all-tests 统一入口，7 套件；另有网络型 test:refine-degrade 独立跑） |
+| 测试 | Node.js assert/strict（run-all-tests 统一入口，30 套件；另有网络型 test:refine-degrade 独立跑） |
 
 ## 架构模式
 
@@ -51,7 +51,7 @@ AgentBDirect (Agent B)
   → POST /api/agent-b-v2/generate → 上游 LLM 生成五字段
   → contract.js 解析归一 (normalizeBoard / parseLLMJson / 弃用字段检测)
   → timing.js 计算 1D 单手串行时间线 (160cpm + 标点停顿 + 动作量化)
-  → superFilter 10 步过滤 (LaTeX→Unicode / 缺字降级 / 除号→\frac)
+  → superFilter 12 步过滤 (LaTeX→Unicode / 缺字降级 / 除号→\frac)
   → B 页画布预览 RealBoardPreview (板书文字 + 动作 SVG)
     ↓
 Check Agent C (可选)
@@ -122,7 +122,7 @@ npm run start  # 生产: node server/productionServer.js
 ```dockerfile
 FROM node:24-slim
 WORKDIR /app
-COPY package.json bun.lock ./
+COPY package.json package-lock.json ./
 RUN npm install --production
 COPY . .
 RUN npm run build
@@ -133,11 +133,11 @@ CMD ["node", "server/productionServer.js"]
 ## 测试
 
 ```bash
-# 全部测试（离线 7 套件）
+# 全部测试（离线 30 套件）
 node scripts/run-all-tests.mjs
 
 # 单独跑
-node scripts/test-superFilter.mjs              # 92 用例 + 镜像哨兵
+node scripts/test-superFilter.mjs              # 96 用例 + 镜像哨兵
 node scripts/test-parseLLMJson.mjs             # 16 用例
 node scripts/test-timing-fix.mjs               # 5 用例
 node scripts/test-timing-computeRowGroup.mjs   # 7 用例 + 6 不变量
@@ -154,8 +154,8 @@ npm run test:refine-degrade
 ```
 ├── src/
 │   ├── agent-b-v2/          Agent B 核心 (prompt/contract/timing/service/composables)
-│   ├── board-tools/         板书工具 (rough-notation/drawing/drawIntent/scheduler/stableHash)
-│   ├── check-agent/         Check Agent C (contract/skillViolations/asrPolish)
+│   ├── board-tools/         板书工具 (roughNotationTool/roughDrawingTool/boardToolTiming/handActionScheduler/textTargetRegistry/boardToolCatalog/stableHash)
+│   ├── check-agent/         Check Agent C (prompt/service/skillViolations/asrPolish)
 │   ├── components/          Vue 组件 (Step1Entry/BoardContentLayer/RealBoardPreview等)
 │   ├── lib/                 公共库 (parseLLMJson/agentBApiConfig/speechMarkdown等)
 │   ├── services/            业务服务 (stepHandoff/recognitionClient/agentAKnowledge)
@@ -166,10 +166,10 @@ npm run test:refine-degrade
 │   ├── skills-hub/           7 个 skill 可交互 demo + integration-guide
 │   ├── canvas.png            画布底图 1726×980（四区图 question/analysis/solution/summary/topic.png）
 │   ├── row-player.html       播放页镜像（与根目录真相源逐字节同步，哨兵把关）
-│   ├── snapdom.js / rough.js 播放页与快照功能依赖的本地库
+│   ├── snapdom.js             播放页快照功能依赖的本地库
 ├── skills/                   8 个 skill 沉淀 (SKILL.md + meta.json + demo；hub 镜像 7 页，board-speech-rules 无独立 demo)
 ├── doc/                      知识库数据（knowledge-a.compact.json 活数据）+ 资源索引档案
-├── scripts/                  27 个测试套件脚本 + 运维工具
+├── scripts/                  28 个测试套件脚本 + 运维工具（含 playerMirrorExtract 镜像对拍提取库）
 ├── row-player.html           演播单页播放器（真相源，含 superFilter 镜像）
 ├── board-preview.html        全屏画布预览（按钮直连 vite 入口）
 └── AGENTS.md                 仓库宪法（每轮工作记录真源 = git commit message）
@@ -193,7 +193,7 @@ npm run test:refine-degrade
 ## 常见问题
 
 ### 画布预览里板书显示 LaTeX 源代码
-板书文字在渲染前会过 superFilter 10 步清洗（`\frac` → 上下分数、`×` → `x`、`$` 删除等）。如果看到 LaTeX 源码，检查 `superFilter.js` 是否正常 import。
+板书文字在渲染前会过 superFilter 12 步清洗（`\frac` → 上下分数、`×` → `x`、`$` 删除等）。如果看到 LaTeX 源码，检查 `superFilter.js` 是否正常 import。
 
 ### 演播按钮打开的是空白页
 检查 URL 是否指向 `/row-player.html`（根目录），不是 `/deliverable/row-player.html`（不存在）。数据通过 Blob URL 的 `?deliverable=` 参数传递。

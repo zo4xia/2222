@@ -38,8 +38,8 @@
      shaohua=韶华 CDN 157 主；两态降级链在 <head> link 区已全覆盖（6 个 CDN 全声明，按需下载字形）。
      栈顺序真源 = stepHandoff.HANDWRITING_FONT_STACK / HANDWRITING_FONT_STACK_ALT */
   /*
-   * 视觉 token（2026-09-16 资产化）：与 src/style.css 的 --qh-* 同一套值。
-   * 单文件离线播放器无法引外部样式表，此处为同一真源的镜像，改色须两处同步。
+   * 视觉 token（2026-09-16 资产化）：播放器独立视觉（★ Task 61 勘误：src/style.css 的 --qh-*
+   * 变量族已退役，本块与 App 色板无同步义务，勿再按旧契约两处对色）。
    * 死规：--board / .stage / canvas#board / #ink 属画布与板书渲染区，禁止改动。
    */
   :root{--bg:#e9edf4;--bg-deep:#dde3ec;--ink:#101828;--ink-2:#344054;--muted:#667085;
@@ -477,7 +477,8 @@ function boardCharPool(L){
   return out;
 }
 
-// 动作分档时长（镜像 src/agent-b-v2/timing.js estimateActionDuration；离线单文件自带一份，改档两边同改）
+// 动作分档时长（镜像 src/agent-b-v2/timing.js estimateActionDuration；离线单文件自带一份）
+// ★ Task 61 起行为对拍哨兵 test-player-mirror-parity B 组锁死两侧分档一致，改档先跑哨兵
 // ★ Task 43 夏夏拍板「动作 1.0」：画圈固定 1000；下划线按 exactText 字数分档——
 //   ≤5 字 1000 / >5 字 1500 / >10 字 2000；横线固定 1000。highlight/rough-arrow/draw 已砍。
 function actionDurationMs(a){
@@ -665,8 +666,9 @@ const HAND_FONT_STACKS={
   shaohua:'"平方韶华体","平方上上谦体","平方三生体","PingFangSaTuoTi","LikeJianJianTi",KaiTi,STKaiti,"PingFang SC",serif'};
 const HAND_FONT_FAMILY={qiaomu:'平方乔木体',shaohua:'平方韶华体'};
 let HAND_FONT=HAND_FONT_STACKS.qiaomu;   // 由 applyHandFontChoice() 按档覆写（首 load 前调用）
-// 规格真相源：题目区是印刷体（微软雅黑主，字体宪法 v2 夏夏拍板），不吃手写字体（镜像 stepHandoff.QUESTION_FONT_FAMILY，改真源要同步）
-const PRINT_FONT='"Microsoft YaHei","PingFang SC",system-ui,sans-serif';
+// 规格真相源：题目区是印刷体（微软雅黑主，字体宪法 v2 夏夏拍板），不吃手写字体。
+// ★ Task 61 归一：镜像多出的 system-ui 层拔除，与真源 stepHandoff.QUESTION_FONT_FAMILY 逐值一致（对拍哨兵：test-font-single-source D2 + test-player-mirror-parity）
+const PRINT_FONT='"Microsoft YaHei","PingFang SC",sans-serif';
 // 规格真相源：分析区红笔，解答/总结黑笔（题目区不走手写渲染；色值镜像 stepHandoff.ANALYSIS_TEXT_COLOR/BOARD_TEXT_COLOR）
 const STAGE_COLOR={'题目':'#000000','分析':'#dc2626','解答':'#000000','总结':'#000000'};
 function layoutText(ctx,text,x,y,maxW,size,lh,font){
@@ -782,9 +784,12 @@ function measureLine(line,size,font){
   return Math.max(size,w);
 }
 // 竖式/长除横线行：纯横线（_ — - – ― ~ ～ ═ ━ = 等连续 2+ 个）→ rough 手绘线，不渲染字符
+// ★ Task 61 修复（镜像漂移病理）：旧代码 \\s / \\- 是双反斜杠——\\s 只删字面「反斜杠s」、
+//   \\- 在字符类里构成 U+005C–U+2013 大区间，"abc"/"ok" 这类纯小写行被误判成横线整行画掉。
+//   与真源 src/agent-b-v2/timing.js isRuleLine 逐字符对齐，行为对拍哨兵 = test-player-mirror-parity B 组。
 function isRuleLine(s){
-  const t=String(s==null?'':s).replace(/\\s/g,'');
-  return t.length>=2 && /^[_—\\-–―─~～═━=]+$/.test(t);   // ─ U+2500 轻横线同收录
+  const t=String(s==null?'':s).replace(/\s/g,'');
+  return t.length>=2 && /^[_—\-–―─~～═━=]+$/.test(t);   // ─ U+2500 轻横线同收录
 }
 function rowImage(o){
   const key=[o.content,o.li,o.x|0,o.y|0,o.size,o.font,o.color,FONT_VER,DPR].join('|');
@@ -795,7 +800,7 @@ function rowImage(o){
   const toks=tokenizeLine(o.text);
   // 竖式/长除横线行：rough 手绘横线（用户拍板 2026-09-17，不渲染下划线字符）
   if(isRuleLine(o.text)){
-    const lead=(String(o.text).match(/^\\s*/)||[''])[0].length;
+    const lead=(String(o.text).match(/^\s*/)||[''])[0].length;   // ★ Task 61：旧 /^\\s*/ 恒空匹配→前导空格宽度恒 0
     const leadW=lead>0?MCTX.measureText(' ').width*lead:0;
     const ruleW=Math.max(o.size*0.5,measureLine(String(o.text).trim(),o.size,o.font));
     const lw=leadW+ruleW;   // 总占宽含前导空格（布局对齐），画线从下划线起点开始
@@ -893,7 +898,8 @@ function rowImage(o){
 // 旧作最值钱的一条经验：小学题的「公式」绝大多数能转 Unicode 用手写字体直接写（保住手写感），
 // 只有真·结构数学（\frac、多层上下标）才值得出公式图。我们暂无 KaTeX，先降级为「原样写 + 告警」。
 // ⚠ 旧作 2026-06-08 的坑：/\s+/g 含 \n，会把多行板书压成一行 → 这里只压行内空白，绝不碰 \n
-// ⚡ superFilter v2（2026-10-12 字库实测校准版，镜像 src/utils/superFilter.js，改那边必须同步这边）
+// ⚡ superFilter v2（2026-10-12 字库实测校准版，镜像 src/utils/superFilter.js）
+// ★ Task 61 起本节与真源行为对拍：哨兵 test-player-mirror-parity A 组用同一语料双跑两侧必须逐字一致，改任一侧先跑哨兵
 // 字体实测（fontTools / CDN unicode-range）结论：5/5 可选手写字体支持 ASCII U+0020-007E、CJK 常用字、
 // 中文标点 ，。、；：？！（）《》〈〉【】…—‘’“”「」；5/5 全缺：→ ⇒ ≤ ≥ ≠ ≈ × ÷ − ± · √ ° ∠ ⊥ ∥ π ∞ ∵ ∴ ℃ 及全部全角字母数字变体。
 // 策略：输出必须落在手写安全白名单内，白名单外一律用支持的字符凑（ASCII 或中文），绝不静默回退印刷体混排。
@@ -999,8 +1005,10 @@ function normalizeBoardLine(s){
   let t=String(s==null?'':s);
   // ① 真实换行符统一（\r\n / \r → \n）
   t=t.replace(/\r\n|\r/g,'\n');
-  // ①' 字面量 \n 还原（只在后面不跟字母时，否则会把 \neq \not \nabla 等命令打断）
-  t=t.replace(/\\r\\n/g,'\n').replace(/\\n(?![a-zA-Z])/g,'\n');
+  // ①' 字面量 \n 还原：排除 \n 开头的 LaTeX 命令（\neq \not \notin \nabla）与单字母变量（\nS \na \nu，
+  //    单字母后随边界视为变量不还原）；多字母非命令如 \nstep 视为转义损伤还原为换行。
+  //    ★ Task 61 与真源 src/utils/superFilter.js 统一到同一超集正则，行为对拍哨兵 = test-player-mirror-parity A 组。
+  t=t.replace(/\\r\\n/g,'\n').replace(/\\n(?!(?:eq|ot|abla|otin|e\b|[a-zA-Z]\b))/g,'\n');
   // ② 控制字符 \t \b \v \f 退化为空格，绝不字面落板
   t=t.replace(/[\t\u0008\u000B\u000C]+/g,' ');
   // ③ HTML 实体解码（&amp; 最后解）

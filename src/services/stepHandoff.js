@@ -46,7 +46,8 @@ export const HANDWRITING_FONT_CHOICES = [
   { id: 'shaohua', label: '平方韶华体', family: HANDWRITING_FAMILY_ALT },
 ]
 export const HANDWRITING_FONT_CHOICE_DEFAULT = 'qiaomu'
-// ★ Task 10: 完整字体栈（与 row-player.html line 116-122 同步镜像）
+// ★ Task 10: 完整字体栈（与 row-player.html HAND_FONT_STACKS 块同步镜像；★ Task 61 起值级一致由
+//   test-font-single-source H2 哨兵 noWs 压缩比对锁死，改栈先跑哨兵）
 //   顺序：507 平方乔木体（主）→ 157 平方韶华体 → 511 平方上上谦体 → 510 平方三生体 → 509 平方韶拓体 → 490 栗壳坚坚体 → 系统楷体
 export const HANDWRITING_FONT_STACK = [
   '"平方乔木体"',

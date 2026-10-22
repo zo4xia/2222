@@ -1,5 +1,14 @@
 import { annotate } from 'rough-notation'
 import { MIN_HAND_LIFT_GAP_MS } from './boardToolTiming.js'
+// ★ Task 61 根治归一：字数分档常量不再镜像手抄，直接 import 唯一真源 src/agent-b-v2/timing.js
+// （Task 46 时真源未导出只能同值手抄；真源现已导出，改档只动 timing.js 一处，双侧天然零漂移）
+import {
+  NOTATION_DURATION_MS as MARK_DURATION_MS,
+  UNDERLINE_LONG_MS,
+  UNDERLINE_XLONG_MS,
+  UNDERLINE_MID_CHARS,
+  UNDERLINE_XLONG_CHARS,
+} from '../agent-b-v2/timing.js'
 
 export { MIN_HAND_LIFT_GAP_MS } from './boardToolTiming.js'
 
@@ -14,15 +23,10 @@ export const ROUGH_NOTATION_ENABLED_ACTIONS = Object.freeze([
   'circle',
 ])
 
-// ★ Task 46 分档归一：字数分档常量——镜像唯一真源 src/agent-b-v2/timing.js 的
-// NOTATION_DURATION_MS / UNDERLINE_*（同名同值，改档先改真源再同步这里，勿双头改）。
+// ★ Task 46 分档归一：estimateMarkDurationMs 不再按 DOM 宽度×400ms/字，改吃 timing.js 字数分档口径（2026-10-17，夏夏「统一性归一化去歧义」）
+// ★ Task 61 根治归一：原五常量同值手抄副本（NOTATION_DURATION_MS/UNDERLINE_* 镜像）退役，已改顶部 import 派生。
 // 旧 MARK_DURATION_PER_HAN_WIDTH_MS=400（DOM 量宽×400ms/字，8 字下划线≈3200ms、
 // 无 1~2s 钳制、circle 不固定 1000）已删，引用全文件清零。
-const MARK_DURATION_MS = { underline: 1000, circle: 1000 }
-const UNDERLINE_LONG_MS = 1500        // >5 字
-const UNDERLINE_XLONG_MS = 2000       // >10 字
-const UNDERLINE_MID_CHARS = 5
-const UNDERLINE_XLONG_CHARS = 10
 
 export const BOARD_MARK_COLORS = Object.freeze({
   red: '#dc2626',

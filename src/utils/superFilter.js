@@ -162,8 +162,11 @@ export function normalizeBoardLine(s) {
 
   // ① 真实换行符统一（\r\n / \r → \n）
   t = t.replace(/\r\n|\r/g, '\n')
-  // ①' 字面量 \n 还原（排除以 n 开头的关键 LaTeX 命令如 \neq \not \nabla \notin 等，避免误伤 \nS = 9 或 \na = 3 等公式开头变量）
-  t = t.replace(/\\r\\n/g, '\n').replace(/\\n(?!(?:eq|ot|abla|otin|e\b))/g, '\n')
+  // ①' 字面量 \n 还原：排除 \n 开头的 LaTeX 命令（\neq \not \notin \nabla）与单字母变量（\nS \na \nu，
+  //     单字母后随边界视为变量不还原）；多字母非命令如 \nstep 视为转义损伤还原为换行。
+  //     ★ Task 61 与 row-player 镜像统一到同一超集正则（旧窄正则连自家注释宣称保护的 \nS/\na 都护不住），
+  //     行为对拍哨兵 = scripts/test-player-mirror-parity.mjs A 组。
+  t = t.replace(/\\r\\n/g, '\n').replace(/\\n(?!(?:eq|ot|abla|otin|e\b|[a-zA-Z]\b))/g, '\n')
   // ② 控制字符 \t \b \v \f 退化为空格
   t = t.replace(/[\t\u0008\u000B\u000C]+/g, ' ')
   // ③ HTML 实体解码（&amp; 最后解）

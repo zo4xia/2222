@@ -151,8 +151,12 @@ console.log('── D. row-player 双胞胎与离线镜像 ──')
   const rp = read('row-player.html'), rpp = read('public/row-player.html')
   const md5 = (s) => createHash('md5').update(s).digest('hex')
   check('D1 双胞胎逐字节一致（md5）', md5(rp) === md5(rpp))
-  check('D2 PRINT_FONT = 微软雅黑主（镜像 stepHandoff.QUESTION_FONT_FAMILY）',
-    rp.includes(`const PRINT_FONT='"Microsoft YaHei","PingFang SC",system-ui,sans-serif';`))
+  check('D2 PRINT_FONT 与真源 QUESTION_FONT_FAMILY 逐值一致（★ Task 61：旧自字面量锁把 system-ui 漂移焊死，改 import noWs 比对）',
+    (() => {
+      const m = rp.match(/const PRINT_FONT='([^']*)';/)
+      const noWs = (s) => String(s).replace(/\s+/g, '')
+      return !!m && noWs(m[1]) === noWs(QUESTION_FONT_FAMILY)
+    })())
   check('D3 自然行高函数存在（fontBoundingBox 度量 + 1.2 兜底）',
     rp.includes('function naturalLhRatio') && /return 1\.2;\s*\n\}/.test(rp))
   check('D4 逐行行距抖动 lhJ 拔除（1.57+d 模式清零）', !/1\.57\+d/.test(rp) && !/lhJ=L\.lhJ/.test(rp))

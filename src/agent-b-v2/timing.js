@@ -12,14 +12,16 @@ export const AGENT_B_V2_ROW_GAP_MS = 1000
 export const BASE_CHAR_WRITE_MS = 220 // 1秒4~5字（基准 4.5 字/秒 = 220ms/字）
 export const HAND_LIFT_GAP_MS = MIN_HAND_LIFT_GAP_MS // 动作抬笔换手间隔（真源 boardToolTiming.js）
 
-// ★ Task 52（2026-10-19 夏夏拍板「234 要统一」）：以下三块口径镜像 row-player 实播轴，改两处同改——
-//   ① 音频行判定（镜像 row-player isAudioSrc L1520）
-//   ② 板书字数口径（镜像 compile L283 visualLen / L683 isRuleLine / L449-459 charCount）
-//   ③ startDelay 字面语义 + 板书先动作后 + 音频行锁时长锁 gap（镜像 compile L454/L506/L517-525）
+// ★ Task 52（2026-10-19 夏夏拍板「234 要统一」）：以下三块口径镜像 row-player 实播轴——
+//   ★ Task 61 起改为「哨兵对拍」而非「人肉两处同改」：scripts/test-player-mirror-parity.mjs B 组
+//   用同一语料双跑本文件与播放器提取代码，分叉即红。行号引用全改函数名锚（旧 L1520/L283 等行号大化石已清）：
+//   ① 音频行判定（镜像 row-player isAudioSrc）
+//   ② 板书字数口径（镜像 row-player visualLen / isRuleLine / compile 内 estSpeech 兜底公式）
+//   ③ startDelay 字面语义 + 板书先动作后 + 音频行锁时长锁 gap（镜像 row-player compile 音频铁律段）
 //   估算轴（本文件/VisualTimeline/导出 estimated*）与实播轴（liteplayer）此前三处分叉：
 //   startDelay=0 暗改兜底、模式 A 动作前置、音频行 gap/时长——统一后估算轴如实反映实播。
 const AUDIO_SRC_RE = /(^data:audio\/|^blob:|^https?:\/\/|^\.{0,2}\/|\.(mp3|wav|m4a|aac|ogg|webm|mpeg)(\?|#|$))/i
-function isAudioSrc(v) {
+export function isAudioSrc(v) {
   if (typeof v !== 'string') return false
   const s = v.trim()
   return s !== '' && AUDIO_SRC_RE.test(s)
@@ -64,7 +66,7 @@ export function estimateSpeechDurationMs(speech, { speed = AGENT_B_V2_SPEECH_RAT
 //   \frac{a}{b} 视觉字数 = a+b+1（+1 是分数线）、纯横线行按 2 字快写、每字 220ms 无抖动。
 //   旧口径剥 \frac 等 LaTeX 命令按字面字符计：分数行/横线行系统性低估，多行板书与实播漂移。
 //   行间抬笔在实播是板书窗口内的权重挤占（row-player drawWriting seg），两侧同窗口不加时。
-function readBrace(s, i) {
+export function readBrace(s, i) {
   let depth = 0, j = i
   for (; j < s.length; j++) {
     if (s[j] === '{') depth++
@@ -77,13 +79,13 @@ function splitBoardLines(content) {
     .map(l => l.replace(/\s+$/, ''))
     .filter(l => l.trim().length > 0)
 }
-// 纯横线行（竖式/长除横线）：连续 2+ 个横线类字符，实播 rough 手绘快画，估算按 2 字（镜像 row-player L683）
-function isRuleLine(s) {
+// 纯横线行（竖式/长除横线）：连续 2+ 个横线类字符，实播 rough 手绘快画，估算按 2 字（镜像 row-player isRuleLine）
+export function isRuleLine(s) {
   const t = String(s == null ? '' : s).replace(/\s/g, '')
   return t.length >= 2 && /^[_—\-–―─~～═━=]+$/.test(t)
 }
-// 视觉字数：\frac{a}{b} 只算 a+b+1 个视觉单位，别把字面 \frac 算进去（镜像 row-player L283）
-function visualLen(line) {
+// 视觉字数：\frac{a}{b} 只算 a+b+1 个视觉单位，别把字面 \frac 算进去（镜像 row-player visualLen）
+export function visualLen(line) {
   let s = String(line), n = 0, i = 0
   while (i < s.length) {
     if (s.startsWith('\\frac', i)) {
@@ -116,12 +118,13 @@ export function calculateBoardWritingDuration(content) {
 // ≤5 字 1000ms / >5 字 1500ms / >10 字 2000ms；横线（rough-line）无 exactText 固定 1000ms。
 // highlight / rough-arrow / draw 已砍（「其他做我怕做不好」）。
 // 旧表 {highlight:1400, underline:1200, circle:1500} 同步废弃。
-const NOTATION_DURATION_MS = { underline: 1000, circle: 1000 }
-const TOOL_DURATION_MS = { 'rough-line': 1000 }
-const UNDERLINE_LONG_MS = 1500        // >5 字
-const UNDERLINE_XLONG_MS = 2000       // >10 字
-const UNDERLINE_MID_CHARS = 5
-const UNDERLINE_XLONG_CHARS = 10
+// ★ Task 61：六常量改导出——roughNotationTool 手抄副本退役改 import，对拍哨兵锁双侧同值
+export const NOTATION_DURATION_MS = { underline: 1000, circle: 1000 }
+export const TOOL_DURATION_MS = { 'rough-line': 1000 }
+export const UNDERLINE_LONG_MS = 1500        // >5 字
+export const UNDERLINE_XLONG_MS = 2000       // >10 字
+export const UNDERLINE_MID_CHARS = 5
+export const UNDERLINE_XLONG_CHARS = 10
 
 export function estimateActionDuration(action) {
   const inner = action?.action || action

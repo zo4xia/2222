@@ -203,8 +203,12 @@ check('row-player kwTimeMs 只认 entry 级 triggerKeyword（写错层=忽略，
   !playerSrc.includes('a.action&&a.action.triggerKeyword') && playerSrc.includes('只认 entry 级 triggerKeyword'))
 // 7b. 时长单一体系（第四套 400ms/字宽度体系销账）
 const rnt = read('src/board-tools/roughNotationTool.js')
-check('roughNotationTool estimateMarkDurationMs 分档归一（无 400ms/字宽度体系活代码）',
-  !/const MARK_DURATION_PER_HAN_WIDTH_MS/.test(rnt) && /const MARK_DURATION_MS/.test(rnt) && rnt.includes('Task 46'))
+check('roughNotationTool estimateMarkDurationMs 分档归一（无 400ms/字宽度体系活代码；★ Task 61 起五常量改 timing.js import 派生、手抄副本退役）',
+  !/const MARK_DURATION_PER_HAN_WIDTH_MS/.test(rnt)
+    && rnt.includes('NOTATION_DURATION_MS as MARK_DURATION_MS')
+    && rnt.includes("from '../agent-b-v2/timing.js'")
+    && !/const (MARK_DURATION_MS|UNDERLINE_LONG_MS|UNDERLINE_XLONG_MS|UNDERLINE_MID_CHARS|UNDERLINE_XLONG_CHARS)\s*=/.test(rnt)
+    && rnt.includes('Task 46'))
 check('roughNotationTool validate 禁填字段对称（含 durationMs）',
   /durationMs/.test(rnt) && /estimatedDurationMs/.test(rnt) && /gapAfterMs/.test(rnt))
 // 7c. 导出闸门（存库导出端与生成端同门）

@@ -20,6 +20,7 @@ import {
   estimateSpeechDurationMs,
   computeRowGroupTimeline,
 } from '../src/agent-b-v2/timing.js'
+import { evalEstSpeech } from './playerMirrorExtract.mjs'
 
 let pass = 0, fail = 0
 const check = (name, ok, detail = '') => {
@@ -125,11 +126,11 @@ check('F6 skills 目录 README: 220ms/字', /220ms\/字/.test(skillsReadme) && !
 // row-player 兜底口径已对齐 timing.js: 同句口播估算应一致（剥标点+停顿+下限）
 const sample = '这道题我们来看一下。'
 const appMs = estimateSpeechDurationMs(sample)
-// 手工按播放器新口径算（无法 import html，公式复刻）
-const chars = [...sample.replace(/\s+/g, '').replace(/[。，、；：？！“”‘’（）《》【】……—.,!?;:'"()\[\]<>~`@#$%^&*_+=|\\/]/g, '')].length
-const punct = (sample.match(/。/g) || []).length * 700 + (sample.match(/，/g) || []).length * 500 + (sample.match(/…+/g) || []).length * 1000
-const playerMs = Math.max(1500, Math.round(chars * 60 / 160 * 1000) + punct)
-check('G1 播放器兜底估算 == App 估算（同一句不再分叉）', appMs === playerMs, `app=${appMs} player=${playerMs}`)
+// ★ Task 61：旧 G1 在测试里手抄第三份公式再比对（三胞胎 md5 绿 ≠ 播放器公式对）——
+//   改为提取播放器 estSpeech 实代码沙箱求值，与 timing.js 真源对拍（基建 playerMirrorExtract.mjs；
+//   更大语料的同类对拍 = test-player-mirror-parity.mjs B7）
+const playerMs = evalEstSpeech(readFileSync(path.join(root, 'row-player.html'), 'utf-8'))({ speech: sample })
+check('G1 播放器兜底估算 == App 估算（提取播放器实代码对拍，测试内不再复刻公式）', appMs === playerMs, `app=${appMs} player=${playerMs}`)
 
 // ═══ H. 兜位定位归一（2026-10-15 夏夏定性：160 是兜位不是功能，有音频跟音频）═══
 // 兜位不越权 = 有实测音频时 160 完全不参与；文案/系数全部真源派生，无平行字面量
