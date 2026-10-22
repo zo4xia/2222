@@ -48,7 +48,7 @@ export function pctBox(style = {}) {
  * 自然行高 + 度量换列 + stageFlow 顺序续排），与 B 契约「板书不输出起手坐标，由渲染层按区域自然排版」对齐；
  * 服务端预判坐标与渲染层度量排版双权威互相打架（估算 1.2 比数 vs 实际字体度量）是旧暗病，本层不再注入 startCoord。
  * 若将来需要服务端预览估算，用 stepHandoff.LINE_HEIGHT_ESTIMATE_RATIO + NATURAL_LINE_HEIGHT_EXTRA_PX
- * 重建（v2.2：自然行高估算 = 比数 1.2 + 2px 分数余量），不要手写比数。 */
+ * 重建（v2.2：题目自然行高估算 = 比数 1.2 + 2px 分数余量；v2.3 2026-10-22 夏夏拍板：板书侧用 BOARD_LINE_HEIGHT_EXTRA_PX = 4px = 2px 分数余量 + 2px 行距呼吸），不要手写比数。 */
 
 /**
  * 题目图片容器最大高度（%）。

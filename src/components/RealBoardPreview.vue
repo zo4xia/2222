@@ -6,7 +6,7 @@ import {
   CANVAS_W as DESIGN_W,
   CANVAS_H as DESIGN_H,
 } from '../utils/canvasCoords'
-import { BOARD_FONT_SIZE, QUESTION_FONT_SIZE, HANDWRITING_FONT_STACK, ANALYSIS_TEXT_COLOR, BOARD_TEXT_COLOR } from '../services/stepHandoff.js'
+import { BOARD_FONT_SIZE, QUESTION_FONT_SIZE, HANDWRITING_FONT_STACK, ANALYSIS_TEXT_COLOR, BOARD_TEXT_COLOR, BOARD_LINE_HEIGHT_EXTRA_PX } from '../services/stepHandoff.js'
 import { naturalLhRatioFor, naturalLhWithFractionMargin } from '../lib/naturalLineHeight.js'
 import { createBoardToolRuntime } from '../board-tools/boardToolCatalog.js'
 
@@ -65,11 +65,13 @@ const handwritingFontStack = computed(() => {
 //   做加法，用 canvas 度量字体栈自然比数 + 2px 折算无单位 line-height（与 row-player naturalLhRatio
 //   同一度量体系）。度量不可用回落 .board-text-anchor 基础样式 normal；手写字体 CDN 异步加载完成
 //   （loadingdone）后重测——字体没到之前量到的是回退栈，到了必须换真度量。
+// ★ v2.3（2026-10-22 夏夏拍板）：本层是板书层（分析/解答/总结），行距余量用 BOARD_LINE_HEIGHT_EXTRA_PX=4px
+//   （2px 分数余量 + 2px 行距呼吸）；题目层（BoardContentLayer）维持 2px 不变。
 const boardLhRatio = ref(null)
 function remeasureBoardLh() {
   boardLhRatio.value = naturalLhRatioFor(handwritingFontStack.value, boardFontSize.value)
 }
-const boardTextLh = computed(() => naturalLhWithFractionMargin(boardLhRatio.value, boardFontSize.value))
+const boardTextLh = computed(() => naturalLhWithFractionMargin(boardLhRatio.value, boardFontSize.value, BOARD_LINE_HEIGHT_EXTRA_PX))   // 板书层 v2.3 余量 4px
 watch([handwritingFontStack, boardFontSize], remeasureBoardLh)
 onMounted(() => {
   remeasureBoardLh()

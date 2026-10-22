@@ -11,7 +11,7 @@
  * 降级哲学：度量失败（无 document / 旧浏览器无 fontBoundingBox / 脏度量）返回 null，
  * 调用方回落 line-height: normal（组件基础样式）——与 row-player 桩环境退估算比数 1.2 同一哲学：
  * 宁可回落规范值，不硬造第二口径。 */
-import { NATURAL_LINE_HEIGHT_EXTRA_PX } from '../services/stepHandoff.js'
+import { NATURAL_LINE_HEIGHT_EXTRA_PX, BOARD_LINE_HEIGHT_EXTRA_PX, BOARD_FONT_SIZE } from '../services/stepHandoff.js'
 
 let mctx = null
 
@@ -23,7 +23,7 @@ function measureCtx() {
 
 /** 字体栈自然行高比数（= CSS line-height: normal 同源度量 fontBoundingBoxAscent+Descent / 字号）。
  *  与 row-player naturalLhRatio 同一算法与护栏区间（0.8~3 防脏度量）；不可用返回 null（回落 normal）。 */
-export function naturalLhRatioFor(fontStack, sizePx = 38) {
+export function naturalLhRatioFor(fontStack, sizePx = BOARD_FONT_SIZE) {
   const ctx = measureCtx()
   if (!ctx) return null
   try {
@@ -39,8 +39,10 @@ export function naturalLhRatioFor(fontStack, sizePx = 38) {
   return null
 }
 
-/** 自然行高 + 分数余量 → 无单位 line-height CSS 字符串；ratio 为 null（或字号非法）返回 null。 */
-export function naturalLhWithFractionMargin(ratio, sizePx) {
+/** 自然行高 + 分数余量 → 无单位 line-height CSS 字符串；ratio 为 null（或字号非法）返回 null。
+ *  extraPx 默认 = 题目层分数余量 2px；板书层（分析/解答/总结）传 BOARD_LINE_HEIGHT_EXTRA_PX=4px
+ *  （v2.3 2026-10-22 夏夏拍板：2px 分数余量 + 2px 行距呼吸，自动换行的行高再加 2px，题目层不变）。 */
+export function naturalLhWithFractionMargin(ratio, sizePx, extraPx = NATURAL_LINE_HEIGHT_EXTRA_PX) {
   if (ratio == null || !(sizePx > 0)) return null
-  return String(ratio + NATURAL_LINE_HEIGHT_EXTRA_PX / sizePx)
+  return String(ratio + extraPx / sizePx)
 }

@@ -125,17 +125,17 @@ check('区域缺位 → src:"fallback"（模板常量兜底）',
 /* ---------- 4) stageFlowPlace 纯函数四行为 ---------- */
 {
   const zone = { x: 103.56, y: 398.1 }
-  const r1 = stageFlowPlace(null, zone, null, 200, W, H, 38)
+  const r1 = stageFlowPlace(null, zone, null, 200, W, H, 40)
   check('首行：无游标无坐标 → 落区域左上锚', r1.start.x === zone.x && r1.start.y === zone.y)
   check('首行：游标锚 anchorY = 起笔 y（后续换列回这里）', r1.cursor.anchorY === zone.y)
 
-  const r2 = stageFlowPlace({ x: zone.x, y: 560, anchorY: zone.y, colMaxW: 400 }, zone, null, 200, W, H, 38)
+  const r2 = stageFlowPlace({ x: zone.x, y: 560, anchorY: zone.y, colMaxW: 400 }, zone, null, 200, W, H, 40)
   check('次行：自然续排（y=游标 y，同列不跳）', r2.start.x === zone.x && r2.start.y === 560)
 
-  const r3 = stageFlowPlace({ x: zone.x, y: 900, anchorY: zone.y, colMaxW: 400 }, zone, null, 200, W, H, 38)
-  check('放不下换列：x+colMaxW+colGap、y 回锚', Math.abs(r3.start.x - (zone.x + 400 + 34)) < 1e-9 && r3.start.y === zone.y)
+  const r3 = stageFlowPlace({ x: zone.x, y: 900, anchorY: zone.y, colMaxW: 400 }, zone, null, 200, W, H, 40)
+  check('放不下换列：x+colMaxW+colGap、y 回锚', Math.abs(r3.start.x - (zone.x + 400 + 36)) < 1e-9 && r3.start.y === zone.y)
 
-  const r4 = stageFlowPlace({ x: zone.x, y: 900, anchorY: zone.y, colMaxW: 400 }, zone, { x: 900, y: 200 }, 200, W, H, 38)
+  const r4 = stageFlowPlace({ x: zone.x, y: 900, anchorY: zone.y, colMaxW: 400 }, zone, { x: 900, y: 200 }, 200, W, H, 40)
   check('显式 startCoord：尊重原位不被游标改写', r4.start.x === 900 && r4.start.y === 200)
   check('显式 startCoord：游标跟随（下 行续排不叠它）', r4.cursor.x === 900 && r4.cursor.y === 200 && r4.cursor.anchorY === 200)
 }
@@ -164,8 +164,8 @@ check('区域缺位 → src:"fallback"（模板常量兜底）',
   check('同 stage 第二行不叠首行（y2 > 首行末行 y）', b2.layout[0].y > b1.layout[b1.layout.length - 1].y)
   check('同 stage 第三行不叠第二行（y3 > 第二行末行 y）', b3.layout[0].y > b2.layout[b2.layout.length - 1].y)
   check('三行同列左对齐（自然段落感）', b1.layout[0].x === b2.layout[0].x && b2.layout[0].x === b3.layout[0].x)
-  check('相邻行距 = 自然行高 + 2px 分数余量（字体宪法 v2.2：桩环境无度量→估算1.2→38×1.2+2=47.6，非 0 叠字）',
-    Math.abs((b2.layout[0].y - b1.layout[0].y) - (38 * 1.2 + 2)) < 1e-6,
+  check('相邻行距 = 板书自然行高 + 4px 余量（字体宪法 v2.3：桩环境无度量→估算1.2→40×1.2+4=52，非 0 叠字）',
+    Math.abs((b2.layout[0].y - b1.layout[0].y) - (40 * 1.2 + 4)) < 1e-6,
     `gap=${b2.layout[0].y - b1.layout[0].y}`)
   const solX = W * 56 / 100, solY = H * 16 / 100
   check('显式 startCoord 行尊重原位（解答 [56%,16%]）', Math.abs(b4.layout[0].x - solX) < 1e-6 && Math.abs(b4.layout[0].y - solY) < 1e-6)
@@ -186,7 +186,7 @@ check('drawWriting 消费编译期布局（task.layout 优先 + layoutBoardLines
 check('drawAction 板书字池优先锚定（boardChars 先搜、Q.chars 兜底）',
   /let rg=\(task\.boardChars&&task\.boardChars\.length\)\?findRange\(task\.boardChars/.test(script) &&
   /if\(!rg\)rg=findRange\(Q\.chars/.test(script))
-check('drawAction 标注框按命中字号自适应（板书 38 / 题目 30）', /const fs=rg\.size\|\|30;/.test(script))
+check('drawAction 标注框按命中字号自适应（板书 40 / 题目 30）', /const fs=rg\.size\|\|30;/.test(script))
 check('findRange 返回带实际字号 size（下游标注框用）', /y2:b\.y,size:\(a\.size!=null\?a\.size:30\)/.test(script))
 check('字体门：warmBoardFonts 到位后整轴重排（C=compile(C.data)）',
   /FONT_VER\+\+; ROW_CACHE\.clear\(\);[\s\S]{0,400}?C=compile\(C\.data\)/.test(script))

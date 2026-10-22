@@ -10,13 +10,13 @@
  * 注意 skills/ 下的 html 是测试草稿，不是本文件的依据。
  *
  * ★ Task 10 修复 (2026-09-21)：恢复甲方原始要求（row-player.html v1.1 2026-09-17 拍板版）
- *   - 板书字号 35px → 38px（35 与 42 折中）
+ *   - 板书字号 38px → 40px（2026-10-22 夏夏实测「还是小了一点」；38 为 2026-09-17 的 35/42 折中）
  *   - 板书字体 LikeJianJianTi(490) → 平方乔木体(507) 优先，490 作为降级栈尾
  *   - 字距 0-2px 微小随机 → 三路抖动（字号/基线/字距）+ 位置抖动（⚠ 2026-10-17 夏夏拍板书写抖动全拔：三路+位置+逐字旋转+整行微倾均已归零退役，手写感只由手写字体+rough笔触承载）
  *
  * ★ 字体宪法 v2（2026-10-15 夏夏拍板，全库归一）：
  *   - 画布 1726×980px（以实际硬编码画布尺寸为准）
- *   - 题目：微软雅黑 30px（印刷体）；题目之外：板书 38px 手写体
+ *   - 题目：微软雅黑 30px（印刷体）；题目之外：板书 40px 手写体
  *   - 板书字体 2 种可选：默认平方乔木体(507)；备选链 157韶华→511上上谦→510三生→509韶拓→490栗坚（按栈自动降级）
  *   - ★ v2.1（2026-10-15 同日）：UI 下拉切换器接入。选择值 = uiSettings.handwritingFontChoice
  *     （数据键，随档走），全消费端用 resolveHandwritingFont(choice) 派生，禁止手写字面量；
@@ -31,9 +31,9 @@ export const QUESTION_FONT_SIZE = 30
 // ★ 字体宪法 v2：题目印刷体 = 微软雅黑（夏夏 2026-10-15 拍板；旧 Segoe UI 优先栈已废止）
 export const QUESTION_FONT_FAMILY = '"Microsoft YaHei", "PingFang SC", sans-serif'
 export const QUESTION_FONT_FAMILY_TEXT = '微软雅黑（印刷体，本地字体）'
-// ★ Task 10: 板书字号 38px（甲方 2026-09-17 拍板，35 与 42 折中）
-export const BOARD_FONT_SIZE = 38
-export const BOARD_FONT_RATIO_TEXT = '约题目的1.2~1.5倍，推荐38px'
+// ★ Task 10: 板书字号 38px（甲方 2026-09-17 拍板，35 与 42 折中）；2026-10-22 夏夏实测「还是小了一点」38→40
+export const BOARD_FONT_SIZE = 40
+export const BOARD_FONT_RATIO_TEXT = '约题目的1.2~1.5倍，推荐40px'
 // ★ Task 10: 主手写体 = 平方乔木体 (CDN 507)；490 (栗壳坚坚体) 降为字体栈尾
 // 字体宪法 v2「2 种可选」：默认 = 平方乔木体(507)；备选 = 平方韶华体(157)，其后为加载失败自动降级链
 export const HANDWRITING_FAMILY = '平方乔木体'
@@ -128,10 +128,15 @@ export function handwritingFontSourceFor(fontChoice) {
 //   画布直接加 px（row-player 镜像常量 NATURAL_LH_EXTRA_PX）；DOM 用 src/lib/naturalLineHeight.js 度量比数 + 2px 折算无单位 line-height。
 //   估算口径（B 感知垂直跨度 / 服务端换行预判）= 字号 × LINE_HEIGHT_ESTIMATE_RATIO + NATURAL_LINE_HEIGHT_EXTRA_PX。
 //   旧 QUESTION_LINE_HEIGHT=1.65 / BOARD_LINE_HEIGHT 1.7±(1.55~1.85) 已全库废止拔除。
-export const LINE_HEIGHT_POLICY_TEXT = '自然行高（CSS line-height: normal / 字体自身度量）+2px 分数余量（分数上下结构越出行盒需呼吸空间），不设强制行高规范；区域内行内段落自然间距、自然换行'
+export const LINE_HEIGHT_POLICY_TEXT = '自然行高（CSS line-height: normal / 字体自身度量）+2px 分数余量（分数上下结构越出行盒需呼吸空间），不设强制行高规范；区域内行内段落自然间距、自然换行；板书层（分析/解答/总结）行距余量 4px = 2px 分数余量 + 2px 行距呼吸（2026-10-22 夏夏拍板「自动换行的行高再加 2px 左右，题目字号除外」），题目层维持 2px'
 export const LINE_HEIGHT_POLICY_SHORT = '自然+2px 分数余量（无强制行高规范）'
 export const LINE_HEIGHT_ESTIMATE_RATIO = 1.2
 export const NATURAL_LINE_HEIGHT_EXTRA_PX = 2
+// ★ 字体宪法 v2.3（2026-10-22 夏夏拍板「自动换行的行高再加 2px 左右，除了题目的字号」）：
+//   板书层（分析/解答/总结）行距余量 4px = 2px 分数余量 + 2px 行距呼吸；题目层维持 NATURAL_LINE_HEIGHT_EXTRA_PX=2px 不变。
+//   消费端：row-player 镜像常量 BOARD_LH_EXTRA_PX（行距推进/换列判定/换列预判）；DOM 板书层 naturalLhWithFractionMargin 第三参；估算公式 板书 = 字号×RATIO+4、题目 = 字号×RATIO+2。
+export const BOARD_LINE_HEIGHT_EXTRA_PX = 4
+export const BOARD_LINE_HEIGHT_POLICY_SHORT = '自然+4px（2px分数余量+2px行距呼吸，无强制行高规范）'
 // ★ 字体宪法 v2：颜色唯一真源——分析区红色，其余全部黑色（画布/ DOM 渲染端色值从这里派生）
 export const ANALYSIS_TEXT_COLOR = '#dc2626'
 export const BOARD_TEXT_COLOR = '#000000'
@@ -167,12 +172,13 @@ export function buildCanvasParams(fontChoice = HANDWRITING_FONT_CHOICE_DEFAULT) 
       summary: { px: BOARD_FONT_SIZE, family: boardFamily, color: '黑色' },
     },
     lineHeight: {
-      // ★ 字体宪法 v2.2：自然行高 + 2px 分数余量（无强制规范）；estimateRatio/extraPx 仅供 B 估算垂直跨度
+      // ★ 字体宪法 v2.2/v2.3：题目 自然+2px 分数余量；板书 自然+4px（2px 分数余量+2px 行距呼吸）；estimateRatio/extraPx 仅供 B 估算垂直跨度
       policy: LINE_HEIGHT_POLICY_TEXT,
       question: LINE_HEIGHT_POLICY_SHORT,
-      others: LINE_HEIGHT_POLICY_SHORT,
+      others: BOARD_LINE_HEIGHT_POLICY_SHORT,
       estimateRatio: LINE_HEIGHT_ESTIMATE_RATIO,
       extraPx: NATURAL_LINE_HEIGHT_EXTRA_PX,
+      boardExtraPx: BOARD_LINE_HEIGHT_EXTRA_PX,
     },
     letterSpacing: {
       question: '0',

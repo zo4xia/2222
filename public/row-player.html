@@ -14,9 +14,9 @@
   死规定：stage 中文 / region 英文 / 画布 1726×980 百分比坐标
   规格真相源（2026-09-13 handoff 画布参数）：
     题目   30px 印刷体(微软雅黑 Microsoft YaHei) 黑色 自然行高 一打开就写好（考卷式）
-    分析   38px 手写体(平方乔木体) 红色 自然行高
-    解答   38px 手写体 黑色 自然行高
-    总结   38px 手写体 黑色 自然行高
+    分析   40px 手写体(平方乔木体) 红色 自然行高
+    解答   40px 手写体 黑色 自然行高
+    总结   40px 手写体 黑色 自然行高
     行高 = 自然（字体自身度量 / CSS normal 口径），不设强制行高规范（2026-10-15 夏夏拍板，旧 1.65/1.7± 废止）
     板书速度 1秒4~5个汉字（220ms/字基准，±30ms 抖动）；书写时长超出音频窗口时自适应加速压进音频内（音频=行时长唯一主时钟）；rough 动作同速
   素材真相源（2026-09-13 内嵌 base64，单文件离线）：
@@ -214,7 +214,7 @@
     </div>
   </div>
   <div class="bar">
-    <button id="btnPlay" data-step="1">▶ 播放</button>
+    <button id="btnPlay" data-step="1" disabled>⏳ 字体加载中…</button>
     <button id="btnInk" data-step="2">✍ 批注</button>
     <button id="btnRec" data-step="3">● 录制</button>
     <button id="btnTune" data-step="4">📐 调整布局</button>
@@ -254,7 +254,7 @@
 
 <!-- ===== 交付规格批注（车同轨·书同文 · 对外统一规格批注）=====
   画布尺寸：1726 × 980 px（比例 1726:980 ≈ 16:9）；板书安全区 left 1.80% / top 3.37% / right 98.15% / bottom 96.33%
-  字号：题目字号 30px 微软雅黑（印刷体）；板书字号 38px 平方乔木体·手写（≈题目字号的 1.2~1.5 倍，真源 stepHandoff.BOARD_FONT_SIZE）
+  字号：题目字号 30px 微软雅黑（印刷体）；板书字号 40px 平方乔木体·手写（≈题目字号的 1.2~1.5 倍，真源 stepHandoff.BOARD_FONT_SIZE）
   本题 stage 标签定位（百分比坐标，原点左上；唯一真相源 = 导出物 boardPlan 的四个 Label，播放器装载即读取，不靠内容反推）：
     题目 topicLabel (5.7, 6.6) / 分析 analysisLabel (5.7, 34.5) / 解答 solutionLabel (53.7, 6.6) / 总结 summaryLabel (53.7, 62)
   四区书写区间（板书落座参考区间，越界只要不出画布即可）：
@@ -424,6 +424,9 @@ function stageFlowPlace(cursor,zoneStart,given,estH,W,H,size){
    v2.2：自然行高之上再加 2px 分数余量——\frac 分数（分子在上/分母在下）越出字体自然行盒，纯 normal 相邻行贴死；
    常量镜像 stepHandoff.NATURAL_LINE_HEIGHT_EXTRA_PX，改真源两边同步。 */
 const NATURAL_LH_EXTRA_PX=2;
+// ★ v2.3（2026-10-22 夏夏拍板）：板书层行距余量 4px = 2px 分数余量 + 2px 行距呼吸（自动换行的行高再加 2px 左右，题目层维持 2px 不变）。
+//   镜像 stepHandoff.BOARD_LINE_HEIGHT_EXTRA_PX，改真源两边同步；板书行距推进/换列判定/换列预判一律走本常量，题目路径仍用 NATURAL_LH_EXTRA_PX。
+const BOARD_LH_EXTRA_PX=4;
 function naturalLhRatio(font,size){
   try{
     MCTX.font=size+'px '+font;
@@ -439,21 +442,21 @@ function naturalLhRatio(font,size){
    自适应书写流（用户拍板 2026-09-17）原样搬入：向下写 → 画布底换列 → 行超宽自适应缩字号。
    行距 = 自然行高（字体度量，逐行无抖动——手写感由手写字体本身与 rough 笔触承载；2026-10-17 夏夏拍板书写抖动全拔：位置抖动/逐字旋转/整行微倾一并退役）。 */
 function layoutBoardLines(content,x,y,W,H){
-  const size=38, marginX=10, marginY=10, colGap=Math.round(size*0.9);
+  const size=40, marginX=10, marginY=10, colGap=Math.round(size*0.9);   // 40px 镜像 stepHandoff.BOARD_FONT_SIZE（2026-10-22 38→40）
   const maxX=W-marginX, maxY=H-marginY;
   const lines=toBoardLines(content);
   const seed=hashStr(String(content||''));
-  const lhR=naturalLhRatio(HAND_FONT,size);   // 自然行高比数（旧 lhJ 1.55~1.85 随机抖已随强制行高规范废止）；行距 = 自然行高 + NATURAL_LH_EXTRA_PX 分数余量（v2.2）
+  const lhR=naturalLhRatio(HAND_FONT,size);   // 自然行高比数（旧 lhJ 1.55~1.85 随机抖已随强制行高规范废止）；板书行距 = 自然行高 + BOARD_LH_EXTRA_PX（v2.3 板书 4px）
   const spJ=jit(seed+2,lines.length,0.10).map(d=>1+d);
   const layout=[]; let lx=x, ly=y, colMaxW=0;
   for(let li=0;li<lines.length;li++){
     const baseW=measureLine(lines[li],size,HAND_FONT);
-    if(li>0&&ly+size*lhR+NATURAL_LH_EXTRA_PX>maxY){lx+=colMaxW+colGap;ly=y;colMaxW=0;}
+    if(li>0&&ly+size*lhR+BOARD_LH_EXTRA_PX>maxY){lx+=colMaxW+colGap;ly=y;colMaxW=0;}
     let fs=size, lw=baseW;
     if(lx+lw>maxX&&lw>0){fs=Math.max(14,Math.floor(size*(maxX-lx)/lw));lw=lw*fs/size;}
     layout.push({li:li,text:lines[li],x:lx,y:ly,size:fs,lw:lw});
     colMaxW=Math.max(colMaxW,lw);
-    ly+=fs*lhR+NATURAL_LH_EXTRA_PX;   // 行距推进 = 自然行高 + 2px 分数余量（v2.2，分数上下结构呼吸空间）
+    ly+=fs*lhR+BOARD_LH_EXTRA_PX;   // 板书行距推进 = 自然行高 + 4px（v2.3：2px 分数余量 + 2px 行距呼吸；题目层不在此路径，仍走 NATURAL_LH_EXTRA_PX=2）
   }
   return {lines:lines,layout:layout,endY:ly,endX:lx,colMaxW:colMaxW,seed:seed,lhR:lhR,spJ:spJ};
 }
@@ -554,8 +557,8 @@ function compile(data){
       const zoneStart=(coord.src==='zone')
         ?{x:coord.pct?W*coord.x/100:coord.x,y:coord.pct?H*coord.y/100:coord.y}
         :{x:W*COORD_FALLBACK.x/100,y:H*COORD_FALLBACK.y/100};
-      const estH=lines.length*(38*1.2+NATURAL_LH_EXTRA_PX)+20;   // 换列预判（自然行高估算 = 比数 1.2 + 2px 分数余量，镜像 stepHandoff.LINE_HEIGHT_ESTIMATE_RATIO/NATURAL_LINE_HEIGHT_EXTRA_PX；行内到底换列兜底仍在，见 layoutBoardLines）
-      const placed=stageFlowPlace(stageFlow[stKey]||null,zoneStart,given,estH,W,H,38);
+      const estH=lines.length*(40*1.2+BOARD_LH_EXTRA_PX)+20;   // 换列预判（板书行高估算 = 比数 1.2 + 4px 余量，镜像 stepHandoff.LINE_HEIGHT_ESTIMATE_RATIO/BOARD_LINE_HEIGHT_EXTRA_PX；行内到底换列兜底仍在，见 layoutBoardLines）
+      const placed=stageFlowPlace(stageFlow[stKey]||null,zoneStart,given,estH,W,H,40);
       const L=layoutBoardLines(bContent,placed.start.x,placed.start.y,W,H);
       /* 布局完成 → 游标推进到本行内容末（endY=末行基线+行高，即下一行自然续排点；
          endX/colMaxW = 本行末列左与末列宽，本列放不下时换列用） */
@@ -701,6 +704,18 @@ function findRange(chars,sub,occ){
 const DPR=Math.max(2,Math.min(3,window.devicePixelRatio||1));
 let FONT_VER=0;                                     // 字体异步加载完成后 +1 → 缓存整体作废
 const ROW_CACHE=new Map();                          // Map 保插入序 → LRU 淘汰可直接取首个 key
+// ★ 字体门（2026-10-22 夏夏实锤「文字还在抖动」根治）：字体分片异步到位会触发 FONT_VER++ → 整轴重排，
+//   播放中途到位 = 已写板书「换脸+跳位」；且 canvas 不触发 @font-face 下载，语料不重预热就「生字走楷体兜底成花字」。
+//   门规：预热世代计数（WARM_GEN/WARM_DONE），最新一次预热完成前播放按钮禁用；数据换装（load）必换语料重预热 → 门自动再关再开。
+let WARM_GEN=0, WARM_DONE=0;
+function fontReady(){return WARM_DONE>=WARM_GEN;}
+function setPlayGate(){
+  const b=document.getElementById('btnPlay'); if(!b)return;
+  const rdy=fontReady();
+  b.disabled=!rdy;
+  if(!rdy)b.textContent='⏳ 字体加载中…';
+  else if(!playing)b.textContent='▶ 播放';
+}
 // ★ v2.1 字体选择态（镜像 stepHandoff.resolveHandwritingFont；档内选择值 = uiSettings.handwritingFontChoice）
 let FONT_CHOICE='qiaomu';
 function applyHandFontChoice(choice){
@@ -1141,9 +1156,9 @@ function drawWriting(task,p,W,H,stage){
             ? {x:+task.coord.x,y:+task.coord.y,pct:task.coord.pct!==false} : null)
         || {x:8,y:44,pct:true};
   const x=co.pct?W*co.x/100:co.x, y=co.pct?H*co.y/100:co.y;
-  // 板书字号唯一真源 = src/services/stepHandoff.js 的 BOARD_FONT_SIZE（2026-09-17 拍板 38px，35 与 42 折中）。
+  // 板书字号唯一真源 = src/services/stepHandoff.js 的 BOARD_FONT_SIZE（2026-09-17 拍板 38px=35/42 折中；2026-10-22 夏夏实测「还是小了一点」38→40）。
   // row-player 是离线单文件不能 import，此处字面值必须与该常量同步，改动时两边一起改。
-  const size=38;
+  const size=40;
   ctx.font=size+'px '+HAND_FONT; ctx.textBaseline='alphabetic';
   const color=STAGE_COLOR[stage]||'#000000';       // 规格：分析红，解答/总结黑
   // 车同轨·书同文：板书字段（字符串或数组）统一过超级过滤器，一行一个按序落笔；
@@ -1253,7 +1268,7 @@ function drawAction(task,p,Q,W,H){
   if(!rg){ console.warn('[动作] 找不到文字 "',tg.exactText,'"（板书与题目均未命中），该标记被跳过'); return; }
   const seed=hashStr(tg.exactText||'');
   const act=a.action||'underline';
-  // 字高按命中字池实际字号（板书 38 / 题目 30）：顶≈baseline-fs，底≈baseline+fs*0.27；padding 8
+  // 字高按命中字池实际字号（板书 40 / 题目 30）：顶≈baseline-fs，底≈baseline+fs*0.27；padding 8
   const fs=rg.size||30;
   const bx1=rg.x1-8, bx2=rg.x2+8, by1=rg.y1-fs-8, by2=rg.y1+Math.round(fs*0.27)+8;
   ctx.strokeStyle='#dc2626'; ctx.lineWidth=2.2; ctx.globalAlpha=0.9;
@@ -1384,6 +1399,11 @@ function loop(ts){
 }
 function play(){
   if(!C)return;
+  if(!fontReady()){                                  // 字体门：分片未齐就开播 = 中途换脸跳位（2026-10-22 夏夏实锤病灶）
+    const el=document.getElementById('note');
+    if(el)el.innerHTML+='<br>⏳ 手写字体分片加载中，稍候一两秒再播放（避免板书中途换脸跳位）';
+    return;
+  }
   const cur=now();
   let i;
   if(cur>=C.total-10)i=0;
@@ -1425,6 +1445,7 @@ function load(data){
   T=0; rowIdx=0; rowAnchor=0; rowT0=performance.now(); rowHasAudio=false;
   syncDocTitle();
   render(0);
+  warmBoardFonts();   // ★ 2026-10-22：装载唯一咽喉处按真实语料重预热（canvas 不触发 @font-face 下载；换数据不换字体也必须重跑——启动预热语料只有兜底串，生字分片缺失会静默走楷体兜底成「花字」）
 }
 /* ★ Task 40：标题随题目走——模板默认 <title> 是“平行四边形面积”示例题名残留（固定不随
    内容变，夏夏 2026-10-16 指出）；装载唯一咽喉 load() 处同步 document.title，
@@ -1748,11 +1769,15 @@ function collectBoardText(){
   return s.replace(/<[^>]+>/g,'')||'板书';      // 空串会让 load 退化成不加载
 }
 function warmBoardFonts(){
-  if(!document.fonts||!document.fonts.load)return Promise.resolve();
+  const myGen=++WARM_GEN;                            // 预热世代：数据换装会再预热，只有最新世代完成才开门（旧世代迟到不回关门）
+  setPlayGate();
+  const done=function(){ if(WARM_DONE<myGen)WARM_DONE=myGen; setPlayGate(); };
+  if(!document.fonts||!document.fonts.load){ done(); return Promise.resolve(); }
   const txt=collectBoardText();
   return Promise.all([
-    document.fonts.load('38px "'+HAND_FONT_FAMILY[FONT_CHOICE]+'"',txt)   // ★ v2.1 预热当前选定主字体
+    document.fonts.load('40px "'+HAND_FONT_FAMILY[FONT_CHOICE]+'"',txt)   // ★ v2.1 预热当前选定主字体（40px 镜像 BOARD_FONT_SIZE）
   ]).catch(function(){}).then(function(){
+    done();                                          // 门先开：重排+重绘同帧同步完成，用户看不到中间态
     FONT_VER++; ROW_CACHE.clear();                   // 字体到位后旧行图全部作废，必须整批重建
     // ★ 布局在编译期算死 → 字宽变了必须整轴重排（时序不变，只有坐标换；reflowWithRealDuration 同款手法）
     if(C){ try{ C=compile(C.data); }catch(e){ console.warn('[字体门] 重排失败',e); } }
@@ -1762,8 +1787,8 @@ function warmBoardFonts(){
 // 字体没生效就明说——别让「看着像宋体」变成说不清的玄学
 function reportFontState(txt){
   const t=txt.slice(0,12);
-  MCTX.font='38px '+HAND_FONT; const a=MCTX.measureText(t).width;
-  MCTX.font='38px serif';      const b=MCTX.measureText(t).width;
+  MCTX.font='40px '+HAND_FONT; const a=MCTX.measureText(t).width;
+  MCTX.font='40px serif';      const b=MCTX.measureText(t).width;
   if(!C)return;
   const el=document.getElementById('note');
   if(el)el.innerHTML+='<br>✍ 板书字体：'+HAND_FONT_FAMILY[FONT_CHOICE]+'（'+(FONT_CHOICE==='shaohua'?'157 韶华主链':'507 乔木主链')+'）';

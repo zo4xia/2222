@@ -1,10 +1,10 @@
 {
   "name": "board-speech-rules",
-  "version": "3.3.1",
+  "version": "3.3.2",
   "archetype": "workflow",
   "description": "小学数学AI讲题系统——板书与口播稿规则蒸馏",
   "created": "2026-08-20",
-  "updated": "2026-10-17",
+  "updated": "2026-10-22",
   "sources": [
     "src/agent-b-v2/prompt.js",
     "src/agent-b-v2/contract.js"
@@ -26,7 +26,7 @@
     "坐标格式由 coordinateMode 决定（percentage/pixel），不是固定百分比",
     "board 是 v2.0 对象格式 {startCoord, content}，不是字符串",
     "B 不输出时间字段（duration等），时间由下游动态计算",
-    "板书字号是题目的1.2~1.5倍，行高 = 自然（字体度量）+ 2px 分数余量（无强制行高规范；估算用 字号×1.2+2px）",
+    "板书字号是题目的1.2~1.5倍（2026-10-22 夏夏实测 38→40px），板书行高 = 自然（字体度量）+ 4px = 2px 分数余量 + 2px 行距呼吸（v2.3 2026-10-22 夏夏拍板，估算用 字号×1.2+4px）；题目行高 = 自然 + 2px 分数余量（估算用 字号×1.2+2px）；无强制行高规范",
     "板书速度约1秒4~5字（基准220ms/字，±30ms抖动，2026-10-15 夏夏拍板提速；真源 timing.js BASE_CHAR_WRITE_MS）",
     "Row间隔约1秒（AGENT_B_V2_ROW_GAP_MS=1000ms，2026-10-15 夏夏拍板 1500→1000）",
     "分数用\\frac{}，口播念分母分之分子",
@@ -43,7 +43,9 @@
     "颜色口径：分析区红色，其余全部黑色（渲染端色值真源 stepHandoff.ANALYSIS_TEXT_COLOR/BOARD_TEXT_COLOR）"
   ],
   "v3_3_1_changes": [
-    "书写抖动全拔：位置抖动/逐字旋转 ±0.8°/整行微倾 ±1° 归零退役（2026-10-17 夏夏拍板「太奇怪」），手写感由手写字体 + rough 笔触承载；速度域抖动（190—250ms/字、行配速 ±10%）保留不动"
+    "书写抖动全拔：位置抖动/逐字旋转 ±0.8°/整行微倾 ±1° 归零退役（2026-10-17 夏夏拍板「太奇怪」），手写感由手写字体 + rough 笔触承载；速度域抖动（190—250ms/字、行配速 ±10%）保留不动",
+    "字体宪法 v2.2（2026-10-16 夏夏拍板）：自然行高之上 +2px 分数余量——分数上下结构越出字体行盒、相邻行贴死（真源 stepHandoff.NATURAL_LINE_HEIGHT_EXTRA_PX）",
+    "B 估算行高公式：字号 × 1.2 + 2px（LINE_HEIGHT_ESTIMATE_RATIO + NATURAL_LINE_HEIGHT_EXTRA_PX）"
   ],
   "v3_2_changes": [
     "板书速度提速：1秒2字±10% → 1秒4~5字（220ms/字 ±30ms，2026-10-15 夏夏拍板，对齐 timing.js 真源）",
@@ -70,8 +72,9 @@
     "不覆盖Agent A识别逻辑/画布落坐逻辑/Check Agent润色逻辑",
     "实际坐标以handoff.boardPlan为准，四区参考坐标仅为帮助理解"
   ],
-  "v3_3_1_changes": [
-    "字体宪法 v2.2（2026-10-16 夏夏拍板）：自然行高之上 +2px 分数余量——分数上下结构越出字体行盒、相邻行贴死（真源 stepHandoff.NATURAL_LINE_HEIGHT_EXTRA_PX）",
-    "B 估算行高公式：字号 × 1.2 + 2px（LINE_HEIGHT_ESTIMATE_RATIO + NATURAL_LINE_HEIGHT_EXTRA_PX）"
+  "v3_3_2_changes": [
+    "板书字号 38px → 40px（2026-10-22 夏夏实测「还是小了一点」；真源 stepHandoff.BOARD_FONT_SIZE）",
+    "字体宪法 v2.3（2026-10-22 夏夏拍板「自动换行的行高再加 2px 左右，题目字号除外」）：板书层行距余量 4px = 2px 分数余量 + 2px 行距呼吸（真源 stepHandoff.BOARD_LINE_HEIGHT_EXTRA_PX），题目层维持 2px；B 估算公式：板书 字号×1.2+4px / 题目 字号×1.2+2px",
+    "row-player 字体门：播放按钮在字体分片预热完成前禁用（防播放中途换脸跳位）；load() 咽喉按真实语料重预热（防生字分片缺失走楷体兑底成花字）"
   ]
 }

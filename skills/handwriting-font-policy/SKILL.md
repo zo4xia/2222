@@ -264,12 +264,13 @@ saveBoardTypographyConfig({ fontId: 'like-jianjianti' })
 | 区域 | 字体类型 | 字号 | 行高 |
 |---|---|---|---|
 | 题目区 | 印刷体（微软雅黑） | ~30px（handoff.canvasParams.QUESTION_FONT_SIZE） | 自然+2px 分数余量 |
-| 分析区 | **手写体（平方乔木体 507 主）** | ~38px（题目 1.2~1.5 倍） | 自然+2px 分数余量 |
-| 解答区 | **手写体** | ~38px | 自然+2px 分数余量 |
-| 总结区 | **手写体** | ~38px | 自然+2px 分数余量 |
+| 分析区 | **手写体（平方乔木体 507 主）** | ~40px（题目 1.2~1.5 倍） | 自然+4px（2px分数余量+2px行距呼吸） |
+| 解答区 | **手写体** | ~40px | 自然+4px（2px分数余量+2px行距呼吸） |
+| 总结区 | **手写体** | ~40px | 自然+4px（2px分数余量+2px行距呼吸） |
 
 > ★ 字体宪法 v2.2（v2 2026-10-15 拍板自然行高；v2.2 2026-10-16 夏夏追加 +2px 分数余量）：行高 = 自然行高（CSS normal / 字体度量）+ 2px，不设强制行高规范；
 > 分数上下结构越出行盒、相邻行贴死，故加 2px（真源 stepHandoff.NATURAL_LINE_HEIGHT_EXTRA_PX）；旧 ~1.65 / ~1.7（渲染 1.55—1.85 微抖）已全库废止；B 估算垂直跨度用 字号×1.2 + 2px（LINE_HEIGHT_ESTIMATE_RATIO / NATURAL_LINE_HEIGHT_EXTRA_PX）。
+> ★ v2.3（2026-10-22 夏夏拍板「自动换行的行高再加 2px 左右，题目字号除外」）：板书层行距余量 4px = 2px 分数余量 + 2px 行距呼吸（真源 stepHandoff.BOARD_LINE_HEIGHT_EXTRA_PX），板书估算 字号×1.2+4px；题目层维持 2px 不变；板书字号 38→40px。
 
 ---
 
