@@ -166,6 +166,12 @@ function pingFloatToolbar() {
 
 function onTopicLayoutUpdated(newLayout) {
   topicLayout.value = { ...(topicLayout.value || {}), ...newLayout }
+  // ★ Task 58-b 实测防死路：冷开预览页（交付存储空、boardPlan 尚未装载）时拖区框/标签，
+  // 原实现 if(boardPlan.value) 静默跳过合并 → 拖了白拖无提示。此处按默认布局播种一份
+  // boardPlan（BOARD_LAYOUT 即 planKeys 九键缺省真源），保证修订链永远有真相源可写。
+  if (!boardPlan.value) {
+    boardPlan.value = { ...BOARD_LAYOUT }
+  }
   // ★ Task 58 布局修订闭环：拖拽后的区框/标签/题目区坐标同步进 boardPlan
   // （zone 拖拽 key = analysis/solution/summary；标签 = xxxLabel；题目区 = question）——
   // boardPlan 是重新生成的真相源，保存布局修订时随 projectCode 落盘。
@@ -256,8 +262,14 @@ async function fetchDeliverableData() {
     const res = await fetch(apiUrl)
     if (res.ok) {
       const data = await res.json()
-      if (data.ok && (data.deliverable || data.rows)) {
-        applyDeliverablePayload(data.deliverable || data, data.projectCode, data.createdAt)
+      const payload = data.deliverable || data
+      // ★ Task 58-b 空壳防短路：交付存储为空时接口仍回 ok:true + deliverable:{}——
+      // 空对象在此前的 data.deliverable || data.rows 判真中会提前 return，
+      // 把 localStorage 回退永久短路（冷开预览页白板）。只有 payload 带真内容
+      // （题目/布局/rows 任一）才采纳，否则落穿到本地回退。
+      const hasContent = !!(payload.problemText || payload.boardPlan || (payload.rows && payload.rows.length))
+      if (data.ok && hasContent) {
+        applyDeliverablePayload(payload, data.projectCode, data.createdAt)
         loading.value = false
         return
       }

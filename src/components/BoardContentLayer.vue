@@ -478,6 +478,16 @@ function onTextareaBlur() {
   }, 140)
 }
 
+// ★ Task 58-b 实测修正：zone 框拖拽实时跟手。onPointerMove 已把最新坐标写进
+// localBlockCoords（与题目块/标签同一数据通道），模板从这里读——此前只绑 plan
+// 真源，拖拽中框纹丝不动、松手回流后才跳位，与块/标签手感割裂。
+// w/h 仍取 plan 真源（拖拽只平移不改尺寸），无本地坐标时回落 plan 初值。
+function zoneBoxStyle(zoneKey) {
+  const p = plan.value[zoneKey] || {}
+  const c = localBlockCoords.get(zoneKey)
+  return pctBox({ w: p.w, h: p.h, x: c?.x ?? p.x, y: c?.y ?? p.y })
+}
+
 // 同步题目内容与布局至父组件及本地持久化
 function syncAll() {
   const blocks = identifiedBlocks.value
@@ -910,7 +920,7 @@ onBeforeUnmount(() => {
           'is-dragging': activeDrag?.targetType === 'zone' && activeDrag?.targetId === z.key,
           'is-out-of-bounds': dragBoundaryStatus?.targetId === z.key && dragBoundaryStatus?.isOutOfBounds,
         }"
-        :style="pctBox(plan[z.key])"
+        :style="zoneBoxStyle(z.key)"
         :title="`拖动调整「${z.name}」区域位置`"
         @pointerdown="startDrag($event, 'zone', z.key, localBlockCoords.get(z.key)?.x ?? plan[z.key].x, localBlockCoords.get(z.key)?.y ?? plan[z.key].y)"
       >
