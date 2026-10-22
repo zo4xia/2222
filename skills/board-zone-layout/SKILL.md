@@ -12,7 +12,7 @@ trigger: "规划板书落点/计算四区坐标/校验板书越界/竖版横版�
 
 ## 蒸馏合同
 
-`Distill [四区板书布局与坐标控制] as a [workflow] pack so it can help with [Agent B 规划板书落点 / 画布渲染层排版 / Check Agent 校验越界], using [src/utils/boardLayout.js + src/utils/canvasCoords.js + src/services/boardMathPolicy.js], while respecting [handoff JSON 唯一真相源 / 区域坐标仅为参考 / 内容多时可越界只要不出画布 / 不严重叠字].`
+`Distill [四区板书布局与坐标控制] as a [workflow] pack so it can help with [Agent B 规划板书落点 / 画布渲染层排版 / Check Agent 校验越界], using [src/utils/boardLayout.js + src/utils/canvasCoords.js]（Task 60 勘误：原引板书数学软校验服务文件为从未存在的幽灵，已移除）], while respecting [handoff JSON 唯一真相源 / 区域坐标仅为参考 / 内容多时可越界只要不出画布 / 不严重叠字].`
 
 ---
 
@@ -46,18 +46,19 @@ trigger: "规划板书落点/计算四区坐标/校验板书越界/竖版横版�
 
 ## 二、四区参考布局（默认值，非硬约束）
 
-> **重要**：实际坐标以 `handoff.boardPlan` + `handoff.zoneAnchors` 为唯一真相源，下表仅当 handoff 缺失时作 fallback。
+> **重要**：实际坐标以 `handoff.boardPlan` + `handoff.zoneAnchors` 为唯一真相源，下表仅当 handoff 缺失时作 fallback；缺省时的程序默认由 `src/utils/boardLayout.js` 的 `DEFAULT_BOARD_PLAN = planLabelsFromTopic({})` 派生（Task 60 归一，以代码为准，本表不再手抄维护）。
+> 另注：缺省 fallback 的分析区 y/h 与本表名义值（41.0/48）不同——程序规划会按题目底边弹性下移分析区（默认产出 40.62/54.38），下表是 nominal 落点、程序派生才是真值。
 
 | 区域 | x(%) | y(%) | w(%) | h(%) | 参考字号 |
 |---|---|---|---|---|---|
 | topicLabel | 5.7 | 6.6 | 7.1 | — | — |
 | question | 6.0 | 13.2 | 44 | — | 30px 印刷体 |
 | analysisLabel | 5.7 | 34.5 | 7.2 | — | — |
-| analysis | 6.0 | 41.0 | 44 | 48 | ~38px 手写体（题目 1.2~1.5 倍） |
+| analysis | 6.0 | 41.0 | 44 | 48 | ~40px 手写体（Task 56 字号 38→40，真源 stepHandoff.BOARD_FONT_SIZE） |
 | solutionLabel | 53.7 | 6.6 | 7.4 | — | — |
-| solution | 54.0 | 14.0 | 40 | 44 | ~38px 手写体 |
+| solution | 54.0 | 14.0 | 40 | 44 | ~40px 手写体 |
 | summaryLabel | 53.7 | 62.0 | 7.2 | — | — |
-| summary | 54.0 | 69.5 | 40 | 22 | ~38px 手写体 |
+| summary | 54.0 | 69.5 | 40 | 22 | ~40px 手写体 |
 
 **安全区常量**：
 - `BOARD_SAFE_X_PCT = 6`（左安全边）

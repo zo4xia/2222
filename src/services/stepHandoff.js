@@ -334,7 +334,7 @@ export function buildStep1Handoff(input = {}) {
       region: '区域：[左%, 上%, 宽%, 高%]，所有百分比最多保留 2 位小数',
       point: '起点/终点：[x%, y%]',
     },
-    example: '若分析区动作锚点为 [6, 41]，则动作参考点为 [6, 41]',
+    example: '若分析区动作锚点为 [6, 40.62]，则动作参考点为 [6, 40.62]（40.62 = 默认分析区 y，见 boardLayout.js DEFAULT_BOARD_PLAN 派生）',
   }
 
   // 从 boardPlan 提取各区域定位锚点（落座标签 + 区域参考起点，板书由渲染层自然排版）
@@ -392,8 +392,9 @@ function roundLayoutNumbers(value) {
 /**
  * 从 boardPlan + topicLayout 提取各区域的标签位置和动作参考位置。
  * 这些坐标会传给 Agent B，让它在生成 draw 动作时有明确的落点参考。
+ * ★ Task 60 导出：布局修订同步链需要重派生 zoneAnchors（见 applyBoardPlanRevision）。
  */
-function extractZoneAnchors(boardPlan, _topicLayout) {
+export function extractZoneAnchors(boardPlan, _topicLayout) {
   if (!boardPlan) return null
   const anchors = {}
   // 题目区
@@ -429,4 +430,28 @@ function extractZoneAnchors(boardPlan, _topicLayout) {
     }
   }
   return anchors
+}
+
+/**
+ * ★ Task 60 归一（2026-10-22 夏夏拍板「不能回老路坑」）：布局修订三处同步唯一入口。
+ * 病理（60-a 子代理实测揪出）：布局修订只覆写 boardPlan 时，handoff.zoneAnchors
+ * （LLM actionSpec 落点参考，agentBV2Handler 与 boardPlan 同时进 prompt）与
+ * handoff.topicLayout（BoardContentLayer 的 plan computed 对 topicLabel/question
+ * 优先读取）仍持旧坐标 → 「动作按旧坐标、文字按新布局」错位 + 预览旧位置。
+ * 一处覆写、三处同步：boardPlan 覆写 + zoneAnchors 重派生 + topicLayout 三键对齐。
+ */
+export function applyBoardPlanRevision(handoff, newBoardPlan) {
+  if (!handoff || !newBoardPlan) return handoff
+  const topicLayout = { ...(handoff.topicLayout || {}) }
+  if (newBoardPlan.topicLabel) topicLayout.topicLabel = { ...newBoardPlan.topicLabel }
+  if (newBoardPlan.question) {
+    topicLayout.question = { ...(topicLayout.question || {}), ...newBoardPlan.question }
+  }
+  if (newBoardPlan.image !== undefined) topicLayout.image = newBoardPlan.image
+  return {
+    ...handoff,
+    boardPlan: newBoardPlan,
+    zoneAnchors: extractZoneAnchors(newBoardPlan, topicLayout),
+    topicLayout,
+  }
 }

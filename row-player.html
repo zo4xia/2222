@@ -1303,7 +1303,8 @@ function render(t){
 
   // 题目原文（静态，考卷式：一打开就有），规格 30px 印刷体(微软雅黑) 黑色 自然行高（字体度量）+2px 分数余量（v2.2）
   const bp=C.data.boardPlan||{};
-  const q=bp.question||{x:6,y:12,w:42,h:26};
+  // ★ Task 60 坐标归一：异端兜底（旧 y/w 与一切真源都对不上）已对齐真源口径 y:13.2/w:40.4
+  const q=bp.question||{x:6,y:13.2,w:40.4,h:26};
   const Q=layoutText(ctx,C.data.problemText||'',W*q.x/100,H*q.y/100+40,W*q.w/100,30,30*naturalLhRatio(PRINT_FONT,30)+NATURAL_LH_EXTRA_PX,PRINT_FONT);
   ctx.fillStyle='#000000'; ctx.font='30px '+PRINT_FONT; ctx.textBaseline='alphabetic';
   Q.lines.forEach(L=>ctx.fillText(L.t,W*q.x/100,L.y));

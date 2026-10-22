@@ -501,9 +501,7 @@ function syncAll() {
     isEmittingProblemText.value = true
     emit('update:problem-text', fullText)
     emit('problem-text-change', fullText)
-    try {
-      localStorage.setItem('qinghuabu.problemText', fullText)
-    } catch (_) {}
+    // ★ Task 60：删 qinghuabu.problemText 死键写入（全仓零读者，写入即垃圾堆积）
   }
 
   // 2. 构建最新的 updatedLayout
@@ -559,10 +557,8 @@ function syncAll() {
     }
   }
 
-  try {
-    localStorage.setItem('qinghuabu.topicLayout', JSON.stringify(updatedLayout))
-  } catch (_) {}
-
+  // ★ Task 60：删 qinghuabu.topicLayout 死键写入（全仓零读者；真正的同步走
+  //   emit('update:topic-layout')/emit('layout-change') 与父级 liveBoardPreview 通道）
   emit('update:topic-layout', updatedLayout)
   emit('layout-change', updatedLayout)
 

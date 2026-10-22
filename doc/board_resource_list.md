@@ -30,7 +30,7 @@
 |---|---|---|
 | `agentBActionSpec.js` | Agent B action 编排（把生成 rows 映射到板书动作） | 核心 |
 | `stepHandoff.js` | 第 1 步确认数据构建 + 区域坐标（analysis/solution/summary 均有 boardPlan 坐标） | 核心 |
-| `boardMathPolicy.js` | 板书数学软校验 | 支撑 |
+| ~~`boardMathPolicy.js`~~ | （幽灵路径，从未存在；Task 60 勘误移除引用） | 勘误 |
 | ~~`speechTiming.js`~~ | （幽灵路径，从未存在；口播时序真源 = src/agent-b-v2/timing.js） | 勘误 |
 
 ### 1.4 布局与坐标 `src/utils/`
@@ -46,7 +46,7 @@
 - ✅ **handActionScheduler 串行互斥**：可复用于任何「按序播放动作」场景（口播/板书/高亮联动）。
 - ✅ **boardToolCatalog 装配点**：新增板书工具只需在此注册 + 实现 `prepare`，无需改渲染层，模块化隔离良好。
 - ⚠️ **drawIntentTool**：schema/校验已存在，但 `createBoardToolRuntime.prepare` 给它的 `execute` 是空函数 → 同 `roughDrawingTool` 能力重叠且执行空转，属可清理的死重（不影响主链，单独提出）。
-- ⚠️ **boardMathPolicy**：策略层与板书播放耦合度低，可下沉为公共工具复用。（speechTiming 幽灵引用已勘误）
+- ~~**boardMathPolicy**~~：幽灵引用已勘误（文件从未存在，Task 60 移除）。（speechTiming 幽灵引用已勘误）
 
 ## 三、依赖边（执行主链，Mermaid）
 

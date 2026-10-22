@@ -19,7 +19,11 @@ import {
   QUESTION_FONT_SIZE,
   QUESTION_FONT_FAMILY,
   LINE_HEIGHT_POLICY_TEXT,
+  extractZoneAnchors,
 } from '../src/services/stepHandoff.js'
+// ★ Task 60 坐标归一：默认四区布局唯一真源派生（boardLayout.js），本文件 2 处手押
+//   抖动快照值全部改 import 派生，与客户端同源不漂移
+import { DEFAULT_BOARD_PLAN } from '../src/utils/boardLayout.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const projectRoot = resolve(__dirname, '..')
@@ -189,13 +193,8 @@ export function writeDeliverableFile(data) {
       })
     : []
 
-  const fallbackBoardPlan = {
-    question: { x: 6, y: 13.32, w: 40.32, h: '' },
-    analysis: { x: 6, y: 40.62, w: 44, h: 54.38 },
-    solution: { x: 54, y: 14, w: 40, h: 44 },
-    summary: { x: 54, y: 69.5, w: 40, h: 22 },
-  }
-  const hbp = data.boardPlan || data.zoneAnchors || fallbackBoardPlan
+  // ★ Task 60：默认四区改真源派生（原手押的抖动快照值全部退役）
+  const hbp = data.boardPlan || data.zoneAnchors || DEFAULT_BOARD_PLAN
   // ★ 2026-10-13 归一化：删掉历史手写 fontSize/lineHeight/boardSpeed 副本
   // （曾为“被 ...defaultHcp 覆盖的死值”，px:35+尖尖体是陷阱；真源唯一 = stepHandoff.buildCanvasParams）
   // ★ 2026-10-13 第五轮：canvasWidth/canvasHeight 异名键亦删除——全仓属性读取零命中
@@ -261,7 +260,7 @@ export function writeDeliverableFile(data) {
     relatedKnowledge: rawProblemInfo.relatedKnowledge || [],
     teachingFocus: rawProblemInfo.teachingFocus || '',
     keyFormulaList: rawProblemInfo.keyFormulaList || [],
-    zoneAnchors: rawProblemInfo.zoneAnchors || data.zoneAnchors || hbp,
+    zoneAnchors: rawProblemInfo.zoneAnchors || data.zoneAnchors || extractZoneAnchors(DEFAULT_BOARD_PLAN),
     // ★ 第八轮关联性归一：配比随题型动态判断（detectStageRatio 五类 a/b/c/d/e 各不同），
     // 缺数据诚实写"未提供"，禁止臆造固定比例污染 deliverable 存档（旧值 35/40/15/10 为臆造）
     stageRatios: rawProblemInfo.stageRatios || {
@@ -282,18 +281,39 @@ export function writeDeliverableFile(data) {
     specAnnotation: `画布规格批注：尺寸 ${CANVAS_SIZE.width}x${CANVAS_SIZE.height}、比例、题目/板书字号、stage 四区坐标落座区间、越界与手稿风格。`,
     ...data,
     canvasParams,
+    // ★ Task 60：逐键 fallback 改 DEFAULT_BOARD_PLAN 派生（原手押抖动快照值全部退役），与客户端同一真源
     boardPlan: {
       canvas: hbp.canvas || { w: CANVAS_SIZE.width, h: CANVAS_SIZE.height },
       layoutMode: hbp.layoutMode || 'portrait',
       ...(hbp.topicBottomPct !== undefined ? { topicBottomPct: hbp.topicBottomPct } : {}),
-      topicLabel: hbp.topicLabel || { x: 5.7, y: 6.6, w: 7.1 },
-      question: { x: hbp.question?.x ?? 6, y: hbp.question?.y ?? 13.32, w: hbp.question?.w ?? 40.32, h: hbp.question?.h ?? '' },
-      analysisLabel: hbp.analysisLabel || { x: 5.7, y: 34.5, w: 7.2 },
-      analysis: { x: hbp.analysis?.x ?? 6, y: hbp.analysis?.y ?? 40.62, w: hbp.analysis?.w ?? 44, h: hbp.analysis?.h ?? 54.38 },
-      solutionLabel: hbp.solutionLabel || { x: 53.7, y: 6.6, w: 7.4 },
-      solution: { x: hbp.solution?.x ?? 54, y: hbp.solution?.y ?? 14, w: hbp.solution?.w ?? 40, h: hbp.solution?.h ?? 44 },
-      summaryLabel: hbp.summaryLabel || { x: 53.7, y: 62.0, w: 7.2 },
-      summary: { x: hbp.summary?.x ?? 54, y: hbp.summary?.y ?? 69.5, w: hbp.summary?.w ?? 40, h: hbp.summary?.h ?? 22 },
+      topicLabel: hbp.topicLabel || DEFAULT_BOARD_PLAN.topicLabel,
+      question: {
+        x: hbp.question?.x ?? DEFAULT_BOARD_PLAN.question.x,
+        y: hbp.question?.y ?? DEFAULT_BOARD_PLAN.question.y,
+        w: hbp.question?.w ?? DEFAULT_BOARD_PLAN.question.w,
+        h: hbp.question?.h ?? '',
+      },
+      analysisLabel: hbp.analysisLabel || DEFAULT_BOARD_PLAN.analysisLabel,
+      analysis: {
+        x: hbp.analysis?.x ?? DEFAULT_BOARD_PLAN.analysis.x,
+        y: hbp.analysis?.y ?? DEFAULT_BOARD_PLAN.analysis.y,
+        w: hbp.analysis?.w ?? DEFAULT_BOARD_PLAN.analysis.w,
+        h: hbp.analysis?.h ?? DEFAULT_BOARD_PLAN.analysis.h,
+      },
+      solutionLabel: hbp.solutionLabel || DEFAULT_BOARD_PLAN.solutionLabel,
+      solution: {
+        x: hbp.solution?.x ?? DEFAULT_BOARD_PLAN.solution.x,
+        y: hbp.solution?.y ?? DEFAULT_BOARD_PLAN.solution.y,
+        w: hbp.solution?.w ?? DEFAULT_BOARD_PLAN.solution.w,
+        h: hbp.solution?.h ?? DEFAULT_BOARD_PLAN.solution.h,
+      },
+      summaryLabel: hbp.summaryLabel || DEFAULT_BOARD_PLAN.summaryLabel,
+      summary: {
+        x: hbp.summary?.x ?? DEFAULT_BOARD_PLAN.summary.x,
+        y: hbp.summary?.y ?? DEFAULT_BOARD_PLAN.summary.y,
+        w: hbp.summary?.w ?? DEFAULT_BOARD_PLAN.summary.w,
+        h: hbp.summary?.h ?? DEFAULT_BOARD_PLAN.summary.h,
+      },
       image: hbp.image || null,
       ...(hbp.method ? { method: hbp.method } : {}),
       ...(hbp.plannedAt ? { plannedAt: hbp.plannedAt } : {}),

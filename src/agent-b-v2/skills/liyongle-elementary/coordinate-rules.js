@@ -9,14 +9,14 @@ export const coordinateRules = `
 
 ## 四大区域（region）此处仅为举例，实际以handoff文件给你的坐标为准
 
-板书从上到下分为四个区域，每个阶段对应一个区域。动作 1.0 三动作口径（Task 43）：rough-notation 按 target.region 锚定区域，rough-line 自带 region 字段声明区域，程序会按 region 来管理布局和边界。
+真实画布是左右双列布局（非上下四段）：左列上方题目区、下方分析区；右列上方解答区、下方总结区。动作 1.0 三动作口径（Task 43）：rough-notation 按 target.region 锚定区域，rough-line 自带 region 字段声明区域，程序会按 region 来管理布局和边界。
 
-| region 名 | 对应阶段 | 大致位置 | 放什么 |
+| region 名 | 对应阶段 | 真实位置（以 handoff 坐标为准） | 放什么 |
 |---|---|---|---|
-| \`question\` | 题目 | 顶部约 0%—25% | 题目原文、关键条件、已知信息 |
-| \`analysis\` | 分析 | 中上部约 25%—55% | 思路推导、关系图、公式、易错点 |
-| \`solution\` | 解答 | 中下部约 55%—80% | 算式、计算过程、中间结果、最终答案 |
-| \`summary\` | 总结 | 底部约 80%—100% | 知识点回顾、方法总结、鼓励语 |
+| \`question\` | 题目 | 左列上（约 y 6%—34%） | 题目原文、关键条件、已知信息 |
+| \`analysis\` | 分析 | 左列下（约 y 41%—95%） | 思路推导、关系图、公式、易错点 |
+| \`solution\` | 解答 | 右列上（约 y 14%—58%） | 算式、计算过程、中间结果、最终答案 |
+| \`summary\` | 总结 | 右列下（约 y 69.5%—91.5%） | 知识点回顾、方法总结、鼓励语 |
 
 **注意：**
 - stage 和 region 一一对应：题目→question，分析→analysis，解答→solution，总结→summary；

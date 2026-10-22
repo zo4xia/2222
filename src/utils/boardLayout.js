@@ -33,6 +33,26 @@ export const BOARD_LAYOUT = {
   summary: { x: PORTRAIT_RIGHT_X_PCT, y: 69.5, w: PORTRAIT_RIGHT_W_PCT, h: 22 },
 }
 
+/* ★ Task 60 坐标归一（2026-10-22 夏夏拍板「删除多余重复的，能归一的归一」）：
+ * 两个口径显式声明分工，消灭「心照不宣」——44 是左列区域宽（题目+分析列），
+ * 40.4 是题目文字块宽（Step1 贴题实测落点），38 是竖版题目图宽。
+ * 历史上 Step1Entry baseLayout 手抄这三值，与 BOARD_LAYOUT.question.w=44 互不知晓。 */
+export const TOPIC_TEXT_W_PCT = 40.4
+export const TOPIC_IMAGE_W_PCT = 38
+
+/* ★ Task 60 坐标归一：默认四区布局唯一真源派生。
+ * 历史上 7 处 fallback 手抄副本（AgentBDirect×3 / deliverableStoreHandler×2 / speechMarkdown×2）
+ * 写的 13.32/40.32 实为某次 layoutSeed 抖动快照被误冻结成常量，40.62/54.38 是程序规划输出——
+ * 两个值系并存导致「同一缺省场景、不同页面见到不同默认」。现统一为程序规划真产物：
+ * planLabelsFromTopic 走纯文字竖版规划，产 question{6,13.2,40.4} + analysis{6,40.62,44,54.38}
+ * + solution/summary + 全标签九键。此后所有 fallback 一律 import 此处，禁止手抄数字
+ * （scripts/test-board-layout-single-source.mjs 哨兵锁死）。 */
+export const DEFAULT_BOARD_PLAN = planLabelsFromTopic({
+  topicLabel: BOARD_LAYOUT.topicLabel,
+  question: { x: BOARD_LAYOUT.question.x, y: BOARD_LAYOUT.question.y, w: TOPIC_TEXT_W_PCT },
+  image: null,
+})
+
 export function pctBox(style = {}) {
   const out = {
     left: `${style.x}%`,

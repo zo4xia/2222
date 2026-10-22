@@ -71,7 +71,12 @@ import {
   HANDWRITING_FONT_CHOICE_DEFAULT,
   resolveHandwritingFont,
   buildCanvasParams,
+  extractZoneAnchors,
+  applyBoardPlanRevision,
 } from '../services/stepHandoff.js'
+// ★ Task 60 坐标归一：默认四区布局唯一真源派生（boardLayout.js），本文件 3 处 fallback
+//   原手押的抖动快照值（两组误冻结的历史值系）全部改 import 派生，哨兵锁死不再漂移
+import { DEFAULT_BOARD_PLAN } from '../utils/boardLayout.js'
 // ponytail: 拆分 composables (从 AgentBDirect.vue 抽出纯逻辑)
 import { useBCache } from './composables/useBCache.js'
 
@@ -1235,7 +1240,10 @@ async function generateRows(force = false) {
       revision.problemText &&
       revision.problemText === currentProblemText
     ) {
-      localHandoff.value = { ...localHandoff.value, boardPlan: revision.boardPlan }
+      // ★ Task 60：applyBoardPlanRevision 三处同步（boardPlan+zoneAnchors+topicLayout）——
+      // 只覆写 boardPlan 会让 zoneAnchors（LLM 动作落点）与 topicLayout（题目/标签渲染优先源）
+      // 仍持旧坐标，「动作按旧坐标、文字按新布局」错位（60-a 实测揪出的镜像不同步）
+      localHandoff.value = applyBoardPlanRevision(localHandoff.value, revision.boardPlan)
       force = true
       message.info(`检测到布局修订（保存于 ${revision.savedAt || '未知时间'}）：已按新四区坐标更新布局，本次重新生成将跳过缓存`, 6)
     }
@@ -1391,13 +1399,8 @@ function serializeCurrentDeliverableState() {
   // ★ v2.1：用户态字体选择（下拉）——交付物里的 fontSource.handwriting 必须与选择一致；
   //   handoff 契约层永远是默认态，此处用真源构造器覆写，保证只有一个构造点
   const boardFontSel = resolveHandwritingFont(boardFontChoice.value)
-  const fallbackBoardPlan = {
-    question: { x: 6, y: 13.32, w: 40.32, h: '' },
-    analysis: { x: 6, y: 40.62, w: 44, h: 54.38 },
-    solution: { x: 54, y: 14, w: 40, h: 44 },
-    summary: { x: 54, y: 69.5, w: 40, h: 22 },
-  }
-  const hbp = handoff.value?.boardPlan || handoff.value?.zoneAnchors || fallbackBoardPlan
+  // ★ Task 60：默认四区改真源派生（原手押的两组抖动快照值系全部退役）
+  const hbp = handoff.value?.boardPlan || handoff.value?.zoneAnchors || DEFAULT_BOARD_PLAN
   const ratioData = handoff.value?.stageRatioSuggestion || handoff.value?.['环节配比占比'] || null
   // ★ 第八轮关联性归一：配比随题型动态判断（detectStageRatio 五类 a/b/c/d/e），
   // 缺数据时逐字段"未提供"，不臆造固定比例污染导出产物（旧值 35/40/15/10 为臆造）
@@ -1484,16 +1487,37 @@ function serializeCurrentDeliverableState() {
       ...buildCanvasParams(boardFontChoice.value),
     },
     // handoff 四区布局（真相源）+ Label 坐标（row-player 标签贴纸位置真源）
+    // ★ Task 60：逐键 fallback 改 DEFAULT_BOARD_PLAN 派生（原手押抖动快照值），哨兵锁死
     boardPlan: {
       canvas: { w: CANVAS_SIZE.width, h: CANVAS_SIZE.height },
-      topicLabel: hbp.topicLabel || { x: 5.7, y: 6.6, w: 7.1 },
-      question: { x: hbp.question?.x ?? 6, y: hbp.question?.y ?? 13.32, w: hbp.question?.w ?? 40.32, h: hbp.question?.h ?? '' },
-      analysisLabel: hbp.analysisLabel || { x: 5.7, y: 34.5, w: 7.2 },
-      analysis: { x: hbp.analysis?.x ?? 6, y: hbp.analysis?.y ?? 40.62, w: hbp.analysis?.w ?? 44, h: hbp.analysis?.h ?? 54.38 },
-      solutionLabel: hbp.solutionLabel || { x: 53.7, y: 6.6, w: 7.4 },
-      solution: { x: hbp.solution?.x ?? 54, y: hbp.solution?.y ?? 14, w: hbp.solution?.w ?? 40, h: hbp.solution?.h ?? 44 },
-      summaryLabel: hbp.summaryLabel || { x: 53.7, y: 62.0, w: 7.2 },
-      summary: { x: hbp.summary?.x ?? 54, y: hbp.summary?.y ?? 69.5, w: hbp.summary?.w ?? 40, h: hbp.summary?.h ?? 22 },
+      topicLabel: hbp.topicLabel || DEFAULT_BOARD_PLAN.topicLabel,
+      question: {
+        x: hbp.question?.x ?? DEFAULT_BOARD_PLAN.question.x,
+        y: hbp.question?.y ?? DEFAULT_BOARD_PLAN.question.y,
+        w: hbp.question?.w ?? DEFAULT_BOARD_PLAN.question.w,
+        h: hbp.question?.h ?? '',
+      },
+      analysisLabel: hbp.analysisLabel || DEFAULT_BOARD_PLAN.analysisLabel,
+      analysis: {
+        x: hbp.analysis?.x ?? DEFAULT_BOARD_PLAN.analysis.x,
+        y: hbp.analysis?.y ?? DEFAULT_BOARD_PLAN.analysis.y,
+        w: hbp.analysis?.w ?? DEFAULT_BOARD_PLAN.analysis.w,
+        h: hbp.analysis?.h ?? DEFAULT_BOARD_PLAN.analysis.h,
+      },
+      solutionLabel: hbp.solutionLabel || DEFAULT_BOARD_PLAN.solutionLabel,
+      solution: {
+        x: hbp.solution?.x ?? DEFAULT_BOARD_PLAN.solution.x,
+        y: hbp.solution?.y ?? DEFAULT_BOARD_PLAN.solution.y,
+        w: hbp.solution?.w ?? DEFAULT_BOARD_PLAN.solution.w,
+        h: hbp.solution?.h ?? DEFAULT_BOARD_PLAN.solution.h,
+      },
+      summaryLabel: hbp.summaryLabel || DEFAULT_BOARD_PLAN.summaryLabel,
+      summary: {
+        x: hbp.summary?.x ?? DEFAULT_BOARD_PLAN.summary.x,
+        y: hbp.summary?.y ?? DEFAULT_BOARD_PLAN.summary.y,
+        w: hbp.summary?.w ?? DEFAULT_BOARD_PLAN.summary.w,
+        h: hbp.summary?.h ?? DEFAULT_BOARD_PLAN.summary.h,
+      },
       image: hbp.image || null,
     },
     // UI 可调参数（B 页面设置）—— 字体宪法 v2：全部真源派生（stepHandoff.js），不再硬编码
@@ -1515,12 +1539,9 @@ function serializeCurrentDeliverableState() {
       relatedKnowledge: relatedKnowledge.value || [],
       teachingFocus: knowledgeAnalysis.value?.teachingFocus || '',
       keyFormulaList: keyFormulaList.value || [],
-      zoneAnchors: handoff.value?.zoneAnchors || {
-        question: { x: 6, y: 13.32, w: 40.32 },
-        analysis: { x: 6, y: 40.62, w: 44, h: 54.38 },
-        solution: { x: 54, y: 14, w: 40, h: 44 },
-        summary: { x: 54, y: 69.5, w: 40, h: 22 },
-      },
+      // ★ Task 60：zoneAnchors 兑底改真源重派生（extractZoneAnchors(DEFAULT_BOARD_PLAN)），
+      //   原手押四键抖动快照值删除——同一函数与 buildStep1Handoff 同一构造口径
+      zoneAnchors: handoff.value?.zoneAnchors || extractZoneAnchors(DEFAULT_BOARD_PLAN),
       stageRatios: {
         analysis: suggestedRatio.analysis || '未提供',
         solution: suggestedRatio.solution || '未提供',

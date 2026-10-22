@@ -60,6 +60,18 @@ export function useBCache({ getHandoff, getSelectedSkillId, getModel }) {
     const modelDigest = fieldDigest(getModel ? getModel() : '', 60)
     // ★ Task 50：prompt 版本进键——提示词改动后旧缓存自动失效（逐句对齐拍板配套）
     const promptDigest = promptVersionDigest()
+    // ★ Task 60：boardPlan 九键全量摘要进键——原只含 question.x 单值，布局修订只动
+    //   analysis/solution/summary 时键不变、静默吃旧 rows（60-b 实测揪出；此前靠
+    //   修订链 force=true 旁路兜底，非修订场景的布局变化仍会盲命中）
+    const boardPlanDigest = fieldDigest(
+      [
+        'topicLabel', 'question', 'image',
+        'analysisLabel', 'analysis',
+        'solutionLabel', 'solution',
+        'summaryLabel', 'summary',
+      ].map(k => JSON.stringify(h.boardPlan?.[k] ?? null)),
+      200,
+    )
     return B_CACHE_PREFIX + [
       h.problemText?.slice(0, 80) || '',
       h.problemType || '',
@@ -70,7 +82,7 @@ export function useBCache({ getHandoff, getSelectedSkillId, getModel }) {
       modelDigest,
       promptDigest,
       h.stageRatioSuggestion?.type || '',
-      h.boardPlan?.question?.x || '',
+      boardPlanDigest,
       getSelectedSkillId() || '',
     ].join('|')
   }

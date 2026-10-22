@@ -19,6 +19,9 @@ import {
   knowledgeItemText,
 } from '../services/stepHandoff.js'
 import { AUDIO_SPEED_POLICY_TEXT } from '../agent-b-v2/timing.js'
+// ★ Task 60 坐标归一：默认四区唯一真源派生，本文件 2 处手押的
+//   抖动快照值全部改 import 派生，与 AgentBDirect/服务端同源不漂移
+import { DEFAULT_BOARD_PLAN } from '../utils/boardLayout.js'
 
 /**
  * 导出物全局说明参数（真相源与规范基准）
@@ -31,18 +34,13 @@ export function buildStandardExplainParamsSection(meta = {}) {
   //   同步拔掉旧 fallback 里的"主 CDN 507"字面量（字体宪法 lite 违例）
   const boardFontSel = resolveHandwritingFont(meta.handwritingFontChoice)
   const boardFontText = `${boardFontSel.family}（手写体，网络字体 fontSource.handwriting 主 CDN ${boardFontSel.cdn}，font-weight: normal，${BOARD_FONT_RATIO_TEXT}）`
-  const fallbackHbp = {
-    question: { x: 6, y: 13.32, w: 40.32, h: '' },
-    analysis: { x: 6, y: 40.62, w: 44, h: 54.38 },
-    solution: { x: 54, y: 14, w: 40, h: 44 },
-    summary: { x: 54, y: 69.5, w: 40, h: 22 },
-  }
-  const rawHbp = meta.handoffBoardPlan || meta.boardPlan || meta.zoneAnchors || fallbackHbp
+  // ★ Task 60：fallback 改真源派生（原手押抖动快照值全部退役）
+  const rawHbp = meta.handoffBoardPlan || meta.boardPlan || meta.zoneAnchors || DEFAULT_BOARD_PLAN
   const hbp = {
-    question: { ...fallbackHbp.question, ...(rawHbp.question || {}) },
-    analysis: { ...fallbackHbp.analysis, ...(rawHbp.analysis || {}) },
-    solution: { ...fallbackHbp.solution, ...(rawHbp.solution || {}) },
-    summary: { ...fallbackHbp.summary, ...(rawHbp.summary || {}) },
+    question: { ...DEFAULT_BOARD_PLAN.question, ...(rawHbp.question || {}) },
+    analysis: { ...DEFAULT_BOARD_PLAN.analysis, ...(rawHbp.analysis || {}) },
+    solution: { ...DEFAULT_BOARD_PLAN.solution, ...(rawHbp.solution || {}) },
+    summary: { ...DEFAULT_BOARD_PLAN.summary, ...(rawHbp.summary || {}) },
   }
 
   // 题目信息与环节配比
@@ -101,10 +99,10 @@ export function buildStandardExplainParamsSection(meta = {}) {
     '',
     '| 区域 | 左% | 上% | 宽% | 高% |',
     '| --- | ---: | ---: | ---: | ---: |',
-    `| 题目区 | ${hbp.question?.x ?? 6} | ${hbp.question?.y ?? 13.32} | ${hbp.question?.w ?? 40.32} | ${hbp.question?.h ?? ''} |`,
-    `| 分析区 | ${hbp.analysis?.x ?? 6} | ${hbp.analysis?.y ?? 40.62} | ${hbp.analysis?.w ?? 44} | ${hbp.analysis?.h ?? 54.38} |`,
-    `| 解答区 | ${hbp.solution?.x ?? 54} | ${hbp.solution?.y ?? 14} | ${hbp.solution?.w ?? 40} | ${hbp.solution?.h ?? 44} |`,
-    `| 总结区 | ${hbp.summary?.x ?? 54} | ${hbp.summary?.y ?? 69.5} | ${hbp.summary?.w ?? 40} | ${hbp.summary?.h ?? 22} |`,
+    `| 题目区 | ${hbp.question?.x ?? DEFAULT_BOARD_PLAN.question.x} | ${hbp.question?.y ?? DEFAULT_BOARD_PLAN.question.y} | ${hbp.question?.w ?? DEFAULT_BOARD_PLAN.question.w} | ${hbp.question?.h ?? ''} |`,
+    `| 分析区 | ${hbp.analysis?.x ?? DEFAULT_BOARD_PLAN.analysis.x} | ${hbp.analysis?.y ?? DEFAULT_BOARD_PLAN.analysis.y} | ${hbp.analysis?.w ?? DEFAULT_BOARD_PLAN.analysis.w} | ${hbp.analysis?.h ?? DEFAULT_BOARD_PLAN.analysis.h} |`,
+    `| 解答区 | ${hbp.solution?.x ?? DEFAULT_BOARD_PLAN.solution.x} | ${hbp.solution?.y ?? DEFAULT_BOARD_PLAN.solution.y} | ${hbp.solution?.w ?? DEFAULT_BOARD_PLAN.solution.w} | ${hbp.solution?.h ?? DEFAULT_BOARD_PLAN.solution.h} |`,
+    `| 总结区 | ${hbp.summary?.x ?? DEFAULT_BOARD_PLAN.summary.x} | ${hbp.summary?.y ?? DEFAULT_BOARD_PLAN.summary.y} | ${hbp.summary?.w ?? DEFAULT_BOARD_PLAN.summary.w} | ${hbp.summary?.h ?? DEFAULT_BOARD_PLAN.summary.h} |`,
     '',
     '### UI 可调参数（B 页面设置）',
     '',

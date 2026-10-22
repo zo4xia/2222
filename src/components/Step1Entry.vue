@@ -8,7 +8,7 @@ import { recognizeProblem, fileToDataUrl, compressImageToDataUrl } from '../serv
 import { renderProblemHtml } from '../utils/mathText'
 // ★ 2026-10-14 分支2移植：识别回填清洗传输损伤（rac{→\frac、实体、字面\n、HTML标签）
 import { normalizeCanvasText } from '../utils/canvasText.js'
-import { buildStep1Handoff, hasUsableAgentAKnowledge } from '../services/stepHandoff'
+import { buildStep1Handoff, hasUsableAgentAKnowledge, QUESTION_FONT_SIZE } from '../services/stepHandoff'
 import { saveLiveBoardPreview } from '../board-preview/liveBoardPreview.js'
 import { selectAgentARelatedKnowledge } from '../services/agentAKnowledge.js'
 import {
@@ -30,7 +30,7 @@ import {
 } from '../lib/agentBApiConfig.js'
 import RealBoardPreview from './RealBoardPreview.vue'
 import QhPageHeader from './QhPageHeader.vue'
-import { planLabelsFromTopic } from '../utils/boardLayout'
+import { planLabelsFromTopic, BOARD_LAYOUT, TOPIC_TEXT_W_PCT, TOPIC_IMAGE_W_PCT } from '../utils/boardLayout'
 import { detectContentLandscape } from '../utils/imageContentRegion.js'
 // ★ 2026-10-14：safeFetchJson 升格共享真源 src/lib/safeJsonFetch.js（agentB refine/apply
 // 同源接入），本组件保留同名薄委托——行为契约不变，调用点零改动
@@ -135,10 +135,12 @@ const boardFocusOptions = [
 // 题目层落位（相对 1726×980 百分比，来自已验证 demo 落点）
 // 布局规则：图片题目区 = 左半(w≤44%) + 上半(y从标签下13.2%到50%) = maxH≈36%
 // 文字题目：只填左侧文字，不走图片分支
+// ★ Task 60 坐标归一：标签/题目 x,y 改 BOARD_LAYOUT 真源 import（原手押 5.7/6.6/6.0/13.2），
+//   题目文字宽 40.4/竖图宽 38 显式常量入真源（boardLayout.js），消灭与 BOARD_LAYOUT.question.w=44 心照不宣的双值
 const baseLayout = {
-  topicLabel: { x: 5.7, y: 6.6, w: 7.1 },
-  question: { x: 6.0, y: 13.2, w: 40.4 },
-  image: { x: 6.0, y: 13.2, w: 38.0 },   // 高度由 limitTopicImageHeightPct 自适应到画布底，不写死 maxH
+  topicLabel: { ...BOARD_LAYOUT.topicLabel },
+  question: { x: BOARD_LAYOUT.question.x, y: BOARD_LAYOUT.question.y, w: TOPIC_TEXT_W_PCT },
+  image: { x: BOARD_LAYOUT.question.x, y: BOARD_LAYOUT.question.y, w: TOPIC_IMAGE_W_PCT },   // 高度由 limitTopicImageHeightPct 自适应到画布底，不写死 maxH
 }
 
 const customTopicLayout = ref(null)
@@ -159,9 +161,7 @@ function onTopicLayoutUpdated(newLayout) {
 
 function onProblemTextUpdated(newText) {
   problemText.value = newText
-  try {
-    localStorage.setItem('qinghuabu.problemText', newText)
-  } catch (_) {}
+  // ★ Task 60：删 qinghuabu.problemText 死键写入（全仓零读者，写入即垃圾堆积）
   syncLiveBoardPreview()
 }
 
@@ -202,7 +202,7 @@ const topicLayout = computed(() => {
       x: baseLayout.question.x,
       y: hasImage ? 42 + jitter : baseLayout.question.y + jitter * 0.3,
       w: baseLayout.question.w - jitter * 0.2,
-      fontSize: hasImage ? 28 - fontBump : 30 - fontBump,
+      fontSize: (hasImage ? QUESTION_FONT_SIZE - 2 : QUESTION_FONT_SIZE) - fontBump,  // ★ Task 60：字面量 28/30 改真源 QUESTION_FONT_SIZE 派生（字体宪法）
     },
   }
 
@@ -748,14 +748,7 @@ function saveAgentConfig() {
   agentDrawerOpen.value = false
   message.success('Agent A、B、C 配置已分别保存')
 }
-
-function pct(style) {
-  return {
-    left: `${style.x}%`,
-    top: `${style.y}%`,
-    width: `${style.w}%`,
-  }
-}
+/* ★ Task 60：pct() 死代码已删——模板零引用（rg 实证），与 boardLayout.js pctBox 重复实现 */
 </script>
 
 <template>

@@ -7,10 +7,9 @@
   "updated": "2026-10-17",
   "sources": [
     "src/utils/boardLayout.js",
-    "src/utils/canvasCoords.js",
-    "src/services/boardMathPolicy.js"
+    "src/utils/canvasCoords.js"
   ],
-  "distillation_contract": "Distill [四区板书布局与坐标控制] as a [workflow] pack so it can help with [Agent B 规划板书落点 / 画布渲染层排版 / Check Agent 校验越界], using [src/utils/boardLayout.js + src/utils/canvasCoords.js + src/services/boardMathPolicy.js], while respecting [handoff JSON 唯一真相源 / 区域坐标仅为参考 / 内容多时可越界只要不出画布 / 不严重叠字].",
+  "distillation_contract": "Distill [四区板书布局与坐标控制] as a [workflow] pack so it can help with [Agent B 规划板书落点 / 画布渲染层排版 / Check Agent 校验越界], using [src/utils/boardLayout.js + src/utils/canvasCoords.js]（Task 60 勘误：原引板书数学软校验服务文件为从未存在的幽灵，已移除）], while respecting [handoff JSON 唯一真相源 / 区域坐标仅为参考 / 内容多时可越界只要不出画布 / 不严重叠字].",
   "core_sections": [
     "绝对物理基准（1726×980）",
     "四区参考布局",
