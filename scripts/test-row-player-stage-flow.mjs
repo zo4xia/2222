@@ -8,7 +8,8 @@
  *   ① stageFlowPlace 纯函数：首行落区域左上锚 / 后续行自然续排 / 放不下换列 / 显式 startCoord 尊重原位
  *   ② compile 端到端：同 stage 三行不叠（y 严格递增），board task 带 layout/lines/chars
  *   ③ 动作锚定池：boardChars = 本行+先前行已写文字（B 契约"必须锚定已写出的文字"）
- *   ④ drawWriting 消费编译期布局（回退同函数自算）；drawAction 板书字池优先于题目
+ *   ④ drawWriting 消费编译期布局（回退同函数自算）；drawAction 按 target.region 路由锚定
+ *     （Task 62：question→题目池、板书区→stage 分桶；缺 region 旧档兼容仍先板书后题目）
  *   ⑤ 字体门：字体到位后 C=compile(C.data) 整轴重排（编译期布局随真实字宽重算）
  *   ⑥ 双胞胎同步 + DOCTYPE 病头不回归（Task 26 哨兵）
  */
@@ -183,8 +184,9 @@ check('compile 动作段带板书字池快照（boardChars:boardCharsRegistry.sl
 /* ---------- 6) 结构断言：drawWriting / drawAction / 字体门 ---------- */
 check('drawWriting 消费编译期布局（task.layout 优先 + layoutBoardLines 回退同函数）',
   /const preL=task\.layout\|\|null;/.test(script) && /const layout=preL\|\|layoutBoardLines\(task\.content,x,y,W,H\)\.layout;/.test(script))
-check('drawAction 板书字池优先锚定（boardChars 先搜、Q.chars 兜底）',
-  /let rg=\(task\.boardChars&&task\.boardChars\.length\)\?findRange\(task\.boardChars/.test(script) &&
+check('drawAction 按 target.region 路由锚定（Task 62：question→题目池、板书区→stage 分桶；缺 region 旧档兼容先 boardChars 后 Q.chars）',
+  /let rg=\(pool&&pool\.length\)\?findRange\(pool,tg\.exactText\|\|'',tg\.occurrence\|\|1\):null;/.test(script) &&
+  /if\(!rg&&!stg\)\{[\s\S]{0,220}?findRange\(task\.boardChars/.test(script) &&
   /if\(!rg\)rg=findRange\(Q\.chars/.test(script))
 check('drawAction 标注框按命中字号自适应（板书 40 / 题目 30）', /const fs=rg\.size\|\|30;/.test(script))
 check('findRange 返回带实际字号 size（下游标注框用）', /y2:b\.y,size:\(a\.size!=null\?a\.size:30\)/.test(script))

@@ -192,6 +192,81 @@ ok('B8 isAudioSrc URL 语料一致（data:/blob:/http:/相对路径/扩展名五
   }
 })
 
+// ── B9+ Task 62 下划线落点根治锁：findRange 行内匹配 + region 路由（夏夏实锤「画线位置/长度」）──
+const p_findRange = evalPure(
+  extractTopLevelFunction(player, 'findRange') + '\n' + extractTopLevelFunction(player, 'sameBoardLine'),
+  ['findRange', 'sameBoardLine'],
+).findRange
+
+ok('B9 findRange 行内匹配行为锁：跨行/跨列目标不再命中（旧整池滑窗会把 x1 取自行尾、x2 取自次行行首）', () => {
+  // 三行字池（行基线 y 递增，全局 li 不撞号）：行0「甲乙丙」/行1「乙丙丁」/行2「丙丁戊"
+  const realPool = [
+    { ch: '甲', x: 50, y: 100, w: 20, size: 40, li: 0 },
+    { ch: '乙', x: 70, y: 100, w: 20, size: 40, li: 0 },
+    { ch: '丙', x: 90, y: 100, w: 20, size: 40, li: 0 },
+    { ch: '乙', x: 50, y: 140, w: 20, size: 40, li: 1 },
+    { ch: '丙', x: 70, y: 140, w: 20, size: 40, li: 1 },
+    { ch: '丁', x: 90, y: 140, w: 20, size: 40, li: 1 },
+    { ch: '丙', x: 50, y: 180, w: 20, size: 40, li: 2 },
+    { ch: '丁', x: 70, y: 180, w: 20, size: 40, li: 2 },
+    { ch: '戊', x: 90, y: 180, w: 20, size: 40, li: 2 },
+  ]
+  // 行内命中：x1=首字x、x2=尾字x+w、y=行基线
+  const r1 = p_findRange(realPool, '乙丙', 1)
+  assert.equal(r1 && r1.x1, 70, '行内命中 x1 应为首字 x')
+  assert.equal(r1 && r1.x2, 110, '行内命中 x2 应为尾字 x+w (90+20)')
+  assert.equal(r1 && r1.size, 40, '板书命中应取实际字号 40')
+  // 跨行拒绝：旧实现整池滑窗会命中（行0 尾「丙」+行1 首「乙丙」…），新实现必须 null
+  assert.equal(p_findRange(realPool, '丙乙', 1), null, '跨行目标不得命中（位置/长度会乱）')
+  assert.equal(p_findRange(realPool, '甲乙丙乙', 1), null, '跨行拼接目标不得命中')
+  // 行内存在才命中：'丙丁' 在行1（丙 70 + 丁 90）与行2（丙 50 + 丁 70）各一次
+  const r2 = p_findRange(realPool, '丙丁', 1)
+  assert.ok(r2 && r2.x1 === 70 && r2.y1 === 140, 'occ=1 应命中行1 的 丙丁')
+  const r3 = p_findRange(realPool, '丙丁', 2)
+  assert.ok(r3 && r3.x1 === 50 && r3.y1 === 180, 'occ=2 应命中行2 的 丙丁（region 内第 N 次语义）')
+  assert.equal(p_findRange(realPool, '丙丁', 3), null, 'occ 超界应 miss')
+  // y 兜底分行（无 li 旧池）：同基线同行、跨基线拒绝
+  const legacy = [
+    { ch: '子', x: 10, y: 50, w: 20 },
+    { ch: '丑', x: 30, y: 50, w: 20 },
+    { ch: '寅', x: 10, y: 90, w: 20 },
+  ]
+  assert.ok(p_findRange(legacy, '子丑', 1), '无 li 池同基线应命中')
+  assert.equal(p_findRange(legacy, '丑寅', 1), null, '无 li 池跨基线应拒绝')
+  assert.equal(p_findRange(realPool, '', 1), null, '空串防御保留')
+})
+
+ok('B10 drawAction region 路由契约锁：契约教的 target.region 必须被执行器消费（校验放行、播放画错区的分叉不复活）', () => {
+  // 源断言：路由分支读 tg.region 并按四区分流（与 textTargetRegistry VALID_REGIONS 同源）
+  assert.ok(player.includes("String(tg.region||'').trim()"), 'drawAction 必须读取 target.region（旧实现无视 region 的病理不复活）')
+  assert.ok(player.includes("c.stage===stg"), '板书区路由必须按字符 stage 过滤字池')
+  for (const region of ["'question'", "'analysis'", "'solution'", "'summary'"]) {
+    assert.ok(player.includes(`stg===${region}`) || player.includes(`===${region}`), `路由白名单必须含 ${region}`)
+  }
+  assert.ok(player.includes("if(!rg&&!stg)"), '缺 region 必须保留旧档兼容兜底（有 region 不得跨区兜底）')
+  assert.ok(player.includes('跨行目标不画'), 'miss 文案必须含跨行语义（宁可不画，不可画错）')
+  // 字池身份字段：boardCharPool 必须塞 stage + 全局 li
+  assert.ok(player.includes('function boardCharPool(L,stage,liBase)'), 'boardCharPool 必须带 stage+liBase 双参（Task 62 路由/分行的地基）')
+  assert.ok(player.includes('stage:stage,li:liBase+li'), '字池字符必须带 stage+li 身份字段')
+  assert.ok(player.includes('liBase+=(L.layout||[]).length'), '全局行号基座必须按行数累加（防多 row 同名 li 撞号）')
+})
+
+ok('B11 occurrence 语义对齐锁：播放器桶内计数 = App 侧 region 内第 N 次（textTargetRegistry 契约同源）', () => {
+  // region 路由后 findRange 只在分桶池内计数——B9 的 occ=1/2 行内用例已锁行为；
+  // 此处锁契约源：prompt.js 必须教 Agent 输出 region（教了没消费才是 Task 62 修的病；两侧都不得退化）
+  const promptSrc = read('src/agent-b-v2/prompt.js')
+  assert.ok(promptSrc.includes('"region": "question"'), 'prompt §5.2 必须教 target.region=question（契约真源不退化）')
+  assert.ok(promptSrc.includes('"region": "analysis"'), 'prompt §5.2 必须教板书区 region（四区白名单完整）')
+  assert.ok(player.includes("c.stage===stg||c.stage===zh"), '板书区字池过滤必须走中英词汇桥双试（region 英文 / stage 中文两套契约词汇）')
+  // 词汇桥中文值必须与 prompt.js §行结构 stage 硬约束枚举逐字一致（防映射单侧漂移）
+  const bridge = player.match(/\{analysis:'([^']*)',solution:'([^']*)',summary:'([^']*)'\}/)
+  assert.ok(bridge, '中英词汇桥常量缺失')
+  assert.equal(bridge[1], '分析', 'analysis→分析 必须与 prompt stage 枚举一致')
+  assert.equal(bridge[2], '解答', 'solution→解答 必须与 prompt stage 枚举一致')
+  assert.equal(bridge[3], '总结', 'summary→总结 必须与 prompt stage 枚举一致')
+  assert.ok(promptSrc.includes('题目 / 分析 / 解答 / 总结'), 'prompt stage 中文硬约束枚举在场（词汇桥的上游真源）')
+})
+
 // ═══ C. boardPlan 五处值锁（真源 import 派生，不锁镜像字面量）════════════
 const parseObj = (text) => new Function(`return ${text}`)()
 const checkPlanAgainstTruth = (plan, name, extra) => {

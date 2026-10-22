@@ -462,16 +462,22 @@ function layoutBoardLines(content,x,y,W,H){
 }
 /* 板书字池：行布局 → 逐字坐标（actionSpec exactText 锚定用）。
    \frac 记号打不匹配占位符（私用区字符），防 exactText 误锚进公式字面量。 */
-function boardCharPool(L){
+/* ★ Task 62 下划线落点根治（夏夏实锤「画线位置/画线长度」）：
+   字池字符补两个身份字段——
+   ① stage：来源区域（analysis/solution/summary），供 drawAction 按 target.region 精确路由；
+     旧实现无视 region、全局池盲搜——板书重抄题目关键词时，Agent 想画题目上的线被劫持到板书；
+   ② li：全局行号（liBase 起算）——供 findRange 行内匹配拦截跨行命中（跨行 exactText 旧实现
+     会把 x1 取自行尾、x2 取自次行行首，下划线长度=跨行距离，整块板乱窜）。 */
+function boardCharPool(L,stage,liBase){
   const out=[];
-  (L.layout||[]).forEach(LL=>{
+  (L.layout||[]).forEach((LL,li)=>{
     let cx=LL.x;
     const toks=tokenizeLine(String(LL.text||''));
     MCTX.font=LL.size+'px '+HAND_FONT;
     for(const t of toks){
-      if(t.frac){out.push({ch:'\uE000',x:cx,y:LL.y,w:Math.max(1,LL.size*1.2),size:LL.size});cx+=LL.size*1.2;}
+      if(t.frac){out.push({ch:'\uE000',x:cx,y:LL.y,w:Math.max(1,LL.size*1.2),size:LL.size,stage:stage,li:liBase+li});cx+=LL.size*1.2;}
       else{const ch=String(t.ch);const w=Math.max(1,MCTX.measureText(ch).width);
-        out.push({ch:ch,x:cx,y:LL.y,w:w,size:LL.size});cx+=w;}
+        out.push({ch:ch,x:cx,y:LL.y,w:w,size:LL.size,stage:stage,li:liBase+li});cx+=w;}
     }
   });
   return out;
@@ -516,7 +522,8 @@ function compile(data){
   const tagAnchor=resolveTagAnchor(bp);   // 装载即定死：render(0) 起标签就在导出物给的位置上
   let acc=0;
   const stageFlow={};            // ★ 同 stage 多行顺序排版游标（px）：stage -> {x,y,anchorY,colMaxW}
-  const boardCharsRegistry=[];   // ★ 板书字池（按行序累积）：动作 exactText 可跨行锚定已写出的文字
+  const boardCharsRegistry=[];   // ★ 板书字池（按行序累积，Task 62 起每字符带 stage+全局 li）：动作 exactText 行内锚定已写出的文字
+  let liBase=0;                   // ★ Task 62 全局行号基座：boardCharPool 本池 li 从 0 起，多 row 串联推入 registry 必须全局重编号，否则不同 row 同名 li 撞号会误判同行
   const rows=(data.rows||[]).map((r,i)=>{
     // 音频铁律（2026-09-18 夏夏）：本 row 当前时间唯一权威=真实音频播放时间。
     // audioDurationMs=试听探测到的真实时长（唯一主时钟）；duration 仅旧协议秒单位兼容；
@@ -564,7 +571,8 @@ function compile(data){
       /* 布局完成 → 游标推进到本行内容末（endY=末行基线+行高，即下一行自然续排点；
          endX/colMaxW = 本行末列左与末列宽，本列放不下时换列用） */
       stageFlow[stKey]={x:L.endX,y:L.endY,anchorY:placed.cursor.anchorY,colMaxW:L.colMaxW};
-      const rowChars=boardCharPool(L);
+      const rowChars=boardCharPool(L,stKey,liBase);
+      liBase+=(L.layout||[]).length;
       for(let ci2=0;ci2<rowChars.length;ci2++)boardCharsRegistry.push(rowChars[ci2]);
       plan.push({type:'board',startOffsetMs:sd,durationMs:bw,
                  content:bContent,coord:coord,
@@ -601,7 +609,7 @@ function compile(data){
       const adur=actionDurationMs(a);
       plan.push({type:'action',startOffsetMs:cursor,durationMs:adur,action:a,
                  ...(kwRaw!=null?{keywordStartOffsetMs:kwRaw,triggerKeyword:String((a&&a.triggerKeyword)||'').trim()}:{}),
-                 boardChars:boardCharsRegistry.slice()});   // 动作锚定池：本行+先前行已写文字（B 契约"必须锚定已写出的文字"）
+                 boardChars:boardCharsRegistry.slice()});   // 动作锚定池：本行+先前行已写文字（B 契约"必须锚定已写出的文字"；Task 62 起字符带 stage+全局 li，drawAction 按 target.region 路由分行内匹配）
       cursor+=adur+HAND_LIFT_MS;
     });
     const maxEnd=plan.reduce((m,t)=>Math.max(m,(t.startOffsetMs||0)+(t.durationMs||0)),0);
@@ -686,16 +694,33 @@ function layoutText(ctx,text,x,y,maxW,size,lh,font){
   return {lines:lines,chars:chars,endY:ly+lh};
 }
 function findRange(chars,sub,occ){
+  /* ★ Task 62 下划线落点根治：整池连续滑窗 → 按行分段行内滑窗。
+     旧实现在整池上滑窗匹配不看行界——exactText 恰好横跨两行/两列时命中跨行字符：
+     x1 取自第一行行尾、x2 取自第二行行首，下划线长度=跨行距离（整块板乱窜）。
+     新规：行内命中才算命中（板书池字符带全局 li、题目池 layoutText 自带 li；无 li 旧池按同基线 y 分行兜底）——
+     跨行目标宁可明示不画（warn 跳过），不可画错位置。 */
   if(!sub)return null;                // 防御：空串不再匹配（rough-line 无 target，曾致 chars[-1] 崩溃；arrow 已砍）
   occ=occ||1; let hit=0;
-  for(let i=0;i+sub.length<=chars.length;i++){
-    let ok=true;
-    for(let k=0;k<sub.length;k++) if(chars[i+k].ch!==sub[k]){ok=false;break;}
-    if(ok){hit++; if(hit===occ){
-      const a=chars[i], b=chars[i+sub.length-1];
-      return {x1:a.x,y1:a.y,x2:b.x+b.w,y2:b.y,size:(a.size!=null?a.size:30)};}}
+  const n=chars.length,m=sub.length;
+  let s=0;
+  while(s<n){
+    let e=s+1;
+    while(e<n&&sameBoardLine(chars[s],chars[e]))e++;   // 行段 [s,e)
+    for(let i=s;i+m<=e;i++){                          // 行段内滑窗
+      let ok=true;
+      for(let k=0;k<m;k++) if(chars[i+k].ch!==sub[k]){ok=false;break;}
+      if(ok){hit++; if(hit===occ){
+        const a=chars[i], b=chars[i+m-1];
+        return {x1:a.x,y1:a.y,x2:b.x+b.w,y2:b.y,size:(a.size!=null?a.size:30)};}}
+    }
+    s=e;
   }
   return null;
+}
+/* 同行判据：优先全局 li（Task 62 起板书池/题目池都带），旧池无 li 时同基线 y 兜底 */
+function sameBoardLine(a,b){
+  if(a.li!=null&&b.li!=null)return a.li===b.li;
+  return a.y===b.y;
 }
 
 /* ============ 5b. 预渲染：一行一张图（离屏 canvas + 斜边遮罩揭示） ============ */
@@ -1268,15 +1293,36 @@ function drawAction(task,p,Q,W,H){
     ctx.globalAlpha=1;
     return;
   }
-  // ── rough-notation：文字标记，锚定顺序 = 板书字池（本行+先前行，compile 期坐标）→ 题目原文；
-  //    两路都 miss 才跳过（旧版只搜题目 → 板书内容上的圈/线/高亮全被丢，"动作丢失"的播放器半边根因）──
+  // ── rough-notation：文字标记，★ Task 62 起按契约 target.region 精确路由（夏夏实锤「画线位置/长度」根治）——
+  //    契约真源 prompt.js §5.2 教 Agent target={region:"question",exactText,...}（四区白名单
+  //    textTargetRegistry VALID_REGIONS 同源），旧实现完全无视 region、固定「板书全局池优先→题目
+  //    兑底」盲搜：解题板书重抄题目关键词（如「平行四边形」）时，Agent 想画题目上的线被劫持到板书上；
+  //    且 occurrence 语义两侧分叉（App 侧=region 内第 N 个，旧播放器=全局池计数）。
+  //    新路由：region=question → 只搜题目池；板书区 → 只搜该 stage 字池；缺 region（旧档兼容）→
+  //    维持旧兑底顺序 + warn 建议补全。跨行目标由 findRange 行内匹配拦下，宁可不画，不可画错。──
   const tg=a.target||{};
-  let rg=(task.boardChars&&task.boardChars.length)?findRange(task.boardChars,tg.exactText||'',tg.occurrence||1):null;
-  if(!rg)rg=findRange(Q.chars,tg.exactText||'',tg.occurrence||1);
-  if(!rg){ console.warn('[动作] 找不到文字 "',tg.exactText,'"（板书与题目均未命中），该标记被跳过'); return; }
+  const stg=String(tg.region||'').trim();
+  let pool=null, poolName='板书与题目';
+  if(stg==='question'){ pool=Q.chars; poolName='题目'; }
+  else if(stg==='analysis'||stg==='solution'||stg==='summary'){
+    // ★ 中英词汇桥：rows.stage 中文硬约束（prompt.js「题目/分析/解答/总结」）↔ target.region
+    //   英文白名单（textTargetRegistry VALID_REGIONS）——契约两侧本就两套词汇，执行器单点归一。
+    //   双试过滤防两种档形（中文档直配 / 英文档走桥），哨兵 B10 锁中文值与 prompt 枚举不漂移。
+    const zh={analysis:'分析',solution:'解答',summary:'总结'}[stg]||stg;
+    pool=(task.boardChars||[]).filter(c=>c.stage===stg||c.stage===zh); poolName=stg+' 区板书'; }
+  let rg=(pool&&pool.length)?findRange(pool,tg.exactText||'',tg.occurrence||1):null;
+  if(!rg&&!stg){   // 旧档兼容：动作缺 region 才走旧「板书全局→题目」兑底顺序
+    rg=(task.boardChars&&task.boardChars.length)?findRange(task.boardChars,tg.exactText||'',tg.occurrence||1):null;
+    if(!rg)rg=findRange(Q.chars,tg.exactText||'',tg.occurrence||1);
+    if(rg)console.warn('[动作] 目标缺 region，按旧顺序兑底命中（建议 actionSpec 补 target.region）："'+(tg.exactText||'')+'"');
+  }
+  if(!rg){ console.warn('[动作] 在',poolName,'找不到文字 "',tg.exactText,'"（跨行目标不画：宁可不画，不可画错），该标记被跳过'); return; }
   const seed=hashStr(tg.exactText||'');
   const act=a.action||'underline';
   // 字高按命中字池实际字号（板书 40 / 题目 30）：顶≈baseline-fs，底≈baseline+fs*0.27；padding 8
+  // ⚠ 隐式约定注记：板书池字符带 size（boardCharPool 塞 LL.size）→真实字号；题目池 layoutText
+  //    字符不塞 size → findRange 兑底 30，恰与题目排版 30px（render 段 layoutText size=30）同值——
+  //    若将来改题目字号，这里兑底必须同步（哨兵 test-player-mirror-parity C/D 组锁 30/40 双源）。
   const fs=rg.size||30;
   const bx1=rg.x1-8, bx2=rg.x2+8, by1=rg.y1-fs-8, by2=rg.y1+Math.round(fs*0.27)+8;
   ctx.strokeStyle='#dc2626'; ctx.lineWidth=2.2; ctx.globalAlpha=0.9;
