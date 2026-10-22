@@ -693,15 +693,43 @@ function layoutText(ctx,text,x,y,maxW,size,lh,font){
   lines.forEach((L,li)=>{let cx=x;for(const ch of L.t){const w=ctx.measureText(ch).width;chars.push({ch:ch,x:cx,y:L.y,w:w,li:li});cx+=w;}});
   return {lines:lines,chars:chars,endY:ly+lh};
 }
-function findRange(chars,sub,occ){
+function findRange(chars,sub,occ,opts){
   /* ★ Task 62 下划线落点根治：整池连续滑窗 → 按行分段行内滑窗。
      旧实现在整池上滑窗匹配不看行界——exactText 恰好横跨两行/两列时命中跨行字符：
      x1 取自第一行行尾、x2 取自第二行行首，下划线长度=跨行距离（整块板乱窜）。
      新规：行内命中才算命中（板书池字符带全局 li、题目池 layoutText 自带 li；无 li 旧池按同基线 y 分行兜底）——
      跨行目标宁可明示不画（warn 跳过），不可画错位置。 */
+  /* ★ Task 63 题目区跨折行分段（夏夏「题目字号 30、自动文本换行」）：题目文本由 layoutText
+     按区域宽自动折行（约 697px、30px 字号每行约 23 字），Agent 无从预知折行点——exactText
+     恰跨折行点时行内匹配会整条拒画=静默丢下划线。题目区调用传 opts.allowWrap=true 走
+     「连续流匹配 + 命中区间按行切段」：occ 语义=池内第 N 个连续匹配（App 侧
+     textTargetRegistry indexOf 同语义），每段独立行内 x1/x2（跨行乱线几何仍不可能），
+     下划线逐段画=老师跨行划重点「一行一段」的自然手部动作。
+     板书区不传 allowWrap：板书行 Agent 可见，跨行 exactText 属 Agent 失误，宁拒不画。 */
   if(!sub)return null;                // 防御：空串不再匹配（rough-line 无 target，曾致 chars[-1] 崩溃；arrow 已砍）
   occ=occ||1; let hit=0;
   const n=chars.length,m=sub.length;
+  const allowWrap=!!(opts&&opts.allowWrap);
+  if(allowWrap){
+    for(let i=0;i+m<=n;i++){          // 连续流滑窗（无视行界，命中后再按行切段）
+      let ok=true;
+      for(let k=0;k<m;k++) if(chars[i+k].ch!==sub[k]){ok=false;break;}
+      if(!ok)continue;
+      hit++;
+      if(hit<occ)continue;
+      const segs=[]; let s=i;
+      while(s<i+m){                   // 命中区间按行切段：sameBoardLine 同段者归一段
+        let e=s+1;
+        while(e<i+m&&sameBoardLine(chars[s],chars[e]))e++;
+        segs.push({x1:chars[s].x,y1:chars[s].y,x2:chars[e-1].x+chars[e-1].w,y2:chars[e-1].y});
+        s=e;
+      }
+      const a=chars[i];
+      return {x1:segs[0].x1,y1:segs[0].y1,x2:segs[segs.length-1].x2,y2:segs[segs.length-1].y2,
+        size:(a.size!=null?a.size:30),segments:segs};
+    }
+    return null;
+  }
   let s=0;
   while(s<n){
     let e=s+1;
@@ -711,7 +739,8 @@ function findRange(chars,sub,occ){
       for(let k=0;k<m;k++) if(chars[i+k].ch!==sub[k]){ok=false;break;}
       if(ok){hit++; if(hit===occ){
         const a=chars[i], b=chars[i+m-1];
-        return {x1:a.x,y1:a.y,x2:b.x+b.w,y2:b.y,size:(a.size!=null?a.size:30)};}}
+        return {x1:a.x,y1:a.y,x2:b.x+b.w,y2:b.y,size:(a.size!=null?a.size:30),
+          segments:[{x1:a.x,y1:a.y,x2:b.x+b.w,y2:b.y}]};}}
     }
     s=e;
   }
@@ -1299,7 +1328,8 @@ function drawAction(task,p,Q,W,H){
   //    兑底」盲搜：解题板书重抄题目关键词（如「平行四边形」）时，Agent 想画题目上的线被劫持到板书上；
   //    且 occurrence 语义两侧分叉（App 侧=region 内第 N 个，旧播放器=全局池计数）。
   //    新路由：region=question → 只搜题目池；板书区 → 只搜该 stage 字池；缺 region（旧档兼容）→
-  //    维持旧兑底顺序 + warn 建议补全。跨行目标由 findRange 行内匹配拦下，宁可不画，不可画错。──
+  //    维持旧兑底顺序 + warn 建议补全。板书区跨行目标由行内匹配拦下宁拒不画；题目区跨折行
+  //    由 allowWrap 连续流分段命中（★ Task 63 题目字号 30 自动换行，一行一段画线）。──
   const tg=a.target||{};
   const stg=String(tg.region||'').trim();
   let pool=null, poolName='板书与题目';
@@ -1310,13 +1340,16 @@ function drawAction(task,p,Q,W,H){
     //   双试过滤防两种档形（中文档直配 / 英文档走桥），哨兵 B10 锁中文值与 prompt 枚举不漂移。
     const zh={analysis:'分析',solution:'解答',summary:'总结'}[stg]||stg;
     pool=(task.boardChars||[]).filter(c=>c.stage===stg||c.stage===zh); poolName=stg+' 区板书'; }
-  let rg=(pool&&pool.length)?findRange(pool,tg.exactText||'',tg.occurrence||1):null;
+  // ★ Task 63：题目池（layoutText 自动折行）传 allowWrap → findRange 连续流匹配+按行切段，跨折行
+  //   exactText 分段命中不丢；板书分桶池维持行内严格（板书行 Agent 可见，跨行属失误）。旧档兼容
+  //   兑底的题目池同样开 allowWrap（同一排版同一行为，不分叉）。
+  let rg=(pool&&pool.length)?findRange(pool,tg.exactText||'',tg.occurrence||1,stg==='question'?{allowWrap:true}:null):null;
   if(!rg&&!stg){   // 旧档兼容：动作缺 region 才走旧「板书全局→题目」兑底顺序
     rg=(task.boardChars&&task.boardChars.length)?findRange(task.boardChars,tg.exactText||'',tg.occurrence||1):null;
-    if(!rg)rg=findRange(Q.chars,tg.exactText||'',tg.occurrence||1);
+    if(!rg)rg=findRange(Q.chars,tg.exactText||'',tg.occurrence||1,{allowWrap:true});
     if(rg)console.warn('[动作] 目标缺 region，按旧顺序兑底命中（建议 actionSpec 补 target.region）："'+(tg.exactText||'')+'"');
   }
-  if(!rg){ console.warn('[动作] 在',poolName,'找不到文字 "',tg.exactText,'"（跨行目标不画：宁可不画，不可画错），该标记被跳过'); return; }
+  if(!rg){ console.warn('[动作] 在',poolName,'找不到文字 "',tg.exactText,'"（板书区跨行目标不画：宁可不画，不可画错），该标记被跳过'); return; }
   const seed=hashStr(tg.exactText||'');
   const act=a.action||'underline';
   // 字高按命中字池实际字号（板书 40 / 题目 30）：顶≈baseline-fs，底≈baseline+fs*0.27；padding 8
@@ -1324,13 +1357,28 @@ function drawAction(task,p,Q,W,H){
   //    字符不塞 size → findRange 兑底 30，恰与题目排版 30px（render 段 layoutText size=30）同值——
   //    若将来改题目字号，这里兑底必须同步（哨兵 test-player-mirror-parity C/D 组锁 30/40 双源）。
   const fs=rg.size||30;
-  const bx1=rg.x1-8, bx2=rg.x2+8, by1=rg.y1-fs-8, by2=rg.y1+Math.round(fs*0.27)+8;
+  const segs=rg.segments||[{x1:rg.x1,y1:rg.y1,x2:rg.x2,y2:rg.y2}];
   ctx.strokeStyle='#dc2626'; ctx.lineWidth=2.2; ctx.globalAlpha=0.9;
   if(act==='underline'){
-    const yy=by2+4, xx1=bx1, xx2=bx1+(bx2-bx1)*p;
-    rline(ctx,xx1,yy,xx2,yy,seed,1.6);
-    if(p>0.5)rline(ctx,xx1,yy+1.5,xx2,yy+1.5,seed+11,1.6);   // 第二遍，微微错位
+    // ★ Task 63 贴字底 + 跨行分段：旧 yy=基线+fs*0.27+12（30px 题目→基线+20）而下一行字顶≈基线+13
+    //   ——线侵入下一行字区；统一改基线+fs*0.15+1（30→约 6px、40→约 7px，与 App 侧 rough-notation
+    //   padding:5 视觉同档）。分段逐段依次生长（上行画完接下行，同一动作时长按段宽分配）。
+    const off=Math.round(fs*0.15)+1;
+    const total=segs.reduce((s,g)=>s+(g.x2-g.x1)+16,0);   // 段视觉宽含两端各 8px 挑出
+    let budget=p*total;
+    for(const g of segs){
+      const gw=(g.x2-g.x1)+16; if(budget<=0)break;
+      const q=Math.min(1,budget/gw), xx1=g.x1-8, xx2=g.x1-8+gw*q;
+      const yy=g.y1+off;
+      rline(ctx,xx1,yy,xx2,yy,seed,1.6);
+      if(q>0.5)rline(ctx,xx1,yy+1.5,xx2,yy+1.5,seed+11,1.6);   // 第二遍，微微错位
+      budget-=gw;
+    }
   }else if(act==='circle'){
+    // 画圈只吃单行 bbox：跨折行文本画圈必歪（椭圆罩两行），宁可明示不画，不可画错。
+    if(segs.length>1){ console.warn('[动作] 画圈目标跨折行（题目自动换行）："'+(tg.exactText||'')+'"，跨行不画圈，该标记被跳过'); ctx.globalAlpha=1; return; }
+    // 字高按命中字池实际字号（板书 40 / 题目 30）：顶≈baseline-fs，底≈baseline+fs*0.27；padding 8
+    const bx1=rg.x1-8, bx2=rg.x2+8, by1=rg.y1-fs-8, by2=rg.y1+Math.round(fs*0.27)+8;
     const cx=(bx1+bx2)/2, cy=(by1+by2)/2;
     rellipse(ctx,cx,cy,((bx2-bx1)/2)*p+2,((by2-by1)/2)*p+2,seed);
     if(p>0.6)rellipse(ctx,cx,cy,((bx2-bx1)/2)*p+2,((by2-by1)/2)*p+2,seed+23);

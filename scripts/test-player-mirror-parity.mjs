@@ -267,6 +267,53 @@ ok('B11 occurrence 语义对齐锁：播放器桶内计数 = App 侧 region 内�
   assert.ok(promptSrc.includes('题目 / 分析 / 解答 / 总结'), 'prompt stage 中文硬约束枚举在场（词汇桥的上游真源）')
 })
 
+ok('B12 题目区跨折行分段锁（Task 63 夏夏「题目字号 30、自动文本换行」）：allowWrap 连续流匹配+按行切段，跨折行 exactText 分段命中不再整条拒画；板书语义（无 allowWrap 跨行=null）不破', () => {
+  // 题目形池（layoutText 产：无 size 字段、li 行号、基线 y 递增）三行
+  const qPool = [
+    { ch: '甲', x: 50, y: 100, w: 20, li: 0 },
+    { ch: '乙', x: 70, y: 100, w: 20, li: 0 },
+    { ch: '丙', x: 90, y: 100, w: 20, li: 0 },
+    { ch: '乙', x: 50, y: 140, w: 20, li: 1 },
+    { ch: '丙', x: 70, y: 140, w: 20, li: 1 },
+    { ch: '丁', x: 90, y: 140, w: 20, li: 1 },
+    { ch: '丙', x: 50, y: 180, w: 20, li: 2 },
+    { ch: '丁', x: 70, y: 180, w: 20, li: 2 },
+    { ch: '戊', x: 90, y: 180, w: 20, li: 2 },
+  ]
+  // ① 跨折行分段命中：'丙乙' = 行0 末字 + 行1 首字 → 2 段、每段行内几何（乱线不可能）
+  const w1 = p_findRange(qPool, '丙乙', 1, { allowWrap: true })
+  assert.ok(w1, 'allowWrap 跨折行必须命中（旧行内匹配整条拒画=静默丢下划线）')
+  assert.equal(w1.segments.length, 2, '跨折行命中必须按行切 2 段')
+  assert.deepEqual(w1.segments[0], { x1: 90, y1: 100, x2: 110, y2: 100 }, '段0 必须是行0 行内几何（丙 x90-w110）')
+  assert.deepEqual(w1.segments[1], { x1: 50, y1: 140, x2: 70, y2: 140 }, '段1 必须是行1 行内几何（乙 x50-w70）')
+  assert.equal(w1.x1, 90, '顶层 bbox x1=首段 x1（向后兼容字段）')
+  assert.equal(w1.size, 30, '题目池无 size → 兜底 30（题目排版字号 30 同值）')
+  // ② 跨三行 → 3 段（'丙乙丙丁丙' = 行0末丙 + 行1 乙丙丁整段 + 行2首丙）
+  const w2 = p_findRange(qPool, '丙乙丙丁丙', 1, { allowWrap: true })
+  assert.equal(w2.segments.length, 3, '跨三行命中必须切 3 段')
+  assert.deepEqual(w2.segments.map((s) => s.y1), [100, 140, 180], '3 段基线必须逐行递增（上行→中行→下行）')
+  // ③ 板书语义不破：同池同目标不传 allowWrap → null（B9 realPool 行内语义的题目版护栏）
+  assert.equal(p_findRange(qPool, '丙乙', 1), null, '无 allowWrap 跨行必须仍拒画（板书区行为零变化）')
+  // ④ 行内命中也带 segments 单段（drawAction 统一消费路径，不分叉）
+  const w3 = p_findRange(qPool, '乙丙', 1, { allowWrap: true })
+  assert.equal(w3.segments.length, 1, '行内命中必须带单段 segments（drawAction 单一消费路径）')
+  assert.ok(w3.x1 === 70 && w3.x2 === 110, '行内命中顶层字段照旧（B9 兼容）')
+  // ⑤ occ 连续流语义 + 超界 miss
+  const w4 = p_findRange(qPool, '乙丙', 2, { allowWrap: true })
+  assert.ok(w4 && w4.y1 === 140, 'occ=2 必须命中行1 的 乙丙（连续流池内第 N 次）')
+  assert.equal(p_findRange(qPool, '乙丙', 3, { allowWrap: true }), null, 'occ 超界必须 miss')
+  // ⑥ 源断言：题目路由传参 + 旧档兜底同开 + 贴底公式 + 分段绘制 + circle 跨行拒绝 + 契约教学
+  assert.ok(player.includes("stg==='question'?{allowWrap:true}"), 'drawAction 题目池必须传 allowWrap（自动折行池分段的地基）')
+  assert.ok(player.includes('findRange(Q.chars,tg.exactText||\'\',tg.occurrence||1,{allowWrap:true})'), '旧档兜底题目池必须同开 allowWrap（同一排版同一行为，不分叉）')
+  assert.ok(player.includes('Math.round(fs*0.15)+1'), 'underline 贴字底公式必须在场（旧 fs*0.27+12 侵入下一行字区不复活）')
+  assert.ok(!player.includes('yy=by2+4'), 'underline 不得再吃 circle bbox 的 by2（贴底公式唯一真源）')
+  assert.ok(player.includes('for(const g of segs)'), 'underline 必须逐段生长绘制（上行画完接下行）')
+  assert.ok(player.includes('if(segs.length>1)'), 'circle 跨折行必须明示拒绝（圈两行必歪，宁可不画）')
+  const promptSrc2 = read('src/agent-b-v2/prompt.js')
+  assert.ok(promptSrc2.includes('允许跨折行'), 'prompt §5.2 必须教题目自动折行下 underline 可跨折行（Agent 无从预知折行点）')
+  assert.ok(promptSrc2.includes('必须落在同一行内'), 'prompt §5.2 必须教 circle 单行约束（跨折行不画圈）')
+})
+
 // ═══ C. boardPlan 五处值锁（真源 import 派生，不锁镜像字面量）════════════
 const parseObj = (text) => new Function(`return ${text}`)()
 const checkPlanAgainstTruth = (plan, name, extra) => {

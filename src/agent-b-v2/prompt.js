@@ -232,6 +232,7 @@ actionSpec 是动作数组，每个动作是一个对象，结构为：\`{ "trig
 - action: \`underline\`（下划线，固定红色 #dc2626） / \`circle\`（圈出关键词，固定红色 #dc2626）；不得传 \`options.colorId\`。
   - underline 和 circle 是核心兜底动作（契约真源：boardToolCatalog 白名单，与播放端 row-player 时序对齐），underline 用于划重点词，circle 用于圈关键数字或条件。
   - ★ Task 43 动作 1.0（夏夏拍板）：highlight 已砍（「其他做我怕做不好」），颜色统一红 #dc2626。
+  - ★ Task 63 题目区换行规则（夏夏「题目字号 30、自动文本换行」）：题目文本按区域宽自动折行（约每行 23 字），你无从预知折行点——underline 的 exactText **允许跨折行**（程序自动按行分段画线，逐字一致即可）；**circle 的目标必须落在同一行内**（跨折行不画圈，宁可不画）。exactText 仍须是完整连续原文、逐字一致、不得改写或截断。
 
 **工具 2：rough-line — 画直线**
 \`\`\`json

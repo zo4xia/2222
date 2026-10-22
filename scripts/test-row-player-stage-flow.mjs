@@ -184,10 +184,10 @@ check('compile 动作段带板书字池快照（boardChars:boardCharsRegistry.sl
 /* ---------- 6) 结构断言：drawWriting / drawAction / 字体门 ---------- */
 check('drawWriting 消费编译期布局（task.layout 优先 + layoutBoardLines 回退同函数）',
   /const preL=task\.layout\|\|null;/.test(script) && /const layout=preL\|\|layoutBoardLines\(task\.content,x,y,W,H\)\.layout;/.test(script))
-check('drawAction 按 target.region 路由锚定（Task 62：question→题目池、板书区→stage 分桶；缺 region 旧档兼容先 boardChars 后 Q.chars）',
-  /let rg=\(pool&&pool\.length\)\?findRange\(pool,tg\.exactText\|\|'',tg\.occurrence\|\|1\):null;/.test(script) &&
+check('drawAction 按 target.region 路由锚定（Task 62：question→题目池、板书区→stage 分桶；缺 region 旧档兼容先 boardChars 后 Q.chars；Task 63：题目池传 allowWrap 跨折行分段）',
+  /let rg=\(pool&&pool\.length\)\?findRange\(pool,tg\.exactText\|\|'',tg\.occurrence\|\|1,stg==='question'\?\{allowWrap:true\}:null\):null;/.test(script) &&
   /if\(!rg&&!stg\)\{[\s\S]{0,220}?findRange\(task\.boardChars/.test(script) &&
-  /if\(!rg\)rg=findRange\(Q\.chars/.test(script))
+  /if\(!rg\)rg=findRange\(Q\.chars,tg\.exactText\|\|'',tg\.occurrence\|\|1,\{allowWrap:true\}\);/.test(script))
 check('drawAction 标注框按命中字号自适应（板书 40 / 题目 30）', /const fs=rg\.size\|\|30;/.test(script))
 check('findRange 返回带实际字号 size（下游标注框用）', /y2:b\.y,size:\(a\.size!=null\?a\.size:30\)/.test(script))
 check('字体门：warmBoardFonts 到位后整轴重排（C=compile(C.data)）',
