@@ -35,7 +35,7 @@ import ProcessLoadingModal from '../components/ProcessLoadingModal.vue'
 import { getAgentBoardToolCatalog } from '../board-tools/boardToolCatalog.js'
 import { BOARD_MARK_COLORS } from '../board-tools/roughNotationTool.js'
 import { ROUGH_DRAWING_COLORS } from '../board-tools/roughDrawingTool.js'
-import { saveLiveBoardPreview } from '../board-preview/liveBoardPreview.js'
+import { saveLiveBoardPreview, readLayoutRevision } from '../board-preview/liveBoardPreview.js'
 import { generateAgentBV2Rows } from './service.js'
 import { applyAgentBV2Timeline, computeRowGroupTimeline, countCharacters, estimateSpeechDurationMs, rowHasRealAudio, AGENT_B_V2_SPEECH_RATE, AGENT_B_V2_ROW_GAP_MS, AUDIO_SPEED_POLICY_TEXT } from './timing.js'
 import { listSkills, DEFAULT_SKILL_ID } from './skills/index.js'
@@ -1222,6 +1222,24 @@ const { bCacheKey, bCacheGet, bCacheSet } = useBCache({
 
 async function generateRows(force = false) {
   if (state.value === 'generating') return
+  // ★ Task 58 布局修订合成链（夏夏拍板 2026-10-22）：预览页（board-preview 布局编辑模式）保存的
+  // 布局修订在此吃进——按题目全文匹配（handoff 活档内容无 projectCode，problemText 是两端
+  // 都必有的稳定键），覆写 handoff.boardPlan 真相源，并强制绕过 bCache（布局变了必须真重新
+  // 生成，旧 rows 是按旧布局生成的）。修订标记常驻：换新题自然失配；同档多次重新生成每次都吃到
+  // 最新修订。定位：布局调整前移生成环——到播放页才调布局已是「生米煮熟」，内容不会重新编排。
+  try {
+    const revision = readLayoutRevision()
+    const currentProblemText = String(localHandoff.value?.problemText || '')
+    if (
+      revision?.boardPlan &&
+      revision.problemText &&
+      revision.problemText === currentProblemText
+    ) {
+      localHandoff.value = { ...localHandoff.value, boardPlan: revision.boardPlan }
+      force = true
+      message.info(`检测到布局修订（保存于 ${revision.savedAt || '未知时间'}）：已按新四区坐标更新布局，本次重新生成将跳过缓存`, 6)
+    }
+  } catch (_) { /* 修订标记损坏不阻断生成 */ }
   if (!force) {
     const cached = bCacheGet()
     if (cached) {

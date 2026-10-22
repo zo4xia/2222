@@ -19,6 +19,13 @@ const props = defineProps({
   showGrid: { type: Boolean, default: false },
   showAllLabels: { type: Boolean, default: false },
   showZoneGuides: { type: Boolean, default: false },
+  /**
+   * ★ Task 58 布局修订闭环（夏夏拍板 2026-10-22）：四区框编辑态——analysis/solution/summary
+   * 区框变为可平移拖拽实体（题目区绑题目块/原题图/四标签角标已有拖拽能力），
+   * 拖拽经 layout-change 带出，由预览页保存「布局修订」后回工作台重新生成生效。
+   * 定位：布局调整前移生成环（播放页调布局=生米煮熟，内容已按旧布局生成）。
+   */
+  zoneEditable: { type: Boolean, default: false },
   sourceImageUrl: { type: String, default: '' },
   keepOriginal: { type: Boolean, default: false },
   draggable: { type: Boolean, default: true },
@@ -101,6 +108,11 @@ const dragBoundaryStatus = computed(() => {
     } else if (d.targetType === 'label') {
       w = 6.0
       h = 4.2
+    } else if (d.targetType === 'zone') {
+      // ★ Task 58: 四区框拖拽越界判据——区宽高取 plan 真源（拖拽仅平移 x/y，w/h 不变）
+      const z = plan.value[d.targetId] || {}
+      w = Number(z.w ?? 44)
+      h = Number(z.h ?? 44)
     }
   } else if (activeResize.value) {
     const r = activeResize.value
@@ -248,6 +260,13 @@ watch(() => props.problemText, () => {
 const showExtraLabels = computed(() => props.showAllLabels || Boolean(props.boardPlan?.analysisLabel))
 const topicImageMaxHeight = computed(() => limitTopicImageHeightPct(plan.value.image))
 
+// ★ Task 58 布局修订闭环：四区框编辑清单（题目区绑题目块已有拖拽，不在此列）
+const zoneEditList = [
+  { key: 'analysis', name: '分析' },
+  { key: 'solution', name: '解答' },
+  { key: 'summary', name: '总结' },
+]
+
 // 拖拽处理：支持鼠标/触控拖动任意文本块或原题图/标签
 function startDrag(e, targetType, targetId, initialX, initialY) {
   if (!props.draggable) return
@@ -330,6 +349,11 @@ function onPointerUp() {
   } else if (targetType === 'label') {
     itemW = 6.0
     itemH = 4.2
+  } else if (targetType === 'zone') {
+    // ★ Task 58: 四区框回弹收敛——按 plan 真源宽高算安全边界
+    const z = plan.value[targetId] || {}
+    itemW = Number(z.w ?? 44)
+    itemH = Number(z.h ?? 44)
   }
 
   // 确保最终始终落在 1726×980 画布内 (0.5% ~ 99.5%)
@@ -506,6 +530,21 @@ function syncAll() {
         ...(updatedLayout[labelKey] || plan.value[labelKey] || BOARD_LAYOUT[labelKey]),
         x: c.x,
         y: c.y,
+      }
+    }
+  }
+
+  // ★ Task 58 布局修订闭环：同步四区框（zone）拖拽后的最新坐标（analysis/solution/summary 平移）。
+  // 区框 targetId 与区同名（'analysis' 等），与标签 'xxx-label' / 题目块 id 天然不撞。
+  // 拖拽坐标进入 updatedLayout 对应区键，预览页保存后作为「布局修订」写回生成环真相源。
+  const zoneTargets = ['analysis', 'solution', 'summary']
+  for (const z of zoneTargets) {
+    const zc = localBlockCoords.get(z)
+    if (zc) {
+      updatedLayout[z] = {
+        ...(updatedLayout[z] || plan.value[z] || BOARD_LAYOUT[z]),
+        x: zc.x,
+        y: zc.y,
       }
     }
   }
@@ -858,6 +897,31 @@ onBeforeUnmount(() => {
       <div class="guide analysis" :style="pctBox(plan.analysis)" />
       <div class="guide solution" :style="pctBox(plan.solution)" />
       <div class="guide summary" :style="pctBox(plan.summary)" />
+    </template>
+
+    <!-- ★ Task 58 布局修订闭环：四区框编辑态——可拖拽平移 analysis/solution/summary 区框。
+         越界红警/回弹收敛/coord-badge 全部复用现有拖拽体系；拖完经 syncAll → layout-change 带出。 -->
+    <template v-if="zoneEditable && showExtraLabels">
+      <div
+        v-for="z in zoneEditList"
+        :key="'zone-edit-' + z.key"
+        class="zone-edit-box"
+        :class="{
+          'is-dragging': activeDrag?.targetType === 'zone' && activeDrag?.targetId === z.key,
+          'is-out-of-bounds': dragBoundaryStatus?.targetId === z.key && dragBoundaryStatus?.isOutOfBounds,
+        }"
+        :style="pctBox(plan[z.key])"
+        :title="`拖动调整「${z.name}」区域位置`"
+        @pointerdown="startDrag($event, 'zone', z.key, localBlockCoords.get(z.key)?.x ?? plan[z.key].x, localBlockCoords.get(z.key)?.y ?? plan[z.key].y)"
+      >
+        <div
+          v-if="activeDrag?.targetType === 'zone' && activeDrag?.targetId === z.key"
+          class="coord-badge"
+          :class="{ 'badge-danger': dragBoundaryStatus?.isOutOfBounds }"
+        >
+          {{ dragBoundaryStatus?.isOutOfBounds ? '⚠️ 越界 ' : '' }}{{ activeDrag.currentX.toFixed(1) }}%, {{ activeDrag.currentY.toFixed(1) }}%
+        </div>
+      </div>
     </template>
 
     <div v-if="showGrid" class="grid-layer">
@@ -1214,6 +1278,38 @@ onBeforeUnmount(() => {
 }
 .guide.solution { border-color: rgba(16,185,129,.35); }
 .guide.summary { border-color: rgba(168,85,247,.35); }
+
+/* ★ Task 58 布局修订闭环：四区框编辑态——可拖拽平移的区框实体 */
+.zone-edit-box {
+  position: absolute;
+  border: 2px dashed rgba(59,130,246,.55);
+  background: rgba(59,130,246,.05);
+  border-radius: 6px;
+  cursor: move;
+  z-index: 5;
+  /* 容器 .board-content-layer 是 pointer-events:none，可交互元素必须显式恢复 auto（同 .draggable-item） */
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.zone-edit-box:hover {
+  border-color: rgba(59,130,246,.95);
+  background: rgba(59,130,246,.12);
+}
+.zone-edit-box.is-dragging {
+  border-style: solid;
+  border-color: rgb(59,130,246);
+  background: rgba(59,130,246,.16);
+}
+.zone-edit-box.is-out-of-bounds {
+  border-color: rgb(239,68,68);
+  background: rgba(239,68,68,.10);
+}
+.zone-edit-box .coord-badge {
+  top: 4px;
+  left: 4px;
+}
 .grid-layer { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
 .grid-line { position: absolute; }
 .grid-line.v { top: 0; bottom: 0; width: 0; border-left: 1px solid rgba(15,23,42,.05); }

@@ -54,6 +54,7 @@ import {
   isLiveBoardPreviewUpdate,
   loadLiveBoardPreview,
   saveLiveBoardPreview,
+  saveLayoutRevision,
 } from './liveBoardPreview.js'
 
 const RealBoardPreview = defineAsyncComponent(() => import('../components/RealBoardPreview.vue'))
@@ -133,6 +134,28 @@ const selectedStageFilter = ref('all')
 const showFloatToolbar = ref(true)
 let toolbarTimer = null
 
+// ★ Task 58 布局修订闭环：布局编辑模式——编辑态退截图底图、复活活排版（可拖四区框/标签/题目块），
+// 保存修订后回工作台重新生成按新布局出片（夏夏拍板：布局调整前移生成环，播放页调=生米煮熟）
+const layoutEditMode = ref(false)
+
+function saveLayoutRevisionAction() {
+  if (!boardPlan.value) {
+    message.warning('当前档没有 boardPlan，无法保存布局修订')
+    return
+  }
+  try {
+    saveLayoutRevision({
+      problemText: problemText.value || '',
+      projectCode: projectCode.value || '',
+      boardPlan: boardPlan.value,
+      savedAt: new Date().toLocaleString('zh-CN', { hour12: false }),
+    })
+    message.success('布局修订已保存：回工作台点【重新生成】即可按新四区坐标生成五字段（自动跳过缓存）', 6)
+  } catch (err) {
+    message.error(`布局修订保存失败：${err?.message || err}`)
+  }
+}
+
 function pingFloatToolbar() {
   showFloatToolbar.value = true
   clearTimeout(toolbarTimer)
@@ -143,6 +166,17 @@ function pingFloatToolbar() {
 
 function onTopicLayoutUpdated(newLayout) {
   topicLayout.value = { ...(topicLayout.value || {}), ...newLayout }
+  // ★ Task 58 布局修订闭环：拖拽后的区框/标签/题目区坐标同步进 boardPlan
+  // （zone 拖拽 key = analysis/solution/summary；标签 = xxxLabel；题目区 = question）——
+  // boardPlan 是重新生成的真相源，保存布局修订时随 projectCode 落盘。
+  if (boardPlan.value) {
+    const planKeys = ['topicLabel', 'question', 'analysisLabel', 'analysis', 'solutionLabel', 'solution', 'summaryLabel', 'summary', 'image']
+    const merged = { ...boardPlan.value }
+    for (const k of planKeys) {
+      if (newLayout && newLayout[k] != null) merged[k] = { ...(merged[k] || {}), ...newLayout[k] }
+    }
+    boardPlan.value = merged
+  }
   try {
     saveLiveBoardPreview({
       problemText: problemText.value,
@@ -746,6 +780,26 @@ function getStageTagColor(stage) {
       </div>
 
       <div class="nav-right-actions">
+        <!-- ★ Task 58 布局修订闭环：编辑态保存条 -->
+        <a-button
+          v-if="layoutEditMode"
+          size="small"
+          type="primary"
+          class="btn-save-layout-revision"
+          title="把拖拽后的四区/标签/题目区坐标保存为布局修订，回工作台重新生成时生效"
+          @click="saveLayoutRevisionAction"
+        >
+          💾 保存布局修订
+        </a-button>
+        <a-button
+          size="small"
+          :type="layoutEditMode ? 'dashed' : 'default'"
+          :class="{ 'is-layout-editing': layoutEditMode }"
+          title="布局调整前移生成环：拖四区框/标签/题目块，保存后回工作台重新生成（播放页调布局=生米煮熟）"
+          @click="layoutEditMode = !layoutEditMode"
+        >
+          {{ layoutEditMode ? '✅ 完成布局编辑' : '📐 布局编辑' }}
+        </a-button>
         <!-- 客户端录屏按钮（拉起浏览器原生授权，0 后端消耗） -->
         <a-button
           size="small"
@@ -797,7 +851,7 @@ function getStageTagColor(stage) {
             :topic-layout="topicLayout"
             :board-plan="boardPlan"
             :show-grid="showGrid"
-            :show-all-labels="showLabels"
+            :show-all-labels="showLabels || layoutEditMode"
             :show-zone-guides="showZones"
             :source-image-url="sourceImageUrl"
             :keep-original="keepOriginal"
@@ -805,7 +859,8 @@ function getStageTagColor(stage) {
             :action-spec="actionSpec"
             :interactive="false"
             :canvas-params="(meta && meta.canvasParams) || null"
-            :background-image-url="screenshotUrl"
+            :background-image-url="layoutEditMode ? '' : screenshotUrl"
+            :zone-editable="layoutEditMode"
             @update:topic-layout="onTopicLayoutUpdated"
             @update:problem-text="onProblemTextUpdated"
           />

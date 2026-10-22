@@ -20,6 +20,8 @@ const props = defineProps({
   showGrid: { type: Boolean, default: false },
   showAllLabels: { type: Boolean, default: false },
   showZoneGuides: { type: Boolean, default: false },
+  /** ★ Task 58 布局修订闭环：四区框编辑态透传（预览页布局编辑模式） */
+  zoneEditable: { type: Boolean, default: false },
   interactive: { type: Boolean, default: true },
   sourceImageUrl: { type: String, default: '' },
   keepOriginal: { type: Boolean, default: false },
@@ -278,6 +280,7 @@ function onClick() {
         :show-grid="showGrid"
         :show-all-labels="showAllLabels"
         :show-zone-guides="showZoneGuides"
+        :zone-editable="zoneEditable"
         :source-image-url="sourceImageUrl"
         :keep-original="keepOriginal"
         :canvas-params="canvasParams"

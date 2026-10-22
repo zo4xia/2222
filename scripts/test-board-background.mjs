@@ -38,7 +38,12 @@ ok('RealBoardPreview: 有背景截图时 BoardContentLayer 题目二次排版退
 
 ok('BoardPreviewApp: screenshotUrl 已接线传给画布（最后一厘米）', () => {
   const s = read('src/board-preview/BoardPreviewApp.vue')
-  assert.ok(s.includes(':background-image-url="screenshotUrl"'), '接线缺失')
+  // ★ Task 58 布局修订闭环升级：非编辑态直传 screenshotUrl（原形态）；布局编辑态临时退截图
+  //   底图复活活排版（layoutEditMode ? '' : screenshotUrl）——两种形态都满足
+  //   「screenshotUrl 接线给画布」的哨兵意图，缺一即红。
+  const wired = s.includes(':background-image-url="screenshotUrl"')
+    || /:background-image-url="layoutEditMode \? '' : screenshotUrl"/.test(s)
+  assert.ok(wired, '接线缺失')
 })
 
 ok('Step1Entry: 生产方不传 backgroundImageUrl（AgentA 排版行为不变）', () => {
