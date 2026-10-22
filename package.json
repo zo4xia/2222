@@ -5,7 +5,7 @@
   "type": "module",
   "description": "小学数学讲题视频生成工作台 — 基于 LLM 的题目识别、分步口播、板书动作生成与音画微课演播",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 3000",
+    "dev": "node scripts/ensureDeps.mjs && vite --host 0.0.0.0 --port 3000",
     "build": "node scripts/sync-twin-player.mjs && node scripts/ensureDeps.mjs && vite build",
     "start": "node server/productionServer.js",
     "lint": "eslint .",

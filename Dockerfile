@@ -22,6 +22,17 @@ COPY src ./src
 COPY doc ./doc
 COPY public ./public
 
+# ★ Task 57 (2026-10-22) 部署构建蛀虫修复：build script 前置依赖 scripts/ 目录
+# （sync-twin-player.mjs 三胞胎守护 + ensureDeps.mjs antd 完整性自愈），
+# 且 vite.config.js 顶部 import sync-twin-player.mjs、twin-player-guardian
+# 插件在 buildStart 也会调用——缺失则 `npm run build` 第一步即报
+# "Cannot find module '.../scripts/sync-twin-player.mjs'"，构建必炸。
+COPY scripts ./scripts
+
+# row-player.html 是三胞胎真源（根 → public/dist 镜像同步），缺根版时
+# syncTwinPlayer 会反向从 public 补建，但显式 COPY 真源才是构建确定性姿势。
+COPY row-player.html ./
+
 RUN npm run build
 
 # ---------- Stage 2: production runtime ----------
