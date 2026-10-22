@@ -162,8 +162,8 @@ export function normalizeBoardLine(s) {
 
   // ① 真实换行符统一（\r\n / \r → \n）
   t = t.replace(/\r\n|\r/g, '\n')
-  // ①' 字面量 \n 还原（只在后面不跟字母时，否则打断 \neq \not \nabla）
-  t = t.replace(/\\r\\n/g, '\n').replace(/\\n(?![a-zA-Z])/g, '\n')
+  // ①' 字面量 \n 还原（排除以 n 开头的关键 LaTeX 命令如 \neq \not \nabla \notin 等，避免误伤 \nS = 9 或 \na = 3 等公式开头变量）
+  t = t.replace(/\\r\\n/g, '\n').replace(/\\n(?!(?:eq|ot|abla|otin|e\b))/g, '\n')
   // ② 控制字符 \t \b \v \f 退化为空格
   t = t.replace(/[\t\u0008\u000B\u000C]+/g, ' ')
   // ③ HTML 实体解码（&amp; 最后解）

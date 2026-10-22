@@ -91,16 +91,21 @@ export function normalizeAgentBV2ActionSpec(actionSpec) {
     if (!isRecord(entry)) return []
     if (entry.capabilityGap) return [{ ...entry }]
 
-    const action = validateBoardToolAction(entry.action)
+    // 兼容两式：{ triggerKeyword, action: { tool, ... } } 或扁平 { tool, ... }
+    const rawAction = (entry.action && typeof entry.action === 'object') ? entry.action : entry
+    const action = validateBoardToolAction(rawAction)
     if (!action.ok) return []
     // 弃用字段检测：triggerAt / durationMs / startMs / seed
     const warns = []
-    const a = entry.action || {}
+    const a = rawAction || {}
     if (a.triggerAt !== undefined) warns.push('检测到旧版 actionSpec.triggerAt，已弃用：动作触发现行通道是 entry 级 triggerKeyword（Task 43），填了会被忽略')
     if (a.durationMs !== undefined) warns.push('检测到 Agent 填写的 actionSpec.durationMs，已忽略（时长按分档自动计算：画圈1000/下划线按字数1000~2000/横线1000，真源 timing.js estimateActionDuration）')
     if (a.startMs !== undefined) warns.push('检测到 Agent 填写的 actionSpec.startMs，已忽略')
     if (a.seed !== undefined) warns.push('检测到 Agent 填写的 actionSpec.seed，已忽略（roughjs 随机种子由程序生成）')
-    const out = { ...entry, action: action.value }
+    const out = {
+      ...(entry.triggerKeyword !== undefined ? { triggerKeyword: entry.triggerKeyword } : {}),
+      action: action.value,
+    }
     if (warns.length) out._deprecationWarnings = warns
     return [out]
   })

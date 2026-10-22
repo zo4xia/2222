@@ -113,6 +113,67 @@
     input[type=range]{min-width:120px}
     #sub{padding:9px 12px}
   }
+
+  /* 手工微调布局层（Xiaxia's Visual Layout Tuner） */
+  .tuner-overlay{position:absolute;inset:0;z-index:20;background:rgba(15,23,42,.35);
+                 backdrop-filter:blur(2px);user-select:none;touch-action:none}
+  .tuner-hud{position:absolute;top:10px;left:14px;right:14px;z-index:30;
+             display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;
+             background:rgba(15,23,42,.94);color:#fff;padding:8px 14px;border-radius:8px;
+             box-shadow:0 6px 22px rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.15);font-size:12px}
+  .tuner-hud-left{display:flex;align-items:center;gap:10px}
+  .tuner-title{font-weight:700;color:#38bdf8;font-size:13px}
+  .tuner-info{color:#94a3b8;font-size:11px}
+  .tuner-hud-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .tuner-chk{font-size:11px;color:#cbd5e1;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+  .tuner-btn{border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#f1f5f9;
+             border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;transition:all .15s ease}
+  .tuner-btn:hover{background:rgba(255,255,255,.22);color:#fff}
+  .tuner-btn.highlight{background:#16a34a;border-color:#16a34a;color:#fff;font-weight:600}
+  .tuner-btn.highlight:hover{background:#15803d}
+  .tuner-btn.close-btn{background:#ef4444;border-color:#ef4444;color:#fff;font-weight:600}
+  .tuner-btn.close-btn:hover{background:#dc2626}
+  .tuner-boxes-wrap{position:absolute;inset:0;pointer-events:none}
+  .tuner-box{position:absolute;pointer-events:auto;box-sizing:border-box;border:2px dashed;
+             border-radius:6px;cursor:move;transition:box-shadow .15s ease,background-color .15s ease}
+  .tuner-box:hover,.tuner-box.active{box-shadow:0 0 0 3px rgba(56,189,248,.4),0 8px 24px rgba(0,0,0,.25)}
+  .tuner-tag{position:absolute;top:-22px;left:-2px;padding:2px 8px;border-radius:4px;
+             font-size:11px;font-weight:700;color:#fff;white-space:nowrap;pointer-events:none;
+             box-shadow:0 2px 5px rgba(0,0,0,.25)}
+  .tuner-coords{position:absolute;bottom:4px;right:6px;padding:2px 6px;border-radius:3px;
+                font-size:10px;font-family:monospace;background:rgba(15,23,42,.85);color:#38bdf8;
+                pointer-events:none;white-space:nowrap}
+  .tuner-hdl{position:absolute;background:#fff;border:2px solid;pointer-events:auto;z-index:5}
+  .tuner-hdl-e{top:50%;right:-6px;transform:translateY(-50%);cursor:ew-resize;width:8px;height:34px;border-radius:4px}
+  .tuner-hdl-s{left:50%;bottom:-6px;transform:translateX(-50%);cursor:ns-resize;width:34px;height:8px;border-radius:4px}
+  .tuner-hdl-se{right:-6px;bottom:-6px;cursor:nwse-resize;width:14px;height:14px;border-radius:3px}
+  .tbox-q{border-color:#3b82f6;background:rgba(59,130,246,.12)}
+  .tbox-q .tuner-tag{background:#3b82f6}
+  .tbox-q .tuner-hdl{border-color:#3b82f6}
+  .tbox-a{border-color:#f59e0b;background:rgba(245,158,11,.12)}
+  .tbox-a .tuner-tag{background:#f59e0b}
+  .tbox-a .tuner-hdl{border-color:#f59e0b}
+  .tbox-s{border-color:#10b981;background:rgba(16,185,129,.12)}
+  .tbox-s .tuner-tag{background:#10b981}
+  .tbox-s .tuner-hdl{border-color:#10b981}
+  .tbox-u{border-color:#8b5cf6;background:rgba(139,92,246,.12)}
+  .tbox-u .tuner-tag{background:#8b5cf6}
+  .tbox-u .tuner-hdl{border-color:#8b5cf6}
+  .tbox-lbl{border-color:#ef4444;background:rgba(239,68,68,.16);border-radius:999px;height:30px!important}
+  .tbox-lbl .tuner-tag{background:#ef4444;border-radius:999px}
+  .tbox-img{border-color:#06b6d4;background:rgba(6,182,212,.12)}
+  .tbox-img .tuner-tag{background:#06b6d4}
+  .tbox-img .tuner-hdl{border-color:#06b6d4}
+  #btnTune.on{background:#0284c7!important;border-color:#0284c7!important;color:#fff!important}
+  .tuner-box.is-out-of-bounds{border-color:#ef4444!important;border-style:dashed!important;background:rgba(239,68,68,.25)!important;box-shadow:0 0 0 3px rgba(239,68,68,.7),0 8px 24px rgba(239,68,68,.4)!important}
+  .tuner-box.is-out-of-bounds .tuner-coords{background:#dc2626!important;color:#fff!important;font-weight:700}
+  .tuner-edges-wrap{position:absolute;inset:0;pointer-events:none;z-index:25}
+  .tuner-edge-guide{position:absolute;pointer-events:none;transition:all .15s ease;opacity:0}
+  .tuner-edge-guide.is-breached{opacity:1}
+  .tuner-edge-top{top:0;left:0;right:0;height:4px;background:#ef4444;box-shadow:0 4px 16px rgba(239,68,68,.85)}
+  .tuner-edge-bottom{bottom:0;left:0;right:0;height:4px;background:#ef4444;box-shadow:0 -4px 16px rgba(239,68,68,.85)}
+  .tuner-edge-left{top:0;bottom:0;left:0;width:4px;background:#ef4444;box-shadow:4px 0 16px rgba(239,68,68,.85)}
+  .tuner-edge-right{top:0;bottom:0;right:0;width:4px;background:#ef4444;box-shadow:-4px 0 16px rgba(239,68,68,.85)}
 </style>
 <link rel="stylesheet" href="https://fontsapi.zeoseven.com/507/main/result.css" />
 <!-- 回退字体（异步按需：media=print → onload 转 all，不阻塞首屏；cn-font-split 按 unicode-range 分片，只有真用到才下载字形）
@@ -126,11 +187,37 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="stage"><canvas id="board" width="1726" height="980"></canvas><canvas id="ink" width="1726" height="980"></canvas></div>
+  <div class="stage">
+    <canvas id="board" width="1726" height="980"></canvas>
+    <canvas id="ink" width="1726" height="980"></canvas>
+    <div id="tuner" class="tuner-overlay" style="display:none">
+      <div class="tuner-hud">
+        <div class="tuner-hud-left">
+          <span class="tuner-title">📐 画布布局手工微调</span>
+          <span class="tuner-info" id="tunerInfo">拖拽区域调整位置，拖拽右侧/下侧/角标调整宽度与高度，文字实时重排</span>
+        </div>
+        <div class="tuner-hud-right">
+          <label class="tuner-chk" title="拖动时以 0.5% 磁吸对齐"><input type="checkbox" id="chkSnap" checked> 磁吸 0.5%</label>
+          <button id="btnTunerReset" class="tuner-btn">🔄 恢复预设</button>
+          <button id="btnTunerSave" class="tuner-btn highlight">💾 保存布局</button>
+          <button id="btnTunerExport" class="tuner-btn">📥 导出 JSON</button>
+          <button id="btnTunerClose" class="tuner-btn close-btn">✕ 完成退出</button>
+        </div>
+      </div>
+      <div id="tunerEdges" class="tuner-edges-wrap">
+        <div id="tunerEdgeTop" class="tuner-edge-guide tuner-edge-top"></div>
+        <div id="tunerEdgeBottom" class="tuner-edge-guide tuner-edge-bottom"></div>
+        <div id="tunerEdgeLeft" class="tuner-edge-guide tuner-edge-left"></div>
+        <div id="tunerEdgeRight" class="tuner-edge-guide tuner-edge-right"></div>
+      </div>
+      <div id="tunerBoxes" class="tuner-boxes-wrap"></div>
+    </div>
+  </div>
   <div class="bar">
     <button id="btnPlay" data-step="1">▶ 播放</button>
     <button id="btnInk" data-step="2">✍ 批注</button>
     <button id="btnRec" data-step="3">● 录制</button>
+    <button id="btnTune" data-step="4">📐 调整布局</button>
     <input type="range" id="seek" min="0" max="1000" value="0">
     <span class="t" id="time">0.00 / 0.00 s</span>
   </div>
@@ -1693,6 +1780,253 @@ if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){
 // 调试/分享入口：#t=毫秒 直接定位到任意时刻（render 纯函数保证画面正确）
 (function(){const m=location.hash.match(/t=(\d+)/);if(m&&C)seekTo(+m[1]);})();
 
+
+/* ============ 8b. 手工布局微调 (Visual Layout Tuner) ============ */
+let tunerOn=false, activeTunerDrag=null;
+const tunerEl=document.getElementById('tuner'), tunerBoxesEl=document.getElementById('tunerBoxes'), tunerInfoEl=document.getElementById('tunerInfo');
+const chkSnap=document.getElementById('chkSnap');
+const TUNER_ZONES=[
+  {key:'question', name:'题目区 (Question)', cls:'tbox-q', canResize:true},
+  {key:'analysis', name:'分析区 (Analysis)', cls:'tbox-a', canResize:true},
+  {key:'solution', name:'解答区 (Solution)', cls:'tbox-s', canResize:true},
+  {key:'summary',  name:'总结区 (Summary)',  cls:'tbox-u', canResize:true},
+  {key:'topicLabel',    name:'[题] 标签', cls:'tbox-lbl', canResize:false},
+  {key:'analysisLabel', name:'[析] 标签', cls:'tbox-lbl', canResize:false},
+  {key:'solutionLabel', name:'[解] 标签', cls:'tbox-lbl', canResize:false},
+  {key:'summaryLabel',  name:'[结] 标签', cls:'tbox-lbl', canResize:false}
+];
+
+function initTunerBoxes(){
+  if(!tunerBoxesEl||!DATA.boardPlan)return;
+  const bp=DATA.boardPlan;
+  tunerBoxesEl.innerHTML='';
+  const defs=[...TUNER_ZONES];
+  if(bp.image||PROBLEM_IMG)defs.push({key:'image', name:'原题插图 (Image)', cls:'tbox-img', canResize:true});
+  defs.forEach(def=>{
+    const item=bp[def.key];
+    if(!item)return;
+    const box=document.createElement('div');
+    box.className='tuner-box '+def.cls;
+    box.id='tbox-'+def.key;
+    const x=+item.x||0, y=+item.y||0, w=+item.w||20, h=+item.h||(def.canResize?25:3.2);
+    box.style.left=x+'%'; box.style.top=y+'%'; box.style.width=w+'%';
+    if(def.canResize)box.style.height=h+'%';
+    const tag=document.createElement('div'); tag.className='tuner-tag'; tag.textContent=def.name; box.appendChild(tag);
+    const coords=document.createElement('div'); coords.className='tuner-coords';
+    coords.textContent='X:'+x.toFixed(1)+'% Y:'+y.toFixed(1)+'% W:'+w.toFixed(1)+'%' + (def.canResize ? (' H:'+h.toFixed(1)+'%') : '');
+    box.appendChild(coords);
+    if(def.canResize){
+      const he=document.createElement('div'); he.className='tuner-hdl tuner-hdl-e';
+      he.title='向左/右拖拽调整宽度（解决太宽或太窄换行问题）';
+      he.addEventListener('pointerdown',e=>startTunerAction(e,def.key,'e'));
+      box.appendChild(he);
+      const hs=document.createElement('div'); hs.className='tuner-hdl tuner-hdl-s';
+      hs.title='向上/下拖拽调整高度';
+      hs.addEventListener('pointerdown',e=>startTunerAction(e,def.key,'s'));
+      box.appendChild(hs);
+      const hse=document.createElement('div'); hse.className='tuner-hdl tuner-hdl-se';
+      hse.title='对角拖拽同时调整宽度和高度';
+      hse.addEventListener('pointerdown',e=>startTunerAction(e,def.key,'se'));
+      box.appendChild(hse);
+    }
+    box.addEventListener('pointerdown',e=>{
+      if(e.target.classList.contains('tuner-hdl'))return;
+      startTunerAction(e,def.key,'move');
+    });
+    tunerBoxesEl.appendChild(box);
+  });
+}
+
+function startTunerAction(e,key,mode){
+  e.preventDefault(); e.stopPropagation();
+  const bp=DATA.boardPlan;
+  if(!bp||!bp[key])return;
+  const stageEl=document.querySelector('.stage');
+  const rect=stageEl.getBoundingClientRect();
+  const item=bp[key];
+  activeTunerDrag={
+    key:key, mode:mode, startX:e.clientX, startY:e.clientY,
+    origX:+item.x||0, origY:+item.y||0, origW:+item.w||20, origH:+item.h||20,
+    stageW:rect.width||1726, stageH:rect.height||980
+  };
+  const activeBox=document.getElementById('tbox-'+key);
+  if(activeBox)activeBox.classList.add('active');
+  window.addEventListener('pointermove',onTunerMove);
+  window.addEventListener('pointerup',onTunerUp);
+  window.addEventListener('pointercancel',onTunerUp);
+}
+
+function onTunerMove(e){
+  if(!activeTunerDrag)return;
+  e.preventDefault();
+  const d=activeTunerDrag;
+  const deltaXPct=((e.clientX-d.startX)/d.stageW)*100;
+  const deltaYPct=((e.clientY-d.startY)/d.stageH)*100;
+  const item=DATA.boardPlan[d.key];
+  if(!item)return;
+  const snap=(v,step=0.5)=>(chkSnap&&chkSnap.checked ? Math.round(v/step)*step : v);
+  if(d.mode==='move'){
+    let nx=snap(d.origX+deltaXPct);
+    let ny=snap(d.origY+deltaYPct);
+    item.x=+nx.toFixed(1); item.y=+ny.toFixed(1);
+  }else if(d.mode==='e'){
+    let nw=snap(Math.max(5,d.origW+deltaXPct));
+    item.w=+nw.toFixed(1);
+  }else if(d.mode==='s'){
+    let nh=snap(Math.max(4,d.origH+deltaYPct));
+    item.h=+nh.toFixed(1);
+  }else if(d.mode==='se'){
+    let nw=snap(Math.max(5,d.origW+deltaXPct));
+    let nh=snap(Math.max(4,d.origH+deltaYPct));
+    item.w=+nw.toFixed(1); item.h=+nh.toFixed(1);
+  }
+
+  // 1726×980 画布有效范围校验 (0% ~ 100%)
+  const wVal = item.w != null ? item.w : (d.key.includes('Label') ? 5.8 : 20);
+  const hVal = item.h != null ? item.h : (d.key.includes('Label') ? 3.2 : 25);
+  const right = item.x + wVal;
+  const bottom = item.y + hVal;
+  const overLeft = item.x < 0;
+  const overTop = item.y < 0;
+  const overRight = right > 100;
+  const overBottom = bottom > 100;
+  const isOutOfBounds = overLeft || overTop || overRight || overBottom;
+
+  const box=document.getElementById('tbox-'+d.key);
+  if(box){
+    box.style.left=item.x+'%'; box.style.top=item.y+'%';
+    if(item.w!=null)box.style.width=item.w+'%';
+    if(item.h!=null)box.style.height=item.h+'%';
+    box.classList.toggle('is-out-of-bounds', isOutOfBounds);
+    const coordsEl=box.querySelector('.tuner-coords');
+    if(coordsEl){
+      coordsEl.textContent=(isOutOfBounds ? '⚠️ 越界 ' : '') + 'X:'+item.x.toFixed(1)+'% Y:'+item.y.toFixed(1)+'%' + (item.w!=null ? (' W:'+item.w.toFixed(1)+'%') : '') + (item.h!=null ? (' H:'+item.h.toFixed(1)+'%') : '');
+    }
+  }
+
+  const eTop=document.getElementById('tunerEdgeTop');
+  const eBottom=document.getElementById('tunerEdgeBottom');
+  const eLeft=document.getElementById('tunerEdgeLeft');
+  const eRight=document.getElementById('tunerEdgeRight');
+  if(eTop)eTop.classList.toggle('is-breached', overTop);
+  if(eBottom)eBottom.classList.toggle('is-breached', overBottom);
+  if(eLeft)eLeft.classList.toggle('is-breached', overLeft);
+  if(eRight)eRight.classList.toggle('is-breached', overRight);
+
+  if(tunerInfoEl){
+    if(isOutOfBounds){
+      const breaches=[];
+      if(overLeft)breaches.push('左侧超出 '+Math.abs(item.x).toFixed(1)+'%');
+      if(overRight)breaches.push('右侧超出 '+(right-100).toFixed(1)+'%');
+      if(overTop)breaches.push('顶部超出 '+Math.abs(item.y).toFixed(1)+'%');
+      if(overBottom)breaches.push('底部超出 '+(bottom-100).toFixed(1)+'%');
+      tunerInfoEl.innerHTML='<span style="color:#ef4444;font-weight:700">⚠️ 越界警告：[' + d.key + '] 已超出 1726×980 画布！(' + breaches.join('，') + ') 请向内调整</span>';
+    }else{
+      tunerInfoEl.innerHTML='正在调整 [' + d.key + ']: X=' + item.x + '% Y=' + item.y + '%' + (item.w!=null ? (' 宽=' + item.w + '%') : '') + (item.h!=null ? (' 高=' + item.h + '%') : '') + ' <span style="color:#10b981;font-weight:600;margin-left:8px">✓ 1726×980 画布有效范围内</span>';
+    }
+  }
+  C=compile(DATA);
+  render(now());
+}
+
+function onTunerUp(){
+  if(!activeTunerDrag)return;
+  const d=activeTunerDrag;
+  const activeBox=document.getElementById('tbox-'+d.key);
+  if(activeBox)activeBox.classList.remove('active');
+
+  // 若拖拽结束越界，轻柔收敛至 1726×980 画布有效区域内
+  const item=DATA.boardPlan[d.key];
+  if(item){
+    const wVal = item.w != null ? item.w : (d.key.includes('Label') ? 5.8 : 20);
+    const hVal = item.h != null ? item.h : (d.key.includes('Label') ? 3.2 : 25);
+    item.x = Math.max(0.5, Math.min(Math.max(0.5, +(99.5 - wVal).toFixed(1)), item.x));
+    item.y = Math.max(0.5, Math.min(Math.max(0.5, +(99.5 - hVal).toFixed(1)), item.y));
+    if(item.w!=null)item.w = Math.max(5, Math.min(+(99.5 - item.x).toFixed(1), item.w));
+    if(item.h!=null)item.h = Math.max(4, Math.min(+(99.5 - item.y).toFixed(1), item.h));
+    if(activeBox){
+      activeBox.style.left=item.x+'%'; activeBox.style.top=item.y+'%';
+      if(item.w!=null)activeBox.style.width=item.w+'%';
+      if(item.h!=null)activeBox.style.height=item.h+'%';
+      activeBox.classList.remove('is-out-of-bounds');
+    }
+  }
+
+  const eTop=document.getElementById('tunerEdgeTop');
+  const eBottom=document.getElementById('tunerEdgeBottom');
+  const eLeft=document.getElementById('tunerEdgeLeft');
+  const eRight=document.getElementById('tunerEdgeRight');
+  if(eTop)eTop.classList.remove('is-breached');
+  if(eBottom)eBottom.classList.remove('is-breached');
+  if(eLeft)eLeft.classList.remove('is-breached');
+  if(eRight)eRight.classList.remove('is-breached');
+
+  window.removeEventListener('pointermove',onTunerMove);
+  window.removeEventListener('pointerup',onTunerUp);
+  window.removeEventListener('pointercancel',onTunerUp);
+  activeTunerDrag=null;
+  C=compile(DATA);
+  render(now());
+}
+
+function toggleTuner(force){
+  tunerOn=(typeof force==='boolean')?force:!tunerOn;
+  const btn=document.getElementById('btnTune');
+  if(btn)btn.classList.toggle('on',tunerOn);
+  if(tunerEl){
+    tunerEl.style.display=tunerOn?'block':'none';
+    if(tunerOn){
+      if(playing)pause();
+      initTunerBoxes();
+      if(tunerInfoEl)tunerInfoEl.textContent='按住方框移动位置，拖拽边缘或右下角调整宽/高；文字将实时自适应重排';
+    }
+  }
+}
+
+document.getElementById('btnTune').onclick=()=>toggleTuner();
+document.getElementById('btnTunerClose').onclick=()=>toggleTuner(false);
+
+document.getElementById('btnTunerReset').onclick=()=>{
+  DATA.boardPlan={
+    canvas:{w:1726,h:980},
+    topicLabel:{x:5.7,y:6.6,w:7.1},
+    question:{x:6.0,y:13.2,w:44.0,h:22.0},
+    analysisLabel:{x:5.7,y:34.5,w:7.2},
+    analysis:{x:6.0,y:41.0,w:44.0,h:48.0},
+    solutionLabel:{x:53.7,y:6.6,w:7.4},
+    solution:{x:54.0,y:14.0,w:40.0,h:44.0},
+    summaryLabel:{x:53.7,y:62.0,w:7.2},
+    summary:{x:54.0,y:69.5,w:40.0,h:22.0}
+  };
+  initTunerBoxes();
+  C=compile(DATA);
+  render(now());
+  if(tunerInfoEl)tunerInfoEl.textContent='已恢复标准默认四区排版';
+};
+
+document.getElementById('btnTunerSave').onclick=()=>{
+  try{
+    localStorage.setItem('agent-b-deliverable',JSON.stringify(DATA));
+    if(tunerInfoEl)tunerInfoEl.textContent='✅ 已保存当前手工调整的板书布局至本地存储！';
+  }catch(err){
+    if(tunerInfoEl)tunerInfoEl.textContent='保存失败：'+err.message;
+  }
+};
+
+document.getElementById('btnTunerExport').onclick=()=>{
+  const jsonContent=JSON.stringify(DATA,null,2);
+  const blob=new Blob([jsonContent],{type:'application/json;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='deliverable-' + (DATA.projectCode||'tuned') + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  if(tunerInfoEl)tunerInfoEl.textContent='✅ 已下载微调后的交付 JSON 规格文件';
+};
+
 /* ============ 9. AgentCanvas 控制桥（2026-09-17 16:30 夏夏拍板：画布升级为 agent 可控） ============
    铁律：不改渲染管线（render(t) 纯函数 / 音频主时钟 / 幂等 seek 一概不动），只开「读状态 + 换数 + 播放控制」的门。
    用法（agent 在浏览器控制台 / 自动化注入均可）：
@@ -1750,7 +2084,9 @@ window.AgentCanvas={
   pause(){pause()},
   seek(ms){seekTo(Math.max(0,Math.min(Number(ms)||0,C?C.total:0)))},
   setProblemImage(url){setProblemImage(url);return {ok:true}},
-  screenshot(){return cv.toDataURL('image/png')}
+  screenshot(){return cv.toDataURL('image/png')},
+  getBoardPlan(){return DATA.boardPlan;},
+  setBoardPlan(bp){if(bp){DATA.boardPlan=bp;C=compile(DATA);render(now());if(tunerOn)initTunerBoxes();}return {ok:true};}
 };
 </script>
 </body>

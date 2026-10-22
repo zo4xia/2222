@@ -12,6 +12,7 @@ import { deliverableStorePlugin } from './server/deliverableStoreHandler.js'
 import { fishAudioPlugin } from './server/fishAudioHandler.js'
 import { cleanupPlugin } from './server/cleanupHandler.js'
 import { AGENT_A_KNOWLEDGE_BASE } from './server/docReferences.js'
+import { syncTwinPlayer } from './scripts/sync-twin-player.mjs'
 
 const projectRoot = dirname(fileURLToPath(import.meta.url))
 
@@ -29,6 +30,23 @@ const projectRoot = dirname(fileURLToPath(import.meta.url))
 //  - 优点: 0 风险, HMR 正常, 部署能跑
 //  - 后续优化: 如果需要 CDN 减小体积, 用 importmap + vite-plugin-cdn-import (v3 升级)
 // ─────────────────────────────────────────────────────────────────────────────
+
+function twinPlayerGuardianPlugin() {
+  return {
+    name: 'twin-player-guardian',
+    buildStart() {
+      try { syncTwinPlayer() } catch (_) {}
+    },
+    configureServer(server) {
+      try { syncTwinPlayer() } catch (_) {}
+      server.watcher.on('change', (file) => {
+        if (file && (file.endsWith('row-player.html') || file.endsWith('public/row-player.html'))) {
+          try { syncTwinPlayer() } catch (_) {}
+        }
+      })
+    },
+  }
+}
 
 function healthPlugin() {
   return {
@@ -78,6 +96,7 @@ export default defineConfig(({ mode }) => {
     deliverableStorePlugin(),
     fishAudioPlugin(),
     cleanupPlugin(),
+    twinPlayerGuardianPlugin(),
     ],
     define: {
     'import.meta.env.AI_API_ENDPOINT': JSON.stringify(flatEnv.AI_API_ENDPOINT || ''),

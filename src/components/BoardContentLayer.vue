@@ -80,6 +80,70 @@ const hoveredBlockId = ref(null)
 const isEmittingProblemText = ref(false)
 const blockElementObservers = new Map()
 
+// 实时视觉校验：检测当前拖拽/调整尺寸中的元素是否超出 1726×980 画布有效范围 (0% ~ 100%)
+const dragBoundaryStatus = computed(() => {
+  if (!activeDrag.value && !activeResize.value) return null
+
+  let targetId = ''
+  let x = 0, y = 0, w = 20, h = 10
+
+  if (activeDrag.value) {
+    const d = activeDrag.value
+    targetId = d.targetId
+    x = d.currentX
+    y = d.currentY
+    if (d.targetType === 'textBlock') {
+      w = Number(localBlockWidths.get(d.targetId) ?? identifiedBlocks.value.find(b => b.id === d.targetId)?.w ?? plan.value.question?.w ?? 44)
+      h = Number(blockRealSizes.get(d.targetId)?.hPct || 8)
+    } else if (d.targetType === 'image') {
+      w = Number(plan.value.image?.w ?? 38)
+      h = Number(topicImageMaxHeight.value ?? 30)
+    } else if (d.targetType === 'label') {
+      w = 6.0
+      h = 4.2
+    }
+  } else if (activeResize.value) {
+    const r = activeResize.value
+    targetId = r.blockId
+    const coord = localBlockCoords.get(r.blockId) || { x: plan.value.question?.x ?? 6, y: plan.value.question?.y ?? 13.2 }
+    x = coord.x
+    y = coord.y
+    w = Number(localBlockWidths.get(r.blockId) ?? 44)
+    h = Number(blockRealSizes.get(r.blockId)?.hPct || 8)
+  }
+
+  const right = x + w
+  const bottom = y + h
+
+  const overLeft = x < 0
+  const overTop = y < 0
+  const overRight = right > 100
+  const overBottom = bottom > 100
+  const isOutOfBounds = overLeft || overTop || overRight || overBottom
+
+  const violations = []
+  if (overLeft) violations.push(`左侧超出 ${Math.abs(x).toFixed(1)}%`)
+  if (overRight) violations.push(`右侧超出 ${(right - 100).toFixed(1)}%`)
+  if (overTop) violations.push(`顶部超出 ${Math.abs(y).toFixed(1)}%`)
+  if (overBottom) violations.push(`底部超出 ${(bottom - 100).toFixed(1)}%`)
+
+  return {
+    targetId,
+    x: +x.toFixed(1),
+    y: +y.toFixed(1),
+    w: +w.toFixed(1),
+    h: +h.toFixed(1),
+    right: +right.toFixed(1),
+    bottom: +bottom.toFixed(1),
+    overLeft,
+    overTop,
+    overRight,
+    overBottom,
+    isOutOfBounds,
+    violations,
+  }
+})
+
 const plan = computed(() => {
   const base = {
     topicLabel: props.topicLayout?.topicLabel || props.boardPlan?.topicLabel || BOARD_LAYOUT.topicLabel,
@@ -230,9 +294,9 @@ function onPointerMove(e) {
   const deltaXPct = ((e.clientX - drag.startPointerX) / drag.layerWidth) * 100
   const deltaYPct = ((e.clientY - drag.startPointerY) / drag.layerHeight) * 100
 
-  // 限制在画布安全视口内（0.5% ~ 92%）
-  const newX = Math.max(0.5, Math.min(92, +(drag.initialX + deltaXPct).toFixed(1)))
-  const newY = Math.max(0.5, Math.min(92, +(drag.initialY + deltaYPct).toFixed(1)))
+  // 允许移动时适当超出边界，以便直观展现 1726×980 实时视觉校验与高亮警示
+  const newX = Math.max(-8, Math.min(108, +(drag.initialX + deltaXPct).toFixed(1)))
+  const newY = Math.max(-8, Math.min(108, +(drag.initialY + deltaYPct).toFixed(1)))
 
   drag.currentX = newX
   drag.currentY = newY
@@ -251,8 +315,26 @@ function onPointerUp() {
   const wasClick = !drag.hasMoved
   const targetId = drag.targetId
   const targetType = drag.targetType
-  const finalX = drag.currentX
-  const finalY = drag.currentY
+  let finalX = drag.currentX
+  let finalY = drag.currentY
+
+  // 计算当前对象尺寸，释放时若越界则轻柔回弹收敛至 1726×980 画布安全有效区域内
+  let itemW = 20
+  let itemH = 6
+  if (targetType === 'textBlock') {
+    itemW = Number(localBlockWidths.get(targetId) ?? identifiedBlocks.value.find(b => b.id === targetId)?.w ?? plan.value.question?.w ?? 44)
+    itemH = Number(blockRealSizes.get(targetId)?.hPct || 8)
+  } else if (targetType === 'image') {
+    itemW = Number(plan.value.image?.w ?? 38)
+    itemH = Number(topicImageMaxHeight.value ?? 30)
+  } else if (targetType === 'label') {
+    itemW = 6.0
+    itemH = 4.2
+  }
+
+  // 确保最终始终落在 1726×980 画布内 (0.5% ~ 99.5%)
+  finalX = Math.max(0.5, Math.min(Math.max(0.5, +(99.5 - itemW).toFixed(1)), finalX))
+  finalY = Math.max(0.5, Math.min(Math.max(0.5, +(99.5 - itemH).toFixed(1)), finalY))
 
   activeDrag.value = null
 
@@ -297,7 +379,8 @@ function onResizeMove(e) {
   e.preventDefault()
 
   const deltaXPct = ((e.clientX - res.startPointerX) / res.layerWidth) * 100
-  const newW = Math.max(15, Math.min(95, +(res.initialW + deltaXPct).toFixed(1)))
+  // 允许拉伸超出 100%，以触发实时越界视觉警示
+  const newW = Math.max(10, Math.min(120, +(res.initialW + deltaXPct).toFixed(1)))
   localBlockWidths.set(res.blockId, newW)
 
   if (editingBlockId.value === res.blockId) {
@@ -312,6 +395,12 @@ function onResizeUp() {
   window.removeEventListener('pointermove', onResizeMove)
   window.removeEventListener('pointerup', onResizeUp)
   window.removeEventListener('pointercancel', onResizeUp)
+
+  // 释放时将宽度收敛在 1726×980 画布边界内
+  const blockCoord = localBlockCoords.get(res.blockId) || { x: 6 }
+  const currentW = localBlockWidths.get(res.blockId) || 44
+  const safeW = Math.max(10, Math.min(+(99.5 - blockCoord.x).toFixed(1), currentW))
+  localBlockWidths.set(res.blockId, safeW)
 
   activeResize.value = null
   syncAll()
@@ -581,14 +670,17 @@ onBeforeUnmount(() => {
       id="badge-topic"
       class="badge board-item label draggable-item"
       data-target="topic"
-      :class="{ 'is-dragging': activeDrag?.targetId === 'topic-label' }"
+      :class="{
+        'is-dragging': activeDrag?.targetId === 'topic-label',
+        'is-out-of-bounds': dragBoundaryStatus?.targetId === 'topic-label' && dragBoundaryStatus?.isOutOfBounds,
+      }"
       :style="getBadgeStyle('topic')"
       title="拖动调整「题目」角标位置"
       @pointerdown="startDrag($event, 'label', 'topic-label', localBlockCoords.get('topic-label')?.x ?? plan.topicLabel.x, localBlockCoords.get('topic-label')?.y ?? plan.topicLabel.y)"
     >
       <img src="/topic.png" onerror="this.src='https://i.ibb.co/bMwPqBpN/topic.png'" alt="题目" draggable="false" />
-      <div v-if="activeDrag?.targetId === 'topic-label'" class="coord-badge">
-        {{ activeDrag.currentX.toFixed(1) }}%, {{ activeDrag.currentY.toFixed(1) }}%
+      <div v-if="activeDrag?.targetId === 'topic-label'" class="coord-badge" :class="{ 'badge-danger': dragBoundaryStatus?.isOutOfBounds }">
+        {{ dragBoundaryStatus?.isOutOfBounds ? '⚠️ 越界 ' : '' }}{{ activeDrag.currentX.toFixed(1) }}%, {{ activeDrag.currentY.toFixed(1) }}%
       </div>
     </div>
 
@@ -597,14 +689,17 @@ onBeforeUnmount(() => {
       v-if="keepOriginal && sourceImageUrl && plan.image"
       ref="topicContentRef"
       class="board-item topic-image draggable-item"
-      :class="{ 'is-dragging': activeDrag?.targetId === 'topic-image' }"
+      :class="{
+        'is-dragging': activeDrag?.targetId === 'topic-image',
+        'is-out-of-bounds': dragBoundaryStatus?.targetId === 'topic-image' && dragBoundaryStatus?.isOutOfBounds,
+      }"
       :style="getImageStyle()"
       title="按住鼠标可自由拖拽原题图"
       @pointerdown="startDrag($event, 'image', 'topic-image', localBlockCoords.get('topic-image')?.x ?? plan.image.x, localBlockCoords.get('topic-image')?.y ?? plan.image.y)"
     >
       <img :src="sourceImageUrl" alt="原题" draggable="false" @load="measureTopic" />
-      <div v-if="activeDrag?.targetId === 'topic-image'" class="coord-badge">
-        {{ activeDrag.currentX.toFixed(1) }}%, {{ activeDrag.currentY.toFixed(1) }}%
+      <div v-if="activeDrag?.targetId === 'topic-image'" class="coord-badge" :class="{ 'badge-danger': dragBoundaryStatus?.isOutOfBounds }">
+        {{ dragBoundaryStatus?.isOutOfBounds ? '⚠️ 越界 ' : '' }}{{ activeDrag.currentX.toFixed(1) }}%, {{ activeDrag.currentY.toFixed(1) }}%
       </div>
     </div>
 
@@ -619,6 +714,7 @@ onBeforeUnmount(() => {
           'is-dragging': activeDrag?.targetId === block.id,
           'is-editing': editingBlockId === block.id,
           'is-resizing': activeResize?.blockId === block.id,
+          'is-out-of-bounds': (dragBoundaryStatus?.targetId === block.id || activeResize?.blockId === block.id) && dragBoundaryStatus?.isOutOfBounds,
         }"
         :style="getBlockStyle(block)"
         data-board-region="question"
@@ -688,8 +784,8 @@ onBeforeUnmount(() => {
         <div v-else class="block-content-body" v-html="block.html" />
 
         <!-- 拖动坐标指示 -->
-        <div v-if="activeDrag?.targetId === block.id" class="coord-badge">
-          X: {{ activeDrag.currentX.toFixed(1) }}% | Y: {{ activeDrag.currentY.toFixed(1) }}%
+        <div v-if="activeDrag?.targetId === block.id" class="coord-badge" :class="{ 'badge-danger': dragBoundaryStatus?.isOutOfBounds }">
+          {{ dragBoundaryStatus?.isOutOfBounds ? '⚠️ 越界 ' : '' }}X: {{ activeDrag.currentX.toFixed(1) }}% | Y: {{ activeDrag.currentY.toFixed(1) }}%
           <span class="coord-size-sub">({{ getBlockSizeText(block.id) }})</span>
         </div>
 
@@ -709,42 +805,51 @@ onBeforeUnmount(() => {
         id="badge-analysis"
         class="badge board-item label draggable-item"
         data-target="analysis"
-        :class="{ 'is-dragging': activeDrag?.targetId === 'analysis-label' }"
+        :class="{
+          'is-dragging': activeDrag?.targetId === 'analysis-label',
+          'is-out-of-bounds': dragBoundaryStatus?.targetId === 'analysis-label' && dragBoundaryStatus?.isOutOfBounds,
+        }"
         :style="getBadgeStyle('analysis')"
         title="拖动调整「分析」角标位置"
         @pointerdown="startDrag($event, 'label', 'analysis-label', localBlockCoords.get('analysis-label')?.x ?? plan.analysisLabel.x, localBlockCoords.get('analysis-label')?.y ?? plan.analysisLabel.y)"
       >
         <img src="/analysis.png" onerror="this.src='https://i.ibb.co/9mHsQPSx/analysis.png'" alt="分析" draggable="false" />
-        <div v-if="activeDrag?.targetId === 'analysis-label'" class="coord-badge">
-          {{ activeDrag.currentX.toFixed(1) }}%, {{ activeDrag.currentY.toFixed(1) }}%
+        <div v-if="activeDrag?.targetId === 'analysis-label'" class="coord-badge" :class="{ 'badge-danger': dragBoundaryStatus?.isOutOfBounds }">
+          {{ dragBoundaryStatus?.isOutOfBounds ? '⚠️ 越界 ' : '' }}{{ activeDrag.currentX.toFixed(1) }}%, {{ activeDrag.currentY.toFixed(1) }}%
         </div>
       </div>
       <div
         id="badge-solution"
         class="badge board-item label draggable-item"
         data-target="solution"
-        :class="{ 'is-dragging': activeDrag?.targetId === 'solution-label' }"
+        :class="{
+          'is-dragging': activeDrag?.targetId === 'solution-label',
+          'is-out-of-bounds': dragBoundaryStatus?.targetId === 'solution-label' && dragBoundaryStatus?.isOutOfBounds,
+        }"
         :style="getBadgeStyle('solution')"
         title="拖动调整「解答」角标位置"
         @pointerdown="startDrag($event, 'label', 'solution-label', localBlockCoords.get('solution-label')?.x ?? plan.solutionLabel.x, localBlockCoords.get('solution-label')?.y ?? plan.solutionLabel.y)"
       >
         <img src="/solution.png" onerror="this.src='https://i.ibb.co/MxXq10wz/solution.png'" alt="解答" draggable="false" />
-        <div v-if="activeDrag?.targetId === 'solution-label'" class="coord-badge">
-          {{ activeDrag.currentX.toFixed(1) }}%, {{ activeDrag.currentY.toFixed(1) }}%
+        <div v-if="activeDrag?.targetId === 'solution-label'" class="coord-badge" :class="{ 'badge-danger': dragBoundaryStatus?.isOutOfBounds }">
+          {{ dragBoundaryStatus?.isOutOfBounds ? '⚠️ 越界 ' : '' }}{{ activeDrag.currentX.toFixed(1) }}%, {{ activeDrag.currentY.toFixed(1) }}%
         </div>
       </div>
       <div
         id="badge-summary"
         class="badge board-item label draggable-item"
         data-target="summary"
-        :class="{ 'is-dragging': activeDrag?.targetId === 'summary-label' }"
+        :class="{
+          'is-dragging': activeDrag?.targetId === 'summary-label',
+          'is-out-of-bounds': dragBoundaryStatus?.targetId === 'summary-label' && dragBoundaryStatus?.isOutOfBounds,
+        }"
         :style="getBadgeStyle('summary')"
         title="拖动调整「总结」角标位置"
         @pointerdown="startDrag($event, 'label', 'summary-label', localBlockCoords.get('summary-label')?.x ?? plan.summaryLabel.x, localBlockCoords.get('summary-label')?.y ?? plan.summaryLabel.y)"
       >
         <img src="/summary.png" onerror="this.src='https://i.ibb.co/Ld4qjwW9/summary.png'" alt="总结" draggable="false" />
-        <div v-if="activeDrag?.targetId === 'summary-label'" class="coord-badge">
-          {{ activeDrag.currentX.toFixed(1) }}%, {{ activeDrag.currentY.toFixed(1) }}%
+        <div v-if="activeDrag?.targetId === 'summary-label'" class="coord-badge" :class="{ 'badge-danger': dragBoundaryStatus?.isOutOfBounds }">
+          {{ dragBoundaryStatus?.isOutOfBounds ? '⚠️ 越界 ' : '' }}{{ activeDrag.currentX.toFixed(1) }}%, {{ activeDrag.currentY.toFixed(1) }}%
         </div>
       </div>
     </template>
@@ -763,6 +868,70 @@ onBeforeUnmount(() => {
       <div v-for="g in grid.minor" :key="'hm'+g.p" class="grid-line h minor" :style="{ top: g.p + '%' }" />
       <div v-for="g in grid.major" :key="'hM'+g.p" class="grid-line h major" :style="{ top: g.p + '%' }">
         <span class="tick y">{{ g.p }}</span>
+      </div>
+    </div>
+
+    <!-- 实时视觉校验层：1726×980 边界检测与越界高亮 -->
+    <div
+      v-if="dragBoundaryStatus"
+      class="boundary-verifier-overlay"
+      :class="{ 'has-overflow': dragBoundaryStatus.isOutOfBounds }"
+    >
+      <!-- 四周边界警示高亮带 -->
+      <div
+        class="boundary-guide boundary-guide-top"
+        :class="{ 'is-breached': dragBoundaryStatus.overTop }"
+      >
+        <span v-if="dragBoundaryStatus.overTop" class="boundary-guide-tag">
+          ⚠️ 顶部越界：超出 {{ Math.abs(dragBoundaryStatus.y).toFixed(1) }}%
+        </span>
+      </div>
+      <div
+        class="boundary-guide boundary-guide-bottom"
+        :class="{ 'is-breached': dragBoundaryStatus.overBottom }"
+      >
+        <span v-if="dragBoundaryStatus.overBottom" class="boundary-guide-tag">
+          ⚠️ 底部越界：超出 {{ (dragBoundaryStatus.bottom - 100).toFixed(1) }}%
+        </span>
+      </div>
+      <div
+        class="boundary-guide boundary-guide-left"
+        :class="{ 'is-breached': dragBoundaryStatus.overLeft }"
+      >
+        <span v-if="dragBoundaryStatus.overLeft" class="boundary-guide-tag">
+          ⚠️ 左侧越界：超出 {{ Math.abs(dragBoundaryStatus.x).toFixed(1) }}%
+        </span>
+      </div>
+      <div
+        class="boundary-guide boundary-guide-right"
+        :class="{ 'is-breached': dragBoundaryStatus.overRight }"
+      >
+        <span v-if="dragBoundaryStatus.overRight" class="boundary-guide-tag">
+          ⚠️ 右侧越界：超出 {{ (dragBoundaryStatus.right - 100).toFixed(1) }}%
+        </span>
+      </div>
+
+      <!-- 实时视觉校验胶囊 HUD -->
+      <div
+        class="boundary-hud-capsule"
+        :class="dragBoundaryStatus.isOutOfBounds ? 'hud-danger' : 'hud-safe'"
+      >
+        <template v-if="dragBoundaryStatus.isOutOfBounds">
+          <span class="hud-icon">⚠️</span>
+          <span class="hud-text">
+            <b>越界警告：</b>内容已超出 1726×980 画布范围（{{ dragBoundaryStatus.violations.join('，') }}）
+          </span>
+          <span class="hud-sub">松开前请移至画布有效范围内</span>
+        </template>
+        <template v-else>
+          <span class="hud-icon">✓</span>
+          <span class="hud-text">
+            <b>1726×980 画布有效范围内</b>
+          </span>
+          <span class="hud-coords">
+            X: {{ dragBoundaryStatus.x }}% | Y: {{ dragBoundaryStatus.y }}% | W: {{ dragBoundaryStatus.w }}%
+          </span>
+        </template>
       </div>
     </div>
   </div>
@@ -1056,5 +1225,177 @@ onBeforeUnmount(() => {
   background: rgba(255,255,255,.7); padding: 0 2px;
 }
 .tick.y { top: auto; }
+
+/* ================= 实时视觉校验与边界高亮 ================= */
+.boundary-verifier-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 80;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+/* 画布四周边界导向线 */
+.boundary-guide {
+  position: absolute;
+  pointer-events: none;
+  transition: all 0.15s ease;
+  opacity: 0.35;
+}
+
+.boundary-guide-top {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-top: 2px dashed rgba(56, 189, 248, 0.4);
+}
+.boundary-guide-bottom {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-bottom: 2px dashed rgba(56, 189, 248, 0.4);
+}
+.boundary-guide-left {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  border-left: 2px dashed rgba(56, 189, 248, 0.4);
+}
+.boundary-guide-right {
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 2px;
+  border-right: 2px dashed rgba(56, 189, 248, 0.4);
+}
+
+/* 越界时警示高亮带与发光动画 */
+.boundary-guide.is-breached {
+  opacity: 1;
+  z-index: 90;
+}
+.boundary-guide-top.is-breached {
+  border-top: 4px solid #ef4444;
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.75), 0 0 10px #ef4444;
+  animation: pulse-breach 1s infinite alternate;
+}
+.boundary-guide-bottom.is-breached {
+  border-bottom: 4px solid #ef4444;
+  box-shadow: 0 -4px 20px rgba(239, 68, 68, 0.75), 0 0 10px #ef4444;
+  animation: pulse-breach 1s infinite alternate;
+}
+.boundary-guide-left.is-breached {
+  border-left: 4px solid #ef4444;
+  box-shadow: 4px 0 20px rgba(239, 68, 68, 0.75), 0 0 10px #ef4444;
+  animation: pulse-breach 1s infinite alternate;
+}
+.boundary-guide-right.is-breached {
+  border-right: 4px solid #ef4444;
+  box-shadow: -4px 0 20px rgba(239, 68, 68, 0.75), 0 0 10px #ef4444;
+  animation: pulse-breach 1s infinite alternate;
+}
+
+@keyframes pulse-breach {
+  0% { opacity: 0.75; filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.6)); }
+  100% { opacity: 1; filter: drop-shadow(0 0 14px rgba(239, 68, 68, 0.95)); }
+}
+
+.boundary-guide-tag {
+  position: absolute;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+.boundary-guide-top .boundary-guide-tag {
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.boundary-guide-bottom .boundary-guide-tag {
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.boundary-guide-left .boundary-guide-tag {
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.boundary-guide-right .boundary-guide-tag {
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* 实时视觉校验胶囊 HUD */
+.boundary-hud-capsule {
+  position: absolute;
+  bottom: 12px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.boundary-hud-capsule.hud-safe {
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #f1f5f9;
+}
+.boundary-hud-capsule.hud-safe .hud-icon {
+  color: #10b981;
+  font-weight: bold;
+}
+.boundary-hud-capsule.hud-safe .hud-coords {
+  color: #38bdf8;
+  font-family: monospace;
+  font-size: 11px;
+}
+.boundary-hud-capsule.hud-danger {
+  background: rgba(185, 28, 28, 0.94);
+  border: 1px solid #fca5a5;
+  color: #ffffff;
+  animation: pulse-breach 0.8s infinite alternate;
+}
+.boundary-hud-capsule.hud-danger .hud-icon {
+  color: #fef08a;
+  font-size: 14px;
+}
+.boundary-hud-capsule.hud-danger .hud-sub {
+  font-size: 11px;
+  color: #fecaca;
+  margin-left: 4px;
+}
+
+/* 越界拖拽元素高亮样式 */
+.draggable-item.is-out-of-bounds {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.65), 0 8px 24px rgba(239, 68, 68, 0.35) !important;
+  background-color: rgba(239, 68, 68, 0.08) !important;
+}
+
+.coord-badge.badge-danger {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: #fca5a5 !important;
+  font-weight: 700;
+}
 </style>
 

@@ -179,7 +179,7 @@ function planLandscapeLayout(topicLayout = {}, topicBottomPct) {
 }
 
 function resolveTopicBottom(topicLayout, measuredBottomPct) {
-  const measured = Number(measuredBottomPct)
+  const measured = (measuredBottomPct != null && measuredBottomPct !== '') ? Number(measuredBottomPct) : NaN
   if (Number.isFinite(measured)) return roundPct(clamp(measured, 0, BOARD_BOTTOM_LIMIT_PCT))
 
   if (topicLayout.image) {

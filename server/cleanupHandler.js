@@ -45,10 +45,14 @@ function readJsonSafe(path) {
   }
 }
 
-/** 收本仓静态前缀（/audio/ /audio-cache/ /pic/）URL 指向的文件名进 keep 集合 */
+/** 收本仓静态前缀（/audio/ /audio-cache/ /pic/ 或相对路径 ../audio/ 等）URL 指向的文件名进 keep 集合 */
 function addUrlName(keep, url) {
   if (typeof url !== 'string' || !url) return
-  if (/^\/(audio|audio-cache|pic)\//.test(url.trim())) keep.add(url.trim().split('/').pop())
+  const trimmed = url.trim()
+  if (/^(?:\.\.\/|\/)?(audio|audio-cache|pic)\//.test(trimmed)) {
+    const filename = trimmed.split('/').pop()?.split('?')[0]?.split('#')[0]
+    if (filename) keep.add(filename)
+  }
 }
 
 function collectKeepSet(basePath = publicDir) {
