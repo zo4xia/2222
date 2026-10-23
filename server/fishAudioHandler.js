@@ -2,6 +2,7 @@ import { createHash } from 'crypto'
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { formatMathSpeechToChinese } from '../src/lib/mathAsrConverter.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const projectRoot = resolve(__dirname, '..')
@@ -9,10 +10,10 @@ const AUDIO_CACHE_DIR = resolve(projectRoot, 'public', 'audio-cache')
 const AUDIO_DIR = resolve(projectRoot, 'public', 'audio')
 const PIC_DIR = resolve(projectRoot, 'public', 'pic')
 
-const DEFAULT_API_KEYS = [
-  'sk-fish-5-R0Y_BCg8RXVY_iaokb0BAWLY1jc9p90F9zaox9FWk',
-  'sk-fish-MYToCn_B0xhQT-9H4tV_YXR9aTwWg_-CjHWkXli4iec',
-]
+// ★ 71 夏夏拍板「env 化要做的」：源码不再内置密钥（两枚旧 key 已随 git 历史泄漏，须在 fish 后台轮换作废）。
+//   key 只从 env 来：FISH_AUDIO_API_KEYS（复数，逗号分隔多枚轮换）/ FISH_AUDIO_API_KEY（单数旧名兼容）。
+//   本机放 .env（gitignored），容器/Zeabur 部署由平台注入环境变量（镜像不含 .env，见 .dockerignore）。
+const DEFAULT_API_KEYS = []
 const DEFAULT_MODEL = 's2.1-pro-free'
 const DEFAULT_REFERENCE_ID = 'fcee4dd834844f28a92b246e0d996104'
 const DEFAULT_BASE_URL = 'https://api.fish.audio'
@@ -123,7 +124,10 @@ export async function synthesizeSpeech({
   }
 
   ensureAudioCacheDir()
-  const cleanText = text.trim()
+  // ★ 71 夏夏裁决「反斜杠不行不行念」：TTS 咽喉统一过数学口播转换（\frac{a}{b}→b分之a、÷→除以、
+  //   ²→的平方、算式 x→乘以/艾克斯），单条/批量两 API 全覆盖（跳过 Check 的脏 speech 也被兜住）。
+  //   转换幂等；audio-cache hash 键随转换口径换血——旧含 DSL 字面的脏缓存永不命中、自然作废重合成。
+  const cleanText = formatMathSpeechToChinese(text).trim()
   const hash = getAudioHash(cleanText, referenceId, model)
   const filename = `${hash}.mp3`
   const filePath = resolve(AUDIO_CACHE_DIR, filename)
@@ -151,6 +155,9 @@ export async function synthesizeSpeech({
   // 获取可用 key 列表并自动轮换
   const allKeys = getApiKeys()
   const candidateKeys = apiKey ? [apiKey] : allKeys
+  if (candidateKeys.length === 0) {
+    throw new Error('未配置语音合成 API key：请在 .env 或环境变量设置 FISH_AUDIO_API_KEYS（71 起 source 不再内置密钥）')
+  }
 
   let lastError = null
   const startIndex = apiKey ? 0 : (currentKeyIndex++) % candidateKeys.length

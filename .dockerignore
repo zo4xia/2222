@@ -2,6 +2,9 @@
 node_modules
 dist
 
+# 密钥文件绝不进镜像（71 env 化）
+.env
+.env.local
 # 本地运行时数据（不进镜像；部署时由卷持久化，首次启动各 handler 自动建目录）
 public/audio-cache
 public/deliverable

@@ -460,7 +460,7 @@ ok('D2 CDN 六链 id 集合三文件一致（row-player / index.html / board-pre
 // ═══ B14（Task 67 一笔一笔揭示 · 68 评审会补锁）：drawWriting 行内节奏块行为对拍 ══════
 //   锁结构不锁口味（0.18/0.06 顿份与 ±18% 时长是夏夏一句话可调的常数，不锁数值）：
 //   ①确定性（防 Math.random 复活）②pr 0→1 单调不回退 ③pr=1 揭满（常行/垫宽尾行双路径）
-//   ④无 gs（rough 横线行）回退线性 ⑤pr=0.5 偏离线性>2%（防整行幕布扫复活）。
+//   ④无 gs（rough 横线行）回退线性 ⑤at 增量极差>0.005lw（防整行幕布扫复活；71 由 pr=0.5 单点采样升级，正交于曲线口味）。
 //   锚 = drawWriting 函数体内 ['let at=pr, ab=pr;' → 'const slPx=') 唯一片段（rg 实证全文件唯一）。
 ok('B14 一笔一笔揭示节奏块：确定性/单调/pr=1 揭满/rough 行回退/非线性 五断言', () => {
   const fn = extractTopLevelFunction(player, 'drawWriting')
@@ -490,9 +490,18 @@ ok('B14 一笔一笔揭示节奏块：确定性/单调/pr=1 揭满/rough 行回�
   // ④ 无 gs（rough 横线行）回退线性扫
   assert.equal(run(0.37, [], L4, 240, 7).at, 0.37, 'gs 空数组未回退线性')
   assert.equal(run(0.37, null, L4, 240, 7).at, 0.37, 'gs 缺失未回退线性')
-  // ⑤ pr=0.5 偏离线性 > 0.02（整行幕布线性扫复活即撞）
-  const mid = run(0.5, gs4, L4, 240, 7).at
-  assert.ok(Math.abs(mid - 0.5) > 0.02, `at(0.5)=${mid.toFixed(4)} 疑似线性幕布复活`)
+  // ⑤ 非线性=at 增量不恒定（防整行线性幕布复活）：增量极差 > 0.005lw
+  //   （71 夏夏拍板「缓缓写」换缓出 easeOutCubic 后，旧「pr=0.5 单点偏离>2%」采样法与新曲线
+  //    「字间等时+字内缓出」的叠加偶然相撞 at(0.5)=0.4852 误报；且旧单点法对顿份加权下的纯线性
+  //    也误判非线性=本来就不严密。增量极差法才是本质：线性幕布增量恒定极差≈0.002，
+  //    任何字级非线性曲线必有过山车增量（旧 smoothstep 0.009 / 缓出 0.018），阈值分离度 4~8 倍，
+  //    正交于曲线口味——换任何曲线族都不用再动这条断言）
+  const steps5 = []
+  for (let i = 0; i <= 200; i++) steps5.push(run(i / 200, gs4, L4, 240, 7).at)
+  const inc5 = []
+  for (let i = 1; i < steps5.length; i++) inc5.push(steps5[i] - steps5[i - 1])
+  const spread5 = Math.max(...inc5) - Math.min(...inc5)
+  assert.ok(spread5 > 0.005, `at 增量极差=${spread5.toFixed(5)} 疑似线性幕布复活（增量恒定）`)
 })
 
 console.log(`\n== 播放器镜像对拍哨兵: ${pass} 通过 / ${fail} 失败 ==`)

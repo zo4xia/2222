@@ -64,10 +64,9 @@ ok('文件不存在：exists:false 不炸', () => {
 
 // ── 2. fish key 池三态 ──
 console.log('── getApiKeys 三态 ──')
-ok('无 env → 内置默认池两枚', () => {
+ok('无 env → 空池（71 夏夏拍板 env 化拔源码密钥，key 只从 env 来）', () => {
   const keys = getApiKeys()
-  assert.equal(keys.length, 2)
-  assert.ok(keys.every(k => k.startsWith('sk-fish-')))
+  assert.equal(keys.length, 0)
 })
 ok('复数 env → 完全替代默认池（不混入默认池）', () => {
   process.env.FISH_AUDIO_API_KEYS = 'k-alpha, k-beta'
