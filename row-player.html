@@ -1344,8 +1344,16 @@ function drawAction(task,p,Q,W,H){
     ctx.strokeStyle='#dc2626';                    // 统一红（与 STAGE_COLOR 分析区红同值）
     ctx.lineWidth=(a.style&&a.style.strokeWidthId)==='emphasis'?4:2.5;
     ctx.globalAlpha=0.9;
-    const ex=x1+(x2-x1)*p, ey=y1+(y2-y1)*p;      // 逐段生长，p 由上游时长钉死
-    rline(ctx,x1,y1,ex,ey,hashStr(JSON.stringify(a.start)+JSON.stringify(a.end)),2.0);
+    /* ★ 蛀虫1（生长防扭）：旧版把生长中端点 (ex,ey) 喂 rline → n=len/18 随长度逐帧变 →
+       全部抖点重排，笔画边长边「扭」（夏夏实锤抖动残留）。改全长稳定几何 + 线向矩形
+       裁剪窗口随 p 推进：已画段逐帧纹丝不动，p=1 终态与旧版逐像素一致（0,0→len,0 旋转系
+       与旧绝对坐标系的顶点栅格/法向完全同构）。 */
+    const len=Math.hypot(x2-x1,y2-y1)||1;
+    ctx.save();
+    ctx.translate(x1,y1); ctx.rotate(Math.atan2(y2-y1,x2-x1));
+    if(p<1){ ctx.beginPath(); ctx.rect(-3,-7,len*p+3,14); ctx.clip(); }   /* p≥1 终帧免裁剪：与旧版同调用同像素，圆帽抗锯齿零损耗 */
+    rline(ctx,0,0,len,0,hashStr(JSON.stringify(a.start)+JSON.stringify(a.end)),2.0);
+    ctx.restore();
     ctx.globalAlpha=1;
     return;
   }
@@ -1395,10 +1403,16 @@ function drawAction(task,p,Q,W,H){
     let budget=p*total;
     for(const g of segs){
       const gw=(g.x2-g.x1)+16; if(budget<=0)break;
-      const q=Math.min(1,budget/gw), xx1=g.x1-8, xx2=g.x1-8+gw*q;
+      const q=Math.min(1,budget/gw), xx1=g.x1-8, xx2=g.x1-8+gw*q, xxE=g.x1-8+gw;
       const yy=g.y1+off;
-      rline(ctx,xx1,yy,xx2,yy,seed,1.6);
-      if(q>0.5)rline(ctx,xx1,yy+1.5,xx2,yy+1.5,seed+11,1.6);   // 第二遍，微微错位
+      /* ★ 蛀虫1（生长防扭，同 rough-line）：全长稳定几何 + 裁剪窗口随 q 推进。
+         旧版 rline 端点随 q 生长 → n=len/18 逐帧变 → 抖点全体重排，线边画边「扭」；
+         现在已画前缀逐帧不变，q=1 终态与旧版逐像素一致。 */
+      ctx.save();
+      if(q<1){ ctx.beginPath(); ctx.rect(xx1-2,yy-6,(xx2-xx1)+4,12); ctx.clip(); }   /* q≥1 终帧免裁剪，与旧版同像素 */
+      rline(ctx,xx1,yy,xxE,yy,seed,1.6);
+      if(q>0.5)rline(ctx,xx1,yy+1.5,xxE,yy+1.5,seed+11,1.6);   // 第二遍，微微错位
+      ctx.restore();
       budget-=gw;
     }
   }else if(act==='circle'){
@@ -1466,7 +1480,7 @@ function render(t){
     '<span>'+esc(sub.slice(0,n))+'</span><span class="rest">'+esc(sub.slice(n))+'</span>';
   drawTimeline(t);
   document.getElementById('time').textContent=(t/1000).toFixed(2)+' / '+(C.total/1000).toFixed(2)+' s';
-  document.getElementById('seek').value=String(Math.round(t/C.total*1000));
+  if(!seekHold)document.getElementById('seek').value=String(Math.round(t/C.total*1000));
 }
 function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 
@@ -1593,10 +1607,26 @@ function seekTo(v){
   const ri=i<0?C.rows.length-1:i;
   const r=C.rows[ri];
   rowIdx=ri; rowAnchor=r.startMs; rowT0=performance.now()-(v-r.startMs);
-  if(r.row.mp3){ rowHasAudio=true; audioEl.src=r.row.mp3; audioEl.currentTime=Math.max(0,(v-r.startMs)/1000); }
+  if(r.row.mp3){
+    rowHasAudio=true;
+    /* ★ 蛀虫3（拖动断流）：oninput 拖动风暴里每次重挂 src = 反复触发媒体重载
+       （音频打嗝，播放中一拖即断流 → 音频钟冻结 → 画面卡死）。
+       同行同源只拨 currentTime；真换行才换 src，且播放中续播。 */
+    if(audioEl.getAttribute('src')!==r.row.mp3){
+      audioEl.src=r.row.mp3;
+      if(playing)audioEl.play().catch(function(){});
+    }
+    audioEl.currentTime=Math.max(0,(v-r.startMs)/1000);
+  }
   else rowHasAudio=false;
   T=v; render(v);
 }
+/* ★ 蛀虫2（进度条打架）：render 每帧强写 seek.value，播放中拖动时指位被播放头反复弹回
+   ——按住滑条期间 render 不回写，松手恢复；守卫声明必须早于首实 load()（bootstrap 在后）。 */
+let seekHold=false;
+document.getElementById('seek').addEventListener('pointerdown',function(){seekHold=true;});
+window.addEventListener('pointerup',function(){seekHold=false;});
+window.addEventListener('pointercancel',function(){seekHold=false;});
 document.getElementById('seek').oninput=e=>seekTo(C.total*(+e.target.value)/1000);
 /* ---- 顶层透明批注层：播放不挡，画笔可在上面随手画（录屏自动带进去） ---- */
 const ink=document.getElementById('ink'), ix=ink.getContext('2d');
@@ -1945,7 +1975,7 @@ if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){
 
 
 /* ============ 8b. 手工布局微调 (Visual Layout Tuner) ============ */
-let tunerOn=false, activeTunerDrag=null;
+let tunerOn=false, activeTunerDrag=null, tunerMoveRaf=0;
 const tunerEl=document.getElementById('tuner'), tunerBoxesEl=document.getElementById('tunerBoxes'), tunerInfoEl=document.getElementById('tunerInfo');
 const chkSnap=document.getElementById('chkSnap');
 const TUNER_ZONES=[
@@ -2088,8 +2118,11 @@ function onTunerMove(e){
       tunerInfoEl.innerHTML='正在调整 [' + d.key + ']: X=' + item.x + '% Y=' + item.y + '%' + (item.w!=null ? (' 宽=' + item.w + '%') : '') + (item.h!=null ? (' 高=' + item.h + '%') : '') + ' <span style="color:#10b981;font-weight:600;margin-left:8px">✓ 1726×980 画布有效范围内</span>';
     }
   }
-  C=compile(DATA);
-  render(now());
+  /* ★ 蛀虫4（区框拖动卡顿）：旧版每个 pointermove 都全轴 compile+render
+     （120Hz 事件 × 行坐标全变 → rowImage 缓存全 miss 重渲风暴）→ 拖动整板卡顿跟手抖。
+     rAF 合流：DOM 框即时跟手（上面已同步），canvas 每帧至多重排一次；Up 取消 pending 防双跑。 */
+  if(tunerMoveRaf)cancelAnimationFrame(tunerMoveRaf);
+  tunerMoveRaf=requestAnimationFrame(function(){tunerMoveRaf=0;C=compile(DATA);render(now());});
 }
 
 function onTunerUp(){
@@ -2128,6 +2161,7 @@ function onTunerUp(){
   window.removeEventListener('pointerup',onTunerUp);
   window.removeEventListener('pointercancel',onTunerUp);
   activeTunerDrag=null;
+  if(tunerMoveRaf){cancelAnimationFrame(tunerMoveRaf);tunerMoveRaf=0;}
   C=compile(DATA);
   render(now());
   initRowStickers();   /* ★ 65-i：区框拖完自动重排 → 贴纸位置同步刷新 */
