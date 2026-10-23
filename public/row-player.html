@@ -1141,7 +1141,7 @@ function boardTextToPlain(text){
 /* ============ 6. 渲染核心 ============ */
 const cv=document.getElementById('board'), ctx=cv.getContext('2d');
 const audioEl=document.getElementById('audio');
-let C=null, T=0, playing=false, rafId=0, lastTs=0, hasAudio=false;
+let C=null, T=0, playing=false, rafId=0;   /* trial2-b P3：lastTs/hasAudio 全文件零引用，68 死代码清扫漏网俩 token 一并摘 */
 
 // 内嵌素材加载（data URI 同步解码前先建 Image，onload 后重绘一次）
 const IMG={canvas:new Image(),icons:{}};
@@ -1161,7 +1161,7 @@ const STAGE_ASSET_CDN={
 function loadStageImg(img,cdnSrc,fallbackSrc){
   let usedFallback=false;
   img.crossOrigin='anonymous';   // ★ 68-a P0-4：无 crossOrigin 的 CDN 图画进主画布=画布污染，●录制 captureStream 必抛 SecurityError（按钮僵尸零反馈）。i.ibb.co 实测回 ACAO:*；万一 CDN 撤头 onerror 自动落 base64 兜底链，录制照常活
-  img.onload=()=>{if(C)render(now());};
+  img.onload=()=>{if(C)render(uiNow());};
   img.onerror=()=>{if(usedFallback||!fallbackSrc)return;usedFallback=true;img.src=fallbackSrc;};
   img.src=cdnSrc||fallbackSrc;
 }
@@ -1183,7 +1183,7 @@ function setProblemImage(src,fallbacks){
   if(!cands.length){PROBLEM_IMG=null;return;}
   const cur=cands[0],rest=cands.slice(1);
   const im=new Image();
-  im.onload=()=>{PROBLEM_IMG=im;if(C)render(now());};
+  im.onload=()=>{PROBLEM_IMG=im;if(C)render(uiNow());};
   im.onerror=()=>{
     if(rest.length){console.warn('[row-player] 题目图加载失败，降级兜底链:',cur);setProblemImage(rest[0],rest.slice(1));}
     else{console.warn('[row-player] 题目图加载失败（兜底链耗尽）:',cur);PROBLEM_IMG=null;}
@@ -1532,6 +1532,11 @@ function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>
 /* ============ 7. 时钟：每行自带 mp3，串行自动连播；无音频走虚拟时钟 ============ */
 let rowIdx=0,rowAnchor=0,rowT0=0,rowHasAudio=false;
 function now(){ return rowAnchor+(rowHasAudio?audioEl.currentTime*1000:(performance.now()-rowT0)); }
+/* ★ trial2-a P1：render(uiNow()) 家族（贴纸落位/区框拖动/图迟到/字体门）在暂停态喂裸墙钟 =
+   画面字幕直接跳未来行、HUD 超 total——68 的 pausedCur 只救了 play() 路径，事件驱动渲染全裸奔。
+   统一出口：播着用活钟（钳 total，同 loop）；暂停/终局用冻结位（pausedCur 优先，从未开播 T 兜底
+   ——load 置 0 且未开播恒 0，顺带把装载期 img 迟到画的 idle 钟痕一并归零）。 */
+function uiNow(){ return playing?Math.min(now(),C.total):(pausedCur!=null?Math.min(pausedCur,C.total):Math.min(T||0,C.total)); }
 // 有音频源但交付物缺 audioDurationMs（未探测）时，元数据到达后用真实时长重排全轴；不重载 src、不打断、不截断
 function reflowWithRealDuration(i,realMs){
   if(!C||!(realMs>0))return;
@@ -1591,10 +1596,12 @@ function pause(){
   if(rowHasAudio)audioEl.pause();
 }
 // 元数据到达：用真实音频时长校正（仅当交付物没带准 audioDurationMs 时触发一次）
-audioEl.onloadedmetadata=()=>{ try{ reflowWithRealDuration(rowIdx,(audioEl.duration||0)*1000); }catch(e){} };
+audioEl.onloadedmetadata=()=>{ if(!rowHasAudio)return;   /* ★ trial2-b P2 同源门：迟到的元数据落在无声行头上=把旧音频时长写进别行 durMs（可经保存持久化）；rowHasAudio=false 必是孤儿 */
+  try{ reflowWithRealDuration(rowIdx,(audioEl.duration||0)*1000); }catch(e){} };
 // 音频完整播完才切下一行（行间 GAP=0 自然紧接）；末行播完收尾，试听绝不截断
 audioEl.onended=()=>{
-  if(!playing)return;
+  if(!playing||!rowHasAudio)return;   /* ★ trial2-b P1：rowHasAudio=false=当前行无声，此 ended 必是旧音频迟到的孤儿事件——
+                                        绝不能按 rowIdx 硬切跳行（音频孤儿家族总防火门，覆盖「已 ended 但事件未派发时恰 seek 走」竞速） */
   if(rowIdx<C.rows.length-1)startRow(rowIdx+1);
   else { render(C.total); pause(); }
 };
@@ -1612,9 +1619,11 @@ audioEl.onerror=()=>{
 };
 
 /* ============ 8. 装载 + 画布一键录制 ============ */
+/* trial2-b P1：换档停旧配音——播放中 load（AgentCanvas.load/应用配置/导入）旧档配音孤儿照响，
+   onended 会按新档 rowIdx 硬切跳行；pause() 即断链（保 src，重挂自然走 startRow）。 */
 function load(data){
   C=compile(data);
-  T=0; rowIdx=0; rowAnchor=0; rowT0=performance.now(); rowHasAudio=false;
+  T=0; rowIdx=0; rowAnchor=0; rowT0=performance.now(); rowHasAudio=false; audioEl.pause();  // trial2-b P1
   pausedCur=null;   // ★ 68-a P0-2：换档=从未开播，首播恒从 0
   syncDocTitle();
   render(0);
@@ -1651,7 +1660,9 @@ function seekTo(v){
        冻着 → 音频钟不动，画面字幕全冻。拨针后若在播且音频停着就续上（66 蛀虫3 漏了的 ended 分支）。 */
     if(playing&&audioEl.paused)audioEl.play().catch(function(){});
   }
-  else rowHasAudio=false;
+  else{ rowHasAudio=false; audioEl.pause(); }   /* ★ trial2-b P1 音频孤儿：拖到无声行不停音频 = 旧配音旁白错行
+     → onended 按 rowIdx 硬切拦腰跳行 → pause() 被 rowHasAudio 门拦住假暂停配音照响；停孤儿即断链
+     （保 src：拖回本行只拨针续播，与 68-a P0-3 同路） */
   T=v; render(v);
 }
 /* ★ 蛀虫2（进度条打架）：render 每帧强写 seek.value，播放中拖动时指位被播放头反复弹回
@@ -1996,7 +2007,7 @@ function warmBoardFonts(){
     FONT_VER++; ROW_CACHE.clear();                   // 字体到位后旧行图全部作废，必须整批重建
     // ★ 布局在编译期算死 → 字宽变了必须整轴重排（时序不变，只有坐标换；reflowWithRealDuration 同款手法）
     if(C){ try{ C=compile(C.data); }catch(e){ console.warn('[字体门] 重排失败',e); } }
-    if(C){ render(now()); reportFontState(txt); }
+    if(C){ render(uiNow()); reportFontState(txt); }
   });
 }
 // 字体没生效就明说——别让「看着像宋体」变成说不清的玄学
@@ -2015,7 +2026,7 @@ warmBoardFonts();
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){
   FONT_VER++; ROW_CACHE.clear();
   if(C){ try{ C=compile(C.data); }catch(e){} }   // 同字体门：真实字宽到位后重排布局
-  if(C)render(now());
+  if(C)render(uiNow());
 });
 // 调试/分享入口：#t=毫秒 直接定位到任意时刻（render 纯函数保证画面正确）
 (function(){const m=location.hash.match(/t=(\d+)/);if(m&&C)seekTo(+m[1]);})();
@@ -2169,7 +2180,7 @@ function onTunerMove(e){
      （120Hz 事件 × 行坐标全变 → rowImage 缓存全 miss 重渲风暴）→ 拖动整板卡顿跟手抖。
      rAF 合流：DOM 框即时跟手（上面已同步），canvas 每帧至多重排一次；Up 取消 pending 防双跑。 */
   if(tunerMoveRaf)cancelAnimationFrame(tunerMoveRaf);
-  tunerMoveRaf=requestAnimationFrame(function(){tunerMoveRaf=0;C=compile(DATA);render(now());});
+  tunerMoveRaf=requestAnimationFrame(function(){tunerMoveRaf=0;C=compile(DATA);render(uiNow());});
 }
 
 function onTunerUp(){
@@ -2210,7 +2221,7 @@ function onTunerUp(){
   activeTunerDrag=null;
   if(tunerMoveRaf){cancelAnimationFrame(tunerMoveRaf);tunerMoveRaf=0;}
   C=compile(DATA);
-  render(now());
+  render(uiNow());
   initRowStickers();   /* ★ 65-i：区框拖完自动重排 → 贴纸位置同步刷新 */
 }
 
@@ -2247,7 +2258,7 @@ document.getElementById('btnTunerReset').onclick=()=>{
   };
   initTunerBoxes();
   C=compile(DATA);
-  render(now());
+  render(uiNow());
   initRowStickers();
   if(tunerInfoEl)tunerInfoEl.textContent='已恢复标准默认四区排版（含清空每句手动挪位）';
 };
@@ -2317,7 +2328,7 @@ function initRowStickers(){
     st.addEventListener('pointerdown',e=>startRowDrag(e,st,i,b,rect));
     st.addEventListener('dblclick',()=>{
       if(DATA.rows[i])delete DATA.rows[i].dragOffset;
-      C=compile(DATA);render(now());initRowStickers();
+      C=compile(DATA);render(uiNow());initRowStickers();
       if(tunerInfoEl)tunerInfoEl.textContent='第'+(i+1)+'句已撤消手动位置，回到自动排版';
     });
     rowStickersEl.appendChild(st);
@@ -2366,7 +2377,7 @@ function onRowDragUp(){
     }else{
       if(DATA.rows[d.i])DATA.rows[d.i].dragOffset={dx:d.pending.dx,dy:d.pending.dy};
     }
-    C=compile(DATA);render(now());
+    C=compile(DATA);render(uiNow());
     if(tunerInfoEl)tunerInfoEl.textContent='第'+(d.i+1)+'句已落位（dx='+d.pending.dx+', dy='+d.pending.dy+'px）——记得点「💾 保存布局」存档；双击贴纸可撤消本句';
   }
   activeRowDrag=null;
@@ -2437,7 +2448,7 @@ window.AgentCanvas={
   setProblemImage(url){setProblemImage(url);return {ok:true}},
   screenshot(){return cv.toDataURL('image/png')},
   getBoardPlan(){return DATA.boardPlan;},
-  setBoardPlan(bp){if(bp){DATA.boardPlan=bp;C=compile(DATA);render(now());if(tunerOn){initTunerBoxes();initRowStickers();}}return {ok:true};}
+  setBoardPlan(bp){if(bp){DATA.boardPlan=bp;C=compile(DATA);render(uiNow());if(tunerOn){initTunerBoxes();initRowStickers();}}return {ok:true};}
 };
 </script>
 </body>
