@@ -164,6 +164,24 @@
   .tbox-img{border-color:#06b6d4;background:rgba(6,182,212,.12)}
   .tbox-img .tuner-tag{background:#06b6d4}
   .tbox-img .tuner-hdl{border-color:#06b6d4}
+  /* ★ 65-i 行级贴纸层（学 old BoardTextSticker：每句板书=可拖贴纸，内容就长在贴纸里） */
+  .row-stickers-wrap{position:absolute;inset:0;pointer-events:none;z-index:22}
+  .row-sticker{position:absolute;pointer-events:auto;cursor:grab;box-sizing:border-box;
+               border:1.5px dashed rgba(56,189,248,.8);border-radius:6px;background:rgba(56,189,248,.10);
+               transition:background-color .12s ease,box-shadow .12s ease}
+  .row-sticker:hover{background:rgba(56,189,248,.24);box-shadow:0 0 0 3px rgba(56,189,248,.35)}
+  .row-sticker.dragging{cursor:grabbing;background:rgba(56,189,248,.32);border-style:solid;
+                        box-shadow:0 10px 26px rgba(0,0,0,.35),0 0 0 3px rgba(56,189,248,.55)}
+  .row-sticker.pinned{border-color:#f59e0b;background:rgba(245,158,11,.14)}   /* 已手动定位的句子=琥珀色 */
+  .row-sticker.pinned:hover{background:rgba(245,158,11,.28);box-shadow:0 0 0 3px rgba(245,158,11,.4)}
+  .row-sticker-num{position:absolute;top:-10px;left:-8px;min-width:20px;height:20px;border-radius:999px;
+                   background:#0284c7;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;
+                   justify-content:center;padding:0 5px;pointer-events:none;box-shadow:0 2px 5px rgba(0,0,0,.3);
+                   white-space:nowrap}
+  .row-sticker.pinned .row-sticker-num{background:#b45309}
+  .row-sticker-txt{position:absolute;inset:0;display:flex;align-items:center;padding:2px 8px;
+                   font-size:11px;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+                   pointer-events:none;font-weight:600}
   #btnTune.on{background:#0284c7!important;border-color:#0284c7!important;color:#fff!important}
   .tuner-box.is-out-of-bounds{border-color:#ef4444!important;border-style:dashed!important;background:rgba(239,68,68,.25)!important;box-shadow:0 0 0 3px rgba(239,68,68,.7),0 8px 24px rgba(239,68,68,.4)!important}
   .tuner-box.is-out-of-bounds .tuner-coords{background:#dc2626!important;color:#fff!important;font-weight:700}
@@ -211,6 +229,7 @@
         <div id="tunerEdgeRight" class="tuner-edge-guide tuner-edge-right"></div>
       </div>
       <div id="tunerBoxes" class="tuner-boxes-wrap"></div>
+      <div id="rowStickers" class="row-stickers-wrap"></div>
     </div>
   </div>
   <div class="bar">
@@ -569,14 +588,22 @@ function compile(data){
       const placed=stageFlowPlace(stageFlow[stKey]||null,zoneStart,given,estH,W,H,40);
       const L=layoutBoardLines(bContent,placed.start.x,placed.start.y,W,H);
       /* 布局完成 → 游标推进到本行内容末（endY=末行基线+行高，即下一行自然续排点；
-         endX/colMaxW = 本行末列左与末列宽，本列放不下时换列用） */
+         endX/colMaxW = 本行末列左与末列宽，本列放不下时换列用）。
+         ★ 65-i：游标推进用「未偏移」L——被手动拖走的行让出自动流座位，后续行自然补位；
+         拖拽偏移仅作用于本行渲染位置，不扰动其他行的自动布局。 */
       stageFlow[stKey]={x:L.endX,y:L.endY,anchorY:placed.cursor.anchorY,colMaxW:L.colMaxW};
-      const rowChars=boardCharPool(L,stKey,liBase);
+      /* ★ 65-i 行级拖拽微调消费点（唯一）：dragOffset 平移本行全部 line 的 x/y。
+         LV 偏移版同时喂 boardCharPool + plan.board → drawWriting 行图、动作锚定字池、
+         rowImage 缓存键（L849 含 x|y 自动失效重渲）三路同源平移——校验放行⇒播放必画不破（62/63/64）。 */
+      const dOff=(r.dragOffset&&Number.isFinite(r.dragOffset.dx)&&Number.isFinite(r.dragOffset.dy))
+        ?r.dragOffset:null;
+      const LV=dOff?{...L,layout:L.layout.map(ll=>({...ll,x:ll.x+dOff.dx,y:ll.y+dOff.dy}))}:L;
+      const rowChars=boardCharPool(LV,stKey,liBase);
       liBase+=(L.layout||[]).length;
       for(let ci2=0;ci2<rowChars.length;ci2++)boardCharsRegistry.push(rowChars[ci2]);
       plan.push({type:'board',startOffsetMs:sd,durationMs:bw,
                  content:bContent,coord:coord,
-                 layout:L.layout,lines:L.lines,seed:L.seed,spJ:L.spJ,
+                 layout:LV.layout,lines:LV.lines,seed:LV.seed,spJ:LV.spJ,
                  ...(rowChars.length?{chars:rowChars}:{})});
       cursor=sd+bw+HAND_LIFT_MS;
     }
@@ -1764,6 +1791,13 @@ function normRow(r){
   const triggerKeyword = pick(b,['triggerKeyword','keyword'])
     ?? (rawBoards && rawBoards[0] && (rawBoards[0].triggerKeyword || rawBoards[0].keyword))
     ?? pick(r,['triggerKeyword','keyword']);
+  // ★ 65-i 行级拖拽微调（夏夏拍板学 old 贴纸模型）：dragOffset={dx,dy}（px，1726×980 画布系）。
+  //   存「相对自动流位置的偏移」而非绝对坐标——zone 框拖动/文本改动触发自动重排后偏移语义仍成立。
+  //   白名单必须透传，否则 Tuner 保存（localStorage）→重载即丢。旧档无此字段=行为零变化。
+  const rawDrag=pick(r,['dragOffset']);
+  const dragOffset=(rawDrag&&typeof rawDrag==='object'
+    && Number.isFinite(Number(rawDrag.dx))&&Number.isFinite(Number(rawDrag.dy)))
+    ?{dx:Math.round(Number(rawDrag.dx)),dy:Math.round(Number(rawDrag.dy))}:null;
 
   return {
     stage: pick(r,['stage','role','section','step'])||'解答',
@@ -1785,7 +1819,8 @@ function normRow(r){
       startDelay: Number(startDelay)||0,
       ...(triggerKeyword?{triggerKeyword:triggerKeyword}:{})
     }],
-    actionSpec: pick(r,['actionSpec','actions'])||[]
+    actionSpec: pick(r,['actionSpec','actions'])||[],
+    ...(dragOffset?{dragOffset:dragOffset}:{})
   };
 }
 function normData(j){
@@ -2095,6 +2130,7 @@ function onTunerUp(){
   activeTunerDrag=null;
   C=compile(DATA);
   render(now());
+  initRowStickers();   /* ★ 65-i：区框拖完自动重排 → 贴纸位置同步刷新 */
 }
 
 function toggleTuner(force){
@@ -2106,7 +2142,8 @@ function toggleTuner(force){
     if(tunerOn){
       if(playing)pause();
       initTunerBoxes();
-      if(tunerInfoEl)tunerInfoEl.textContent='按住方框移动位置，拖拽边缘或右下角调整宽/高；文字将实时自适应重排';
+      initRowStickers();   /* ★ 65-i：每句板书=可拖贴纸（学 old BoardTextSticker） */
+      if(tunerInfoEl)tunerInfoEl.textContent='拖句子贴纸=每句板书挪位（双击贴纸=撤消本句）；拖蓝色四区框=整体自动重排；文字实时自适应';
     }
   }
 }
@@ -2115,6 +2152,7 @@ document.getElementById('btnTune').onclick=()=>toggleTuner();
 document.getElementById('btnTunerClose').onclick=()=>toggleTuner(false);
 
 document.getElementById('btnTunerReset').onclick=()=>{
+  (DATA.rows||[]).forEach(r=>{delete r.dragOffset;});   /* ★ 65-i：恢复预设同时清全部每句手动位置 */
   DATA.boardPlan={
     canvas:{w:1726,h:980},
     topicLabel:{x:5.7,y:6.6,w:7.1},
@@ -2129,7 +2167,8 @@ document.getElementById('btnTunerReset').onclick=()=>{
   initTunerBoxes();
   C=compile(DATA);
   render(now());
-  if(tunerInfoEl)tunerInfoEl.textContent='已恢复标准默认四区排版';
+  initRowStickers();
+  if(tunerInfoEl)tunerInfoEl.textContent='已恢复标准默认四区排版（含清空每句手动挪位）';
 };
 
 document.getElementById('btnTunerSave').onclick=()=>{
@@ -2154,6 +2193,107 @@ document.getElementById('btnTunerExport').onclick=()=>{
   URL.revokeObjectURL(url);
   if(tunerInfoEl)tunerInfoEl.textContent='✅ 已下载微调后的交付 JSON 规格文件';
 };
+
+/* ============ 8c. 行级贴纸微调（65-i 学 old 贴纸模型：每句板书=可拖贴纸） ============
+   old 同源手法：useBoardStickerDragController（pointerdown→rAF 预览 patch→up commit 写回档）。
+   坐标存 dragOffset={dx,dy}（相对自动流位置的偏移 px）——compile 段唯一消费点平移本行全部
+   line，字池/行图/动作锚定三路同源跟随。旧档无字段=行为零变化。 */
+const rowStickersEl=document.getElementById('rowStickers');
+let activeRowDrag=null;
+
+function rowStickerBounds(rowO){
+  const bp=(rowO.plan||[]).find(p=>p.type==='board'&&(p.layout||[]).length);
+  if(!bp)return null;
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  bp.layout.forEach(ll=>{
+    x0=Math.min(x0,ll.x);y0=Math.min(y0,ll.y);
+    x1=Math.max(x1,ll.x+(ll.lw||ll.size));y1=Math.max(y1,ll.y+ll.size*1.55);
+  });
+  if(!Number.isFinite(x0)||!Number.isFinite(y0))return null;
+  return {x:x0,y:y0,w:Math.max(24,x1-x0),h:Math.max(18,y1-y0)};
+}
+
+function initRowStickers(){
+  if(!rowStickersEl)return;
+  rowStickersEl.innerHTML='';
+  if(!C||!C.rows)return;
+  const stageEl=document.querySelector('.stage');
+  const rect=stageEl?stageEl.getBoundingClientRect():null;
+  if(!rect||rect.width<=0||rect.height<=0)return;
+  C.rows.forEach((rowO,i)=>{
+    const b=rowStickerBounds(rowO);
+    if(!b)return;
+    const st=document.createElement('div');
+    st.className='row-sticker'+((DATA.rows[i]&&DATA.rows[i].dragOffset)?' pinned':'');
+    st.style.left=(b.x/C.W*100)+'%';st.style.top=(b.y/C.H*100)+'%';
+    st.style.width=(b.w/C.W*100)+'%';st.style.height=(b.h/C.H*100)+'%';
+    const num=document.createElement('div');num.className='row-sticker-num';num.textContent='第'+(i+1)+'句';
+    st.appendChild(num);
+    const txt=document.createElement('div');txt.className='row-sticker-txt';
+    txt.textContent=String((rowO.row.board&&rowO.row.board.content)||'').replace(/\s*\n\s*/g,' / ').slice(0,80);
+    st.appendChild(txt);
+    st.title='拖动=整句板书挪位；双击=撤消本句手动位置回到自动排版';
+    st.addEventListener('pointerdown',e=>startRowDrag(e,st,i,b,rect));
+    st.addEventListener('dblclick',()=>{
+      if(DATA.rows[i])delete DATA.rows[i].dragOffset;
+      C=compile(DATA);render(now());initRowStickers();
+      if(tunerInfoEl)tunerInfoEl.textContent='第'+(i+1)+'句已撤消手动位置，回到自动排版';
+    });
+    rowStickersEl.appendChild(st);
+  });
+}
+
+function startRowDrag(e,st,i,b,rect){
+  e.preventDefault();e.stopPropagation();
+  if(!rect||rect.width<=0||rect.height<=0)return;
+  const base=(DATA.rows[i]&&DATA.rows[i].dragOffset)||{dx:0,dy:0};
+  activeRowDrag={i:i,st:st,b:b,rect:rect,startX:e.clientX,startY:e.clientY,base:base,pending:null,raf:null};
+  st.classList.add('dragging');
+  try{st.setPointerCapture(e.pointerId);}catch(_){}
+  window.addEventListener('pointermove',onRowDragMove);
+  window.addEventListener('pointerup',onRowDragUp);
+  window.addEventListener('pointercancel',onRowDragUp);
+}
+
+function onRowDragMove(e){
+  if(!activeRowDrag)return;
+  e.preventDefault();
+  const d=activeRowDrag;
+  const kx=C.W/d.rect.width,ky=C.H/d.rect.height;
+  /* clamp：本句包围盒不越 1726×980 画布（与四区框同规） */
+  const dDx=Math.max(-d.b.x,Math.min(C.W-d.b.x-d.b.w,(e.clientX-d.startX)*kx));
+  const dDy=Math.max(-d.b.y,Math.min(C.H-d.b.y-d.b.h,(e.clientY-d.startY)*ky));
+  const dx=Math.round(d.base.dx+dDx),dy=Math.round(d.base.dy+dDy);
+  d.pending={dx:dx,dy:dy};
+  if(d.raf)cancelAnimationFrame(d.raf);
+  d.raf=requestAnimationFrame(()=>{     /* rAF 跟手预览（同 old 手法）：canvas 不动，松手再 compile 落位 */
+    d.st.style.left=((d.b.x+dDx)/C.W*100)+'%';
+    d.st.style.top=((d.b.y+dDy)/C.H*100)+'%';
+    const num=d.st.querySelector('.row-sticker-num');
+    if(num)num.textContent='dx'+dx+' dy'+dy;
+  });
+  if(tunerInfoEl)tunerInfoEl.textContent='正在拖第'+(d.i+1)+'句板书：dx='+dx+' dy='+dy+'px（松手落位，双击贴纸可撤消）';
+}
+
+function onRowDragUp(){
+  if(!activeRowDrag)return;
+  const d=activeRowDrag;
+  if(d.raf)cancelAnimationFrame(d.raf);
+  if(d.pending){
+    if(d.pending.dx===0&&d.pending.dy===0){
+      if(DATA.rows[d.i])delete DATA.rows[d.i].dragOffset;   /* 拖回原位=回到自动排版语义 */
+    }else{
+      if(DATA.rows[d.i])DATA.rows[d.i].dragOffset={dx:d.pending.dx,dy:d.pending.dy};
+    }
+    C=compile(DATA);render(now());
+    if(tunerInfoEl)tunerInfoEl.textContent='第'+(d.i+1)+'句已落位（dx='+d.pending.dx+', dy='+d.pending.dy+'px）——记得点「💾 保存布局」存档；双击贴纸可撤消本句';
+  }
+  activeRowDrag=null;
+  window.removeEventListener('pointermove',onRowDragMove);
+  window.removeEventListener('pointerup',onRowDragUp);
+  window.removeEventListener('pointercancel',onRowDragUp);
+  initRowStickers();
+}
 
 /* ============ 9. AgentCanvas 控制桥（2026-09-17 16:30 夏夏拍板：画布升级为 agent 可控） ============
    铁律：不改渲染管线（render(t) 纯函数 / 音频主时钟 / 幂等 seek 一概不动），只开「读状态 + 换数 + 播放控制」的门。
@@ -2214,7 +2354,7 @@ window.AgentCanvas={
   setProblemImage(url){setProblemImage(url);return {ok:true}},
   screenshot(){return cv.toDataURL('image/png')},
   getBoardPlan(){return DATA.boardPlan;},
-  setBoardPlan(bp){if(bp){DATA.boardPlan=bp;C=compile(DATA);render(now());if(tunerOn)initTunerBoxes();}return {ok:true};}
+  setBoardPlan(bp){if(bp){DATA.boardPlan=bp;C=compile(DATA);render(now());if(tunerOn){initTunerBoxes();initRowStickers();}}return {ok:true};}
 };
 </script>
 </body>
