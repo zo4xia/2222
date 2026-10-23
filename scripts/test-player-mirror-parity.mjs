@@ -29,6 +29,16 @@ import {
   extractBracedObject, evalPure, evalEstSpeech,
 } from './playerMirrorExtract.mjs'
 import { normalizeBoardLine, toBoardLines, findUnsafeChars, boardTextToPlain } from '../src/utils/superFilter.js'
+// ★ B13（Task 63 片1 抽核，夏夏「做减法」）：锚定引擎唯一 ESM 真源——与 row-player 内嵌版字节级同源对拍
+import {
+  findRange as core_findRange,
+  sameBoardLine as core_sameBoardLine,
+  tokenizeLine as core_tokenizeLine,
+  readBrace as core_readBrace,
+  REGION_STAGE_ZH,
+  buildBoardAnchorFlow,
+  buildQuestionAnchorFlow,
+} from '../src/board-tools/boardAnchorCore.js'
 import {
   isRuleLine, visualLen, readBrace, isAudioSrc,
   estimateActionDuration, estimateSpeechDurationMs,
@@ -312,6 +322,76 @@ ok('B12 题目区跨折行分段锁（Task 63 夏夏「题目字号 30、自动�
   const promptSrc2 = read('src/agent-b-v2/prompt.js')
   assert.ok(promptSrc2.includes('允许跨折行'), 'prompt §5.2 必须教题目自动折行下 underline 可跨折行（Agent 无从预知折行点）')
   assert.ok(promptSrc2.includes('必须落在同一行内'), 'prompt §5.2 必须教 circle 单行约束（跨折行不画圈）')
+})
+
+// ── B13 Task 63 片1 锚定引擎抽核（夏夏「最安全办+做减法」）：boardAnchorCore.js 唯一 ESM 真源 ──
+//    与 row-player 内嵌版字节级同源；AgentBDirect 旧 pool.includes 近似镜像退役、换真引擎。
+//    语义链：校验放行 ⇒ 播放必画（行内/跨折行/occ/frac 占位符四向归一）。
+ok('B13 锚定引擎同源锁：boardAnchorCore 四函数与 row-player 内嵌版源文本字节级一致（半边改当场撞墙）+ 行为对拍 + AgentBDirect 近似校验退役不复活', () => {
+  // ① 源文本对拍（去空白后逐字节）：抽取工具同源同逻辑，双边提取必须一致
+  const coreSrc = read('src/board-tools/boardAnchorCore.js')
+  for (const fn of ['findRange', 'sameBoardLine', 'tokenizeLine', 'readBrace']) {
+    assert.ok(extractTopLevelFunction(coreSrc, fn), `boardAnchorCore 缺顶层函数: ${fn}`)
+    assert.equal(
+      noWs(extractTopLevelFunction(coreSrc, fn)),
+      noWs(extractTopLevelFunction(player, fn)),
+      `${fn} 源文本与 row-player 分叉（boardAnchorCore 与 row-player 必须同步改：哨兵 B13）`,
+    )
+  }
+  // ② 行为对拍：板书形池两行（跨行拒/行内命中/occ 桶内）
+  const bPool = [
+    { ch: '平', x: 10, y: 90, w: 20, size: 40, stage: '解答', li: 0 },
+    { ch: '行', x: 30, y: 90, w: 20, size: 40, stage: '解答', li: 0 },
+    { ch: '四', x: 50, y: 90, w: 20, size: 40, stage: '解答', li: 0 },
+    { ch: '边', x: 10, y: 150, w: 20, size: 40, stage: '解答', li: 1 },
+    { ch: '形', x: 30, y: 150, w: 20, size: 40, stage: '解答', li: 1 },
+  ]
+  assert.equal(core_findRange(bPool, '四边', 1), null, 'core 版跨行必须拒（B9 同语义）')
+  assert.deepEqual(core_findRange(bPool, '平行四', 1), p_findRange(bPool, '平行四', 1), '行内命中两版输出必须同构')
+  assert.deepEqual(core_findRange(bPool, '边', 2), p_findRange(bPool, '边', 2), 'occ=2 桶内计数两版同构')
+  // ③ 行为对拍：题目形池 allowWrap（跨折行分段 + 行内单段 + occ 超界）
+  const qPool13 = [
+    { ch: '甲', x: 50, y: 100, w: 20, li: 0 },
+    { ch: '乙', x: 70, y: 100, w: 20, li: 0 },
+    { ch: '丙', x: 90, y: 100, w: 20, li: 0 },
+    { ch: '乙', x: 50, y: 140, w: 20, li: 1 },
+    { ch: '丙', x: 70, y: 140, w: 20, li: 1 },
+  ]
+  assert.deepEqual(
+    core_findRange(qPool13, '丙乙丙', 1, { allowWrap: true }),
+    p_findRange(qPool13, '丙乙丙', 1, { allowWrap: true }),
+    '跨折行分段两版输出必须同构',
+  )
+  assert.equal((core_findRange(qPool13, '丙乙', 1, { allowWrap: true }) || {}).segments.length, 2, 'core allowWrap 必须切 2 段')
+  assert.equal(core_findRange(qPool13, '乙丙', 3, { allowWrap: true }), null, 'occ 超界两版同判 null')
+  assert.equal(core_findRange(qPool13, '丙乙', 1), null, '题目形池无 allowWrap 跨行仍拒（板书语义不破）')
+  // ④ 辅助函数行为对拍
+  assert.equal(core_sameBoardLine({ li: 0 }, { li: 1 }), false, 'sameBoardLine li 分行')
+  assert.equal(core_sameBoardLine({ y: 5 }, { y: 5 }), true, 'sameBoardLine 无 li 同基线兑底')
+  assert.deepEqual(
+    core_tokenizeLine('\\frac{1}{2}+x'),
+    evalPure(extractTopLevelFunction(player, 'tokenizeLine') + '\n' + extractTopLevelFunction(player, 'readBrace'), ['tokenizeLine', 'readBrace']).tokenizeLine('\\frac{1}{2}+x'),
+    'tokenizeLine 两版输出必须同构',
+  )
+  // ⑤ 校验流构造语义：零坐标流（li 保真）+ 行内严格 + \frac 占位符
+  const flow = buildBoardAnchorFlow(['平行四边形', 'AB'])
+  assert.equal(flow.length, 7, '板书校验流长度（7 字）')
+  assert.ok(flow[6].li === 1 && flow[6].ch === 'B', '第二行字符 li=1 保真（零坐标不影响行界判定）')
+  assert.equal(core_findRange(buildBoardAnchorFlow(['平行四边形', 'AB']), '形A', 1), null, '校验流真跨行目标（行0末字+行1首字）必须 null；旧 includes 靠 \\n 阻隔纯属巧合，occ/frac/region 三向分叉仍在')
+  assert.ok(core_findRange(buildBoardAnchorFlow(['平行四边形', '边形AB']), '边形AB', 1), '行内完整存在必须命中（行内命中语义本身照旧）')
+  assert.equal(buildBoardAnchorFlow(['\\frac{1}{2}+1'])[0].ch, '\uE000', '\\frac 必须打占位符（与 boardCharPool 同语义）')
+  assert.equal(core_findRange(buildBoardAnchorFlow(['\\frac{1}{2}+1']), '2}+', 1, { allowWrap: true }), null, 'exactText 含公式字面量必 miss（校验/播放同判）')
+  const qFlow = buildQuestionAnchorFlow('甲乙丙')
+  assert.ok(qFlow.length === 3 && core_findRange(qFlow, '乙丙', 1, { allowWrap: true }), '题目校验流连续流命中')
+  // ⑥ 词汇桥同源：REGION_STAGE_ZH 与 row-player drawAction 内联桥字面量一致
+  assert.ok(player.includes("{analysis:'分析',solution:'解答',summary:'总结'}"), 'row-player 中英词汇桥字面量必须在场（REGION_STAGE_ZH 同源锚）')
+  assert.deepEqual(REGION_STAGE_ZH, { analysis: '分析', solution: '解答', summary: '总结' }, 'REGION_STAGE_ZH 值漂移')
+  // ⑦ 消费端源断言：AgentBDirect 近似校验退役不复活
+  const ab = read('src/agent-b-v2/AgentBDirect.vue')
+  assert.ok(ab.includes("from '../board-tools/boardAnchorCore.js'"), 'AgentBDirect 必须 import 锚定真源')
+  assert.ok(!ab.includes('pool.includes(text)'), '近似校验不得复活（无视行界=校验放行播放拒画的静默丢线源）')
+  assert.ok(ab.includes('REGION_STAGE_ZH[region]'), 'region 分桶必须走词汇桥（对齐播放器双试过滤）')
+  assert.ok(ab.includes('{ allowWrap: true }'), '题目池校验必须 allowWrap（自动折行同判）')
 })
 
 // ═══ C. boardPlan 五处值锁（真源 import 派生，不锁镜像字面量）════════════

@@ -77,6 +77,14 @@ import {
 // ★ Task 60 坐标归一：默认四区布局唯一真源派生（boardLayout.js），本文件 3 处 fallback
 //   原手押的抖动快照值（两组误冻结的历史值系）全部改 import 派生，哨兵锁死不再漂移
 import { DEFAULT_BOARD_PLAN } from '../utils/boardLayout.js'
+// ★ Task 63 片1（夏夏「做减法」）：锚定校验换真引擎——findRange 与 row-player 字节级同源
+//   （boardAnchorCore.js 唯一 ESM 真源），近似 pool.includes 镜像退役，哨兵 B13 锁死不漂移
+import {
+  findRange,
+  buildBoardAnchorFlow,
+  buildQuestionAnchorFlow,
+  REGION_STAGE_ZH,
+} from '../board-tools/boardAnchorCore.js'
 // ponytail: 拆分 composables (从 AgentBDirect.vue 抽出纯逻辑)
 import { useBCache } from './composables/useBCache.js'
 
@@ -702,14 +710,34 @@ function updateActionCoord(rowIndex, ai, key, axis, value) {
   })
 }
 
-/* 锚定存在性校验（字符串层近似，语义对齐 row-player findRange：板书池 = 先前行+本行 board.content，
- * 题目原文兜底）。⚠ \frac 记号在渲染字池是占位符——提示引导按板书字面写 exactText。 */
+/* ★ Task 63 片1 锚定校验归一（夏夏「做减法」，消灭近似镜像）：旧 pool.includes 字符串近似
+ * 无视行界与 occurrence——校验放行、播放器拒画=静默丢下划线（62/63 实锤的校验侧残留）。
+ * 现消费 boardAnchorCore.findRange（与 row-player 字节级同源，哨兵 B13 锁死）→「校验放行
+ * ⇒ 播放必画」：板书行内严格（跨行目标明示 error）、题目 allowWrap 连续流（自动折行不丢）、
+ * occ 超界 miss、\frac 占位符同判（提示仍引导按板书字面写 exactText）。
+ * region 路由完全镜像播放器 drawAction：question→题目池；analysis/solution/summary→
+ * stage 分桶（中英词汇桥双试过滤）；缺 region 旧档→板书全局→题目（同一顺序同一语义）。 */
+function boardAnchorPool(rowIndex, region) {
+  const src = rows.value.slice(0, rowIndex + 1)   // 先前行+本行：对齐播放器 task.boardChars 累积语义
+  const lines = src
+    .filter((r) => !region || r?.stage === region || r?.stage === REGION_STAGE_ZH[region])
+    .flatMap((r) => String(r?.board?.content || '').split('\n'))
+    .filter(Boolean)
+  return buildBoardAnchorFlow(lines)
+}
 function actionAnchorStatus(rowIndex, item) {
   const text = String(item?.action?.target?.exactText || '').trim()
   if (!text) return ''
-  const pool = rows.value.slice(0, rowIndex + 1).map((r) => String(r?.board?.content || '')).join('\n')
-  const problem = String(handoff.value?.problemText || '')
-  return (pool.includes(text) || problem.includes(text)) ? '' : 'error'
+  const tg = item?.action?.target || {}
+  const occ = tg.occurrence || 1   // 与播放器一字不差（含旧档畸形值的 miss 行为也一致）：校验=播放预演
+  const qPool = buildQuestionAnchorFlow(handoff.value?.problemText || '')
+  const qHit = () => findRange(qPool, text, occ, { allowWrap: true })
+  if (tg.region === 'question') return qHit() ? '' : 'error'
+  const stg = String(tg.region || '')
+  const bucketed = stg === 'analysis' || stg === 'solution' || stg === 'summary'
+  if (findRange(boardAnchorPool(rowIndex, bucketed ? stg : ''), text, occ)) return ''
+  if (!stg) return qHit() ? '' : 'error'   // 旧档缺 region：板书全局→题目，对齐播放器兜底顺序
+  return 'error'
 }
 
 /* 触发关键词校验：必须逐字存在于本行口播原文（Task 43 契约），miss 走默认串行 */
