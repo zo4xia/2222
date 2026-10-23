@@ -970,7 +970,7 @@ function rowImage(o){
       g.restore();
     }
   }
-  const r={img:c,bx:bx,by:by,bw:bw,bh:bh,w:lw};
+  const r={img:c,bx:bx,by:by,bw:bw,bh:bh,w:lw,gs:gs};   // gs：逐字盒子（x/宽）随图入缓存——一笔一笔揭示的纯数据（Task 67），改动仅内存几个小对象
   if(ROW_CACHE.size>=MAX_ROW_CACHE)ROW_CACHE.delete(ROW_CACHE.keys().next().value);
   ROW_CACHE.set(key,r); return r;
 }
@@ -1292,11 +1292,43 @@ function drawWriting(task,p,W,H,stage){
     const rnd=mulberry32(seed+31+s.li);
     const tilt=0;                                    // 整行微倾全拔（2026-10-17 夏夏：书写抖动太奇怪；2026-09-17 曾「歪过头」减到 ±1°，本轮归零）
     const sl=0.02+rnd()*0.03, dir=rnd()<0.5?-1:1;
-    // 顶边比底边超前（旧作 top+1.8% / bottom-1.2%，约 1.5:1）→ 切出一条斜推进边
-    const at=pr+(dir>0?sl:-sl*0.6), ab=pr+(dir>0?-sl*0.6:sl);
+    /* ★ 一笔一笔揭示（2026-10-23 夏夏拍板「节奏像手写板书」）：行内 pr 不再线性铺满全行（幕布感），
+       改按字推进——每字一个独立小揭示窗：窗内 smoothstep（起笔慢·行笔快·收笔慢），字后留行笔微顿
+       （全角顿重=一顿一顿、半角连笔），每字时长确定性 ±18%（笔画繁简的人味）。
+       时间账零动：行 seg 权重不变（timing 镜像不碰）、pr=1 仍揭满 lw → 终态与旧版逐像素一致；
+       纯函数映射无跨帧状态 → seek 幂等（Task 66 抖动四不变量不破）。
+       无 gs（rough 横线行）回退线性扫——整条线本来就是一笔画完。 */
+    let at=pr, ab=pr;
+    if(R.gs&&R.gs.length){
+      if(!R.ry||R.rySeed!==seed){                    // 节奏表建一次随行图缓存走（每帧零重算）
+        const rr=mulberry32(seed+97+s.li);          // 节奏流独立于斜边流(seed+31)，互不扰动
+        const n=R.gs.length; let tail0=0;
+        R.ry=[];
+        for(let k=0;k<n;k++){
+          const g0=R.gs[k].x-L.x, gw=Math.max(2,R.gs[k].w), g1=g0+gw;
+          const wide=gw>=L.size*0.6;                 // 全角字顿重、半角字连笔（顿在字后；末字不顿=收笔即离纸）
+          let w=gw*(1+(rr()*2-1)*0.18);             // 每字时长 ±18%（确定性：同档同节奏，重放/seek 不变）
+          if(k<n-1)w*=1+(wide?0.18:0.06);            // 行笔微顿占该字时长份额
+          R.ry.push([g0,g1,w]); tail0=g1;
+        }
+        if(lw-tail0>0.5)R.ry.push([tail0,lw,lw-tail0]);   // Math.max(size,…) 垫宽尾巴照走（空段占节奏，行不提前收笔）
+        R.rySeed=seed; R.ryW=R.ry.reduce((a,u)=>a+u[2],0);
+      }
+      let q=pr*R.ryW;
+      for(let i=0;i<R.ry.length;i++){
+        const u=R.ry[i];
+        if(q>u[2]&&i<R.ry.length-1){q-=u[2];continue;}
+        const e0=Math.max(0,Math.min(1,q/u[2])), es=e0*e0*(3-2*e0);   // smoothstep：起笔慢·行笔快·收笔慢
+        at=(u[0]+(u[1]-u[0])*es)/lw; ab=at;
+        break;
+      }
+    }
+    // 顶边比底边超前（旧作 top+1.8% / bottom-1.2%，约 1.5:1）→ 切出一条斜推进边；
+    // 斜边改 px 封顶（sl*min(lw,size*6)）：旧口径吃全行宽，长行斜边能斜出好几个字宽（幕布感帮凶），收进约一字内
+    const slPx=sl*Math.min(lw,L.size*6);
     const xA=R.bx-4, xB=R.bx+R.bw+4, yT=R.by-4, yB=R.by+R.bh+4;
-    const xt=Math.max(xA,Math.min(xB,L.x+lw*at));
-    const xb=Math.max(xA,Math.min(xB,L.x+lw*ab));
+    const xt=Math.max(xA,Math.min(xB,L.x+lw*at+(dir>0?slPx:-slPx*0.6)));
+    const xb=Math.max(xA,Math.min(xB,L.x+lw*ab+(dir>0?-slPx*0.6:slPx)));
     // 揭示：只清这一小块、只贴这一小块，不做全屏合成
     sg.clearRect(R.bx,R.by,R.bw,R.bh);
     sg.save();
