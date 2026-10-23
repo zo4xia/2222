@@ -184,6 +184,13 @@ check('compile 动作段带板书字池快照（boardChars:boardCharsRegistry.sl
 /* ---------- 6) 结构断言：drawWriting / drawAction / 字体门 ---------- */
 check('drawWriting 消费编译期布局（task.layout 优先 + layoutBoardLines 回退同函数）',
   /const preL=task\.layout\|\|null;/.test(script) && /const layout=preL\|\|layoutBoardLines\(task\.content,x,y,W,H\)\.layout;/.test(script))
+/* ★ B 补锁（68 评审会）：67 一笔一笔揭示三件套 + 65-i dragOffset 白名单——都是「摘掉即静默丢功能」的结构件，rg 实证原无哨兵咬合 */
+check('drawWriting 一笔一笔揭示三件套在位（gs 随行图入缓存 + R.ry 节奏表 seed 守卫 + 斜边 px 封顶）',
+  /w:lw,gs:gs/.test(script) && /R\.rySeed!==seed/.test(script) && /sl\*Math\.min\(lw,L\.size\*6\)/.test(script))
+check('normRow dragOffset 白名单透传在位（摘掉即贴纸保存→重载丢位，65-i）',
+  /pick\(r,\['dragOffset'\]\)/.test(script))
+check('完成行直贴快路在位（pr>=1 免五连光栅，68-c）',
+  /if\(pr>=1\)\{/.test(script))
 check('drawAction 按 target.region 路由锚定（Task 62：question→题目池、板书区→stage 分桶；缺 region 旧档兼容先 boardChars 后 Q.chars；Task 63：题目池传 allowWrap 跨折行分段）',
   /let rg=\(pool&&pool\.length\)\?findRange\(pool,tg\.exactText\|\|'',tg\.occurrence\|\|1,stg==='question'\?\{allowWrap:true\}:null\):null;/.test(script) &&
   /if\(!rg&&!stg\)\{[\s\S]{0,220}?findRange\(task\.boardChars/.test(script) &&

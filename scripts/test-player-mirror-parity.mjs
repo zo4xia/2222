@@ -457,5 +457,43 @@ ok('D2 CDN 六链 id 集合三文件一致（row-player / index.html / board-pre
   assert.equal(pick(read('board-preview.html')), rp, 'board-preview.html CDN 链与播放器分叉')
 })
 
+// ═══ B14（Task 67 一笔一笔揭示 · 68 评审会补锁）：drawWriting 行内节奏块行为对拍 ══════
+//   锁结构不锁口味（0.18/0.06 顿份与 ±18% 时长是夏夏一句话可调的常数，不锁数值）：
+//   ①确定性（防 Math.random 复活）②pr 0→1 单调不回退 ③pr=1 揭满（常行/垫宽尾行双路径）
+//   ④无 gs（rough 横线行）回退线性 ⑤pr=0.5 偏离线性>2%（防整行幕布扫复活）。
+//   锚 = drawWriting 函数体内 ['let at=pr, ab=pr;' → 'const slPx=') 唯一片段（rg 实证全文件唯一）。
+ok('B14 一笔一笔揭示节奏块：确定性/单调/pr=1 揭满/rough 行回退/非线性 五断言', () => {
+  const fn = extractTopLevelFunction(player, 'drawWriting')
+  const i0 = fn.indexOf('let at=pr, ab=pr;')
+  const i1 = fn.indexOf('const slPx=')
+  assert.ok(i0 > 0 && i1 > i0, `节奏块锚点缺失（drawWriting 被改？B14 需同步）i0=${i0} i1=${i1}`)
+  const block = fn.slice(i0, i1)
+  const mulberry32 = (a) => function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296 }
+  const f = new Function('pr', 'R', 'L', 'lw', 'seed', 's', 'mulberry32', block + '\nreturn {at:at, ab:ab, ry:R.ry};')
+  const run = (pr, gs, L, lw, seed) => f(pr, { gs: gs }, L, lw, seed, { li: 0 }, mulberry32)
+  const L4 = { x: 100, size: 40 }
+  const gs4 = [{ x: 100, w: 40 }, { x: 140, w: 40 }, { x: 180, w: 40 }, { x: 220, w: 40 }]   // 4 全角字，末 g1=240=lw
+  // ① 同参双跑逐项相等（节奏表构建流与复用流一致 = 确定性，Math.random 复活当场炸）
+  const r1 = run(0.5, gs4, L4, 240, 7), r2 = run(0.5, gs4, L4, 240, 7)
+  assert.deepEqual(r2.ry, r1.ry, 'R.ry 双跑分叉（随机源复活？）')
+  assert.equal(r2.at, r1.at, 'at 双跑分叉')
+  // ② pr 0→1 步进 200 单调不减
+  let prev = -1
+  for (let i = 0; i <= 200; i++) {
+    const at = run(i / 200, gs4, L4, 240, 7).at
+    assert.ok(at >= prev - 1e-9, `at 回退 @pr=${(i / 200).toFixed(4)}`)
+    prev = at
+  }
+  // ③ pr=1 揭满：常行（末 g1=lw）与短行（Math.max(size,…) 垫宽尾巴段）都到 1
+  assert.equal(run(1, gs4, L4, 240, 7).at, 1, 'pr=1 常行未揭满')
+  assert.equal(run(1, [{ x: 100, w: 20 }], L4, 40, 7).at, 1, 'pr=1 垫宽尾行未揭满')
+  // ④ 无 gs（rough 横线行）回退线性扫
+  assert.equal(run(0.37, [], L4, 240, 7).at, 0.37, 'gs 空数组未回退线性')
+  assert.equal(run(0.37, null, L4, 240, 7).at, 0.37, 'gs 缺失未回退线性')
+  // ⑤ pr=0.5 偏离线性 > 0.02（整行幕布线性扫复活即撞）
+  const mid = run(0.5, gs4, L4, 240, 7).at
+  assert.ok(Math.abs(mid - 0.5) > 0.02, `at(0.5)=${mid.toFixed(4)} 疑似线性幕布复活`)
+})
+
 console.log(`\n== 播放器镜像对拍哨兵: ${pass} 通过 / ${fail} 失败 ==`)
 if (fail > 0) process.exit(1)

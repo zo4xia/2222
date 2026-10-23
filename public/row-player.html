@@ -98,12 +98,7 @@
   .help code{background:#eef2f7;padding:0 4px;border-radius:3px}
   #sub{min-height:50px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);
        padding:10px 14px;font-size:15px;line-height:1.6;margin-top:10px;box-shadow:var(--shadow)}
-  .tl{margin-top:10px}
-  .cap{font-size:12px;color:var(--muted);margin-bottom:4px}
-  canvas#tl{display:block;width:100%;height:70px;border:1px solid var(--line);
-            border-radius:var(--r-control);background:#fff}
-  .lg{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:5px}
-  .lg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
+  /* .tl/.cap/canvas#tl/.lg 已摘：drawTimeline 死画布链（68 评审会） */
   .note{font-size:12px;color:var(--muted);line-height:1.75;margin-top:12px;
         border-left:3px solid var(--line);padding-left:10px}
   .warn{color:#b45309}.ok{color:#15803d}
@@ -267,7 +262,6 @@
     </div>
   </details>
   <input type="file" id="fJson" accept=".json" hidden>
-  <canvas id="tl" width="1726" height="140" style="display:none"></canvas>
 </div>
 <audio id="audio" preload="auto"></audio>
 
@@ -882,6 +876,7 @@ function rowImage(o){
   // 竖式/长除横线行：rough 手绘横线（用户拍板 2026-09-17，不渲染下划线字符）
   if(isRuleLine(o.text)){
     const lead=(String(o.text).match(/^\s*/)||[''])[0].length;   // ★ Task 61：旧 /^\\s*/ 恒空匹配→前导空格宽度恒 0
+    MCTX.font=o.size+'px '+o.font;   // ★ 68-b P1：量前必设字体——render 每帧把 MCTX 留在 30px 印刷体，横线行 leadW 播放路径按印刷体空格计、冷 seek 同帧重建按 40px 手写体 → 同档同 t 播 vs seek 5px 分叉（演示档总结行即此形态）
     const leadW=lead>0?MCTX.measureText(' ').width*lead:0;
     const ruleW=Math.max(o.size*0.5,measureLine(String(o.text).trim(),o.size,o.font));
     const lw=leadW+ruleW;   // 总占宽含前导空格（布局对齐），画线从下划线起点开始
@@ -1036,9 +1031,9 @@ function toHalfwidthVariants(t){
 }
 // ===== 板书安全白名单（findUnsafeChars 校验用）：ASCII + ²³(画布代画) + —…‘’“” + 中文标点 + CJK + \frac DSL 字符 =====
 const BOARD_SAFE_RE=/[\u0020-\u007E\u00B2\u00B3\u2014\u2018-\u201D\u2026\u3001\u3002\u3008-\u3011\u4E00-\u9FFF\uFF01\uFF08\uFF09\uFF0C\uFF1A\uFF1B\uFF1F\\{}^]/;
-// 结构数学：LaTeX 命令 / ^_{...} / 连续上下标 —— 手写字体写不了，需要公式图（平方²立方³由画布上标代画）
-const STRUCT_MATH=/\\(?!frac\b)[a-zA-Z]+|[A-Za-z0-9)\]}]\s*[\^_]\s*\{[^}]+\}|[A-Za-z0-9)\]}]\s*[\^_]\s*[A-Za-z0-9]\s*[\^_]/;
-const FORMULA_LINES=new Set();     // 命中结构数学的行，渲染后统一提示（提示即缺口清单，不静默丢）
+/* STRUCT_MATH/FORMULA_LINES 已摘（68-d 实锤死桩：FORMULA_LINES 只写不读、承诺的「渲染后统一提示」从未兑现）。
+   结构数学的活真源在 src/utils/superFilter.js STRUCT_MATH（其消费函数不在播放器镜像四件套内），
+   播放器侧从声明到消费零活引用，rg 实证全仓仅 drawWriting 一处已摘。 */
 // ① 转义层：模型输出经 JSON/LLM 转义后常见的两类损伤，先修再规范化（顺序不能倒）
 //   a) LaTeX 转义损伤：\frac 被吃成 rac / frac（旧作 repairCommonLatexEscapeDamage 同款）
 function repairCommonLatexEscapeDamage(t){
@@ -1145,7 +1140,6 @@ function boardTextToPlain(text){
 
 /* ============ 6. 渲染核心 ============ */
 const cv=document.getElementById('board'), ctx=cv.getContext('2d');
-const tlc=document.getElementById('tl'), tlx=tlc.getContext('2d');
 const audioEl=document.getElementById('audio');
 let C=null, T=0, playing=false, rafId=0, lastTs=0, hasAudio=false;
 
@@ -1166,6 +1160,7 @@ const STAGE_ASSET_CDN={
 };
 function loadStageImg(img,cdnSrc,fallbackSrc){
   let usedFallback=false;
+  img.crossOrigin='anonymous';   // ★ 68-a P0-4：无 crossOrigin 的 CDN 图画进主画布=画布污染，●录制 captureStream 必抛 SecurityError（按钮僵尸零反馈）。i.ibb.co 实测回 ACAO:*；万一 CDN 撤头 onerror 自动落 base64 兜底链，录制照常活
   img.onload=()=>{if(C)render(now());};
   img.onerror=()=>{if(usedFallback||!fallbackSrc)return;usedFallback=true;img.src=fallbackSrc;};
   img.src=cdnSrc||fallbackSrc;
@@ -1256,7 +1251,6 @@ function drawWriting(task,p,W,H,stage){
   //   task.layout 缺失（纯防御路径）时现场走同一函数自算，两路口径必然一致。
   const preL=task.layout||null;
   const lines=preL?(task.lines||toBoardLines(task.content)):toBoardLines(task.content);
-  lines.forEach(l=>{if(STRUCT_MATH.test(l))FORMULA_LINES.add(l);});
   const seed=preL?(task.seed||hashStr(task.content||'')):hashStr(task.content||'');
   // 规格（字体宪法 v2，2026-10-15）：行高 = 自然（字体度量，无强制行高规范），行距不再逐行抖动；布局由 compile 期 layoutBoardLines 算死
   // 规格：板书 1秒4~5字（基准 220ms/字），每行 ±10% 抖动 → 行配速系数 0.9~1.1
@@ -1286,6 +1280,11 @@ function drawWriting(task,p,W,H,stage){
     const L=layout[s.li];                            // 自适应书写流：行位置/字号由布局决定（不溢出画布）
     const R=rowImage({content:String(task.content||''),li:s.li,text:s.text,x:L.x,y:L.y,size:L.size,
                       font:HAND_FONT,color:color,seed:seed,chIdx0:s.ci,amp:0});  // 位置抖动全拔（2026-10-17 夏夏：书写抖动太奇怪，amp 1.2→0）
+    if(pr>=1){   /* ★ 68-c 完成行直贴：免 scratch 清/裁/羽化/回贴五连光栅（60 行档占每帧光栅 44%）；
+                     顺带修 68-d P2——pr=1 终态右缘被斜边滞后 0.6slPx 永久斜切一小条（设计副作用非人味），直贴后末字右下角完整 */
+      ctx.drawImage(R.img,R.bx,R.by,R.bw,R.bh);
+      continue;
+    }
     // 揭示进度必须按「含字距抖动的真实行宽」映射，否则 pr=1 时行尾几个字永远揭不出来
     const lw=R.w;
     // 斜边斜率按行随机 2%~5%（旧作写死 3%，固定值看多了会假），方向也随机，别永远同向
@@ -1480,7 +1479,11 @@ function render(t){
   const bp=C.data.boardPlan||{};
   // ★ Task 60 坐标归一：异端兜底（旧 y/w 与一切真源都对不上）已对齐真源口径 y:13.2/w:40.4
   const q=bp.question||{x:6,y:13.2,w:40.4,h:26};
-  const Q=layoutText(ctx,C.data.problemText||'',W*q.x/100,H*q.y/100+40,W*q.w/100,30,30*naturalLhRatio(PRINT_FONT,30)+NATURAL_LH_EXTRA_PX,PRINT_FONT);
+  /* ★ 68-c 免费午餐：题目区曾每帧 layoutText 重排（88 次 measureText/帧）→ 惰性挂 C 一次算死。
+       失效链全覆盖：换档/load=新 C、字体门 FONT_VER 重排=新 C、拖拽/文本改动=compile 新 C；
+       Q 传 drawAction 的引用语义不变（chars 池同对象）。 */
+  if(!C.Q)C.Q=layoutText(ctx,C.data.problemText||'',W*q.x/100,H*q.y/100+40,W*q.w/100,30,30*naturalLhRatio(PRINT_FONT,30)+NATURAL_LH_EXTRA_PX,PRINT_FONT);
+  const Q=C.Q;
   ctx.fillStyle='#000000'; ctx.font='30px '+PRINT_FONT; ctx.textBaseline='alphabetic';
   Q.lines.forEach(L=>ctx.fillText(L.t,W*q.x/100,L.y));
 
@@ -1506,38 +1509,25 @@ function render(t){
   if(IMG.canvas.complete&&IMG.canvas.naturalWidth)ctx.drawImage(IMG.canvas,0,0,W,H);
   drawProblemImage(ctx,W,H);   // 题目图压在底图上、贴纸与板书之下（只有图片题才有 image 区）
   for(const s of ['题目','分析','解答','总结'])drawStageTag(s,t,W,H);
-  // 字幕
+  // 字幕（★ 68-c：55/60 帧为同串仍重写 innerHTML=白付 DOM parse+GC，变更守卫）
   const n=Math.floor(sub.length*subP);
-  document.getElementById('sub').innerHTML=
-    '<span>'+esc(sub.slice(0,n))+'</span><span class="rest">'+esc(sub.slice(n))+'</span>';
-  drawTimeline(t);
+  const subKey=n+'|'+sub;
+  if(render._subKey!==subKey){
+    render._subKey=subKey;
+    document.getElementById('sub').innerHTML=
+      '<span>'+esc(sub.slice(0,n))+'</span><span class="rest">'+esc(sub.slice(n))+'</span>';
+  }
   document.getElementById('time').textContent=(t/1000).toFixed(2)+' / '+(C.total/1000).toFixed(2)+' s';
-  if(!seekHold)document.getElementById('seek').value=String(Math.round(t/C.total*1000));
+  if(!seekHold){   /* ★ 68-c：seek.value 同值跳写（每帧 DOM 赋值大半为冗余） */
+    const sv=String(Math.round(t/C.total*1000)), sk=document.getElementById('seek');
+    if(sk.value!==sv)sk.value=sv;
+  }
 }
 function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 
-function drawTimeline(t){
-  const w=tlc.width,h=tlc.height;
-  tlx.clearRect(0,0,w,h);
-  const pad=10, rowH=(h-pad*2)/Math.max(1,C.rows.length);
-  C.rows.forEach((row,ri)=>{
-    const y=pad+ri*rowH+rowH*0.25, bh=rowH*0.5;
-    tlx.fillStyle='#f1f5f9'; tlx.fillRect(pad,y+2,w-pad*2,bh-4);
-    row.plan.forEach(k=>{
-      const x1=pad+(w-pad*2)*(row.startMs+(k.startOffsetMs||0))/C.total;
-      const x2=pad+(w-pad*2)*(row.startMs+((k.endOffsetMs!=null)?k.endOffsetMs:(k.startOffsetMs||0)+(k.durationMs||0)))/C.total;
-      tlx.fillStyle=k.type==='board'?'#2563eb':k.type==='action'?'#ea580c':'#16a34a';
-      tlx.globalAlpha=k.type==='speech'?0.22:0.9;
-      tlx.fillRect(x1,y,Math.max(2,x2-x1),bh);
-      tlx.globalAlpha=1;
-    });
-    tlx.fillStyle='#64748b'; tlx.font='11px sans-serif';
-    tlx.fillText(row.row.stage||'',pad+w-36,y+bh-1);
-  });
-  const px=pad+(w-pad*2)*(t/C.total);
-  tlx.strokeStyle='#dc2626'; tlx.lineWidth=2;
-  tlx.beginPath(); tlx.moveTo(px,0); tlx.lineTo(px,h); tlx.stroke();
-}
+/* drawTimeline 已摘（68 评审会 68-c/68-d 双实锤：活代码死画布——render 每帧画进 #tl=display:none，
+   视觉零效纯烧 CPU；调用+函数+tlc/tlx+DOM canvas#tl+CSS .tl/.cap/.lg 一链全清，依赖面 rg 实证为零）。
+   时间轴可视化如需复活：新画布新函数，别再画在 display:none 上。 */
 
 /* ============ 7. 时钟：每行自带 mp3，串行自动连播；无音频走虚拟时钟 ============ */
 let rowIdx=0,rowAnchor=0,rowT0=0,rowHasAudio=false;
@@ -1580,7 +1570,11 @@ function play(){
     if(el)el.innerHTML+='<br>⏳ 手写字体分片加载中，稍候一两秒再播放（避免板书中途换脸跳位）';
     return;
   }
-  const cur=now();
+  /* ★ 68-a P0-2：虚拟钟从 load() 就开跑（墙钟），装载后静置读题几秒 → now() 偷跑 → 首播直接落
+     第 2 行，题目行整行无声无影被跳。暂停/seek 都会冻结钟位 pausedCur，从未开播=恒从 0；
+     播放中再点（AgentCanvas.play 等）用活钟不重跳。 */
+  const cur=playing?now():(pausedCur!=null?pausedCur:0);
+  pausedCur=null;
   let i;
   if(cur>=C.total-10)i=0;
   else{ i=C.rows.findIndex(x=>cur<x.startMs+x.durMs); if(i<0)i=C.rows.length-1; }
@@ -1590,7 +1584,9 @@ function play(){
   if(!rafId)rafId=requestAnimationFrame(loop);
 }
 function pause(){
+  pausedCur=now();   // ★ 68-a P0-2 同族兜底：冻结钟位——虚拟钟墙钟在暂停期偷跑，长暂停后点播放会跳到后面行；音频行走 currentTime 天然冻结，取 now() 同样正确
   playing=false;
+  rafId=0;           // ★ 68-a P0-1：终局分支（虚拟钟收尾）return 前不清 rafId → 残值卡死 play() 的 if(!rafId) 门 = 播完再点播放画面僵尸冻结
   document.getElementById('btnPlay').textContent='▶ 播放';
   if(rowHasAudio)audioEl.pause();
 }
@@ -1619,6 +1615,7 @@ audioEl.onerror=()=>{
 function load(data){
   C=compile(data);
   T=0; rowIdx=0; rowAnchor=0; rowT0=performance.now(); rowHasAudio=false;
+  pausedCur=null;   // ★ 68-a P0-2：换档=从未开播，首播恒从 0
   syncDocTitle();
   render(0);
   warmBoardFonts();   // ★ 2026-10-22：装载唯一咽喉处按真实语料重预热（canvas 不触发 @font-face 下载；换数据不换字体也必须重跑——启动预热语料只有兜底串，生字分片缺失会静默走楷体兜底成「花字」）
@@ -1639,6 +1636,7 @@ function seekTo(v){
   const ri=i<0?C.rows.length-1:i;
   const r=C.rows[ri];
   rowIdx=ri; rowAnchor=r.startMs; rowT0=performance.now()-(v-r.startMs);
+  pausedCur=v;   // ★ 68-a P0-2：seek=冻结钟位（播不播都记下，之后 play 从这走，墙钟 idle 不再偷跑）
   if(r.row.mp3){
     rowHasAudio=true;
     /* ★ 蛀虫3（拖动断流）：oninput 拖动风暴里每次重挂 src = 反复触发媒体重载
@@ -1649,6 +1647,9 @@ function seekTo(v){
       if(playing)audioEl.play().catch(function(){});
     }
     audioEl.currentTime=Math.max(0,(v-r.startMs)/1000);
+    /* ★ 68-a P0-3：拖回「已播完（ended）的音频行」——src 未变只拨 currentTime，但该音频 ended+paused
+       冻着 → 音频钟不动，画面字幕全冻。拨针后若在播且音频停着就续上（66 蛀虫3 漏了的 ended 分支）。 */
+    if(playing&&audioEl.paused)audioEl.play().catch(function(){});
   }
   else rowHasAudio=false;
   T=v; render(v);
@@ -1656,10 +1657,17 @@ function seekTo(v){
 /* ★ 蛀虫2（进度条打架）：render 每帧强写 seek.value，播放中拖动时指位被播放头反复弹回
    ——按住滑条期间 render 不回写，松手恢复；守卫声明必须早于首实 load()（bootstrap 在后）。 */
 let seekHold=false;
+let pausedCur=null;   // ★ 68-a P0-2：暂停/seek 瞬间的冻结钟位（ms）；null=从未开播/正在播。墙钟 idle 偷跑从此不再吃钟
 document.getElementById('seek').addEventListener('pointerdown',function(){seekHold=true;});
 window.addEventListener('pointerup',function(){seekHold=false;});
 window.addEventListener('pointercancel',function(){seekHold=false;});
-document.getElementById('seek').oninput=e=>seekTo(C.total*(+e.target.value)/1000);
+/* ★ 68-c：seek 拖动 rAF 合流（tunerMove 同款）——120Hz 指针下每 input 一次全量 render 可叠帧，
+   合流后每帧至多一次，延迟 ≤1 帧不可感；pending 必被排空，松手值必达。 */
+let seekPend=null, seekRaf=0;
+document.getElementById('seek').oninput=e=>{
+  seekPend=C?C.total*(+e.target.value)/1000:0;
+  if(!seekRaf)seekRaf=requestAnimationFrame(()=>{seekRaf=0; const v=seekPend; seekPend=null; seekTo(v);});
+};
 /* ---- 顶层透明批注层：播放不挡，画笔可在上面随手画（录屏自动带进去） ---- */
 const ink=document.getElementById('ink'), ix=ink.getContext('2d');
 let inkOn=false, inking=false, lastPt=null;
@@ -1696,8 +1704,15 @@ function toggleRec(){
   // 合成层：底图板书 + 顶层批注，录进去才完整
   const comp=document.createElement('canvas'); comp.width=cv.width; comp.height=cv.height;
   const cctx=comp.getContext('2d');
-  (function compFrame(){ cctx.drawImage(cv,0,0); cctx.drawImage(ink,0,0); compRaf=requestAnimationFrame(compFrame); })();
-  const tracks=[...comp.captureStream(60).getVideoTracks()];
+  let tracks;
+  try{
+    (function compFrame(){ cctx.drawImage(cv,0,0); cctx.drawImage(ink,0,0); compRaf=requestAnimationFrame(compFrame); })();
+    tracks=[...comp.captureStream(60).getVideoTracks()];   // ★ 68-a P0-4：画布被跨域图污染此处必抛（not origin-clean），必须兜底——旧版按钮僵尸零反馈
+  }catch(e){
+    if(compRaf)cancelAnimationFrame(compRaf); compRaf=0;
+    console.warn('[row-player] 录制启动失败（画布被无 CORS 跨域图污染或浏览器不支持 captureStream），本次不录制；断网重开走内嵌素材可录。',e);
+    return;
+  }
   if(acDest)tracks.push(...acDest.stream.getAudioTracks());
   try{ rec=new MediaRecorder(new MediaStream(tracks),{mimeType:'video/webm;codecs=vp9,opus',videoBitsPerSecond:6000000}); }
   catch(e){ rec=new MediaRecorder(new MediaStream(tracks)); }
@@ -2358,7 +2373,9 @@ function onRowDragUp(){
   window.removeEventListener('pointermove',onRowDragMove);
   window.removeEventListener('pointerup',onRowDragUp);
   window.removeEventListener('pointercancel',onRowDragUp);
-  initRowStickers();
+  if(d.pending)initRowStickers();   /* ★ 68-a P1：纯点击（未拖）不重建贴纸 DOM——重建换节点，真实双击的第二击落新节点，
+                                       Chrome 判非同一目标不派发 dblclick = 双击撤消 100% 失效（65-i 当年用合成事件冒烟=蒙混过关） */
+  else d.st.classList.remove('dragging');
 }
 
 /* ============ 9. AgentCanvas 控制桥（2026-09-17 16:30 夏夏拍板：画布升级为 agent 可控） ============
