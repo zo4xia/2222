@@ -223,4 +223,3 @@ export async function requestAnthropicMessage({ endpoint, apiKey, apiKeys, model
     }
   }
 }
-

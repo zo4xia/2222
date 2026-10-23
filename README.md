@@ -17,7 +17,7 @@
 - 🎙️ 分步口播稿生成（160 cpm 语速 + 标点停顿 + 发音硬规范）
 - 🎨 板书内容生成（达芬奇手稿毛料感 + superFilter 12 步过滤 + LaTeX 渲染）
 - ⚡ 动作指令生成（rough-notation 圈划 + 单手串行 + 1-2s 标点停顿）
-- 🎬 演播单页播放器（真实音频驱动 + 手写体渲染 + 录制导出）
+- 🎬 演播单页播放器（真实音频驱动 + 手写体一笔一笔揭示 + 行级贴纸拖拽微调 + 录制导出）
 - 📤 多格式导出（口播稿 MD / 分镜总表 / JSON / 下游 API 规范）
 - 🛡️ 8 个 skill 沉淀（上游产出端硬约束 + 下游渲染端落地，含可交互 demo）
 
@@ -33,7 +33,7 @@
 | 手绘动画 | rough-notation 0.5.1 + roughjs 4.6.6 |
 | 手写字体 | ZeoSeven FontsAPI (六级降级链：乔木507/韶华157/上上谦511/三生510/韶拓509/栗壳490) |
 | 后端代理 | Vite server middleware (9 个 API handler) |
-| 生产部署 | Node.js productionServer (独立 HTTP) / Vercel serverless (5 个 api/ thin wrapper) |
+| 生产部署 | Node.js productionServer（推荐，完整功能）/ Vercel serverless（部分 API，轻量试用） |
 | 测试 | Node.js assert/strict（run-all-tests 统一入口，30 套件；另有网络型 test:refine-degrade 独立跑） |
 
 ## 架构模式
@@ -116,18 +116,14 @@ npm run start  # 生产: node server/productionServer.js
 ```
 
 ### Vercel 部署
-项目已含 `vercel.json`，5 个 serverless 函数在 `api/` 目录。直接连接 GitHub 仓库部署即可。
+项目已含 `vercel.json`，`api/` 目录内为部分接口的 serverless thin wrapper。**注意：Vercel 形态目前仅覆盖识别/生成/校验等部分 API，Step1→Step2 交接、交付单页、语音合成等核心链路仍依赖自建后端**——完整功能请用上面的 `npm run build && npm run start` 或容器化部署；Vercel 形态适合轻量试用，不推荐作为生产交付形态。
 
 ### 容器化部署
-```dockerfile
-FROM node:24-slim
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm install --production
-COPY . .
-RUN npm run build
-EXPOSE 3000
-CMD ["node", "server/productionServer.js"]
+镜像以仓库 `Dockerfile` 为真源（多阶段构建：node:22 构建前端 → slim 运行时，非 root 用户 + HEALTHCHECK 内建），不再在此复述单段写法：
+```bash
+docker build -t teaching-board .
+docker run -p 3000:3000 teaching-board
+# 或 docker compose up -d --build（编排见 docker-compose.yml）
 ```
 
 ## 测试
@@ -187,7 +183,7 @@ npm run test:refine-degrade
 | Agent B 输出 | board 只输出 {content, startDelay}，不输出 startCoord | src/agent-b-v2/contract.js |
 | 解析 | parseLLMJson 唯一真源 | src/lib/parseLLMJson.js |
 | 动作 | 动作 1.0 三动作白名单：rough-notation（underline/circle）+ rough-line，锚定 exactText，统一红，entry 级 triggerKeyword 触发（Task 43/46 归一） | src/board-tools/boardToolCatalog.js |
-| 渲染 | 书写抖动已全拔（2026-10-17），排版细节是渲染层职责，B 不算 | row-player.html + RealBoardPreview.vue |
+| 渲染 | 随机书写抖动已全拔（2026-10-17）；板书揭示为一笔一笔按字推进，每字 ±18% 确定性节奏是教学人味设计、非抖动残留；排版细节是渲染层职责，B 不算 | row-player.html + RealBoardPreview.vue |
 | 下游契约 | 交付物 JSON 规范 | 导出 JSON 本体（apiSpecVersion 2.0.0 + specificationSummary/specAnnotation 自描述字段） |
 
 ## 常见问题

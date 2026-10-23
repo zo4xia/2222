@@ -59,7 +59,7 @@ export function triggerBiuBubble(x, y, customText = null) {
     bubble.className = 'biu-soap-bubble'
     const color = CUTE_COLORS[Math.floor(Math.random() * CUTE_COLORS.length)]
     const size = 10 + Math.floor(Math.random() * 12)
-    
+
     // 随机散射角度与距离
     const angle = (Math.PI * 2 * i) / bubbleCount + (Math.random() - 0.5) * 0.5
     const distance = 20 + Math.random() * 26

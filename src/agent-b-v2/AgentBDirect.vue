@@ -167,6 +167,13 @@ const checkFailedFallback = ref(false)
 const deliverableGenerating = ref(false)
 const deliverableResult = ref(null)
 const deliverableModalOpen = ref(false)
+
+/* ★ 商品化 P1（70-d 巡逻实锤 16/16 双前缀）：导出编号兜底必须与服务端 genProjectCode 同款时间戳且不带前缀
+   ——旧兜底 `deliverable-<epoch>` 与下载名 `deliverable-${code}` 叠加 = 客户到手 deliverable-deliverable-1761….json */
+const genProjectCodeTs = () => {
+  const d = new Date(), p = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}-${String(d.getMilliseconds()).padStart(3, '0')}`
+}
 const toolsOpen = ref(false)
 const refineLoading = ref(false)
 const refineApplying = ref(false)
@@ -1422,7 +1429,7 @@ function exportStoryboard() {
 
 // 严格从当前应用运行时的响应式状态树实时序列化最新板书与时序数据（绝不读取 HTML 源码，绝不使用旧缓存）
 function serializeCurrentDeliverableState() {
-  const code = deliverableResult.value?.projectCode || handoff.value?.projectCode || `deliverable-${Date.now()}`
+  const code = deliverableResult.value?.projectCode || handoff.value?.projectCode || genProjectCodeTs()
   const hcp = handoff.value?.canvasParams || buildCanvasParams()
   // ★ v2.1：用户态字体选择（下拉）——交付物里的 fontSource.handwriting 必须与选择一致；
   //   handoff 契约层永远是默认态，此处用真源构造器覆写，保证只有一个构造点

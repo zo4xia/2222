@@ -115,7 +115,7 @@ for (const row of rows) {
   // 每个 row 自带真实音频 (mp3 或 audioBase64)
   const audio = new Audio(row.mp3 || \`data:audio/mp3;base64,\${row.audioBase64}\`);
   await audio.play();
-  
+
   // exclusiveExecutionPlan: 单手串行执行计划
   for (const step of row.exclusiveExecutionPlan) {
     switch (step.type) {
